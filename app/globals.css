@@ -3,24 +3,59 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --white: #FFFFFF;
+  --off: #F6F8FA;
+  --off2: #EEF1F5;
+  --navy: #1B3252;
+  --navy-lt: #243F66;
+  --blue: #2D7DD2;
+  --blue-bg: #EBF4FF;
+  --teal: #34C3A0;
+  --teal-dk: #239C80;
+  --teal-bg: #E8FAF6;
+  --body: #374151;
+  --muted: #6B7280;
+  --border: #E5E7EB;
+  --bmd: #D1D5DB;
+  --shadow: rgba(27,50,82,0.08);
+  --shadow-lg: rgba(27,50,82,0.16);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+html {
+  overflow-x: hidden;
 }
 
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-nunito-sans), 'Nunito Sans', sans-serif;
+  background: var(--white);
+  color: var(--body);
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  font-family: inherit;
 }
 
 @layer utilities {
+  .font-heading {
+    font-family: 'Nunito', sans-serif;
+  }
   .text-balance {
     text-wrap: balance;
   }
