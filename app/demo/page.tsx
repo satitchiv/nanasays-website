@@ -11,7 +11,7 @@ const border = '#E2E8F0'
 const muted = '#6B7280'
 const off = '#F6F8FA'
 
-const DEMO_PIN = process.env.NEXT_PUBLIC_DEMO_PIN ?? '2025'
+const DEMO_PIN = process.env.NEXT_PUBLIC_DEMO_PIN ?? '9277'
 const STORAGE_KEY = 'ns_demo_unlocked'
 
 const STEPS = [
