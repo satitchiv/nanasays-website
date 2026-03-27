@@ -8,35 +8,37 @@ interface Props {
   schools: SchoolListItem[]
   center: [number, number]
   zoom: number
-  hoveredCity: string | null
+  hoveredSchoolId: string | null
+  selectedSchoolId: string | null
+  onSchoolClick: (id: string) => void
 }
 
-function getCityGroups(schools: SchoolListItem[]) {
-  const groups: Record<string, { count: number; schools: string[] }> = {}
-  for (const s of schools) {
-    const city = s.city ?? 'Unknown'
-    if (!groups[city]) groups[city] = { count: 0, schools: [] }
-    groups[city].count++
-    groups[city].schools.push(s.slug)
+function getCoords(school: SchoolListItem): [number, number] | null {
+  if (school.latitude && school.longitude) return [school.latitude, school.longitude]
+  if (school.city) {
+    const c = CITY_COORDS[school.city]
+    if (c) return c
   }
-  return groups
+  return null
 }
 
-export default function CountryMap({ schools, center, zoom, hoveredCity }: Props) {
+export default function CountryMap({ schools, center, zoom, hoveredSchoolId, selectedSchoolId, onSchoolClick }: Props) {
   const mapRef = useRef<HTMLDivElement>(null)
-  const initRef = useRef(false)
   const mapInstanceRef = useRef<any>(null)
-  const markersRef = useRef<Record<string, any>>({})
+  // Map from school id → { marker, school }
+  const markersRef = useRef<Record<string, { marker: any; school: SchoolListItem }>>({})
 
+  // Init map once
   useEffect(() => {
-    if (initRef.current || !mapRef.current) return
-    initRef.current = true
-
-    const container = mapRef.current as any
-    if (container._leaflet_id) delete container._leaflet_id
+    let cancelled = false
 
     import('leaflet').then(L => {
-      const map = L.default.map(mapRef.current!, {
+      if (cancelled || !mapRef.current) return
+
+      const container = mapRef.current as any
+      if (container._leaflet_id) delete container._leaflet_id
+
+      const map = L.default.map(mapRef.current, {
         center,
         zoom,
         scrollWheelZoom: false,
@@ -50,57 +52,79 @@ export default function CountryMap({ schools, center, zoom, hoveredCity }: Props
       }).addTo(map)
 
       mapInstanceRef.current = map
-      const cityGroups = getCityGroups(schools)
 
-      Object.entries(cityGroups).forEach(([city, { count }]) => {
-        const coords = CITY_COORDS[city]
+      schools.forEach(school => {
+        const coords = getCoords(school)
         if (!coords) return
 
-        const isTeal = count >= 3
-        const icon = makePin(L.default, city, count, isTeal, false)
+        const icon = makePin(L.default, false, false)
         const marker = L.default.marker(coords, { icon }).addTo(map)
+
         marker.bindPopup(`
-          <div style="padding:10px;font-family:'Nunito Sans',sans-serif;min-width:140px;">
-            <div style="font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;color:#1B3252;margin-bottom:4px;">${city}</div>
-            <div style="font-size:11px;color:#6B7280;">${count} school${count !== 1 ? 's' : ''}</div>
+          <div style="padding:8px 10px;font-family:'Nunito Sans',sans-serif;min-width:160px;max-width:220px;">
+            <div style="font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;color:#1B3252;line-height:1.3;margin-bottom:4px;">${school.name}</div>
+            <div style="font-size:11px;color:#6B7280;">${school.city ?? ''}</div>
           </div>
-        `, { maxWidth: 180 })
-        markersRef.current[city] = { marker, count, isTeal }
+        `, { maxWidth: 240 })
+
+        marker.on('click', () => onSchoolClick(school.id))
+        markersRef.current[school.id] = { marker, school }
       })
     })
 
     return () => {
-      initRef.current = false
+      cancelled = true
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove()
         mapInstanceRef.current = null
         markersRef.current = {}
       }
     }
-  }, []) // intentionally empty — only init once
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Handle hover highlight
+  // Hover — highlight pin
   useEffect(() => {
     import('leaflet').then(L => {
-      Object.entries(markersRef.current).forEach(([city, { marker, count, isTeal }]) => {
-        const isActive = city === hoveredCity
-        marker.setIcon(makePin(L.default, city, count, isTeal, isActive))
-        if (isActive) marker.setZIndexOffset(1000)
-        else marker.setZIndexOffset(0)
+      Object.entries(markersRef.current).forEach(([id, { marker }]) => {
+        const isHovered = id === hoveredSchoolId
+        const isSelected = id === selectedSchoolId
+        marker.setIcon(makePin(L.default, isHovered, isSelected))
+        marker.setZIndexOffset(isSelected ? 2000 : isHovered ? 1000 : 0)
       })
     })
-  }, [hoveredCity])
+  }, [hoveredSchoolId, selectedSchoolId])
+
+  // Click from list — pan to school, open popup
+  useEffect(() => {
+    if (!selectedSchoolId || !mapInstanceRef.current) return
+    const entry = markersRef.current[selectedSchoolId]
+    if (!entry) return
+    const coords = getCoords(entry.school)
+    if (!coords) return
+    mapInstanceRef.current.flyTo(coords, Math.max(zoom, 13), { duration: 0.6 })
+    entry.marker.openPopup()
+  }, [selectedSchoolId, zoom])
 
   return <div ref={mapRef} style={{ width: '100%', height: '100%' }} />
 }
 
-function makePin(L: any, city: string, count: number, isTeal: boolean, isActive: boolean) {
-  const bg = isActive ? '#2D7DD2' : isTeal ? '#34C3A0' : '#1B3252'
-  const label = count > 1 ? `${city} (${count})` : city
+function makePin(L: any, isHovered: boolean, isSelected: boolean) {
+  const size = isSelected ? 16 : isHovered ? 14 : 10
+  const bg = isSelected ? '#2D7DD2' : isHovered ? '#34C3A0' : '#1B3252'
+  const border = isSelected ? 3 : 2
   return L.divIcon({
     className: '',
-    html: `<div style="background:${bg};color:#fff;font-family:'Nunito',sans-serif;font-size:10px;font-weight:800;padding:4px 9px;border-radius:8px;white-space:nowrap;box-shadow:0 3px 10px rgba(0,0,0,.25);border:2px solid #fff;cursor:pointer;transition:transform .15s;">${label}</div>`,
-    iconSize: undefined,
-    iconAnchor: [30, 18],
+    html: `<div style="
+      width:${size}px;
+      height:${size}px;
+      background:${bg};
+      border:${border}px solid #fff;
+      border-radius:50%;
+      box-shadow:0 2px 8px rgba(0,0,0,.35);
+      cursor:pointer;
+      transition:all .15s;
+    "></div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
   })
 }

@@ -1,0 +1,102 @@
+# NanaSays — robots.txt
+
+# Allow legitimate search engines
+User-agent: Googlebot
+Allow: /
+Disallow: /api/
+Disallow: /ask
+
+User-agent: Bingbot
+Allow: /
+Disallow: /api/
+Disallow: /ask
+
+User-agent: Slurp
+Allow: /
+Disallow: /api/
+Disallow: /ask
+
+# Block AI training crawlers
+User-agent: GPTBot
+Disallow: /
+
+User-agent: ChatGPT-User
+Disallow: /
+
+User-agent: CCBot
+Disallow: /
+
+User-agent: anthropic-ai
+Disallow: /
+
+User-agent: Claude-Web
+Disallow: /
+
+User-agent: ClaudeBot
+Disallow: /
+
+User-agent: cohere-ai
+Disallow: /
+
+User-agent: PerplexityBot
+Disallow: /
+
+User-agent: Amazonbot
+Disallow: /
+
+User-agent: meta-externalagent
+Disallow: /
+
+User-agent: Diffbot
+Disallow: /
+
+User-agent: ImagesiftBot
+Disallow: /
+
+User-agent: OmGili
+Disallow: /
+
+# Block data harvesting and SEO scrapers
+User-agent: Bytespider
+Disallow: /
+
+User-agent: PetalBot
+Disallow: /
+
+User-agent: SemrushBot
+Disallow: /
+
+User-agent: AhrefsBot
+Disallow: /
+
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: DotBot
+Disallow: /
+
+User-agent: DataForSeoBot
+Disallow: /
+
+User-agent: serpstatbot
+Disallow: /
+
+User-agent: Seekport
+Disallow: /
+
+User-agent: MegaIndex
+Disallow: /
+
+User-agent: BLEXBot
+Disallow: /
+
+User-agent: SiteExplorer
+Disallow: /
+
+# Block all other unrecognised bots from sensitive paths
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /ask
+
+Sitemap: https://nanasays.school/sitemap.xml

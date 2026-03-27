@@ -49,21 +49,6 @@ export default function Nav() {
           <option value="es">ES — Español</option>
         </select>
 
-        {/* Ask Nana — links to /ask page */}
-        <Link
-          href="/ask"
-          style={{
-            padding: '8px 18px', borderRadius: 8, fontSize: 13, fontWeight: 700,
-            color: '#fff', background: 'var(--navy)',
-            textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 7,
-          }}
-        >
-          <svg width="14" height="14" style={{ color: 'var(--teal)', flexShrink: 0 }}>
-            <use href="#ic-search" />
-          </svg>
-          {t('nav_ask')}
-        </Link>
-
         {/* For Schools */}
         <Link href="/partners" style={{
           padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700,

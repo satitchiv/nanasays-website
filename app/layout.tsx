@@ -26,8 +26,8 @@ export const metadata: Metadata = {
     template: '%s | NanaSays',
     default: 'NanaSays — Ask Nana. Find the right school.',
   },
-  description: 'NanaSays helps Thai families find the perfect international school abroad. Search 990+ schools across 18 countries with Nana, your AI school advisor.',
-  keywords: ['international school', 'Thai families', 'boarding school', 'IB school', 'school abroad'],
+  description: 'NanaSays helps international families find the perfect school abroad. Search 4,000+ verified schools across 75+ countries with Nana, your AI school advisor.',
+  keywords: ['international school', 'boarding school', 'IB school', 'school abroad', 'international school directory'],
   openGraph: {
     siteName: 'NanaSays',
     type: 'website',
@@ -39,8 +39,8 @@ const organizationSchema = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: 'NanaSays',
-  url: 'https://nanasays.com',
-  description: 'NanaSays helps international families find the right school abroad. Search 990+ schools across 18 countries with Nana, your AI school advisor.',
+  url: 'https://nanasays.school',
+  description: 'NanaSays helps international families find the right school abroad. Search 4,000+ verified schools across 75+ countries with Nana, your AI school advisor.',
   logo: 'https://nanasays.com/nana-logo.png',
   sameAs: [],
 }

@@ -117,6 +117,86 @@ export interface School {
 
   // Location helpers
   bus_service: boolean | null
+  nearest_airport: string | null
+  flight_hours_from_bkk: number | null
+
+  // Academic extras
+  acceptance_rate: number | null
+  sat_avg: number | null
+  act_avg: number | null
+  typical_class_size: number | null
+  ib_authorized_year: number | null
+  inspection_rating: string | null
+  inspection_body: string | null
+  pastoral_care_rating: string | null
+
+  // ISI Inspection (UK schools)
+  isi_report_url: string | null
+  isi_report_date: string | null
+  isi_report_type: string | null
+  isi_report_text: string | null
+  isi_standards_met: boolean | null
+  isi_summary: string | null
+  isi_boarding_quality: string | null
+  isi_pastoral_care: string | null
+  isi_academic_quality: string | null
+  isi_key_strengths: string[] | null
+  isi_areas_for_improvement: string[] | null
+
+  // Boarding extras
+  boarding_type: string | null
+
+  // Admissions extras
+  entry_exam_type: string | null
+
+  // Fees extras
+  sibling_discount: boolean | null
+
+  // Support extras
+  eal_hours_per_week: number | null
+
+  // Student life extras
+  sports_excellence_programmes: string[] | null
+  alumni_notable: string | null
+  thai_community: string | null
+  house_names: string[] | null
+
+  // Student opportunities
+  ccf: boolean | null               // Combined Cadet Force programme
+  duke_of_edinburgh: boolean | null // Duke of Edinburgh Award
+
+  // School character
+  school_motto: string | null
+
+  // Bursaries (means-tested financial aid, separate from merit scholarships)
+  bursary_available: boolean | null
+  bursary_details: string | null
+
+  // Academic performance extras (UK schools)
+  a_level_results: string | null       // e.g. "82% A*–B grades"
+  a_level_results_pct: number | null   // numeric companion for future filtering
+  gcse_results: string | null          // e.g. "91% grades 9–4"
+  gcse_results_pct: number | null      // numeric companion for future filtering
+  oxbridge_rate: number | null         // % accepted to Oxford/Cambridge (numeric for decimals)
+  russell_group_rate: number | null    // % accepted to Russell Group (numeric for decimals)
+
+  accepts_mid_year: boolean | null
+
+  // Data provenance
+  wikipedia_last_scraped: string | null
+
+  // Media
+  school_video_url: string | null
+  instagram_url: string | null
+  youtube_url: string | null
+
+  // Partner
+  is_partner: boolean | null
+  partner_tier: string | null
+  partner_since: string | null
+  partner_expires: string | null
+  admin_email: string | null
+  claimed_at: string | null
 
   // Meta
   source: string | null
@@ -143,6 +223,8 @@ export interface SchoolSummary {
   logo_url: string | null
   review_score: number | null
   verified_at: string | null
+  is_partner: boolean | null
+  partner_tier: string | null
 }
 
 export interface BlogPost {
@@ -194,4 +276,10 @@ export interface SchoolListItem {
   nationalities_count: number | null
   international_student_percent: number | null
   confidence_score: number | null
+  latitude: number | null
+  longitude: number | null
+  sen_support: boolean | null
+  eal_support: boolean | null
+  is_partner: boolean | null
+  partner_tier: string | null
 }

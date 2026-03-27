@@ -1,4 +1,4 @@
-import dynamic from 'next/dynamic'
+import dynamicImport from 'next/dynamic'
 import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
 import { flagUrl } from '@/lib/regions'
@@ -7,8 +7,10 @@ import { getCountrySchoolCounts, getTotalSchoolCount } from '@/lib/schools'
 import { BLOG_POSTS, CATEGORY_LABELS } from '@/lib/blog'
 import Link from 'next/link'
 
-const MapSection = dynamic(() => import('@/components/MapSection'), { ssr: false })
-const HeroChat = dynamic(() => import('@/components/HeroChat'), { ssr: false })
+export const dynamic = 'force-dynamic'
+
+const MapSection = dynamicImport(() => import('@/components/MapSection'), { ssr: false })
+const HeroSearch = dynamicImport(() => import('@/components/HeroSearch'), { ssr: false })
 
 const PICKS = [
   {
@@ -117,9 +119,9 @@ export default async function HomePage() {
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 38 }}>
                 {[
-                  { title: 'Built for international families', desc: 'Search 990+ verified schools across 18 countries — all in one place' },
+                  { title: 'Built for international families', desc: `Search ${totalSchools.toLocaleString()}+ verified schools across ${totalCountries} countries — all in one place` },
                   { title: 'Real data, not brochures', desc: 'Fees, pass rates, boarding life, and admissions steps clearly laid out' },
-                  { title: 'AI that answers your questions', desc: "Ask Nana anything — she has read every school handbook so you do not have to" },
+                  { title: 'Expert guidance, simply presented', desc: "Every school page includes fees, admissions steps, boarding life, and scholarship availability" },
                 ].map(item => (
                   <div key={item.title} style={{ display: 'flex', alignItems: 'flex-start', gap: 13 }}>
                     <div style={{
@@ -159,9 +161,9 @@ export default async function HomePage() {
               </div>
             </div>
 
-            {/* Right — Nana chat card floating over the hero */}
-            <div style={{ width: 560, flexShrink: 0, alignSelf: 'center', marginRight: '-5%' }}>
-              <HeroChat />
+            {/* Right — search card */}
+            <div style={{ width: 460, flexShrink: 0, alignSelf: 'center' }}>
+              <HeroSearch />
             </div>
           </div>
         </div>
@@ -462,14 +464,11 @@ export default async function HomePage() {
                 Ready to find the right school?
               </h2>
               <p style={{ fontSize: 14, color: 'rgba(255,255,255,.6)', fontWeight: 300, lineHeight: 1.65, maxWidth: 420 }}>
-                Ask Nana anything — she will shortlist schools that match your child&apos;s profile, budget, and goals.
+                Browse 4,000+ verified schools across 45+ countries — fees, curriculum, admissions and more.
               </p>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 9, flexShrink: 0, position: 'relative', zIndex: 1 }}>
               <button style={{ padding: '14px 30px', borderRadius: 11, fontSize: 14, fontWeight: 800, background: 'var(--teal)', color: '#fff', border: 'none', fontFamily: 'var(--font-nunito), Nunito, sans-serif', cursor: 'pointer', boxShadow: '0 4px 16px rgba(52,195,160,.3)' }}>
-                Ask Nana Now
-              </button>
-              <button style={{ padding: '12px 26px', borderRadius: 11, fontSize: 13, fontWeight: 700, background: 'transparent', color: 'rgba(255,255,255,.7)', border: '1.5px solid rgba(255,255,255,.2)', fontFamily: 'var(--font-nunito), Nunito, sans-serif', cursor: 'pointer' }}>
                 Browse Schools
               </button>
             </div>

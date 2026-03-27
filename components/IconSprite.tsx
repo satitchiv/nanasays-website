@@ -62,19 +62,42 @@ export default function IconSprite() {
     <line x1="11" y1="28" x2="21" y2="28" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
   </symbol>
   <symbol id="ic-nana" viewBox="0 0 48 48">
+    <!-- Background circle -->
     <circle cx="24" cy="24" r="24" fill="#1B3252"/>
-    <circle cx="24" cy="18" r="8" fill="#F5CBA7"/>
-    <ellipse cx="24" cy="38" rx="13" ry="10" fill="#2D7DD2"/>
-    <circle cx="21" cy="17" r="1.6" fill="#4A3728"/>
-    <circle cx="27" cy="17" r="1.6" fill="#4A3728"/>
-    <path d="M21 20 Q24 22.5 27 20" stroke="#C17A4A" stroke-width="1.4" fill="none" stroke-linecap="round"/>
-    <rect x="17" y="14.5" width="7" height="5" rx="2.5" fill="none" stroke="#8B7355" stroke-width="1.4"/>
-    <rect x="24" y="14.5" width="7" height="5" rx="2.5" fill="none" stroke="#8B7355" stroke-width="1.4"/>
-    <line x1="14.5" y1="17" x2="17" y2="17" stroke="#8B7355" stroke-width="1.4"/>
-    <line x1="31" y1="17" x2="33.5" y2="17" stroke="#8B7355" stroke-width="1.4"/>
-    <circle cx="20.5" cy="29" r="1.8" fill="#F0E8D0" stroke="#D4C9B0" stroke-width=".6"/>
-    <circle cx="24" cy="30" r="1.8" fill="#F0E8D0" stroke="#D4C9B0" stroke-width=".6"/>
-    <circle cx="27.5" cy="29" r="1.8" fill="#F0E8D0" stroke="#D4C9B0" stroke-width=".6"/>
+    <!-- Cardigan body -->
+    <ellipse cx="24" cy="42" rx="13" ry="9" fill="#C17A4A"/>
+    <!-- Neck -->
+    <rect x="21" y="31" width="6" height="6" rx="2" fill="#F5C8A0"/>
+    <!-- Head -->
+    <circle cx="24" cy="23" r="11" fill="#F5C8A0"/>
+    <!-- White hair — top bun -->
+    <ellipse cx="24" cy="14" rx="7.5" ry="5" fill="#E0E0E0"/>
+    <circle cx="24" cy="11" r="4.5" fill="#EBEBEB"/>
+    <!-- White hair sides -->
+    <ellipse cx="14" cy="20" rx="4" ry="6" fill="#E0E0E0"/>
+    <ellipse cx="34" cy="20" rx="4" ry="6" fill="#E0E0E0"/>
+    <!-- Blush cheeks -->
+    <ellipse cx="17" cy="26" rx="3" ry="2" fill="#F4A0A0" opacity="0.4"/>
+    <ellipse cx="31" cy="26" rx="3" ry="2" fill="#F4A0A0" opacity="0.4"/>
+    <!-- Eyes -->
+    <circle cx="20.5" cy="23" r="1.6" fill="#4A3728"/>
+    <circle cx="27.5" cy="23" r="1.6" fill="#4A3728"/>
+    <!-- Eye shine -->
+    <circle cx="21.2" cy="22.3" r="0.5" fill="#fff"/>
+    <circle cx="28.2" cy="22.3" r="0.5" fill="#fff"/>
+    <!-- Glasses -->
+    <circle cx="20.5" cy="23" r="3.5" stroke="#8B6347" stroke-width="1" fill="none"/>
+    <circle cx="27.5" cy="23" r="3.5" stroke="#8B6347" stroke-width="1" fill="none"/>
+    <line x1="24" y1="23" x2="24" y2="23" stroke="#8B6347" stroke-width="1"/>
+    <line x1="23.5" y1="23" x2="24.5" y2="23" stroke="#8B6347" stroke-width="1"/>
+    <line x1="13" y1="21.5" x2="17" y2="22.3" stroke="#8B6347" stroke-width="1"/>
+    <line x1="31" y1="22.3" x2="35" y2="21.5" stroke="#8B6347" stroke-width="1"/>
+    <!-- Smile -->
+    <path d="M20 28 Q24 31.5 28 28" stroke="#C07850" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+    <!-- Pearl necklace -->
+    <circle cx="21" cy="35" r="1.2" fill="#F0EDE8"/>
+    <circle cx="24" cy="36.2" r="1.2" fill="#F0EDE8"/>
+    <circle cx="27" cy="35" r="1.2" fill="#F0EDE8"/>
   </symbol>
   <symbol id="ic-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
     <line x1="22" y1="2" x2="11" y2="13"/>

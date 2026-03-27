@@ -60,3 +60,23 @@ button {
     text-wrap: balance;
   }
 }
+
+/* CountryPageClient animation + card styles */
+.ns-reveal { opacity: 0; transform: translateY(16px); transition: opacity .5s ease, transform .5s ease; }
+.ns-reveal.ns-visible { opacity: 1; transform: none; }
+@keyframes chipIn { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: scale(1); } }
+.filter-pill { border: 1.5px solid var(--bmd); background: white; color: var(--muted); border-radius: 100px; padding: 6px 13px; font-size: 11px; font-weight: 600; cursor: pointer; transition: border-color .15s, color .15s, background .15s; font-family: 'Nunito Sans', sans-serif; }
+.filter-pill:hover { border-color: var(--navy); color: var(--navy); }
+.filter-pill.on { background: var(--navy); color: #fff; border-color: var(--navy); }
+.school-card { border-radius: 14px; overflow: hidden; border: 1px solid var(--border); cursor: pointer; background: white; transition: border-color .2s, box-shadow .2s; display: flex; flex-direction: row; height: 200px; }
+.school-card:hover { border-color: var(--teal); box-shadow: 0 8px 28px rgba(0,0,0,.14); }
+.school-card:hover .sc-img { transform: scale(1.03); }
+.school-card.featured { border: 1.5px solid var(--teal); }
+.sc-left { width: 45%; flex-shrink: 0; position: relative; overflow: hidden; }
+.sc-img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .4s; }
+.sc-right { flex: 1; display: flex; flex-direction: column; padding: 14px 16px; background: white; overflow: hidden; min-width: 0; }
+.compare-btn-added { background: rgba(52,195,160,.18) !important; border-color: var(--teal) !important; color: var(--teal-dk) !important; font-weight: 700 !important; }
+.view-profile-btn { flex: 1; padding: 9px 14px; border-radius: 9px; font-size: 12px; font-weight: 700; background: var(--navy); color: #fff; border: none; cursor: pointer; font-family: 'Nunito Sans', sans-serif; transition: background .15s; }
+.view-profile-btn:hover { background: #243f65; }
+.compare-btn { padding: 9px 14px; border-radius: 9px; font-size: 12px; font-weight: 600; background: white; color: var(--navy); border: 1.5px solid var(--bmd); cursor: pointer; font-family: 'Nunito Sans', sans-serif; transition: background .15s, border-color .15s, color .15s; }
+.compare-btn:hover { background: var(--off); border-color: var(--navy); }

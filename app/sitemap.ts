@@ -5,19 +5,30 @@ import { ALL_REGION_STUBS } from '@/lib/regionData'
 import { BLOG_POSTS } from '@/lib/blog'
 import { getFilterCombinations, getSchoolPairs } from '@/lib/schools'
 
-const BASE_URL = 'https://nanasays.com'
+const BASE_URL = 'https://nanasays.school'
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { global: { fetch: (url, opts) => fetch(url, { ...opts, cache: 'no-store' }) } }
   )
 
-  // Fetch all school slugs
-  const { data: schools } = await supabase
-    .from('schools')
-    .select('slug, updated_at')
-    .not('slug', 'is', null)
+  // Fetch all school slugs in batches (Supabase default limit is 1000)
+  const allSchools: { slug: string; updated_at: string | null }[] = []
+  let from = 0
+  while (true) {
+    const { data } = await supabase
+      .from('schools')
+      .select('slug, updated_at')
+      .not('slug', 'is', null)
+      .range(from, from + 999)
+    if (!data || data.length === 0) break
+    allSchools.push(...data)
+    if (data.length < 1000) break
+    from += 1000
+  }
+  const schools = allSchools
 
   const schoolUrls: MetadataRoute.Sitemap = (schools || []).map(s => ({
     url: `${BASE_URL}/schools/${s.slug}`,

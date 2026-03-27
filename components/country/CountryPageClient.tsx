@@ -3,8 +3,10 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import type { CountryPageMeta } from '@/lib/countryMeta'
 import type { SchoolListItem } from '@/lib/types'
+import FilterDrawer, { type FilterState, EMPTY_FILTERS, countActiveFilters } from './FilterDrawer'
 
 const CountryMap = dynamic(() => import('./CountryMap'), { ssr: false })
 
@@ -84,14 +86,26 @@ interface Props {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function CountryPageClient({ meta, schools }: Props) {
-  const [typeFilter, setTypeFilter] = useState<'all' | 'boarding' | 'day' | 'mixed'>('all')
-  const [focusFilter, setFocusFilter] = useState<'all' | 'ib' | 'scholarship' | 'stem'>('all')
+  const router = useRouter()
+  const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS)
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [compareList, setCompareList] = useState<SchoolListItem[]>([])
   const [compareError, setCompareError] = useState(false)
-  const [hoveredCity, setHoveredCity] = useState<string | null>(null)
+  const [hoveredSchoolId, setHoveredSchoolId] = useState<string | null>(null)
+  const [selectedSchoolId, setSelectedSchoolId] = useState<string | null>(null)
   const [searchFocused, setSearchFocused] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
+  const leftColRef = useRef<HTMLDivElement>(null)
+
+  // Map pin clicked → scroll list to that school and highlight it
+  const handleSchoolClick = useCallback((id: string) => {
+    setSelectedSchoolId(id)
+    const card = leftColRef.current?.querySelector(`[data-school-id="${CSS.escape(id)}"]`) as HTMLElement | null
+    if (card) {
+      card.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }
+  }, [])
 
   // Scroll reveal
   useEffect(() => {
@@ -110,19 +124,54 @@ export default function CountryPageClient({ meta, schools }: Props) {
     cards?.forEach(card => observer.observe(card))
 
     return () => observer.disconnect()
-  }, [schools, typeFilter, focusFilter, searchQuery])
+  }, [schools, filters, searchQuery])
 
   // Filter logic
   const filtered = useMemo(() => {
     return schools.filter(school => {
-      if (typeFilter !== 'all' && school.school_type !== typeFilter) return false
-      if (focusFilter === 'ib' && !school.curriculum?.some(c => c.toLowerCase().includes('ib'))) return false
-      if (focusFilter === 'scholarship' && !school.scholarship_available) return false
-      if (focusFilter === 'stem' && !school.strengths?.includes('STEM')) return false
+      // Search
       if (searchQuery.trim() && !school.name.toLowerCase().includes(searchQuery.toLowerCase())) return false
+
+      // Stage (OR logic — any selected stage must match)
+      if (filters.stage.size > 0) {
+        const ageMin = school.age_min ?? 99
+        const ageMax = school.age_max ?? 0
+        const matchesStage =
+          (filters.stage.has('early_years') && ageMin <= 5) ||
+          (filters.stage.has('primary') && ageMin <= 7 && ageMax >= 11) ||
+          (filters.stage.has('secondary') && ageMax >= 16) ||
+          (filters.stage.has('all_through') && ageMin <= 5 && ageMax >= 16)
+        if (!matchesStage) return false
+      }
+
+      // Curriculum (OR logic)
+      if (filters.curriculum.size > 0) {
+        const c = (school.curriculum ?? []).join(' ').toLowerCase()
+        const matchesCurriculum =
+          (filters.curriculum.has('ib') && c.includes('ib')) ||
+          (filters.curriculum.has('british') && (c.includes('british') || c.includes('igcse') || c.includes('a-level') || c.includes('a level'))) ||
+          (filters.curriculum.has('american') && (c.includes('american') || c.includes(' ap '))) ||
+          (filters.curriculum.has('cambridge') && c.includes('cambridge')) ||
+          (filters.curriculum.has('montessori') && c.includes('montessori'))
+        if (!matchesCurriculum) return false
+      }
+
+      // Budget
+      if (filters.budget !== 'all' && school.fees_usd_min != null) {
+        if (filters.budget === 'under_10k' && school.fees_usd_min >= 10000) return false
+        if (filters.budget === '10_25k' && (school.fees_usd_min < 10000 || school.fees_usd_min > 25000)) return false
+        if (filters.budget === 'over_25k' && school.fees_usd_min <= 25000) return false
+      }
+
+      // Toggles
+      if (filters.boarding && !school.boarding) return false
+      if (filters.scholarship && !school.scholarship_available) return false
+      if (filters.sen && !school.sen_support) return false
+      if (filters.eal && !school.eal_support) return false
+
       return true
     })
-  }, [schools, typeFilter, focusFilter, searchQuery])
+  }, [schools, filters, searchQuery])
 
   const addToCompare = useCallback((school: SchoolListItem) => {
     if (compareList.find(s => s.id === school.id)) {
@@ -141,27 +190,13 @@ export default function CountryPageClient({ meta, schools }: Props) {
 
   return (
     <>
-      <style>{`
-        .ns-reveal { opacity: 0; transform: translateY(16px); transition: opacity .5s ease, transform .5s ease; }
-        .ns-reveal.ns-visible { opacity: 1; transform: none; }
-        @keyframes chipIn { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: scale(1); } }
-        .filter-pill { border: 1.5px solid var(--bmd); background: white; color: var(--muted); border-radius: 100px; padding: 6px 13px; font-size: 11px; font-weight: 600; cursor: pointer; transition: border-color .15s, color .15s, background .15s; font-family: 'Nunito Sans', sans-serif; }
-        .filter-pill:hover { border-color: var(--navy); color: var(--navy); }
-        .filter-pill.on { background: var(--navy); color: #fff; border-color: var(--navy); }
-        .school-card { border-radius: 14px; overflow: hidden; border: 1px solid var(--border); cursor: pointer; background: white; transition: border-color .2s, box-shadow .2s; display: flex; flex-direction: row; height: 200px; }
-        .school-card:hover { border-color: var(--teal); box-shadow: 0 8px 28px rgba(0,0,0,.14); }
-        .school-card:hover .sc-img { transform: scale(1.03); }
-        .school-card.featured { border: 1.5px solid var(--teal); }
-        .sc-left { width: 45%; flex-shrink: 0; position: relative; overflow: hidden; }
-        .sc-img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .4s; }
-        .sc-right { flex: 1; display: flex; flex-direction: column; padding: 14px 16px; background: white; overflow: hidden; min-width: 0; }
-        .compare-btn-added { background: rgba(52,195,160,.18) !important; border-color: var(--teal) !important; color: var(--teal-dk) !important; font-weight: 700 !important; }
-        .view-profile-btn { flex: 1; padding: 9px 14px; border-radius: 9px; font-size: 12px; font-weight: 700; background: var(--navy); color: #fff; border: none; cursor: pointer; font-family: 'Nunito Sans', sans-serif; transition: background .15s; }
-        .view-profile-btn:hover { background: #243f65; }
-        .compare-btn { padding: 9px 14px; border-radius: 9px; font-size: 12px; font-weight: 600; background: white; color: var(--navy); border: 1.5px solid var(--bmd); cursor: pointer; font-family: 'Nunito Sans', sans-serif; transition: background .15s, border-color .15s, color .15s; }
-        .compare-btn:hover { background: var(--off); border-color: var(--navy); }
-      `}</style>
-
+      <FilterDrawer
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        filters={filters}
+        onChange={setFilters}
+        matchCount={filtered.length}
+      />
       <div style={{
         marginTop: 60,
         display: 'flex',
@@ -169,12 +204,13 @@ export default function CountryPageClient({ meta, schools }: Props) {
         minHeight: 'calc(100vh - 60px)',
       }}>
         {/* LEFT COLUMN */}
-        <div style={{
+        <div ref={leftColRef} style={{
           flex: 1,
           minWidth: 0,
-          padding: '24px 24px 48px',
+          padding: '0 24px 48px',
           background: 'var(--off)',
           overflowY: 'auto',
+          height: 'calc(100vh - 60px)',
         }}>
 
           {/* Country Header Band */}
@@ -183,6 +219,7 @@ export default function CountryPageClient({ meta, schools }: Props) {
             borderRadius: 14,
             padding: '22px 24px',
             marginBottom: 14,
+            marginTop: 24,
           }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
               {/* Left side */}
@@ -288,205 +325,132 @@ export default function CountryPageClient({ meta, schools }: Props) {
             </div>
           </div>
 
-          {/* Compare Bar */}
+          {/* Sticky Toolbar */}
           <div style={{
-            background: compareList.length > 0 ? 'var(--teal-bg)' : 'white',
-            border: `1.5px solid ${compareList.length > 0 ? 'var(--teal)' : 'var(--border)'}`,
-            borderRadius: 12,
-            padding: '11px 16px',
+            position: 'sticky',
+            top: 0,
+            zIndex: 10,
+            background: 'var(--off)',
+            borderBottom: '1px solid var(--border)',
+            padding: '10px 24px',
+            margin: '0 -24px',
             marginBottom: 14,
             display: 'flex',
             alignItems: 'center',
-            gap: 10,
-            flexWrap: 'wrap',
-            transition: 'border-color .2s, background .2s',
+            gap: 8,
           }}>
-            <span style={{
-              fontSize: 12,
-              fontWeight: 700,
-              color: 'var(--navy)',
-              fontFamily: "'Nunito Sans', sans-serif",
-              flexShrink: 0,
-            }}>
-              Compare schools:
-            </span>
-
-            {/* Chips */}
-            <div style={{ display: 'flex', gap: 6, flex: 1, flexWrap: 'wrap' }}>
-              {compareList.length === 0 && (
-                <span style={{
-                  fontSize: 12,
-                  color: 'var(--muted)',
-                  fontFamily: "'Nunito Sans', sans-serif",
-                  fontStyle: 'italic',
-                }}>
-                  Add up to 3 schools to compare side by side
-                </span>
-              )}
-              {compareList.map(school => (
-                <div key={school.id} style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  padding: '4px 10px',
-                  borderRadius: 8,
-                  background: 'rgba(27,50,82,.08)',
-                  border: '1px solid rgba(27,50,82,.12)',
-                  fontSize: 11,
-                  fontWeight: 700,
-                  color: 'var(--navy)',
-                  fontFamily: "'Nunito Sans', sans-serif",
-                  animation: 'chipIn .18s ease',
-                }}>
-                  {school.name}
-                  <button
-                    onClick={() => setCompareList(prev => prev.filter(s => s.id !== school.id))}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      padding: 0,
-                      color: 'var(--muted)',
-                      fontSize: 13,
-                      lineHeight: 1,
-                      marginLeft: 2,
-                    }}
-                  >
-                    ×
-                  </button>
-                </div>
-              ))}
-              {compareError && (
-                <span style={{
-                  fontSize: 11,
-                  color: '#e53e3e',
-                  fontFamily: "'Nunito Sans', sans-serif",
-                  fontWeight: 600,
-                  animation: 'chipIn .18s ease',
-                }}>
-                  Max 3 schools
-                </span>
-              )}
-            </div>
-
+            {/* Compare button */}
             <button
+              onClick={() => {
+                if (compareList.length < 2) return
+                const slugs = compareList.slice(0, 2).map(s => s.slug)
+                router.push(`/compare/${slugs[0]}-vs-${slugs[1]}`)
+              }}
               disabled={compareList.length < 2}
               style={{
-                padding: '8px 16px',
-                borderRadius: 9,
-                fontSize: 12,
-                fontWeight: 700,
-                background: compareList.length >= 2 ? 'var(--navy)' : 'var(--bmd)',
-                color: '#fff',
-                border: 'none',
-                cursor: compareList.length >= 2 ? 'pointer' : 'not-allowed',
+                display: 'flex', alignItems: 'center', gap: 7,
+                padding: '8px 14px',
+                background: compareList.length >= 2 ? 'var(--navy)' : 'white',
+                color: compareList.length >= 2 ? '#fff' : 'var(--muted)',
+                border: `1.5px solid ${compareList.length >= 2 ? 'var(--navy)' : 'var(--border)'}`,
+                borderRadius: 10, cursor: compareList.length >= 2 ? 'pointer' : 'default',
                 fontFamily: "'Nunito Sans', sans-serif",
+                fontWeight: 700, fontSize: 12,
                 flexShrink: 0,
-                transition: 'background .2s',
+                transition: 'all .15s',
               }}
             >
-              Compare now →
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/>
+              </svg>
+              Compare
+              {compareList.length > 0 && (
+                <span style={{
+                  background: compareList.length >= 2 ? '#34C3A0' : '#D1D5DB',
+                  color: '#fff', fontSize: 10, fontWeight: 800,
+                  borderRadius: '50%', width: 17, height: 17,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {compareList.length}
+                </span>
+              )}
             </button>
-          </div>
 
-          {/* Filter Row */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-            {/* Filter pills */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              {/* Type filters */}
-              <button
-                className={`filter-pill${typeFilter === 'all' ? ' on' : ''}`}
-                onClick={() => setTypeFilter('all')}
-              >
-                All
-              </button>
-              <button
-                className={`filter-pill${typeFilter === 'boarding' ? ' on' : ''}`}
-                onClick={() => setTypeFilter('boarding')}
-              >
-                Boarding
-              </button>
-              <button
-                className={`filter-pill${typeFilter === 'day' ? ' on' : ''}`}
-                onClick={() => setTypeFilter('day')}
-              >
-                Day
-              </button>
-              <button
-                className={`filter-pill${typeFilter === 'mixed' ? ' on' : ''}`}
-                onClick={() => setTypeFilter('mixed')}
-              >
-                Mixed
-              </button>
-
-              {/* Divider */}
-              <div style={{ width: 1, height: 18, background: 'var(--bmd)', flexShrink: 0 }} />
-
-              {/* Focus filters */}
-              <button
-                className={`filter-pill${focusFilter === 'ib' ? ' on' : ''}`}
-                onClick={() => setFocusFilter(focusFilter === 'ib' ? 'all' : 'ib')}
-              >
-                IB
-              </button>
-              <button
-                className={`filter-pill${focusFilter === 'scholarship' ? ' on' : ''}`}
-                onClick={() => setFocusFilter(focusFilter === 'scholarship' ? 'all' : 'scholarship')}
-              >
-                Scholarship
-              </button>
-              <button
-                className={`filter-pill${focusFilter === 'stem' ? ' on' : ''}`}
-                onClick={() => setFocusFilter(focusFilter === 'stem' ? 'all' : 'stem')}
-              >
-                STEM
-              </button>
-            </div>
-
-            {/* Search + count */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                background: 'white',
-                border: `1.5px solid ${searchFocused ? 'var(--teal)' : 'var(--border)'}`,
-                borderRadius: 9,
-                padding: '8px 13px',
-                boxShadow: searchFocused ? '0 0 0 3px rgba(52,195,160,.15)' : 'none',
-                transition: 'border-color .15s, box-shadow .15s',
-              }}>
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
-                  <circle cx="11" cy="11" r="7" stroke="var(--muted)" strokeWidth="2"/>
-                  <path d="M21 21l-4.35-4.35" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round"/>
-                </svg>
-                <input
-                  type="text"
-                  placeholder="Search schools..."
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  onFocus={() => setSearchFocused(true)}
-                  onBlur={() => setSearchFocused(false)}
-                  style={{
-                    width: 180,
-                    border: 'none',
-                    outline: 'none',
-                    fontSize: 12,
-                    fontFamily: "'Nunito Sans', sans-serif",
-                    color: 'var(--body)',
-                    background: 'transparent',
-                  }}
-                />
-              </div>
-              <span style={{
-                fontSize: 11,
-                color: 'var(--muted)',
-                fontFamily: "'Nunito Sans', sans-serif",
-                whiteSpace: 'nowrap',
-              }}>
-                Showing {filtered.length} school{filtered.length !== 1 ? 's' : ''}
+            {compareError && (
+              <span style={{ fontSize: 11, color: '#e53e3e', fontFamily: "'Nunito Sans', sans-serif", fontWeight: 600, flexShrink: 0 }}>
+                Max 3
               </span>
+            )}
+
+            {/* Filter button */}
+            <button
+              onClick={() => setDrawerOpen(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 7,
+                padding: '8px 14px',
+                background: countActiveFilters(filters) > 0 ? 'var(--teal)' : 'white',
+                color: countActiveFilters(filters) > 0 ? '#fff' : 'var(--navy)',
+                border: `1.5px solid ${countActiveFilters(filters) > 0 ? 'var(--teal)' : 'var(--border)'}`,
+                borderRadius: 10, cursor: 'pointer',
+                fontFamily: "'Nunito Sans', sans-serif",
+                fontWeight: 700, fontSize: 12,
+                flexShrink: 0,
+                transition: 'all .15s',
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                <line x1="4" y1="6" x2="20" y2="6"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="11" y1="18" x2="13" y2="18"/>
+              </svg>
+              Filters
+              {countActiveFilters(filters) > 0 && (
+                <span style={{
+                  background: 'rgba(255,255,255,.3)', color: '#fff',
+                  fontSize: 10, fontWeight: 800,
+                  borderRadius: '50%', width: 17, height: 17,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {countActiveFilters(filters)}
+                </span>
+              )}
+            </button>
+
+            {/* Search — flexible */}
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 7, flex: 1, minWidth: 0,
+              background: 'white',
+              border: `1.5px solid ${searchFocused ? 'var(--teal)' : 'var(--border)'}`,
+              borderRadius: 10, padding: '8px 12px',
+              boxShadow: searchFocused ? '0 0 0 3px rgba(52,195,160,.12)' : 'none',
+              transition: 'border-color .15s, box-shadow .15s',
+            }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" style={{ flexShrink: 0 }}>
+                <circle cx="11" cy="11" r="7" stroke="var(--muted)" strokeWidth="2"/>
+                <path d="M21 21l-4.35-4.35" stroke="var(--muted)" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+              <input
+                type="text"
+                placeholder="Search schools..."
+                value={searchQuery}
+                onChange={e => setSearchQuery(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
+                style={{
+                  flex: 1, minWidth: 0,
+                  border: 'none', outline: 'none',
+                  fontSize: 12, fontFamily: "'Nunito Sans', sans-serif",
+                  color: 'var(--body)', background: 'transparent',
+                }}
+              />
             </div>
+
+            {/* Count */}
+            <span style={{
+              fontSize: 11, color: 'var(--muted)',
+              fontFamily: "'Nunito Sans', sans-serif",
+              whiteSpace: 'nowrap', flexShrink: 0,
+            }}>
+              {filtered.length} school{filtered.length !== 1 ? 's' : ''}
+            </span>
           </div>
 
           {/* Schools List */}
@@ -526,7 +490,9 @@ export default function CountryPageClient({ meta, schools }: Props) {
                   country={meta.name}
                   isInCompare={isInCompare(school.id)}
                   onCompare={() => addToCompare(school)}
-                  onHoverCity={setHoveredCity}
+                  onHover={setHoveredSchoolId}
+                  onSelect={setSelectedSchoolId}
+                  highlighted={selectedSchoolId === school.id}
                 />
               ))
             )}
@@ -547,7 +513,9 @@ export default function CountryPageClient({ meta, schools }: Props) {
             schools={schools}
             center={meta.mapCenter}
             zoom={meta.mapZoom}
-            hoveredCity={hoveredCity}
+            hoveredSchoolId={hoveredSchoolId}
+            selectedSchoolId={selectedSchoolId}
+            onSchoolClick={handleSchoolClick}
           />
         </div>
       </div>
@@ -563,18 +531,22 @@ interface CardProps {
   country: string
   isInCompare: boolean
   onCompare: () => void
-  onHoverCity: (city: string | null) => void
+  onHover: (id: string | null) => void
+  onSelect: (id: string | null) => void
+  highlighted: boolean
 }
 
-function SchoolCard({ school, idx, country, isInCompare, onCompare, onHoverCity }: CardProps) {
+function SchoolCard({ school, idx, country, isInCompare, onCompare, onHover, onSelect, highlighted }: CardProps) {
   const isFeatured = idx === 0
   const imgSrc = getSchoolImage(school, idx, country)
   const nanaQuote = getNanaQuote(school)
 
-  // Left badge logic
+  // Left badge logic — partner badge always wins
   let leftBadge: { text: string; bg: string; color: string } | null = null
-  if (isFeatured) {
-    leftBadge = { text: "Nana's Pick", bg: 'var(--teal)', color: '#fff' }
+  if (school.is_partner) {
+    leftBadge = { text: 'Verified Partner', bg: 'var(--teal)', color: '#fff' }
+  } else if (isFeatured) {
+    leftBadge = { text: "Nana's Pick", bg: 'var(--navy)', color: '#fff' }
   } else if (school.scholarship_available) {
     leftBadge = { text: 'Scholarships', bg: 'var(--blue-bg)', color: 'var(--blue)' }
   } else if (school.strengths?.includes('STEM')) {
@@ -594,8 +566,15 @@ function SchoolCard({ school, idx, country, isInCompare, onCompare, onHoverCity 
   return (
     <div
       className={`school-card ns-reveal${isFeatured ? ' featured' : ''}`}
-      onMouseEnter={() => school.city && onHoverCity(school.city)}
-      onMouseLeave={() => onHoverCity(null)}
+      data-school-id={school.id}
+      onMouseEnter={() => onHover(school.id)}
+      onMouseLeave={() => onHover(null)}
+      onClick={() => onSelect(school.id)}
+      style={{
+        cursor: 'default',
+        outline: highlighted ? '2.5px solid var(--teal)' : undefined,
+        transition: 'outline 0.2s',
+      }}
     >
       {/* LEFT: Image */}
       <div className="sc-left">
@@ -661,14 +640,23 @@ function SchoolCard({ school, idx, country, isInCompare, onCompare, onHoverCity 
           {school.name}
         </div>
 
-        {/* Location */}
-        <div style={{
-          fontSize: 11,
-          color: '#6B7280',
-          marginBottom: 8,
-          fontFamily: "'Nunito Sans', sans-serif",
-        }}>
-          {[school.city, school.country].filter(Boolean).join(', ')}
+        {/* Partner indicator + Location */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+          {school.is_partner && (
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: 3,
+              fontSize: 9, fontWeight: 800, color: 'var(--teal-dk)',
+              background: 'var(--teal-bg)', border: '1px solid rgba(52,195,160,0.3)',
+              borderRadius: 100, padding: '2px 7px',
+              fontFamily: "'Nunito Sans', sans-serif", whiteSpace: 'nowrap',
+            }}>
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><polyline points="20 6 9 17 4 12"/></svg>
+              Partner
+            </span>
+          )}
+          <span style={{ fontSize: 11, color: '#6B7280', fontFamily: "'Nunito Sans', sans-serif" }}>
+            {[school.city, school.country].filter(Boolean).join(', ')}
+          </span>
         </div>
 
         {/* Stats row */}
@@ -728,14 +716,17 @@ function SchoolCard({ school, idx, country, isInCompare, onCompare, onHoverCity 
 
         {/* Action buttons */}
         <div style={{ display: 'flex', gap: 7, marginTop: 'auto' }}>
-          <Link href={`/schools/${school.slug}`} style={{ flex: 1, textDecoration: 'none' }}>
-            <button className="view-profile-btn" style={{ width: '100%' }}>
-              View profile →
-            </button>
+          <Link
+            href={`/schools/${school.slug}`}
+            className="view-profile-btn"
+            style={{ flex: 1, textDecoration: 'none', display: 'block', textAlign: 'center' }}
+            onClick={e => e.stopPropagation()}
+          >
+            View profile →
           </Link>
           <button
             className={`compare-btn${isInCompare ? ' compare-btn-added' : ''}`}
-            onClick={e => { e.preventDefault(); onCompare() }}
+            onClick={e => { e.preventDefault(); e.stopPropagation(); onCompare() }}
           >
             {isInCompare ? '✓ Added' : '+ Compare'}
           </button>

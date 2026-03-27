@@ -62,14 +62,21 @@ export async function getFeaturedSchools(limit = 6): Promise<SchoolSummary[]> {
 }
 
 export async function getCountrySchoolCounts(): Promise<Record<string, number>> {
-  const { data, error } = await supabase
-    .from('schools')
-    .select('country')
-
-  if (error || !data) return {}
+  // Fetch in batches to exceed Supabase's 1000-row default limit
   const counts: Record<string, number> = {}
-  for (const row of data) {
-    if (row.country) counts[row.country] = (counts[row.country] || 0) + 1
+  let from = 0
+  const batchSize = 1000
+  while (true) {
+    const { data, error } = await supabase
+      .from('schools')
+      .select('country')
+      .range(from, from + batchSize - 1)
+    if (error || !data || data.length === 0) break
+    for (const row of data) {
+      if (row.country) counts[row.country] = (counts[row.country] || 0) + 1
+    }
+    if (data.length < batchSize) break
+    from += batchSize
   }
   return counts
 }
@@ -82,11 +89,12 @@ export async function getTotalSchoolCount(): Promise<number> {
   return count ?? 0
 }
 
-export async function getSchoolsForCountryPage(country: string, limit = 300): Promise<SchoolListItem[]> {
+export async function getSchoolsForCountryPage(country: string, limit = 1000): Promise<SchoolListItem[]> {
   const { data, error } = await supabase
     .from('schools')
-    .select('id,slug,name,country,city,school_type,curriculum,fees_usd_min,fees_usd_max,fees_original,fees_currency,age_min,age_max,boarding,hero_image,thai_students,unique_selling_points,strengths,scholarship_available,nationalities_count,international_student_percent,confidence_score')
+    .select('id,slug,name,country,city,school_type,curriculum,fees_usd_min,fees_usd_max,fees_original,fees_currency,age_min,age_max,boarding,hero_image,thai_students,unique_selling_points,strengths,scholarship_available,nationalities_count,international_student_percent,confidence_score,latitude,longitude,sen_support,eal_support,is_partner,partner_tier')
     .eq('country', country)
+    .order('is_partner', { ascending: false, nullsFirst: false })
     .order('confidence_score', { ascending: false })
     .limit(limit)
 
@@ -156,11 +164,19 @@ export async function getSchoolsByFilter(params: {
 }
 
 export async function getFilterCombinations(): Promise<{ country: string; filter: string }[]> {
-  const { data, error } = await supabase
-    .from('schools')
-    .select('country,school_type,curriculum')
-
-  if (error || !data) return []
+  const allData: { country: string | null; school_type: string | null; curriculum: string[] | null }[] = []
+  let from = 0
+  while (true) {
+    const { data, error } = await supabase
+      .from('schools')
+      .select('country,school_type,curriculum')
+      .range(from, from + 999)
+    if (error || !data || data.length === 0) break
+    allData.push(...data)
+    if (data.length < 1000) break
+    from += 1000
+  }
+  const data = allData
 
   const countMap: Record<string, number> = {}
 

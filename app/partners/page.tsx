@@ -1,6 +1,6 @@
 import PartnerNav from '@/components/PartnerNav'
-import RegisterButton from '@/components/RegisterButton'
 import Footer from '@/components/Footer'
+import PartnerContactForm from '@/components/PartnerContactForm'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -20,8 +20,8 @@ const TIERS = [
       'Starter dashboard with data previews',
       'Visible in search results',
     ],
-    cta: 'Get started free',
-    ctaHref: 'mailto:partners@nanasays.com?subject=Starter%20Plan',
+    cta: 'Claim your school',
+    ctaHref: '/claim',
   },
   {
     name: 'Partner',
@@ -37,8 +37,8 @@ const TIERS = [
       'Competitor insights',
       'Content Booster (24+ month plans)',
     ],
-    cta: 'Become a partner',
-    ctaHref: 'mailto:partners@nanasays.com?subject=Partner%20Plan',
+    cta: 'Claim your school',
+    ctaHref: '/claim',
   },
   {
     name: 'Partner Plus',
@@ -55,7 +55,7 @@ const TIERS = [
       'Premium Custom Booster package',
     ],
     cta: 'Join waitlist',
-    ctaHref: 'mailto:partners@nanasays.com?subject=Partner%20Plus%20Waitlist',
+    ctaHref: '#contact',
   },
 ]
 
@@ -123,7 +123,7 @@ const INSIGHTS = [
   {
     label: 'Data & Benchmarking',
     title: 'What fee transparency actually does to enquiry quality',
-    desc: 'Schools that publish full fee breakdowns receive fewer but far better-qualified enquiries. The data from 991 listed schools tells a clear story.',
+    desc: 'Schools that publish full fee breakdowns receive fewer but far better-qualified enquiries. The data from 4,200+ listed schools tells a clear story.',
   },
   {
     label: 'Partner Success',
@@ -177,7 +177,7 @@ export default function PartnersPage() {
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <a
-              href="mailto:partners@nanasays.com?subject=Let%27s%20Chat"
+              href="#contact"
               style={{
                 padding: '14px 32px', borderRadius: 9, fontSize: 14, fontWeight: 800,
                 background: 'var(--teal)', color: '#fff', textDecoration: 'none',
@@ -187,11 +187,30 @@ export default function PartnersPage() {
               {"Let's chat"}
             </a>
             <a
-              href="#pricing"
+              href="/claim"
+              style={{
+                padding: '14px 32px', borderRadius: 9, fontSize: 14, fontWeight: 800,
+                background: '#fff', color: 'var(--navy)', textDecoration: 'none',
+                fontFamily: 'var(--font-nunito), Nunito, sans-serif',
+              }}
+            >
+              Claim your school
+            </a>
+            <a
+              href="/demo"
               style={{
                 padding: '14px 32px', borderRadius: 9, fontSize: 14, fontWeight: 700,
                 background: 'rgba(255,255,255,0.08)', color: '#fff', textDecoration: 'none',
                 border: '1px solid rgba(255,255,255,0.2)',
+              }}
+            >
+              View demo
+            </a>
+            <a
+              href="#pricing"
+              style={{
+                padding: '14px 32px', borderRadius: 9, fontSize: 14, fontWeight: 700,
+                background: 'transparent', color: 'rgba(255,255,255,0.55)', textDecoration: 'none',
               }}
             >
               See pricing
@@ -455,8 +474,8 @@ export default function PartnersPage() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               {[
-                { value: '991+', label: 'Schools listed' },
-                { value: '18', label: 'Countries covered' },
+                { value: '4,200+', label: 'Schools listed' },
+                { value: '77', label: 'Countries covered' },
                 { value: '9', label: 'Languages supported' },
                 { value: 'Free', label: 'For families, always' },
               ].map((stat, i) => (
@@ -542,22 +561,42 @@ export default function PartnersPage() {
         </div>
       </div>
 
-      {/* REGISTER / FINAL CTA */}
-      <div id="register" style={{ background: 'linear-gradient(135deg, var(--navy) 0%, #1a3557 100%)', padding: '88px 5%', scrollMarginTop: 80 }}>
-        <div style={{ maxWidth: 600, margin: '0 auto', textAlign: 'center' }}>
-          <h2 style={{
-            fontFamily: 'var(--font-nunito), Nunito, sans-serif',
-            fontSize: 'clamp(26px, 3.5vw, 40px)', fontWeight: 900, color: '#fff',
-            letterSpacing: '-0.02em', lineHeight: 1.15, marginBottom: 16,
+      {/* CONTACT FORM */}
+      <div id="contact" style={{ background: '#fff', padding: '88px 5%', borderTop: '1px solid var(--border)', scrollMarginTop: 80 }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 72, alignItems: 'start' }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--teal-dk)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>
+              Get in touch
+            </div>
+            <h2 style={{
+              fontFamily: 'var(--font-nunito), Nunito, sans-serif',
+              fontSize: 'clamp(24px, 3vw, 36px)', fontWeight: 900,
+              color: 'var(--navy)', letterSpacing: '-0.02em', lineHeight: 1.2, marginBottom: 16,
+            }}>
+              Ready to reach the right families?
+            </h2>
+            <p style={{ fontSize: 15, color: 'var(--muted)', lineHeight: 1.75, marginBottom: 32 }}>
+              Tell us about your school and what you are looking for. We will be in touch within one working day.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {[
+                { icon: '→', text: 'Free to list — no commitment required' },
+                { icon: '→', text: 'Verified directory with 4,200+ schools' },
+                { icon: '→', text: 'Reach families actively comparing schools' },
+                { icon: '→', text: 'Direct access to parent enquiries' },
+              ].map((item, i) => (
+                <div key={i} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <span style={{ color: 'var(--teal)', fontWeight: 800, fontSize: 16, lineHeight: 1.5 }}>{item.icon}</span>
+                  <span style={{ fontSize: 14, color: 'var(--body)', lineHeight: 1.6 }}>{item.text}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{
+            background: 'var(--off)', border: '1px solid var(--border)',
+            borderRadius: 16, padding: '36px 36px',
           }}>
-            Ready to reach the right families?
-          </h2>
-          <p style={{ fontSize: 16, color: 'rgba(255,255,255,0.6)', lineHeight: 1.65, marginBottom: 36 }}>
-            List your school today — it&apos;s free to start. Our team will help you get set up and maximise your profile.
-          </p>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <RegisterButton label="Register your school" variant="teal" />
-            <RegisterButton label="Book a demo" variant="outline" />
+            <PartnerContactForm />
           </div>
         </div>
       </div>
