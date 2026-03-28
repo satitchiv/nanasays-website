@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
+import { esc, isValidEmail, MAX_NAME, MAX_EMAIL, MAX_MESSAGE, MAX_SHORT } from '@/lib/sanitize'
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,6 +9,24 @@ export async function POST(req: NextRequest) {
 
     if (!firstName || !email || !school) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+    }
+    if (!isValidEmail(email)) {
+      return NextResponse.json({ error: 'Invalid email address' }, { status: 400 })
+    }
+    if (String(firstName).length > MAX_NAME || String(school).length > MAX_NAME) {
+      return NextResponse.json({ error: 'Field too long' }, { status: 400 })
+    }
+    if (String(email).length > MAX_EMAIL) {
+      return NextResponse.json({ error: 'Email too long' }, { status: 400 })
+    }
+    if (message && String(message).length > MAX_MESSAGE) {
+      return NextResponse.json({ error: 'Message too long (max 5000 chars)' }, { status: 400 })
+    }
+    if (jobTitle && String(jobTitle).length > MAX_SHORT) {
+      return NextResponse.json({ error: 'Field too long' }, { status: 400 })
+    }
+    if (country && String(country).length > MAX_SHORT) {
+      return NextResponse.json({ error: 'Field too long' }, { status: 400 })
     }
 
     // Verify reCAPTCHA (test secret always passes; replace with real key in env)
@@ -37,13 +56,13 @@ export async function POST(req: NextRequest) {
         </div>
         <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;padding:28px 32px">
           <table style="width:100%;border-collapse:collapse">
-            <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888;width:120px">Interest</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px;font-weight:700;color:#239C80">${interest || '—'}</td></tr>
-            <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888">First name</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px;font-weight:600">${firstName}</td></tr>
-            <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888">Email</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px"><a href="mailto:${email}" style="color:#1B3252">${email}</a></td></tr>
-            <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888">Job title</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px">${jobTitle || '—'}</td></tr>
-            <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888">School</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px;font-weight:600">${school}</td></tr>
-            <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888">Country</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px">${country || '—'}</td></tr>
-            <tr><td style="padding:10px 0;font-size:13px;color:#888;vertical-align:top;padding-top:14px">Message</td><td style="padding:10px 0;font-size:14px;line-height:1.6;padding-top:14px">${message ? message.replace(/\n/g, '<br>') : '—'}</td></tr>
+            <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888;width:120px">Interest</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px;font-weight:700;color:#239C80">${esc(interest) || '—'}</td></tr>
+            <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888">First name</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px;font-weight:600">${esc(firstName)}</td></tr>
+            <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888">Email</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px"><a href="mailto:${esc(email)}" style="color:#1B3252">${esc(email)}</a></td></tr>
+            <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888">Job title</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px">${esc(jobTitle) || '—'}</td></tr>
+            <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888">School</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px;font-weight:600">${esc(school)}</td></tr>
+            <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888">Country</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px">${esc(country) || '—'}</td></tr>
+            <tr><td style="padding:10px 0;font-size:13px;color:#888;vertical-align:top;padding-top:14px">Message</td><td style="padding:10px 0;font-size:14px;line-height:1.6;padding-top:14px">${message ? esc(message).replace(/\n/g, '<br>') : '—'}</td></tr>
           </table>
         </div>
         <p style="font-size:11px;color:#aaa;margin-top:16px;text-align:center">Sent from nanasays.school/partners</p>
@@ -54,7 +73,7 @@ export async function POST(req: NextRequest) {
       from: '"NanaSays Partners" <satitchiv@gmail.com>',
       to: 'satitchiv@gmail.com',
       replyTo: email,
-      subject: `${interest ? `[${interest}] ` : ''}Partner enquiry: ${firstName} — ${school}`,
+      subject: `${interest ? `[${String(interest).slice(0, 50)}] ` : ''}Partner enquiry: ${String(firstName).slice(0, 100)} — ${String(school).slice(0, 100)}`,
       html,
     })
 
