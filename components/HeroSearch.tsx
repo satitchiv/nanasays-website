@@ -245,26 +245,24 @@ export default function HeroSearch() {
           )}
         </div>
 
-        {/* Hint chips */}
-        {!focused && (
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 14 }}>
-            {['Thailand', 'Switzerland', 'Middle East', 'UWCSEA'].map(hint => (
-              <button
-                key={hint}
-                onClick={() => { setQuery(hint); setFocused(true); inputRef.current?.focus() }}
-                style={{
-                  fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.6)',
-                  background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)',
-                  borderRadius: 100, padding: '4px 11px', cursor: 'pointer',
-                  fontFamily: "'Nunito Sans', -apple-system, sans-serif",
-                  transition: 'background .15s, color .15s',
-                }}
-              >
-                {hint}
-              </button>
-            ))}
-          </div>
-        )}
+        {/* Hint chips — always rendered to preserve card height; hidden when focused */}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 14, visibility: focused ? 'hidden' : 'visible', pointerEvents: focused ? 'none' : 'auto' }}>
+          {['Thailand', 'Switzerland', 'Middle East', 'UWCSEA'].map(hint => (
+            <button
+              key={hint}
+              onClick={() => { setQuery(hint); setFocused(true); inputRef.current?.focus() }}
+              style={{
+                fontSize: 11, fontWeight: 600, color: 'rgba(255,255,255,0.6)',
+                background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 100, padding: '4px 11px', cursor: 'pointer',
+                fontFamily: "'Nunito Sans', -apple-system, sans-serif",
+                transition: 'background .15s, color .15s',
+              }}
+            >
+              {hint}
+            </button>
+          ))}
+        </div>
 
         {/* Footer stat */}
         <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: 11, color: 'rgba(255,255,255,0.35)', fontWeight: 500 }}>

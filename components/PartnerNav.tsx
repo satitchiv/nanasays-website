@@ -61,7 +61,7 @@ export default function PartnerNav() {
         <div style={{ width: 1, height: 24, background: 'var(--border)', marginRight: 36, flexShrink: 0 }} />
 
         {/* Nav links */}
-        <ul style={{ display: 'flex', gap: 2, listStyle: 'none', margin: 0, padding: 0, flex: 1 }}>
+        <ul className="ns-pp-nav-links">
           {NAV_LINKS.map(link => (
             <li key={link.id}>
               <a

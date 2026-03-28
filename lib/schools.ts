@@ -62,23 +62,9 @@ export async function getFeaturedSchools(limit = 6): Promise<SchoolSummary[]> {
 }
 
 export async function getCountrySchoolCounts(): Promise<Record<string, number>> {
-  // Fetch in batches to exceed Supabase's 1000-row default limit
-  const counts: Record<string, number> = {}
-  let from = 0
-  const batchSize = 1000
-  while (true) {
-    const { data, error } = await supabase
-      .from('schools')
-      .select('country')
-      .range(from, from + batchSize - 1)
-    if (error || !data || data.length === 0) break
-    for (const row of data) {
-      if (row.country) counts[row.country] = (counts[row.country] || 0) + 1
-    }
-    if (data.length < batchSize) break
-    from += batchSize
-  }
-  return counts
+  const { data, error } = await supabase.rpc('get_country_school_counts')
+  if (error || !data) return {}
+  return Object.fromEntries(data.map((row: { country: string; count: number }) => [row.country, Number(row.count)]))
 }
 
 export async function getTotalSchoolCount(): Promise<number> {

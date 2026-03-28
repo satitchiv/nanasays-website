@@ -30,7 +30,7 @@ const labelStyle: React.CSSProperties = {
 
 export default function PartnerContactForm() {
   const [form, setForm] = useState({
-    firstName: '', email: '', jobTitle: '', school: '', country: '', message: '',
+    firstName: '', email: '', jobTitle: '', school: '', country: '', message: '', interest: '',
   })
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
@@ -38,7 +38,21 @@ export default function PartnerContactForm() {
   const [mounted, setMounted] = useState(false)
   const recaptchaRef = useRef<ReCAPTCHA>(null)
 
-  useEffect(() => { setMounted(true) }, [])
+  useEffect(() => {
+    setMounted(true)
+    // Pre-select interest from URL param (?interest=demo|chat|register|other)
+    const params = new URLSearchParams(window.location.search)
+    const interest = params.get('interest')
+    const map: Record<string, string> = {
+      demo: "View demo",
+      chat: "Let's chat",
+      register: "Register school",
+      other: "Others",
+    }
+    if (interest && map[interest]) {
+      setForm(f => ({ ...f, interest: map[interest] }))
+    }
+  }, [])
 
   const set = (field: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm(f => ({ ...f, [field]: e.target.value }))
@@ -59,7 +73,7 @@ export default function PartnerContactForm() {
       const res = await fetch('/api/contact', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, recaptchaToken }),
+        body: JSON.stringify({ ...form, interest: form.interest || undefined, recaptchaToken }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Unknown error')
@@ -106,7 +120,34 @@ export default function PartnerContactForm() {
 
   return (
     <form onSubmit={handleSubmit} noValidate>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+      <div style={{ marginBottom: 16 }}>
+        <label style={labelStyle}>I am interested in <span style={{ color: '#E53E3E' }}>*</span></label>
+        <select
+          required
+          value={form.interest}
+          onChange={e => setForm(f => ({ ...f, interest: e.target.value }))}
+          onFocus={() => setFocusedField('interest')}
+          onBlur={() => setFocusedField(null)}
+          style={{
+            ...focusStyle('interest'),
+            appearance: 'none' as const,
+            backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E")`,
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'right 14px center',
+            paddingRight: 36,
+            cursor: 'pointer',
+            color: form.interest ? '#1B3252' : '#9CA3AF',
+          }}
+        >
+          <option value="" disabled>Select an option...</option>
+          <option value="View demo">View demo</option>
+          <option value="Let's chat">Let&apos;s chat</option>
+          <option value="Register school">Register school</option>
+          <option value="Others">Others</option>
+        </select>
+      </div>
+
+      <div className="ns-pp-form-row">
         <div>
           <label style={labelStyle}>First name <span style={{ color: '#E53E3E' }}>*</span></label>
           <input
@@ -135,7 +176,7 @@ export default function PartnerContactForm() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+      <div className="ns-pp-form-row">
         <div>
           <label style={labelStyle}>Job title</label>
           <input
@@ -192,7 +233,7 @@ export default function PartnerContactForm() {
         />
       </div>
 
-      <div style={{ marginBottom: 24 }}>
+      <div style={{ marginBottom: 24, overflow: 'hidden' }}>
         {mounted && <ReCAPTCHA ref={recaptchaRef} sitekey={SITE_KEY} />}
       </div>
 

@@ -29,6 +29,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
+export const revalidate = 3600 // revalidate country pages every hour
+
 export default async function CountryPage({ params }: Props) {
   const meta = getCountryPageMeta(params.slug)
   if (!meta) notFound()

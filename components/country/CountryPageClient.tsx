@@ -109,6 +109,22 @@ export default function CountryPageClient({ meta, schools }: Props) {
 
   // Scroll reveal
   useEffect(() => {
+    // Cards already in viewport on mount should appear instantly (no animation)
+    const allCards = listRef.current?.querySelectorAll('.ns-reveal')
+    allCards?.forEach(card => {
+      const rect = card.getBoundingClientRect()
+      if (rect.top < window.innerHeight) {
+        ;(card as HTMLElement).style.transition = 'none'
+        card.classList.add('ns-visible')
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            ;(card as HTMLElement).style.transition = ''
+          })
+        })
+      }
+    })
+
+    // Observer animates cards that scroll into view later
     const observer = new IntersectionObserver(
       entries => {
         entries.forEach(entry => {
@@ -120,8 +136,9 @@ export default function CountryPageClient({ meta, schools }: Props) {
       { threshold: 0.06 }
     )
 
-    const cards = listRef.current?.querySelectorAll('.ns-reveal')
-    cards?.forEach(card => observer.observe(card))
+    allCards?.forEach(card => {
+      if (!card.classList.contains('ns-visible')) observer.observe(card)
+    })
 
     return () => observer.disconnect()
   }, [schools, filters, searchQuery])
@@ -197,21 +214,9 @@ export default function CountryPageClient({ meta, schools }: Props) {
         onChange={setFilters}
         matchCount={filtered.length}
       />
-      <div style={{
-        marginTop: 60,
-        display: 'flex',
-        alignItems: 'flex-start',
-        minHeight: 'calc(100vh - 60px)',
-      }}>
+      <div className="ns-country-layout" style={{ marginTop: 60 }}>
         {/* LEFT COLUMN */}
-        <div ref={leftColRef} style={{
-          flex: 1,
-          minWidth: 0,
-          padding: '0 24px 48px',
-          background: 'var(--off)',
-          overflowY: 'auto',
-          height: 'calc(100vh - 60px)',
-        }}>
+        <div ref={leftColRef} className="ns-country-left-col">
 
           {/* Country Header Band */}
           <div style={{
@@ -221,7 +226,7 @@ export default function CountryPageClient({ meta, schools }: Props) {
             marginBottom: 14,
             marginTop: 24,
           }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16 }}>
+            <div className="ns-country-header">
               {/* Left side */}
               <div>
                 {/* Breadcrumb */}
@@ -275,7 +280,7 @@ export default function CountryPageClient({ meta, schools }: Props) {
               </div>
 
               {/* Right: stat chips */}
-              <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <div className="ns-country-chips">
                 <div style={{
                   background: 'rgba(255,255,255,.1)',
                   border: '1px solid rgba(255,255,255,.18)',
@@ -326,18 +331,13 @@ export default function CountryPageClient({ meta, schools }: Props) {
           </div>
 
           {/* Sticky Toolbar */}
-          <div style={{
+          <div className="ns-country-toolbar" style={{
             position: 'sticky',
             top: 0,
             zIndex: 10,
             background: 'var(--off)',
             borderBottom: '1px solid var(--border)',
-            padding: '10px 24px',
-            margin: '0 -24px',
             marginBottom: 14,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
           }}>
             {/* Compare button */}
             <button
@@ -500,15 +500,7 @@ export default function CountryPageClient({ meta, schools }: Props) {
         </div>
 
         {/* RIGHT COLUMN — Map */}
-        <div style={{
-          width: 380,
-          flexShrink: 0,
-          position: 'sticky',
-          top: 60,
-          height: 'calc(100vh - 60px)',
-          borderLeft: '1px solid var(--border)',
-          overflow: 'hidden',
-        }}>
+        <div className="ns-country-map-col">
           <CountryMap
             schools={schools}
             center={meta.mapCenter}
@@ -660,7 +652,7 @@ function SchoolCard({ school, idx, country, isInCompare, onCompare, onHover, onS
         </div>
 
         {/* Stats row */}
-        <div style={{ display: 'flex', gap: 5, marginBottom: 8 }}>
+        <div className="sc-stats-row" style={{ display: 'flex', gap: 5, marginBottom: 8 }}>
           {stats.map(stat => (
             <div key={stat.label} style={{
               flex: 1,
@@ -700,14 +692,14 @@ function SchoolCard({ school, idx, country, isInCompare, onCompare, onHover, onS
             color: '#4B5563',
             lineHeight: 1.5,
             borderLeft: '2.5px solid var(--teal)',
-            padding: '6px 10px',
+            padding: '8px 10px',
             borderRadius: '0 6px 6px 0',
             background: 'var(--teal-bg)',
             marginBottom: 8,
             fontFamily: "'Nunito Sans', sans-serif",
             overflow: 'hidden',
             display: '-webkit-box',
-            WebkitLineClamp: 2,
+            WebkitLineClamp: 3,
             WebkitBoxOrient: 'vertical',
           } as React.CSSProperties}>
             {nanaQuote}

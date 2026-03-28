@@ -26,9 +26,10 @@ export default function Nav() {
         </span>
       </Link>
 
-      <div style={{ marginLeft: 'auto', display: 'flex', gap: 9, alignItems: 'center' }}>
+      <div className="ns-nav-right">
         {/* Language selector */}
         <select
+          className="ns-nav-lang"
           value={lang}
           onChange={e => setLang(e.target.value as any)}
           style={{
@@ -54,6 +55,7 @@ export default function Nav() {
           padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700,
           color: '#fff', background: 'var(--teal)',
           textDecoration: 'none', display: 'flex', alignItems: 'center',
+          whiteSpace: 'nowrap',
         }}>
           For Schools
         </Link>

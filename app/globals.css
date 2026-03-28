@@ -61,6 +61,183 @@ button {
   }
 }
 
+/* ─── Mobile Responsive ──────────────────────────────────────────────────────
+   Breakpoints: 640px = phone, 768px = tablet
+   All inline-style overrides live here via className hooks.
+──────────────────────────────────────────────────────────────────────────── */
+
+/* Nav */
+.ns-nav-right { display: flex; gap: 9px; align-items: center; margin-left: auto; }
+.ns-nav-lang { display: block; }
+
+/* Homepage hero */
+.ns-hero-inner {
+  position: relative; z-index: 2; height: 100%;
+  display: flex; align-items: center; gap: 56px;
+  padding: 72px 5% 72px 52px;
+}
+.ns-hero-search-col { width: 460px; flex-shrink: 0; align-self: center; }
+
+/* Homepage grids */
+.ns-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
+.ns-picks-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.ns-blog-grid  { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 18px; }
+.ns-trust-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-bottom: 56px; }
+.ns-cta-band   { display: flex; align-items: center; justify-content: space-between; gap: 28px; }
+
+/* Country page */
+.ns-country-layout   { display: flex; align-items: flex-start; min-height: calc(100vh - 60px); }
+.ns-country-left-col { flex: 1; min-width: 0; padding: 0 24px 48px; background: var(--off); overflow-y: auto; height: calc(100vh - 60px); }
+.ns-country-map-col  { width: 380px; flex-shrink: 0; position: sticky; top: 60px; height: calc(100vh - 60px); border-left: 1px solid var(--border); overflow: hidden; }
+.ns-country-header   { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.ns-country-chips    { display: flex; gap: 8px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
+.ns-country-toolbar  { display: flex; align-items: center; gap: 8px; padding: 10px 24px; margin: 0 -24px; }
+
+/* School detail */
+.ns-school-hero-inner  { display: flex; justify-content: space-between; align-items: flex-start; gap: 32px; }
+.ns-school-hero-badge  { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12); border-radius: 12px; padding: 24px 28px; text-align: center; min-width: 180px; flex-shrink: 0; }
+.ns-stats-bar          { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1px; background: rgba(255,255,255,.08); border-radius: 10px; overflow: hidden; margin-top: 32px; }
+.ns-school-layout      { display: grid; grid-template-columns: 1fr 300px; gap: 52px; align-items: start; }
+.ns-open-day-banner    { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+
+/* Stats section separator */
+.ns-stats-section { border-top: none; }
+/* Partners logo grid */
+.ns-partners-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+.ns-partners-grid a:hover > div:first-child { box-shadow: 0 6px 24px rgba(27,50,82,.22); border-color: var(--teal) !important; }
+
+/* Hero search in CTA band */
+.ns-hero-search-cta { width: 400px; flex-shrink: 0; position: relative; z-index: 1; }
+
+/* Partners page section grids */
+.ns-pp-how-grid      { display: grid; grid-template-columns: repeat(2, 1fr); gap: 24px; }
+.ns-pp-test-grid     { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.ns-pp-pricing-grid  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: start; }
+.ns-pp-booster-grid  { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+.ns-pp-audience-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+.ns-pp-insights-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+.ns-pp-contact-grid  { display: grid; grid-template-columns: 1fr 1.6fr; gap: 72px; align-items: start; }
+.ns-pp-booster-inner { background: var(--navy); border-radius: 20px; padding: 52px 48px; margin-top: 64px; }
+.ns-pp-hero-pad      { padding: 100px 5% 80px; }
+.ns-pp-form-row      { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.ns-pp-nav-links     { display: flex; gap: 2px; list-style: none; margin: 0; padding: 0; flex: 1; }
+.ns-pp-contact-outer { padding: 88px 5%; }
+.ns-pp-contact-card  { background: var(--off); border: 1px solid var(--border); border-radius: 16px; padding: 36px; overflow: hidden; }
+
+@media (max-width: 768px) {
+  /* Nav */
+  .ns-nav-lang { display: none; }
+  /* Stats — clear visual break from hero */
+  .ns-stats-section { border-top: 3px solid var(--teal); }
+  /* Partners logo grid — 2 cols on mobile */
+  .ns-partners-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  /* Hero search in CTA band — full width on mobile */
+  .ns-hero-search-cta { width: 100%; }
+
+  /* Hero — stack copy above, search below */
+  .ns-hero-inner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 32px;
+    padding: 40px 5% 48px;
+    height: auto;
+  }
+  .ns-hero-search-col { width: 100%; align-self: auto; }
+
+  /* Stats — 2 cols */
+  .ns-stats-grid { grid-template-columns: repeat(2, 1fr); }
+
+  /* Picks — 1 col */
+  .ns-picks-grid { grid-template-columns: 1fr; gap: 14px; }
+
+  /* Blog — 1 col */
+  .ns-blog-grid { grid-template-columns: 1fr; gap: 14px; }
+
+  /* Testimonials — 1 col */
+  .ns-trust-grid { grid-template-columns: 1fr; margin-bottom: 36px; }
+
+  /* CTA band — stack, button full width */
+  .ns-cta-band { flex-direction: column; align-items: stretch; gap: 20px; padding: 36px 28px; }
+  .ns-cta-band button { width: 100%; }
+
+  /* Country page — hide map, full-width list */
+  .ns-country-layout   { flex-direction: column; min-height: auto; }
+  .ns-country-left-col { height: auto; overflow-y: visible; padding: 0 16px 48px; }
+  .ns-country-map-col  { display: none; }
+  .ns-country-header   { flex-direction: column; gap: 12px; }
+  .ns-country-chips    { justify-content: flex-start; }
+  /* Toolbar: recalculate negative margin to match 16px column padding */
+  .ns-country-toolbar  { flex-wrap: wrap; gap: 6px; padding: 10px 16px; margin: 0 -16px; }
+
+  /* School cards — vertical layout on mobile */
+  .school-card          { height: auto !important; flex-direction: column !important; }
+  .sc-left              { width: 100% !important; height: 160px !important; }
+  .sc-right             { padding: 14px 14px 14px !important; }
+  .sc-stats-row         { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 5px; }
+
+  /* School detail hero */
+  .ns-school-hero-inner { flex-direction: column; gap: 20px; }
+  .ns-school-hero-badge { display: none; }
+  .ns-stats-bar         { grid-template-columns: repeat(2, 1fr); }
+
+  /* School detail layout — sidebar goes above content on mobile */
+  .ns-school-layout     { grid-template-columns: 1fr; gap: 32px; }
+  .ns-school-aside      { order: -1; position: static !important; }
+
+  /* Open day banner */
+  .ns-open-day-banner   { flex-direction: column; align-items: flex-start; gap: 14px; }
+
+  /* Partners page — all multi-col grids → 1 col */
+  .ns-pp-how-grid,
+  .ns-pp-test-grid,
+  .ns-pp-pricing-grid,
+  .ns-pp-booster-grid,
+  .ns-pp-audience-grid,
+  .ns-pp-insights-grid,
+  .ns-pp-contact-grid   { grid-template-columns: 1fr; }
+  .ns-pp-audience-grid  { gap: 36px; }
+  .ns-pp-contact-grid   { gap: 36px; }
+  .ns-pp-booster-inner  { padding: 36px 20px; border-radius: 14px; }
+  .ns-pp-hero-pad       { padding: 60px 5% 52px; }
+  .ns-pp-form-row       { grid-template-columns: 1fr; }
+  .ns-pp-nav-links      { display: none; }
+  .ns-pp-contact-outer  { padding: 56px 20px; }
+  .ns-pp-contact-card   { padding: 24px 20px; border-radius: 12px; }
+
+  /* Scorecard + demographics: 4-col → 2-col */
+  .ns-scorecard-grid    { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* Key details: 2-col → 1-col */
+  .ns-key-details-grid  { grid-template-columns: 1fr !important; }
+
+  /* School 3-col grids → 2-col */
+  .ns-3col-grid   { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* Similar schools → 1-col */
+  .ns-similar-grid { grid-template-columns: 1fr !important; }
+
+  /* School 2-col stat/info grids → 1-col */
+  .ns-2col-grid   { grid-template-columns: minmax(0, 1fr) !important; }
+}
+
+/* Hero wrapper — always full height so absolute-positioned bg fills correctly */
+.ns-hero-outer { position: relative; min-height: calc(100vh - 60px); background: #0a1520; }
+.ns-hero-bg    { position: absolute; inset: 0; }
+
+@media (max-width: 768px) {
+  /* On mobile, let the hero size to its content so search card never overlaps stats */
+  .ns-hero-outer { min-height: 0; }
+  .ns-hero-bg    { position: relative; inset: auto; }
+}
+
+@media (max-width: 480px) {
+  /* Extra-small: country header tighter */
+  .ns-country-left-col  { padding: 0 12px 40px; }
+  .ns-country-toolbar   { padding: 10px 12px; margin: 0 -12px; }
+  .ns-hero-inner        { padding: 32px 4% 40px; }
+  .ns-stats-grid        { grid-template-columns: repeat(2, 1fr); }
+}
+
 /* CountryPageClient animation + card styles */
 .ns-reveal { opacity: 0; transform: translateY(16px); transition: opacity .5s ease, transform .5s ease; }
 .ns-reveal.ns-visible { opacity: 1; transform: none; }

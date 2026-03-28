@@ -29,6 +29,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
+export const revalidate = 3600 // revalidate region pages every hour
+
 export default async function RegionPage({ params }: Props) {
   const [region, countryCounts] = await Promise.all([
     Promise.resolve(getRegionData(params.region)),

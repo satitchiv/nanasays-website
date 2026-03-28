@@ -8,8 +8,10 @@ import { getSchoolBySlug, getSimilarSchools, formatFees, formatAges } from '@/li
 import type { School } from '@/lib/types'
 import Link from 'next/link'
 import { getServerT } from '@/lib/serverI18n'
-import EnquiryForm from '@/components/school/EnquiryForm'
+import GeneralEnquiryForm from '@/components/school/GeneralEnquiryForm'
 import TrackView from '@/components/school/TrackView'
+
+export const revalidate = 86400 // revalidate school pages every 24 hours
 
 interface Props {
   params: { slug: string }
@@ -80,7 +82,7 @@ function SidebarStat({ label, value, accent }: { label: string; value: string; a
       fontSize: 17, gap: 8,
     }}>
       <span style={{ color: 'var(--muted)', flexShrink: 0 }}>{label}</span>
-      <span style={{ fontWeight: 600, color: accent ? 'var(--teal-dk)' : 'var(--body)', textAlign: 'right', fontSize: 17 }}>
+      <span style={{ fontWeight: 600, color: accent ? 'var(--teal-dk)' : 'var(--body)', textAlign: 'right', fontSize: 17, minWidth: 0, wordBreak: 'break-word' }}>
         {value}
       </span>
     </div>
@@ -441,7 +443,7 @@ export default async function SchoolPage({ params }: Props) {
         color: '#fff', padding: '52px 5% 44px',
       }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 32 }}>
+          <div className="ns-school-hero-inner">
             <div style={{ flex: 1 }}>
               {/* Badges */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
@@ -529,11 +531,7 @@ export default async function SchoolPage({ params }: Props) {
             </div>
 
             {/* Right badge */}
-            <div style={{
-              background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
-              borderRadius: 12, padding: '24px 28px', textAlign: 'center',
-              minWidth: 180, flexShrink: 0,
-            }}>
+            <div className="ns-school-hero-badge">
               {school.logo_url && (
                 <div style={{
                   background: 'var(--navy)', borderRadius: 8, padding: '14px 18px',
@@ -565,11 +563,7 @@ export default async function SchoolPage({ params }: Props) {
           </div>
 
           {/* Stats bar */}
-          <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)',
-            gap: 1, background: 'rgba(255,255,255,0.08)',
-            borderRadius: 10, overflow: 'hidden', marginTop: 32,
-          }}>
+          <div className="ns-stats-bar" style={{ gap: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, overflow: 'hidden', marginTop: 32 }}>
             {[
               { label: t('school_stat_fees'), value: fees, sub: '' },
               school.university_placement_rate != null && { label: t('school_stat_uni_rate'), value: `${school.university_placement_rate}%`, sub: t('school_stat_graduates') },
@@ -595,18 +589,14 @@ export default async function SchoolPage({ params }: Props) {
       </div>
 
       {/* MAIN LAYOUT */}
-      <div style={{
-        maxWidth: 1100, margin: '0 auto', padding: '44px 5%',
-        display: 'grid', gridTemplateColumns: '1fr 300px', gap: 52, alignItems: 'start',
-      }}>
-        <main>
+      <div className="ns-school-layout" style={{ maxWidth: 1100, margin: '0 auto', padding: '44px 5%' }}>
+        <main style={{ minWidth: 0 }}>
           {/* OPEN DAY BANNER */}
           {school.open_day_text && (
-            <div style={{
+            <div className="ns-open-day-banner" style={{
               background: 'linear-gradient(135deg, var(--navy), #1e3f6b)',
               color: '#fff', borderRadius: 10, padding: '24px 28px',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              gap: 20, marginBottom: 44,
+              marginBottom: 44,
             }}>
               <div>
                 <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.12em', color: 'var(--teal)', marginBottom: 6 }}>
@@ -695,7 +685,7 @@ export default async function SchoolPage({ params }: Props) {
               </div>
             </div>
             {(school.distance_city || school.distance_airport || school.bus_service || school.nearest_airport || school.flight_hours_from_bkk) && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 16 }}>
+              <div className="ns-3col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 16 }}>
                 {school.nearest_airport && <FacilityItem label={`Airport: ${school.nearest_airport}`} />}
                 {school.flight_hours_from_bkk && <FacilityItem label={`${school.flight_hours_from_bkk}h from Bangkok`} />}
                 {school.distance_airport && <FacilityItem label={school.distance_airport} />}
@@ -721,7 +711,7 @@ export default async function SchoolPage({ params }: Props) {
           {(scorecardItems.length > 0 || boolItems.length > 0) && (
             <Section>
               <SectionTitle>{t('school_section_scorecard')}</SectionTitle>
-              <div style={{
+              <div className="ns-scorecard-grid" style={{
                 display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12,
               }}>
                 {scorecardItems.map((item, i) => (
@@ -761,7 +751,7 @@ export default async function SchoolPage({ params }: Props) {
             school.eal_support != null || school.sen_support != null || school.sel_support != null || school.bus_service != null) && (
             <Section>
               <SectionTitle>{t('school_section_key_details')}</SectionTitle>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
+              <div className="ns-key-details-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
 
                 {school.curriculum?.length ? (
                   <div style={{ background: 'var(--off)', border: '1px solid var(--border)', borderRadius: 12, padding: '18px 20px' }}>
@@ -883,7 +873,7 @@ export default async function SchoolPage({ params }: Props) {
           {(school.ap_pass_rate != null || school.ib_pass_rate != null || school.university_placement_rate != null || school.sat_avg != null || school.act_avg != null || school.inspection_rating || school.a_level_results || school.gcse_results || school.oxbridge_rate != null || school.russell_group_rate != null) && (
             <Section>
               <SectionTitle>{t('school_section_academic')}</SectionTitle>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
+              <div className="ns-2col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 24 }}>
                 {school.ap_pass_rate != null && (
                   <div style={{ background: 'var(--off)', border: '1px solid var(--border)', borderRadius: 10, padding: 20 }}>
                     <div style={{ fontSize: 32, fontWeight: 800, color: 'var(--navy)', lineHeight: 1, marginBottom: 4, fontFamily: 'var(--font-nunito), Nunito, sans-serif' }}>
@@ -1046,7 +1036,7 @@ export default async function SchoolPage({ params }: Props) {
               {school.isi_summary && (
                 <p style={{ color: '#334', marginBottom: 20, fontSize: 16, lineHeight: 1.85 }}>{school.isi_summary}</p>
               )}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
+              <div className="ns-2col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
                 {school.isi_academic_quality && (
                   <div style={{ background: 'var(--off)', border: '1px solid var(--border)', borderRadius: 10, padding: 18 }}>
                     <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--teal-dk)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Academic Quality</div>
@@ -1077,7 +1067,7 @@ export default async function SchoolPage({ params }: Props) {
               {school.isi_key_strengths?.length ? (
                 <div style={{ marginBottom: 16 }}>
                   <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Key Strengths</div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div className="ns-2col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     {school.isi_key_strengths.map(s => <FacilityItem key={s} label={s} />)}
                   </div>
                 </div>
@@ -1127,7 +1117,14 @@ export default async function SchoolPage({ params }: Props) {
             <Section>
               <SectionTitle>{t('school_section_why_choose')}</SectionTitle>
               <ul style={{ listStyle: 'none', padding: 0 }}>
-                {school.unique_selling_points.split('\n').filter(Boolean).map((point, i) => (
+                {(() => {
+                  const usp = school.unique_selling_points!
+                  try {
+                    const parsed = JSON.parse(usp)
+                    if (Array.isArray(parsed)) return parsed.filter(Boolean)
+                  } catch {}
+                  return usp.split('\n').filter(Boolean)
+                })().map((point, i) => (
                   <li key={i} style={{
                     padding: '11px 0', borderBottom: '1px solid var(--border)',
                     fontSize: 18, color: '#334', display: 'flex',
@@ -1181,7 +1178,7 @@ export default async function SchoolPage({ params }: Props) {
                   {school.university_placement_rate}% of {school.name} graduates go on to higher education. Recent graduates have been accepted at universities including:
                 </p>
               )}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+              <div className="ns-3col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
                 {school.top_universities.map(uni => (
                   <div key={uni} style={{
                     background: 'var(--off)', border: '1px solid var(--border)',
@@ -1277,7 +1274,7 @@ export default async function SchoolPage({ params }: Props) {
           {(school.application_deadline || school.admission_deposit_usd != null || school.waitlist || school.eal_cost_usd != null || school.entry_exam_type || school.admissions_open_month) && (
             <Section>
               <SectionTitle>{t('school_section_admissions')}</SectionTitle>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+              <div className="ns-2col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 {school.admissions_open_month && (
                   <div style={{ background: 'var(--off)', border: '1px solid var(--border)', borderRadius: 10, padding: 20 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 10 }}>Admissions Open</div>
@@ -1335,7 +1332,7 @@ export default async function SchoolPage({ params }: Props) {
             <Section>
               <SectionTitle>{t('school_section_boarding')}</SectionTitle>
               {(school.boarding_type || school.single_rooms != null) && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+                <div className="ns-3col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
                   {school.boarding_type && (
                     <div style={{ background: 'var(--off)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 18px' }}>
                       <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--teal-dk)', textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>Boarding Type</div>
@@ -1443,7 +1440,7 @@ export default async function SchoolPage({ params }: Props) {
                   }}>
                     Sports Excellence Programmes
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div className="ns-2col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     {school.sports_excellence_programmes.map(item => <FacilityItem key={item} label={item} />)}
                   </div>
                 </div>
@@ -1456,7 +1453,7 @@ export default async function SchoolPage({ params }: Props) {
                   }}>
                     {group.group}
                   </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  <div className="ns-2col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     {group.items.map(item => <FacilityItem key={item} label={item} />)}
                   </div>
                 </div>
@@ -1489,7 +1486,7 @@ export default async function SchoolPage({ params }: Props) {
           {(school.nationalities_count || school.age_min != null || school.gender_split || school.stages?.length) && (
             <Section>
               <SectionTitle>{t('school_section_demographics')}</SectionTitle>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+              <div className="ns-scorecard-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
                 {school.gender_split && (
                   <div style={{ background: 'var(--off)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 16px' }}>
                     <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 14 }}>School Type</div>
@@ -1622,7 +1619,7 @@ export default async function SchoolPage({ params }: Props) {
           {similarSchools.length > 0 && (
             <Section>
               <SectionTitle>{t('school_section_similar')}</SectionTitle>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+              <div className="ns-similar-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
                 {similarSchools.map(s => (
                   <Link key={s.id} href={`/schools/${s.slug}`} style={{
                     border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden',
@@ -1659,7 +1656,7 @@ export default async function SchoolPage({ params }: Props) {
         </main>
 
         {/* SIDEBAR */}
-        <aside style={{ position: 'sticky', top: 80 }}>
+        <aside className="ns-school-aside" style={{ position: 'sticky', top: 80, minWidth: 0 }}>
           <SidebarCard>
             <SidebarTitle>{t('school_sidebar_facts')}</SidebarTitle>
             {school.country && <SidebarStat label={t('school_sidebar_country')} value={school.country} />}
@@ -1679,33 +1676,29 @@ export default async function SchoolPage({ params }: Props) {
             {school.head_of_school && <SidebarStat label={t('school_sidebar_head')} value={school.head_of_school} />}
           </SidebarCard>
 
-          {/* Partner: direct enquiry form */}
-          {school.is_partner && school.partner_expires && new Date(school.partner_expires) > new Date() && (
-            <div style={{ marginBottom: 10 }}>
-              <EnquiryForm schoolId={school.id} schoolName={school.name} />
-            </div>
-          )}
+          {/* Public enquiry form — all schools */}
+          <div style={{ marginBottom: 10 }}>
+            <GeneralEnquiryForm schoolName={school.name} />
+          </div>
 
-          {/* Non-partner: claim prompt */}
-          {(!school.is_partner || !school.partner_expires || new Date(school.partner_expires) <= new Date()) && (
-            <div style={{
-              borderTop: '1px solid var(--border)', paddingTop: 14, marginTop: 4, marginBottom: 10,
-            }}>
-              <a
-                href="/claim"
-                style={{
-                  display: 'block', textAlign: 'center', fontSize: 12,
-                  color: 'var(--muted)', textDecoration: 'none',
-                  padding: '10px 0',
-                }}
-              >
-                Are you the school admin?{' '}
-                <span style={{ color: 'var(--teal-dk)', fontWeight: 700, textDecoration: 'underline' }}>
-                  Claim this listing
-                </span>
-              </a>
-            </div>
-          )}
+          {/* School admin claim prompt */}
+          <div style={{
+            borderTop: '1px solid var(--border)', paddingTop: 14, marginTop: 4, marginBottom: 10,
+          }}>
+            <a
+              href="/claim"
+              style={{
+                display: 'block', textAlign: 'center', fontSize: 12,
+                color: 'var(--muted)', textDecoration: 'none',
+                padding: '10px 0',
+              }}
+            >
+              Are you the school admin?{' '}
+              <span style={{ color: 'var(--teal-dk)', fontWeight: 700, textDecoration: 'underline' }}>
+                Claim this listing
+              </span>
+            </a>
+          </div>
 
           {school.official_website && (
             <a
@@ -1718,33 +1711,6 @@ export default async function SchoolPage({ params }: Props) {
             >
               {t('school_cta_website')}
             </a>
-          )}
-          {school.contact_email && (
-            <a
-              href={`mailto:${school.contact_email}`}
-              style={{
-                display: 'block', width: '100%', background: 'transparent', color: 'var(--navy)',
-                textAlign: 'center', padding: '13px 20px', borderRadius: 8, fontSize: 14,
-                fontWeight: 600, textDecoration: 'none', border: '2px solid var(--border)',
-                marginBottom: 10,
-              }}
-            >
-              {t('school_cta_enquiry')}
-            </a>
-          )}
-          {school.contact_email && (
-            <div style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', marginTop: 4 }}>
-              <a href={`mailto:${school.contact_email}`} style={{ color: 'var(--blue)', textDecoration: 'none' }}>
-                {school.contact_email}
-              </a>
-            </div>
-          )}
-          {school.contact_phone && (
-            <div style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', marginTop: 6 }}>
-              <a href={`tel:${school.contact_phone}`} style={{ color: 'var(--body)', textDecoration: 'none' }}>
-                {school.contact_phone}
-              </a>
-            </div>
           )}
 
           {/* SOCIAL LINKS */}
@@ -1807,17 +1773,7 @@ export default async function SchoolPage({ params }: Props) {
             }}>
               {t('school_advisor_sub')}
             </p>
-            <a
-              href="/advisors"
-              style={{
-                display: 'block', textAlign: 'center', padding: '10px 16px',
-                borderRadius: 7, fontSize: 13, fontWeight: 700,
-                background: 'var(--teal-dk)', color: '#fff', textDecoration: 'none',
-                fontFamily: "'Nunito Sans', sans-serif",
-              }}
-            >
-              {t('school_advisor_cta')}
-            </a>
+            <GeneralEnquiryForm schoolName={school.name} />
           </div>
 
         </aside>

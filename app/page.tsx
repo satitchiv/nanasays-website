@@ -7,7 +7,7 @@ import { getCountrySchoolCounts, getTotalSchoolCount } from '@/lib/schools'
 import { BLOG_POSTS, CATEGORY_LABELS } from '@/lib/blog'
 import Link from 'next/link'
 
-export const dynamic = 'force-dynamic'
+export const revalidate = 3600 // revalidate homepage every hour
 
 const MapSection = dynamicImport(() => import('@/components/MapSection'), { ssr: false })
 const HeroSearch = dynamicImport(() => import('@/components/HeroSearch'), { ssr: false })
@@ -60,6 +60,29 @@ const TESTIMONIALS = [
   },
 ]
 
+const FEATURED_SCHOOLS = [
+  { name: 'British School Jakarta',                     slug: 'british-school-jakarta',                     logo: 'https://eda.sgp1.digitaloceanspaces.com/production/k7tBTmW9G2qQTLm8ohuTTMjHCZX3Y0P23fIxFTj5--o.webp' },
+  { name: 'Dulwich College Shanghai Puxi',              slug: 'dulwich-college-shanghai-puxi',               logo: 'https://shanghai-puxi.dulwich.org/images/crest-logo.svg' },
+  { name: 'Ecole Jeannine Manuel - Paris',              slug: 'ecole-jeannine-manuel-paris',                 logo: 'https://www.ecolejeanninemanuel.org/wp-content/themes/kingster-child/images/svg/ecole-jeannine-manuel-logo-color-short.svg' },
+  { name: 'Haut-Lac International Bilingual School',    slug: 'haut-lac-international-bilingual-school',     logo: 'https://haut-lac.ch/wp-content/uploads/2025/10/logo-color.png' },
+  { name: 'Hebron School',                              slug: 'hebron-school',                               logo: 'https://resources.finalsite.net/images/f_auto,q_auto/v1702360931/hebronootyorg/goyzstuwhw71so2e5aqb/2_3.png' },
+  { name: "ICS Côte d'Azur",                            slug: 'ics-cote-dazur',                              logo: 'https://www.internationalschoolsearch.com/listings/internationalschools/32969L6.jpg' },
+  { name: 'Institut Montana Switzerland',               slug: 'institut-montana-switzerland',                logo: 'https://www.montana-zug.ch/hubfs/Heading%20(1).png' },
+  { name: 'International Bilingual School of Provence', slug: 'international-bilingual-school-of-provence',  logo: 'https://static.wixstatic.com/media/4a8972_c69ed16ee00e41c98c2c2fbdb8c5f540~mv2.png/v1/fill/w_81,h_86,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/logo-ibs.png' },
+  { name: 'International School of Busan',              slug: 'international-school-of-busan',               logo: 'https://static.wixstatic.com/media/add61f_5d09626abbc84b2fb736370715027a6f~mv2.png/v1/crop/x_0,y_218,w_3238,h_1475/fill/w_202,h_92,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/ISB%20Logo-Large.png' },
+  { name: 'International School of Lausanne',           slug: 'international-school-of-lausanne',            logo: 'https://www.isl.ch/hs-fs/hubfs/ISL_Logo_black_2000px.png?width=400&height=150&name=ISL_Logo_black_2000px.png' },
+  { name: 'Kodaikanal International School',            slug: 'kodaikanal-international-school',             logo: 'https://resources.finalsite.net/images/f_auto,q_auto/v1731757171/kisin/itp6p7qqoh3soox1pohn/KIS-Logo.png' },
+  { name: 'La Garenne International School',            slug: 'la-garenne-international-school',             logo: 'https://www.la-garenne.ch/wp-content/uploads/2025/12/Social-Media.jpg' },
+  { name: 'Lyceum Alpinum Zuoz',                        slug: 'lyceum-alpinum-zuoz',                         logo: 'https://www.lyceum-alpinum.ch/wp-content/uploads/2020/12/lyzeum-alpinum-zuoz-internat-schweiz-logo-swisslearning-small.jpg' },
+  { name: 'Marlborough College, Malaysia',              slug: 'marlborough-college-malaysia',                logo: 'https://www.marlboroughcollegemalaysia.org/wp-content/uploads/2025/12/Primary-MCM-Logo-2025-For-White-Background-scaled.png' },
+  { name: 'Marymount International School London',      slug: 'marymount-international-school-london',       logo: 'https://www.marymountlondon.com/wp-content/themes/marymount/assets/img/icons/logo-new-blue.png' },
+  { name: 'Oakridge International School, Bengaluru',   slug: 'oakridge-international-school-bengaluru',     logo: 'https://custpostimages.s3.ap-south-1.amazonaws.com/6847/1623820198871.png' },
+  { name: "St Andrew's School Turi",                    slug: 'st-andrews-school-turi',                      logo: 'https://www.standrewsturi.com/wp-content/themes/st-andrews-2023/build/images/logo.png' },
+  { name: "St. George's International School",          slug: 'st-georges-international-school-switzerland', logo: 'https://d24d7vsshzrslo.cloudfront.net/sites/school91/files/2024-10/16160_sgis-roundel-red-logo-rgb-png.png' },
+  { name: 'Suzhou Singapore International School',      slug: 'suzhou-singapore-international-school',       logo: 'https://www.ssis.asia/wp-content/uploads/2019/09/logo-full.svg' },
+  { name: 'Victoria Shanghai Academy',                  slug: 'victoria-shanghai-academy',                   logo: 'https://resources.finalsite.net/images/v1626762643/vsaeduhk/wvqlx4sxnozcmfj36u5g/VictoriaShanghaiAcademyHeaderLogo.svg' },
+]
+
 export default async function HomePage() {
   const [countryCounts, totalSchools] = await Promise.all([
     getCountrySchoolCounts(),
@@ -72,15 +95,9 @@ export default async function HomePage() {
       <Nav />
 
       {/* ─── HERO ──────────────────────────────────────────────────────────── */}
-      <div style={{
-        marginTop: 60,
-        position: 'relative',
-        minHeight: 'calc(100vh - 60px)',
-        overflow: 'hidden',
-        background: '#0a1520',
-      }}>
+      <div className="ns-hero-outer" style={{ marginTop: 60 }}>
         {/* Full-width hero */}
-        <div style={{ position: 'absolute', inset: 0 }}>
+        <div className="ns-hero-bg">
           <div style={{
             position: 'absolute', inset: 0,
             backgroundImage: 'url(https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=1200&q=85&auto=format&fit=crop)',
@@ -91,11 +108,7 @@ export default async function HomePage() {
             background: 'linear-gradient(to right, rgba(10,21,32,.78) 0%, rgba(10,21,32,.25) 100%), linear-gradient(to top, rgba(10,21,32,.65) 0%, transparent 55%)',
           }} />
           {/* Content row — copy left + chat card right, both over the photo */}
-          <div style={{
-            position: 'relative', zIndex: 2, height: '100%',
-            display: 'flex', alignItems: 'center', gap: 56,
-            padding: '72px 5% 72px 52px',
-          }}>
+          <div className="ns-hero-inner">
             {/* Left — copy */}
             <div style={{ flex: 1, maxWidth: 560 }}>
               <div style={{
@@ -162,7 +175,7 @@ export default async function HomePage() {
             </div>
 
             {/* Right — search card */}
-            <div style={{ width: 460, flexShrink: 0, alignSelf: 'center' }}>
+            <div className="ns-hero-search-col">
               <HeroSearch />
             </div>
           </div>
@@ -170,8 +183,8 @@ export default async function HomePage() {
       </div>
 
       {/* ─── STATS ─────────────────────────────────────────────────────────── */}
-      <div style={{ background: 'var(--navy)' }}>
-        <div style={{ maxWidth: 1240, margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
+      <div className="ns-stats-section" style={{ background: 'var(--navy)' }}>
+        <div className="ns-stats-grid" style={{ maxWidth: 1240, margin: '0 auto' }}>
           {[
             { num: totalSchools, suffix: '+', label: 'Schools in our directory' },
             { num: totalCountries, suffix: '', label: 'Countries covered' },
@@ -248,6 +261,7 @@ export default async function HomePage() {
                     src={region.heroImage}
                     alt={region.name}
                     className="ns-region-img"
+                    loading="lazy"
                     style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.75, display: 'block', transition: 'transform .35s' }}
                   />
                   <div style={{
@@ -361,7 +375,7 @@ export default async function HomePage() {
           <p style={{ fontSize: 15, color: 'rgba(255,255,255,.5)', fontWeight: 300, lineHeight: 1.65, maxWidth: 520, marginBottom: 44 }}>
             These three schools consistently rise to the top when Thai families ask Nana for recommendations.
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 18 }}>
+          <div className="ns-picks-grid">
             {PICKS.map(pick => (
               <Link key={pick.rank} href={`/schools/${pick.slug}`} style={{
                 background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.1)',
@@ -394,7 +408,7 @@ export default async function HomePage() {
               See all articles
             </Link>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: 18 }}>
+          <div className="ns-blog-grid">
             {BLOG_POSTS.map((post, i) => (
               <Link key={post.slug} href={`/blog/${post.slug}`} style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', textDecoration: 'none', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ overflow: 'hidden', position: 'relative', background: 'var(--off2)', height: i === 0 ? 240 : 140 }}>
@@ -433,7 +447,7 @@ export default async function HomePage() {
       {/* ─── TRUST / CTA ─────────────────────────────────────────────────────── */}
       <div style={{ background: '#fff', borderTop: '1px solid var(--border)', padding: '88px 5%' }}>
         <div style={{ maxWidth: 1240, margin: '0 auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 18, marginBottom: 56 }}>
+          <div className="ns-trust-grid">
             {TESTIMONIALS.map(t => (
               <div key={t.author} style={{ background: 'var(--off)', border: '1px solid var(--border)', borderRadius: 16, padding: 26 }}>
                 <div style={{ display: 'flex', gap: 2, marginBottom: 12 }}>
@@ -456,7 +470,7 @@ export default async function HomePage() {
           </div>
 
           {/* CTA band */}
-          <div style={{ background: 'var(--navy)', borderRadius: 22, padding: '48px 52px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 28, position: 'relative', overflow: 'hidden' }}>
+          <div className="ns-cta-band" style={{ background: 'var(--navy)', borderRadius: 22, padding: '48px 52px', position: 'relative', overflow: 'hidden' }}>
             <div style={{ position: 'absolute', top: -40, right: 80, width: 200, height: 200, borderRadius: '50%', background: 'rgba(52,195,160,.08)' }} />
             <div style={{ position: 'absolute', bottom: -60, right: -30, width: 240, height: 240, borderRadius: '50%', background: 'rgba(45,125,210,.08)' }} />
             <div style={{ position: 'relative', zIndex: 1 }}>
@@ -467,11 +481,54 @@ export default async function HomePage() {
                 Browse 4,000+ verified schools across 45+ countries — fees, curriculum, admissions and more.
               </p>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 9, flexShrink: 0, position: 'relative', zIndex: 1 }}>
-              <button style={{ padding: '14px 30px', borderRadius: 11, fontSize: 14, fontWeight: 800, background: 'var(--teal)', color: '#fff', border: 'none', fontFamily: 'var(--font-nunito), Nunito, sans-serif', cursor: 'pointer', boxShadow: '0 4px 16px rgba(52,195,160,.3)' }}>
-                Browse Schools
-              </button>
+            <div className="ns-hero-search-cta">
+              <HeroSearch />
             </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── FEATURED SCHOOLS / PARTNERS ────────────────────────────────────── */}
+      <div style={{ background: 'var(--off)', borderTop: '1px solid var(--border)', padding: '88px 5%' }}>
+        <div style={{ maxWidth: 1240, margin: '0 auto' }}>
+          <div style={{ textAlign: 'center', marginBottom: 48 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--teal-dk)', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 10 }}>Schools in Our Directory</div>
+            <h2 style={{ fontFamily: 'var(--font-nunito), Nunito, sans-serif', fontSize: 'clamp(24px, 3vw, 36px)', fontWeight: 900, color: 'var(--navy)', letterSpacing: '-0.5px', lineHeight: 1.15, marginBottom: 12 }}>
+              Some of our Top Schools
+            </h2>
+            <p style={{ fontSize: 15, color: 'var(--muted)', fontWeight: 300, lineHeight: 1.65, maxWidth: 480, margin: '0 auto' }}>
+              From Swiss boarding schools to top day schools across Asia — all verified and in the Nana directory.
+            </p>
+          </div>
+          <div className="ns-partners-grid">
+            {FEATURED_SCHOOLS.map(school => (
+              <Link
+                key={school.slug}
+                href={`/schools/${school.slug}`}
+                style={{ textDecoration: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}
+              >
+                <div style={{
+                  width: '100%', aspectRatio: '3/2',
+                  background: '#fff', borderRadius: 14,
+                  border: '1px solid var(--border)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  padding: '18px 20px', overflow: 'hidden',
+                  transition: 'box-shadow .2s, border-color .2s',
+                }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={school.logo}
+                    alt={school.name}
+                    loading="lazy"
+                    style={{ maxWidth: '100%', maxHeight: 56, objectFit: 'contain', display: 'block', filter: 'none' }}
+                  />
+                </div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--navy)', textAlign: 'center', lineHeight: 1.4 }}>{school.name}</div>
+              </Link>
+            ))}
+          </div>
+          <div style={{ maxWidth: 540, margin: '44px auto 0', background: 'var(--navy)', borderRadius: 24, padding: '8px' }}>
+            <HeroSearch />
           </div>
         </div>
       </div>

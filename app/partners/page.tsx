@@ -138,10 +138,9 @@ export default function PartnersPage() {
       <PartnerNav />
 
       {/* HERO */}
-      <div style={{
+      <div className="ns-pp-hero-pad" style={{
         marginTop: 64,
         background: 'linear-gradient(135deg, var(--navy) 0%, #1a3557 100%)',
-        padding: '100px 5% 80px',
         position: 'relative',
         overflow: 'hidden',
       }}>
@@ -177,7 +176,7 @@ export default function PartnersPage() {
           </p>
           <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
             <a
-              href="#contact"
+              href="?interest=chat#contact"
               style={{
                 padding: '14px 32px', borderRadius: 9, fontSize: 14, fontWeight: 800,
                 background: 'var(--teal)', color: '#fff', textDecoration: 'none',
@@ -197,7 +196,7 @@ export default function PartnersPage() {
               Claim your school
             </a>
             <a
-              href="/demo"
+              href="?interest=demo#contact"
               style={{
                 padding: '14px 32px', borderRadius: 9, fontSize: 14, fontWeight: 700,
                 background: 'rgba(255,255,255,0.08)', color: '#fff', textDecoration: 'none',
@@ -210,7 +209,8 @@ export default function PartnersPage() {
               href="#pricing"
               style={{
                 padding: '14px 32px', borderRadius: 9, fontSize: 14, fontWeight: 700,
-                background: 'transparent', color: 'rgba(255,255,255,0.55)', textDecoration: 'none',
+                background: 'transparent', color: '#fff', textDecoration: 'underline',
+                textUnderlineOffset: '3px', opacity: 0.75,
               }}
             >
               See pricing
@@ -235,7 +235,7 @@ export default function PartnersPage() {
             </h2>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 24 }}>
+          <div className="ns-pp-how-grid">
             {BENEFITS.map((b, i) => (
               <div key={i} style={{
                 background: 'var(--off)', border: '1px solid var(--border)',
@@ -277,7 +277,7 @@ export default function PartnersPage() {
                 Trusted by schools and families worldwide
               </h3>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20 }}>
+            <div className="ns-pp-test-grid">
               {TESTIMONIALS.map((t, i) => (
                 <div key={i} style={{
                   background: 'var(--off)', border: '1px solid var(--border)',
@@ -315,7 +315,7 @@ export default function PartnersPage() {
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, alignItems: 'start' }}>
+          <div className="ns-pp-pricing-grid">
             {TIERS.map((tier, i) => (
               <div key={i} style={{
                 background: tier.highlight ? 'var(--navy)' : '#fff',
@@ -394,7 +394,7 @@ export default function PartnersPage() {
           </div>
 
           {/* Content Boosters — lives within Pricing section */}
-          <div style={{ marginTop: 64, background: 'var(--navy)', borderRadius: 20, padding: '52px 48px' }}>
+          <div className="ns-pp-booster-inner">
             <div style={{ textAlign: 'center', marginBottom: 44 }}>
               <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--teal)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>
                 Content Booster
@@ -411,7 +411,7 @@ export default function PartnersPage() {
               </p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 18 }}>
+            <div className="ns-pp-booster-grid">
               {BOOSTERS.map((b, i) => (
                 <div key={i} style={{
                   background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
@@ -453,7 +453,7 @@ export default function PartnersPage() {
       {/* OUR AUDIENCE */}
       <div id="audience" style={{ background: '#fff', padding: '88px 5%', scrollMarginTop: 80 }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 64, alignItems: 'center' }}>
+          <div className="ns-pp-audience-grid">
             <div>
               <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--teal-dk)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>
                 Our audience
@@ -516,7 +516,7 @@ export default function PartnersPage() {
             </p>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 22 }}>
+          <div className="ns-pp-insights-grid">
             {INSIGHTS.map((a, i) => (
               <div key={i} style={{
                 background: '#fff', border: '1px solid var(--border)',
@@ -562,8 +562,8 @@ export default function PartnersPage() {
       </div>
 
       {/* CONTACT FORM */}
-      <div id="contact" style={{ background: '#fff', padding: '88px 5%', borderTop: '1px solid var(--border)', scrollMarginTop: 80 }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 72, alignItems: 'start' }}>
+      <div id="contact" className="ns-pp-contact-outer" style={{ background: '#fff', borderTop: '1px solid var(--border)', scrollMarginTop: 80 }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto' }} className="ns-pp-contact-grid">
           <div>
             <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--teal-dk)', textTransform: 'uppercase', letterSpacing: '0.14em', marginBottom: 10 }}>
               Get in touch
@@ -592,10 +592,7 @@ export default function PartnersPage() {
               ))}
             </div>
           </div>
-          <div style={{
-            background: 'var(--off)', border: '1px solid var(--border)',
-            borderRadius: 16, padding: '36px 36px',
-          }}>
+          <div className="ns-pp-contact-card">
             <PartnerContactForm />
           </div>
         </div>

@@ -4,7 +4,7 @@ import nodemailer from 'nodemailer'
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
-    const { firstName, email, jobTitle, school, country, message, recaptchaToken } = body
+    const { firstName, email, jobTitle, school, country, message, interest, recaptchaToken } = body
 
     if (!firstName || !email || !school) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -37,7 +37,8 @@ export async function POST(req: NextRequest) {
         </div>
         <div style="border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;padding:28px 32px">
           <table style="width:100%;border-collapse:collapse">
-            <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888;width:120px">First name</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px;font-weight:600">${firstName}</td></tr>
+            <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888;width:120px">Interest</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px;font-weight:700;color:#239C80">${interest || '—'}</td></tr>
+            <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888">First name</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px;font-weight:600">${firstName}</td></tr>
             <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888">Email</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px"><a href="mailto:${email}" style="color:#1B3252">${email}</a></td></tr>
             <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888">Job title</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px">${jobTitle || '—'}</td></tr>
             <tr><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:13px;color:#888">School</td><td style="padding:10px 0;border-bottom:1px solid #f0f0f0;font-size:14px;font-weight:600">${school}</td></tr>
@@ -53,7 +54,7 @@ export async function POST(req: NextRequest) {
       from: '"NanaSays Partners" <satitchiv@gmail.com>',
       to: 'satitchiv@gmail.com',
       replyTo: email,
-      subject: `Partner enquiry: ${firstName} — ${school}`,
+      subject: `${interest ? `[${interest}] ` : ''}Partner enquiry: ${firstName} — ${school}`,
       html,
     })
 
