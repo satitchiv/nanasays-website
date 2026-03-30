@@ -80,6 +80,7 @@ export default function NavSearch() {
       .from('schools')
       .select('name, slug, country, city')
       .ilike('name', `%${q}%`)
+      .eq('is_international', true)
       .order('confidence_score', { ascending: false })
       .limit(6)
     setLoading(false)

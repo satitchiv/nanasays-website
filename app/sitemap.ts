@@ -22,6 +22,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       .from('schools')
       .select('slug, updated_at')
       .not('slug', 'is', null)
+      .eq('is_international', true)
       .range(from, from + 999)
     if (!data || data.length === 0) break
     allSchools.push(...data)

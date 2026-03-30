@@ -17,6 +17,7 @@ export async function getSchoolsByCountry(country: string, limit = 12): Promise<
     .from('schools')
     .select('id,slug,name,country,city,region,school_type,curriculum,fees_usd_min,fees_usd_max,boarding,university_placement_rate,hero_image,review_score,verified_at')
     .eq('country', country)
+    .eq('is_international', true)
     .order('confidence_score', { ascending: false })
     .limit(limit)
 
@@ -29,6 +30,7 @@ export async function getSimilarSchools(school: School, limit = 3): Promise<Scho
     .from('schools')
     .select('id,slug,name,country,city,region,school_type,curriculum,fees_usd_min,fees_usd_max,boarding,university_placement_rate,hero_image,review_score,verified_at')
     .eq('country', school.country ?? '')
+    .eq('is_international', true)
     .neq('id', school.id)
     .order('confidence_score', { ascending: false })
     .limit(limit)
@@ -42,6 +44,7 @@ export async function searchSchools(query: string, limit = 8): Promise<SchoolSum
     .from('schools')
     .select('id,slug,name,country,city,region,school_type,curriculum,fees_usd_min,fees_usd_max,boarding,university_placement_rate,hero_image,review_score,verified_at')
     .ilike('name', `%${query}%`)
+    .eq('is_international', true)
     .order('confidence_score', { ascending: false })
     .limit(limit)
 
@@ -54,6 +57,7 @@ export async function getFeaturedSchools(limit = 6): Promise<SchoolSummary[]> {
     .from('schools')
     .select('id,slug,name,country,city,region,school_type,curriculum,fees_usd_min,fees_usd_max,boarding,university_placement_rate,hero_image,review_score,verified_at')
     .not('hero_image', 'is', null)
+    .eq('is_international', true)
     .order('confidence_score', { ascending: false })
     .limit(limit)
 
@@ -71,6 +75,7 @@ export async function getTotalSchoolCount(): Promise<number> {
   const { count, error } = await supabase
     .from('schools')
     .select('*', { count: 'exact', head: true })
+    .eq('is_international', true)
   if (error) return 0
   return count ?? 0
 }
@@ -80,6 +85,7 @@ export async function getSchoolsForCountryPage(country: string, limit = 1000): P
     .from('schools')
     .select('id,slug,name,country,city,school_type,curriculum,fees_usd_min,fees_usd_max,fees_original,fees_currency,age_min,age_max,boarding,hero_image,thai_students,unique_selling_points,strengths,scholarship_available,nationalities_count,international_student_percent,confidence_score,latitude,longitude,sen_support,eal_support,is_partner,partner_tier')
     .eq('country', country)
+    .eq('is_international', true)
     .order('is_partner', { ascending: false, nullsFirst: false })
     .order('confidence_score', { ascending: false })
     .limit(limit)
@@ -129,6 +135,7 @@ export async function getSchoolsByFilter(params: {
   let query = supabase
     .from('schools')
     .select('id,slug,name,country,city,school_type,curriculum,fees_usd_min,fees_usd_max,fees_original,fees_currency,age_min,age_max,boarding,hero_image,thai_students,unique_selling_points,strengths,scholarship_available,nationalities_count,international_student_percent,confidence_score')
+    .eq('is_international', true)
     .order('confidence_score', { ascending: false })
     .limit(limit)
 
@@ -156,6 +163,7 @@ export async function getFilterCombinations(): Promise<{ country: string; filter
     const { data, error } = await supabase
       .from('schools')
       .select('country,school_type,curriculum')
+      .eq('is_international', true)
       .range(from, from + 999)
     if (error || !data || data.length === 0) break
     allData.push(...data)
@@ -216,6 +224,7 @@ export async function getSchoolPairs(limit = 500): Promise<{ slugA: string; slug
   const { data, error } = await supabase
     .from('schools')
     .select('slug,country,curriculum,fees_usd_min,confidence_score')
+    .eq('is_international', true)
     .not('curriculum', 'is', null)
     .not('fees_usd_min', 'is', null)
     .order('confidence_score', { ascending: false })

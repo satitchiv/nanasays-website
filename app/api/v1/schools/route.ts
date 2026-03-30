@@ -57,6 +57,7 @@ export async function GET(req: NextRequest) {
       'id,slug,name,country,city,school_type,curriculum,fees_usd_min,fees_usd_max,fees_original,boarding,scholarship_available,age_min,age_max,hero_image,university_placement_rate,ib_pass_rate,review_score,official_website',
       { count: 'exact' }
     )
+    .eq('is_international', true)
     .order('confidence_score', { ascending: false })
     .range(offset, offset + limit - 1)
 

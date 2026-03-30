@@ -75,6 +75,7 @@ export default function HeroSearch() {
         .from('schools')
         .select('name, slug, country, city')
         .ilike('name', `%${query}%`)
+        .eq('is_international', true)
         .order('confidence_score', { ascending: false })
         .limit(6)
       setLoading(false)
