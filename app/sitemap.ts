@@ -10,33 +10,21 @@ const BASE_URL = 'https://nanasays.school'
 export const revalidate = 86400 // regenerate sitemap once per day
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // Step 1: fetch all school slugs first (sequential batches — must complete before anything else)
-  const allSchools: { slug: string }[] = []
-  let from = 0
-  while (true) {
-    const { data, error } = await supabase
-      .from('schools')
-      .select('slug')
-      .not('slug', 'is', null)
-      .eq('is_international', true)
-      .range(from, from + 999)
-    if (error || !data || data.length === 0) break
-    allSchools.push(...data)
-    if (data.length < 1000) break
-    from += 1000
-  }
+  // Step 1: single RPC call — returns {slugs:[...]} object so PostgREST treats it as one scalar, not paginated rows
+  const { data: rpcResult } = await supabase.rpc('get_international_school_slugs')
+  const allSlugs: string[] = (rpcResult as any)?.slugs || []
 
-  // Step 2: fetch filter combos and compare pairs in parallel (after schools are done)
+  // Step 2: fetch filter combos and compare pairs in parallel
   const [filterCombos, schoolPairs] = await Promise.all([
     getFilterCombinations(),
     getSchoolPairs(500),
   ])
 
-  const schoolUrls: MetadataRoute.Sitemap = allSchools.map(s => ({
-    url: `${BASE_URL}/schools/${s.slug}`,
+  const schoolUrls: MetadataRoute.Sitemap = allSlugs.map((slug: string) => ({
+    url: `${BASE_URL}/schools/${slug}`,
     lastModified: new Date(),
     changeFrequency: 'monthly' as const,
-    priority: 0.8,
+    priority: 0.8 as const,
   }))
 
   const countrySlugs = getAllCountrySlugs()
