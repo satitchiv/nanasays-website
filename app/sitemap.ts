@@ -1,5 +1,5 @@
 import { MetadataRoute } from 'next'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabase'
 import { getAllCountrySlugs } from '@/lib/countryMeta'
 import { ALL_REGION_STUBS } from '@/lib/regionData'
 import { BLOG_POSTS } from '@/lib/blog'
@@ -10,29 +10,30 @@ const BASE_URL = 'https://nanasays.school'
 export const revalidate = 86400 // regenerate sitemap once per day
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  // Fetch schools, filter combos, and compare pairs in parallel
+  const [schools, filterCombos, schoolPairs] = await Promise.all([
+    (async () => {
+      const allSchools: { slug: string; updated_at: string | null }[] = []
+      let from = 0
+      while (true) {
+        const { data, error } = await supabase
+          .from('schools')
+          .select('slug, updated_at')
+          .not('slug', 'is', null)
+          .eq('is_international', true)
+          .range(from, from + 999)
+        if (error || !data || data.length === 0) break
+        allSchools.push(...data)
+        if (data.length < 1000) break
+        from += 1000
+      }
+      return allSchools
+    })(),
+    getFilterCombinations(),
+    getSchoolPairs(500),
+  ])
 
-  // Fetch all school slugs in batches (Supabase default limit is 1000)
-  const allSchools: { slug: string; updated_at: string | null }[] = []
-  let from = 0
-  while (true) {
-    const { data } = await supabase
-      .from('schools')
-      .select('slug, updated_at')
-      .not('slug', 'is', null)
-      .eq('is_international', true)
-      .range(from, from + 999)
-    if (!data || data.length === 0) break
-    allSchools.push(...data)
-    if (data.length < 1000) break
-    from += 1000
-  }
-  const schools = allSchools
-
-  const schoolUrls: MetadataRoute.Sitemap = (schools || []).map(s => ({
+  const schoolUrls: MetadataRoute.Sitemap = schools.map(s => ({
     url: `${BASE_URL}/schools/${s.slug}`,
     lastModified: s.updated_at ? new Date(s.updated_at) : new Date(),
     changeFrequency: 'monthly' as const,
@@ -61,7 +62,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.5,
   }))
 
-  const filterCombos = await getFilterCombinations()
   const filterUrls: MetadataRoute.Sitemap = filterCombos.map(({ country, filter }) => ({
     url: `${BASE_URL}/schools/${country}/${filter}`,
     lastModified: new Date(),
@@ -69,7 +69,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.75,
   }))
 
-  const schoolPairs = await getSchoolPairs(500)
   const compareUrls: MetadataRoute.Sitemap = schoolPairs.map(({ slugA, slugB }) => ({
     url: `${BASE_URL}/compare/${slugA}-vs-${slugB}`,
     lastModified: new Date(),
@@ -82,9 +81,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/blog`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.6 },
     ...regionUrls,
     ...countryUrls,
+    ...schoolUrls,   // schools first — most important
     ...filterUrls,
     ...compareUrls,
     ...blogUrls,
-    ...schoolUrls,
   ]
 }
