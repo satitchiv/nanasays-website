@@ -257,3 +257,14 @@ button {
 .view-profile-btn:hover { background: #243f65; }
 .compare-btn { padding: 9px 14px; border-radius: 9px; font-size: 12px; font-weight: 600; background: white; color: var(--navy); border: 1.5px solid var(--bmd); cursor: pointer; font-family: 'Nunito Sans', sans-serif; transition: background .15s, border-color .15s, color .15s; }
 .compare-btn:hover { background: var(--off); border-color: var(--navy); }
+
+/* Blog article content styles */
+.blog-content h2 { font-family: var(--font-nunito), Nunito, sans-serif; font-weight: 800; font-size: 22px; color: var(--navy); margin: 40px 0 14px; letter-spacing: -0.3px; }
+.blog-content h3 { font-family: var(--font-nunito), Nunito, sans-serif; font-weight: 700; font-size: 17px; color: var(--navy); margin: 28px 0 10px; }
+.blog-content p { margin: 0 0 20px; }
+.blog-content a { color: var(--teal-dk); text-decoration: none; font-weight: 600; border-bottom: 1px solid rgba(35,156,128,.3); transition: border-color .15s; }
+.blog-content a:hover { border-color: var(--teal-dk); }
+.blog-content table { width: 100%; border-collapse: collapse; margin: 24px 0; font-size: 14px; }
+.blog-content th { text-align: left; padding: 10px 12px; color: var(--navy); font-weight: 700; border-bottom: 2px solid var(--teal); font-family: var(--font-nunito), Nunito, sans-serif; }
+.blog-content td { padding: 12px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.blog-content strong { font-weight: 700; color: var(--navy); }

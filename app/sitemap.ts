@@ -7,11 +7,12 @@ import { getFilterCombinations, getSchoolPairs } from '@/lib/schools'
 
 const BASE_URL = 'https://nanasays.school'
 
+export const revalidate = 86400 // regenerate sitemap once per day
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    { global: { fetch: (url, opts) => fetch(url, { ...opts, cache: 'no-store' }) } }
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   )
 
   // Fetch all school slugs in batches (Supabase default limit is 1000)

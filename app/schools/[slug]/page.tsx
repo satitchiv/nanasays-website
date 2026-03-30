@@ -23,6 +23,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: school.name,
     description: school.description ?? `${school.name} — international school in ${school.city ?? school.country}.`,
+    openGraph: school.hero_image
+      ? { images: [{ url: school.hero_image, width: 1200, height: 630, alt: school.name }] }
+      : undefined,
   }
 }
 
@@ -390,9 +393,9 @@ export default async function SchoolPage({ params }: Props) {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://nanasays.com' },
-      ...(school.country ? [{ '@type': 'ListItem', position: 2, name: school.country, item: `https://nanasays.com/countries/${school.country.toLowerCase().replace(/ /g, '-')}` }] : []),
-      { '@type': 'ListItem', position: school.country ? 3 : 2, name: school.name, item: `https://nanasays.com/schools/${school.slug}` },
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://nanasays.school' },
+      ...(school.country ? [{ '@type': 'ListItem', position: 2, name: school.country, item: `https://nanasays.school/countries/${school.country.toLowerCase().replace(/ /g, '-')}` }] : []),
+      { '@type': 'ListItem', position: school.country ? 3 : 2, name: school.name, item: `https://nanasays.school/schools/${school.slug}` },
     ],
   }
 

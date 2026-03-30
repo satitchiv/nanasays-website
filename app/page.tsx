@@ -9,6 +9,19 @@ import Link from 'next/link'
 
 export const revalidate = 3600 // revalidate homepage every hour
 
+const websiteSchema = {
+  '@context': 'https://schema.org',
+  '@type': 'WebSite',
+  name: 'NanaSays',
+  url: 'https://nanasays.school',
+  description: 'NanaSays helps international families find the right school abroad. Search 6,000+ verified international schools across 100+ countries.',
+  potentialAction: {
+    '@type': 'SearchAction',
+    target: 'https://nanasays.school/ask?q={search_term_string}',
+    'query-input': 'required name=search_term_string',
+  },
+}
+
 const MapSection = dynamicImport(() => import('@/components/MapSection'), { ssr: false })
 const HeroSearch = dynamicImport(() => import('@/components/HeroSearch'), { ssr: false })
 
@@ -92,6 +105,7 @@ export default async function HomePage() {
 
   return (
     <>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }} />
       <Nav />
 
       {/* ─── HERO ──────────────────────────────────────────────────────────── */}

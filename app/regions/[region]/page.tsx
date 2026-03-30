@@ -50,15 +50,30 @@ export default async function RegionPage({ params }: Props) {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://nanasays.com' },
-      { '@type': 'ListItem', position: 2, name: 'Browse Regions', item: 'https://nanasays.com/#regions' },
-      { '@type': 'ListItem', position: 3, name: region.name, item: `https://nanasays.com/regions/${region.slug}` },
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://nanasays.school' },
+      { '@type': 'ListItem', position: 2, name: 'Browse Regions', item: 'https://nanasays.school/#regions' },
+      { '@type': 'ListItem', position: 3, name: region.name, item: `https://nanasays.school/regions/${region.slug}` },
     ],
+  }
+
+  const itemListSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name: `${region.name} International Schools`,
+    description: region.description,
+    numberOfItems: countries.length,
+    itemListElement: countries.map((c, i) => ({
+      '@type': 'ListItem',
+      position: i + 1,
+      name: `International Schools in ${c.name}`,
+      url: `https://nanasays.school/countries/${c.slug}`,
+    })),
   }
 
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListSchema) }} />
       {/* SVG icon defs */}
       <svg width="0" height="0" style={{ position: 'absolute', pointerEvents: 'none' }}>
         <defs>

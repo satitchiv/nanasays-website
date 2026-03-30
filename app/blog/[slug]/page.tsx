@@ -4,6 +4,7 @@ import Link from 'next/link'
 import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
 import { BLOG_POSTS, CATEGORY_LABELS } from '@/lib/blog'
+import { BLOG_CONTENT } from '@/lib/blog-content'
 import { getSchoolsByCountry } from '@/lib/schools'
 
 interface Props {
@@ -31,11 +32,23 @@ function formatDate(iso: string) {
 // Suggest schools based on blog post category/topic
 async function getSuggestedSchools(post: (typeof BLOG_POSTS)[0]) {
   try {
-    if (post.slug.includes('uk') || post.slug.includes('boarding')) {
-      return getSchoolsByCountry('United Kingdom', 3)
+    if (post.slug.includes('bangkok') || post.slug.includes('thailand')) {
+      return getSchoolsByCountry('Thailand', 3)
     }
     if (post.slug.includes('singapore')) {
       return getSchoolsByCountry('Singapore', 3)
+    }
+    if (post.slug.includes('kuala-lumpur') || post.slug.includes('malaysia')) {
+      return getSchoolsByCountry('Malaysia', 3)
+    }
+    if (post.slug.includes('jakarta') || post.slug.includes('indonesia')) {
+      return getSchoolsByCountry('Indonesia', 3)
+    }
+    if (post.slug.includes('ho-chi-minh') || post.slug.includes('vietnam')) {
+      return getSchoolsByCountry('Vietnam', 3)
+    }
+    if (post.slug.includes('uk') || post.slug.includes('boarding')) {
+      return getSchoolsByCountry('United Kingdom', 3)
     }
     return getSchoolsByCountry('Switzerland', 3)
   } catch {
@@ -56,10 +69,10 @@ export default async function BlogPostPage({ params }: Props) {
     description: post.excerpt,
     author: { '@type': 'Person', name: post.author },
     datePublished: post.publishedAt,
-    publisher: { '@type': 'Organization', name: 'NanaSays', url: 'https://nanasays.com' },
+    publisher: { '@type': 'Organization', name: 'NanaSays', url: 'https://nanasays.school' },
     ...(post.image && { image: post.image }),
-    url: `https://nanasays.com/blog/${post.slug}`,
-    mainEntityOfPage: { '@type': 'WebPage', '@id': `https://nanasays.com/blog/${post.slug}` },
+    url: `https://nanasays.school/blog/${post.slug}`,
+    mainEntityOfPage: { '@type': 'WebPage', '@id': `https://nanasays.school/blog/${post.slug}` },
   }
 
   return (
@@ -125,31 +138,45 @@ export default async function BlogPostPage({ params }: Props) {
             {post.excerpt}
           </p>
 
-          {/* Coming soon card */}
-          <div style={{
-            background: 'var(--navy)', borderRadius: 12, padding: '32px 36px',
-            textAlign: 'center', marginBottom: 52,
-          }}>
+          {/* Article content */}
+          {BLOG_CONTENT[post.slug] ? (
+            <div
+              className="blog-content"
+              dangerouslySetInnerHTML={{ __html: BLOG_CONTENT[post.slug] }}
+              style={{
+                fontSize: 16,
+                lineHeight: 1.8,
+                color: 'var(--body)',
+                fontFamily: "'Nunito Sans', sans-serif",
+                marginBottom: 52,
+              }}
+            />
+          ) : (
             <div style={{
-              width: 48, height: 48, borderRadius: '50%',
-              background: 'rgba(52,195,160,.18)', border: '1px solid rgba(52,195,160,.3)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              margin: '0 auto 16px',
+              background: 'var(--navy)', borderRadius: 12, padding: '32px 36px',
+              textAlign: 'center', marginBottom: 52,
             }}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" strokeWidth="2" strokeLinecap="round">
-                <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-              </svg>
+              <div style={{
+                width: 48, height: 48, borderRadius: '50%',
+                background: 'rgba(52,195,160,.18)', border: '1px solid rgba(52,195,160,.3)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                margin: '0 auto 16px',
+              }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" strokeWidth="2" strokeLinecap="round">
+                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+              </div>
+              <div style={{
+                fontFamily: 'var(--font-nunito), Nunito, sans-serif',
+                fontWeight: 800, fontSize: 18, color: '#fff', marginBottom: 10,
+              }}>
+                Full article coming soon
+              </div>
+              <p style={{ fontSize: 14, color: 'rgba(255,255,255,.55)', lineHeight: 1.6, margin: 0 }}>
+                Nana is still writing this one. Check back soon — or explore the schools below while you wait.
+              </p>
             </div>
-            <div style={{
-              fontFamily: 'var(--font-nunito), Nunito, sans-serif',
-              fontWeight: 800, fontSize: 18, color: '#fff', marginBottom: 10,
-            }}>
-              Full article coming soon
-            </div>
-            <p style={{ fontSize: 14, color: 'rgba(255,255,255,.55)', lineHeight: 1.6, margin: 0 }}>
-              Nana is still writing this one. Check back soon — or explore the schools below while you wait.
-            </p>
-          </div>
+          )}
 
           {/* Suggested schools */}
           {suggested.length > 0 && (

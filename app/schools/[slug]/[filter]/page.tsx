@@ -62,7 +62,7 @@ export default async function FilterPage({ params }: Props) {
       '@type': 'ListItem',
       position: i + 1,
       name: s.name,
-      url: `https://nanasays.com/schools/${s.slug}`,
+      url: `https://nanasays.school/schools/${s.slug}`,
     })),
   }
 
@@ -70,9 +70,9 @@ export default async function FilterPage({ params }: Props) {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://nanasays.com' },
-      { '@type': 'ListItem', position: 2, name: meta.name, item: `https://nanasays.com/countries/${params.slug}` },
-      { '@type': 'ListItem', position: 3, name: pageTitle, item: `https://nanasays.com/schools/${params.slug}/${params.filter}` },
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://nanasays.school' },
+      { '@type': 'ListItem', position: 2, name: meta.name, item: `https://nanasays.school/countries/${params.slug}` },
+      { '@type': 'ListItem', position: 3, name: pageTitle, item: `https://nanasays.school/schools/${params.slug}/${params.filter}` },
     ],
   }
 

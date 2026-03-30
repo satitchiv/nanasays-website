@@ -41,8 +41,11 @@ const organizationSchema = {
   name: 'NanaSays',
   url: 'https://nanasays.school',
   description: 'NanaSays helps international families find the right school abroad. Search 4,000+ verified schools across 75+ countries with Nana, your AI school advisor.',
-  logo: 'https://nanasays.com/nana-logo.png',
-  sameAs: [],
+  logo: 'https://nanasays.school/nana-logo.png',
+  sameAs: [
+    'https://www.facebook.com/nanasays',
+    'https://www.instagram.com/nanasays',
+  ],
 }
 
 export default function RootLayout({

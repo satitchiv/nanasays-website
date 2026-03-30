@@ -102,8 +102,8 @@ export default async function ComparePage({ params }: Props) {
     name: `${a.name} vs ${b.name} — School Comparison`,
     numberOfItems: 2,
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: a.name, url: `https://nanasays.com/schools/${a.slug}` },
-      { '@type': 'ListItem', position: 2, name: b.name, url: `https://nanasays.com/schools/${b.slug}` },
+      { '@type': 'ListItem', position: 1, name: a.name, url: `https://nanasays.school/schools/${a.slug}` },
+      { '@type': 'ListItem', position: 2, name: b.name, url: `https://nanasays.school/schools/${b.slug}` },
     ],
   }
 
@@ -111,9 +111,9 @@ export default async function ComparePage({ params }: Props) {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
     itemListElement: [
-      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://nanasays.com' },
-      { '@type': 'ListItem', position: 2, name: 'Compare', item: 'https://nanasays.com/compare' },
-      { '@type': 'ListItem', position: 3, name: `${a.name} vs ${b.name}`, item: `https://nanasays.com/compare/${params.pair}` },
+      { '@type': 'ListItem', position: 1, name: 'Home', item: 'https://nanasays.school' },
+      { '@type': 'ListItem', position: 2, name: 'Compare', item: 'https://nanasays.school/compare' },
+      { '@type': 'ListItem', position: 3, name: `${a.name} vs ${b.name}`, item: `https://nanasays.school/compare/${params.pair}` },
     ],
   }
 
