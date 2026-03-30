@@ -21,8 +21,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const school = await getSchoolBySlug(params.slug)
   if (!school) return { title: 'School Not Found' }
   return {
-    title: school.name,
+    title: school.city
+      ? `${school.name} - International School in ${school.city}, ${school.country}`
+      : `${school.name} - International School in ${school.country}`,
     description: school.description ?? `${school.name} — international school in ${school.city ?? school.country}.`,
+    alternates: {
+      canonical: `https://nanasays.school/schools/${params.slug}`,
+    },
     openGraph: school.hero_image
       ? { images: [{ url: school.hero_image, width: 1200, height: 630, alt: school.name }] }
       : undefined,
