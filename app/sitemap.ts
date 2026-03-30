@@ -13,12 +13,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Fetch schools, filter combos, and compare pairs in parallel
   const [schools, filterCombos, schoolPairs] = await Promise.all([
     (async () => {
-      const allSchools: { slug: string; updated_at: string | null }[] = []
+      const allSchools: { slug: string }[] = []
       let from = 0
       while (true) {
         const { data, error } = await supabase
           .from('schools')
-          .select('slug, updated_at')
+          .select('slug')
           .not('slug', 'is', null)
           .eq('is_international', true)
           .range(from, from + 999)
@@ -35,7 +35,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const schoolUrls: MetadataRoute.Sitemap = schools.map(s => ({
     url: `${BASE_URL}/schools/${s.slug}`,
-    lastModified: s.updated_at ? new Date(s.updated_at) : new Date(),
+    lastModified: new Date(),
     changeFrequency: 'monthly' as const,
     priority: 0.8,
   }))
