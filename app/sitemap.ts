@@ -10,30 +10,29 @@ const BASE_URL = 'https://nanasays.school'
 export const revalidate = 86400 // regenerate sitemap once per day
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // Fetch schools, filter combos, and compare pairs in parallel
-  const [schools, filterCombos, schoolPairs] = await Promise.all([
-    (async () => {
-      const allSchools: { slug: string }[] = []
-      let from = 0
-      while (true) {
-        const { data, error } = await supabase
-          .from('schools')
-          .select('slug')
-          .not('slug', 'is', null)
-          .eq('is_international', true)
-          .range(from, from + 999)
-        if (error || !data || data.length === 0) break
-        allSchools.push(...data)
-        if (data.length < 1000) break
-        from += 1000
-      }
-      return allSchools
-    })(),
+  // Step 1: fetch all school slugs first (sequential batches — must complete before anything else)
+  const allSchools: { slug: string }[] = []
+  let from = 0
+  while (true) {
+    const { data, error } = await supabase
+      .from('schools')
+      .select('slug')
+      .not('slug', 'is', null)
+      .eq('is_international', true)
+      .range(from, from + 999)
+    if (error || !data || data.length === 0) break
+    allSchools.push(...data)
+    if (data.length < 1000) break
+    from += 1000
+  }
+
+  // Step 2: fetch filter combos and compare pairs in parallel (after schools are done)
+  const [filterCombos, schoolPairs] = await Promise.all([
     getFilterCombinations(),
     getSchoolPairs(500),
   ])
 
-  const schoolUrls: MetadataRoute.Sitemap = schools.map(s => ({
+  const schoolUrls: MetadataRoute.Sitemap = allSchools.map(s => ({
     url: `${BASE_URL}/schools/${s.slug}`,
     lastModified: new Date(),
     changeFrequency: 'monthly' as const,
