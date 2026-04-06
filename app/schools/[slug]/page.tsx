@@ -825,7 +825,7 @@ export default async function SchoolPage({ params }: Props) {
             {(school.distance_city || school.distance_airport || school.bus_service || school.nearest_airport || school.flight_hours_from_bkk) && (
               <div className="ns-3col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 16 }}>
                 {school.nearest_airport && <FacilityItem label={`Airport: ${school.nearest_airport}`} />}
-                {school.flight_hours_from_bkk && <FacilityItem label={`${school.flight_hours_from_bkk}h from Bangkok`} />}
+                {!!school.flight_hours_from_bkk && <FacilityItem label={`${school.flight_hours_from_bkk}h from Bangkok`} />}
                 {school.distance_airport && <FacilityItem label={school.distance_airport} />}
                 {school.distance_city && <FacilityItem label={school.distance_city} />}
                 {school.bus_service && <FacilityItem label={t('school_transport_bus')} />}
@@ -1805,12 +1805,12 @@ export default async function SchoolPage({ params }: Props) {
             {ages && <SidebarStat label={t('school_sidebar_ages')} value={ages} />}
             {school.founded_year && <SidebarStat label={t('school_label_founded')} value={String(school.founded_year)} />}
             {school.ib_authorized_year && <SidebarStat label="IB Authorized" value={String(school.ib_authorized_year)} />}
-            {school.campus_size_hectares && <SidebarStat label={t('school_sidebar_campus')} value={`${school.campus_size_hectares} ha`} />}
-            {school.typical_class_size && <SidebarStat label="Avg Class Size" value={String(school.typical_class_size)} />}
+            {!!school.campus_size_hectares && <SidebarStat label={t('school_sidebar_campus')} value={`${school.campus_size_hectares} ha`} />}
+            {!!school.typical_class_size && <SidebarStat label="Avg Class Size" value={String(school.typical_class_size)} />}
             {school.student_teacher_ratio && <SidebarStat label={t('school_stat_ratio')} value={school.student_teacher_ratio} />}
             {school.nearest_airport && <SidebarStat label="Nearest Airport" value={school.nearest_airport} />}
-            {school.flight_hours_from_bkk && <SidebarStat label="From Bangkok" value={`${school.flight_hours_from_bkk}h`} />}
-            {school.university_placement_rate && <SidebarStat label={t('school_stat_uni_rate')} value={`${school.university_placement_rate}%`} accent />}
+            {!!school.flight_hours_from_bkk && <SidebarStat label="From Bangkok" value={`${school.flight_hours_from_bkk}h`} />}
+            {!!school.university_placement_rate && <SidebarStat label={t('school_stat_uni_rate')} value={`${school.university_placement_rate}%`} accent />}
             {school.head_of_school && <SidebarStat label={t('school_sidebar_head')} value={school.head_of_school} />}
           </SidebarCard>
 
