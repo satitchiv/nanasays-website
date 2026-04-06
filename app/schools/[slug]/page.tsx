@@ -455,7 +455,7 @@ export default async function SchoolPage({ params }: Props) {
           display: 'flex', gap: 6, alignItems: 'center',
         }}>
           <Link href="/" style={{ color: 'var(--blue)' }}>Schools</Link>
-          {school.country && <><span>/</span><Link href={`/country/${school.country.toLowerCase().replace(/ /g, '-')}`} style={{ color: 'var(--blue)' }}>{school.country}</Link></>}
+          {school.country && <><span>/</span><Link href={`/countries/${school.country.toLowerCase().replace(/ /g, '-')}`} style={{ color: 'var(--blue)' }}>{school.country}</Link></>}
           {school.city && <><span>/</span><span>{school.city}</span></>}
           <span>/</span><span style={{ color: 'var(--navy)', fontWeight: 600 }}>{school.name}</span>
         </div>
