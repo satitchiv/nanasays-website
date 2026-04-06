@@ -31,6 +31,9 @@ export async function POST(req: NextRequest) {
     if (!message || typeof message !== 'string') {
       return NextResponse.json({ error: 'Message required' }, { status: 400 })
     }
+    if (message.length > 2000) {
+      return NextResponse.json({ error: 'Message too long' }, { status: 400 })
+    }
 
     // Search for relevant schools in Supabase
     const keywords = message.toLowerCase().replace(/[^a-z0-9\s]/g, '').split(/\s+/).filter(w => w.length > 3)

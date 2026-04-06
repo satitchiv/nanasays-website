@@ -19,6 +19,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false }, { status: 400 })
     }
 
+    // Verify school_id exists — reject garbage UUIDs
+    const { data: school } = await supabase
+      .from('schools')
+      .select('id')
+      .eq('id', school_id)
+      .single()
+    if (!school) return NextResponse.json({ ok: false }, { status: 404 })
+
     // Get IP for dedup — use X-Forwarded-For header (Netlify/Cloudflare) or fallback
     const forwarded = req.headers.get('x-forwarded-for')
     const ip = forwarded ? forwarded.split(',')[0].trim() : 'unknown'

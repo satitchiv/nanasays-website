@@ -6,7 +6,8 @@ const LIMITS: Record<string, number> = {
   'general-enquiry':    5,
   'claim-enquiry':      5,
   'request-prospectus': 5,
-  'chat':               20, // 20 per 10 min
+  'chat':               20,
+  'track-click':        50, // 50 clicks per 10 min — blocks scrapers, fine for real users
 }
 
 function getIp(req: Request): string {

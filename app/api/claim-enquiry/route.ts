@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { esc, isValidEmail, MAX_NAME, MAX_EMAIL, MAX_MESSAGE, MAX_SHORT } from '@/lib/sanitize'
 import { checkRateLimit } from '@/lib/rateLimit'
 
+// Per-school dedup: key = lowercase school name, value = timestamp of last claim
+const claimLog = new Map<string, number>()
+const CLAIM_WINDOW_MS = 24 * 60 * 60 * 1000 // 24 hours
+
 export async function POST(req: NextRequest) {
   try {
     if (!checkRateLimit(req, 'claim-enquiry')) {
@@ -36,6 +40,15 @@ export async function POST(req: NextRequest) {
     if (!process.env.RESEND_API_KEY) {
       return NextResponse.json({ error: 'Email service not configured' }, { status: 500 })
     }
+
+    // Per-school dedup: block if same school claimed in last 24 hours
+    const schoolKey = String(school_name).toLowerCase().trim()
+    const lastClaim = claimLog.get(schoolKey)
+    if (lastClaim && Date.now() - lastClaim < CLAIM_WINDOW_MS) {
+      // Return success so the submitter gets no useful signal, but don't send email
+      return NextResponse.json({ success: true })
+    }
+    claimLog.set(schoolKey, Date.now())
 
     const html = `
       <div style="font-family:-apple-system,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#1B3252">
