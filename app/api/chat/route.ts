@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createClient } from '@supabase/supabase-js'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
@@ -21,6 +22,10 @@ STRICT RULES:
 
 export async function POST(req: NextRequest) {
   try {
+    if (!checkRateLimit(req, 'chat')) {
+      return NextResponse.json({ error: 'Too many requests. Please slow down.' }, { status: 429 })
+    }
+
     const { message } = await req.json()
 
     if (!message || typeof message !== 'string') {
