@@ -3,7 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { getAllCountrySlugs } from '@/lib/countryMeta'
 import { ALL_REGION_STUBS } from '@/lib/regionData'
 import { BLOG_POSTS } from '@/lib/blog'
-import { getFilterCombinations, getSchoolPairs } from '@/lib/schools'
+import { getFilterCombinations } from '@/lib/schools'
 
 const BASE_URL = 'https://nanasays.school'
 
@@ -14,11 +14,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const { data: rpcResult } = await supabase.rpc('get_international_school_slugs')
   const allSlugs: string[] = (rpcResult as any)?.slugs || []
 
-  // Step 2: fetch filter combos and compare pairs in parallel
-  const [filterCombos, schoolPairs] = await Promise.all([
-    getFilterCombinations(),
-    getSchoolPairs(500),
-  ])
+  // Step 2: fetch filter combos
+  const filterCombos = await getFilterCombinations()
 
   const schoolUrls: MetadataRoute.Sitemap = allSlugs.map((slug: string) => ({
     url: `${BASE_URL}/schools/${slug}`,
@@ -56,12 +53,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.75,
   }))
 
-  const compareUrls: MetadataRoute.Sitemap = schoolPairs.map(({ slugA, slugB }) => ({
-    url: `${BASE_URL}/compare/${slugA}-vs-${slugB}`,
-    lastModified: new Date(),
-    changeFrequency: 'monthly' as const,
-    priority: 0.6,
-  }))
+  // compare pages removed from sitemap — thin content dilutes crawl budget
+  // re-add once school data is fully enriched
 
   return [
     { url: BASE_URL, lastModified: new Date(), changeFrequency: 'daily', priority: 1.0 },
@@ -70,7 +63,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ...countryUrls,
     ...schoolUrls,   // schools first — most important
     ...filterUrls,
-    ...compareUrls,
     ...blogUrls,
   ]
 }

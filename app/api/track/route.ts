@@ -27,9 +27,11 @@ export async function POST(req: NextRequest) {
       .single()
     if (!school) return NextResponse.json({ ok: false }, { status: 404 })
 
-    // Get IP for dedup — use X-Forwarded-For header (Netlify/Cloudflare) or fallback
-    const forwarded = req.headers.get('x-forwarded-for')
-    const ip = forwarded ? forwarded.split(',')[0].trim() : 'unknown'
+    // Get IP for dedup — x-nf-client-connection-ip is set by Netlify edge and cannot be spoofed
+    const ip =
+      req.headers.get('x-nf-client-connection-ip') ??
+      req.headers.get('cf-connecting-ip') ??
+      'unknown'
 
     // SHA-256 hash — never store raw IP (GDPR)
     const ipHash = createHash('sha256').update(ip + process.env.NEXT_PUBLIC_SUPABASE_URL).digest('hex')

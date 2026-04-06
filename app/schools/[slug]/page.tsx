@@ -19,6 +19,24 @@ interface Props {
   params: { slug: string }
 }
 
+// Fields that indicate a school page has enough content to be worth indexing.
+// Automatically removes noindex as enrich-schools fills these in.
+const SEO_QUALITY_FIELDS: (keyof School)[] = [
+  'description', 'fees_usd_min', 'curriculum', 'student_count',
+  'hero_image', 'logo_url', 'instagram_url', 'university_placement_rate',
+  'entry_exam_type', 'application_deadline', 'scholarship_details',
+  'sports_facilities', 'typical_class_size', 'nationalities_count', 'boarding_type',
+]
+const SEO_INDEX_THRESHOLD = 4 // must have at least 4 quality fields filled
+
+function isIndexable(school: School): boolean {
+  const filled = SEO_QUALITY_FIELDS.filter(f => {
+    const v = school[f]
+    return v !== null && v !== undefined && v !== ''
+  }).length
+  return filled >= SEO_INDEX_THRESHOLD
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const school = await getSchoolBySlug(params.slug)
   if (!school) return { title: 'School Not Found' }
@@ -30,6 +48,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: {
       canonical: `https://nanasays.school/schools/${params.slug}`,
     },
+    robots: isIndexable(school)
+      ? { index: true, follow: true }
+      : { index: false, follow: true },
     openGraph: school.hero_image
       ? { images: [{ url: school.hero_image, width: 1200, height: 630, alt: school.name }] }
       : undefined,
@@ -335,7 +356,7 @@ export default async function SchoolPage({ params }: Props) {
       q: `Is ${school.name} recommended for expat families?`,
       a: [
         school.review_score ? `${school.name} is rated ${school.review_score}/5 by families.` : null,
-        school.strengths?.length ? school.strengths[0] : null,
+        school.strengths?.length && typeof school.strengths[0] === 'string' && !school.strengths[0].includes('[') ? school.strengths[0] : null,
         school.unique_selling_points ? school.unique_selling_points.split('\n')[0] : null,
         `${school.name} is consistently recommended by international and expat families.`,
       ].filter(Boolean).join(' '),
