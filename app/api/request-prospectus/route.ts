@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { esc, isValidEmail, MAX_NAME, MAX_EMAIL } from '@/lib/sanitize'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,10 +10,14 @@ const supabase = createClient(
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json()
-    const { school_id, school_name, school_email, parent_name, parent_email } = body
+    if (!checkRateLimit(req, 'request-prospectus')) {
+      return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+    }
 
-    if (!school_id || !school_name || !school_email || !parent_name || !parent_email) {
+    const body = await req.json()
+    const { school_id, school_name, parent_name, parent_email } = body
+
+    if (!school_id || !school_name || !parent_name || !parent_email) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
     }
     if (!isValidEmail(parent_email)) {
@@ -28,6 +33,19 @@ export async function POST(req: NextRequest) {
     if (!process.env.RESEND_API_KEY) {
       return NextResponse.json({ error: 'Email service not configured' }, { status: 500 })
     }
+
+    // Always look up school email from DB — never trust client-supplied email
+    const { data: school } = await supabase
+      .from('schools')
+      .select('contact_email, name')
+      .eq('id', school_id)
+      .single()
+
+    if (!school?.contact_email) {
+      return NextResponse.json({ error: 'School not found or no contact email available' }, { status: 404 })
+    }
+
+    const verified_school_email = school.contact_email
 
     // Branded email to the school — they receive a qualified lead
     const html = `
@@ -68,7 +86,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         from: 'NanaSays <noreply@nanasays.school>',
-        to: [school_email],
+        to: [verified_school_email],
         reply_to: parent_email,
         subject: `A parent found your school on NanaSays and requested your prospectus`,
         html,
@@ -79,7 +97,7 @@ export async function POST(req: NextRequest) {
     await supabase.from('outbound_clicks').insert({
       school_id,
       placement: 'request-prospectus',
-      destination: school_email,
+      destination: verified_school_email,
       session_id: null,
     })
 

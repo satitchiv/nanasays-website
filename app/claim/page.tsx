@@ -17,7 +17,7 @@ interface SchoolResult {
   city: string | null
   country: string | null
   is_partner: boolean | null
-  admin_email: string | null
+  is_claimed: boolean
 }
 
 type Step = 'search' | 'form' | 'sent'
@@ -45,7 +45,7 @@ export default function ClaimPage() {
       setSearching(true)
       const { data } = await supabase
         .from('schools')
-        .select('id,slug,name,city,country,is_partner,admin_email')
+        .select('id,slug,name,city,country,is_partner,is_claimed:admin_email')
         .ilike('name', `%${query.trim()}%`)
         .order('confidence_score', { ascending: false })
         .limit(8)
@@ -236,7 +236,7 @@ export default function ClaimPage() {
                             Partner
                           </span>
                         )}
-                        {school.admin_email && !school.is_partner && (
+                        {school.is_claimed && !school.is_partner && (
                           <span style={{
                             fontSize: 9, fontWeight: 800, color: muted, background: off,
                             border: `1px solid ${border}`, borderRadius: 100,

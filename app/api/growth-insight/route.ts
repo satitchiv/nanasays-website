@@ -11,14 +11,21 @@ export async function POST(req: NextRequest) {
     const { schoolId } = await req.json()
     if (!schoolId) return NextResponse.json({ error: 'schoolId required' }, { status: 400 })
 
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
+
     // Fetch school profile
     const { data: school } = await supabase
       .from('schools')
-      .select('name, country, city, curriculum, fees_usd_min, fees_usd_max, boarding, description, hero_image, official_website, contact_email, accreditations, student_count, is_partner, partner_tier')
+      .select('name, country, city, curriculum, fees_usd_min, fees_usd_max, boarding, description, hero_image, official_website, contact_email, accreditations, student_count, is_partner, partner_tier, admin_email')
       .eq('id', schoolId)
       .single()
 
     if (!school) return NextResponse.json({ error: 'School not found' }, { status: 404 })
+
+    if (!school.admin_email || session.user.email !== school.admin_email) {
+      return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
+    }
 
     // Fetch last 30 days of analytics
     const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()

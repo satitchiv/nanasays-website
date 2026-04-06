@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { esc, isValidEmail, MAX_NAME, MAX_EMAIL, MAX_MESSAGE, MAX_SHORT } from '@/lib/sanitize'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 export async function POST(req: NextRequest) {
   try {
+    if (!checkRateLimit(req, 'claim-enquiry')) {
+      return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+    }
+
     const body = await req.json()
     const { first_name, email, job_title, school_name, country, message } = body
 

@@ -29,8 +29,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Field too long' }, { status: 400 })
     }
 
-    // Verify reCAPTCHA (test secret always passes; replace with real key in env)
-    const recaptchaSecret = process.env.RECAPTCHA_SECRET_KEY ?? '6LeIxAcTAAAAAGG-vFI1TnRWxMZNFuojJ4WpepXr'
+    const recaptchaSecret = process.env.RECAPTCHA_SECRET_KEY
+    if (!recaptchaSecret) return NextResponse.json({ error: 'Service unavailable' }, { status: 503 })
     const verifyRes = await fetch('https://www.google.com/recaptcha/api/siteverify', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

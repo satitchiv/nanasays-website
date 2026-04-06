@@ -11,6 +11,9 @@ export async function POST(req: NextRequest) {
     const { schoolId } = await req.json()
     if (!schoolId) return NextResponse.json({ error: 'schoolId required' }, { status: 400 })
 
+    const { data: { session } } = await supabase.auth.getSession()
+    if (!session) return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
+
     const { data: school } = await supabase
       .from('schools')
       .select(`
@@ -22,12 +25,17 @@ export async function POST(req: NextRequest) {
         scholarship_available, scholarship_details, sen_support,
         university_placement_rate, top_universities, ib_pass_rate,
         unique_selling_points, head_of_school, founded_year,
-        accepts_mid_year, rolling_admissions
+        accepts_mid_year, rolling_admissions, admin_email
       `)
       .eq('id', schoolId)
       .single()
 
     if (!school) return NextResponse.json({ error: 'School not found' }, { status: 404 })
+
+    // Verify session user owns this school
+    if (!school.admin_email || session.user.email !== school.admin_email) {
+      return NextResponse.json({ error: 'Unauthorised' }, { status: 401 })
+    }
 
     // Score each field group
     const checks = [
