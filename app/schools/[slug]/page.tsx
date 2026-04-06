@@ -37,14 +37,69 @@ function isIndexable(school: School): boolean {
   return filled >= SEO_INDEX_THRESHOLD
 }
 
+function shortCurriculum(raw: string): string {
+  const map: Record<string, string> = {
+    'IB Primary Years Programme': 'IB',
+    'IB Middle Years Programme': 'IB',
+    'IB Diploma Programme': 'IB',
+    'International Baccalaureate': 'IB',
+    'Advanced Placement': 'AP',
+    'Cambridge IGCSE': 'Cambridge',
+    'Cambridge A Level': 'Cambridge',
+    'Cambridge International': 'Cambridge',
+    'English National Curriculum': 'British',
+    'British Curriculum': 'British',
+    'American Curriculum': 'American',
+    'French Baccalaureate': 'French Bac',
+    'German Abitur': 'German',
+    'Montessori': 'Montessori',
+    'CBSE': 'CBSE',
+    'ICSE': 'ICSE',
+  }
+  return map[raw] ?? raw
+}
+
+function buildSchoolTitle(school: School): string {
+  const loc = school.city ? `${school.city}, ${school.country}` : (school.country ?? '')
+  const rawCurr = school.curriculum?.[0] ?? null
+  const curr = rawCurr ? shortCurriculum(rawCurr) : null
+  const fees = school.fees_usd_min
+    ? `Fees from $${school.fees_usd_min.toLocaleString()}`
+    : null
+  const ages = (school.age_min != null && school.age_max != null)
+    ? `Ages ${school.age_min}–${school.age_max}`
+    : null
+
+  if (curr && fees) return `${school.name} — ${curr} School · ${fees}`
+  if (curr && ages) return `${school.name} — ${curr} School · ${ages}`
+  if (curr)         return `${school.name} — ${curr} School in ${loc}`
+  if (fees)         return `${school.name} — International School · ${fees}`
+  return school.city
+    ? `${school.name} — International School in ${loc}`
+    : `${school.name} — International School in ${school.country}`
+}
+
+function buildSchoolDescription(school: School): string {
+  const curr = school.curriculum?.[0] ? shortCurriculum(school.curriculum[0]) : null
+  const nat = school.nationalities_count
+  const fees = school.fees_usd_min
+  const loc = school.city ?? school.country ?? ''
+
+  if (curr && nat && fees)
+    return `${curr} curriculum · ${nat}+ nationalities · fees from $${fees.toLocaleString()}/yr. Compare admissions, boarding and more on NanaSays.`
+  if (curr && fees)
+    return `${curr} curriculum · fees from $${fees.toLocaleString()}/yr. Compare admissions and curriculum details for ${school.name} on NanaSays.`
+  if (school.description)
+    return `${school.description.slice(0, 145).trimEnd()} — compare fees and admissions on NanaSays.`
+  return `Compare fees, admissions, and curriculum details for ${school.name} in ${loc} — all on NanaSays.`
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const school = await getSchoolBySlug(params.slug)
   if (!school) return { title: 'School Not Found' }
   return {
-    title: school.city
-      ? `${school.name} - International School in ${school.city}, ${school.country}`
-      : `${school.name} - International School in ${school.country}`,
-    description: school.description ?? `${school.name} — international school in ${school.city ?? school.country}.`,
+    title: buildSchoolTitle(school),
+    description: buildSchoolDescription(school),
     alternates: {
       canonical: `https://nanasays.school/schools/${params.slug}`,
     },
@@ -1351,10 +1406,14 @@ export default async function SchoolPage({ params }: Props) {
                     </tr>
                   </thead>
                   <tbody>
-                    {Object.entries(school.fees_by_grade as Record<string, string>).map(([grade, fee]) => (
+                    {Object.entries(school.fees_by_grade as Record<string, number | string>).map(([grade, fee]) => (
                       <tr key={grade}>
                         <td style={{ padding: '10px 12px', border: '1px solid var(--border)', color: '#334' }}>{grade}</td>
-                        <td style={{ padding: '10px 12px', border: '1px solid var(--border)', textAlign: 'right', fontWeight: 600, color: 'var(--navy)' }}>{fee}</td>
+                        <td style={{ padding: '10px 12px', border: '1px solid var(--border)', textAlign: 'right', fontWeight: 600, color: 'var(--navy)' }}>
+                          {typeof fee === 'number'
+                            ? `${school.fees_currency ?? 'THB'} ${fee.toLocaleString()}`
+                            : fee}
+                        </td>
                       </tr>
                     ))}
                     {school.boarding_fees_usd && (
