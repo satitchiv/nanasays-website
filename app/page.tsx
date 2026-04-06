@@ -541,8 +541,20 @@ export default async function HomePage() {
               </Link>
             ))}
           </div>
-          <div style={{ maxWidth: 540, margin: '44px auto 0', background: 'var(--navy)', borderRadius: 24, padding: '8px' }}>
-            <HeroSearch />
+          <div className="ns-cta-band" style={{ maxWidth: 1100, margin: '44px auto 0', background: 'var(--navy)', borderRadius: 22, padding: '48px 52px', position: 'relative', overflow: 'hidden' }}>
+            <div style={{ position: 'absolute', top: -40, right: 80, width: 200, height: 200, borderRadius: '50%', background: 'rgba(52,195,160,.08)' }} />
+            <div style={{ position: 'absolute', bottom: -60, right: -30, width: 240, height: 240, borderRadius: '50%', background: 'rgba(45,125,210,.08)' }} />
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <h2 style={{ fontFamily: 'var(--font-nunito), Nunito, sans-serif', fontSize: 28, fontWeight: 900, color: '#fff', letterSpacing: '-0.5px', marginBottom: 8, lineHeight: 1.2 }}>
+                Ready to find the right school?
+              </h2>
+              <p style={{ fontSize: 14, color: 'rgba(255,255,255,.6)', fontWeight: 300, lineHeight: 1.65, maxWidth: 420 }}>
+                Browse 4,000+ verified schools across 45+ countries — fees, curriculum, admissions and more.
+              </p>
+            </div>
+            <div className="ns-hero-search-cta">
+              <HeroSearch />
+            </div>
           </div>
         </div>
       </div>

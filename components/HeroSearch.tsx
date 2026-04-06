@@ -266,8 +266,8 @@ export default function HeroSearch() {
         </div>
 
         {/* Footer stat */}
-        <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: 11, color: 'rgba(255,255,255,0.35)', fontWeight: 500 }}>
-          Searching regions · countries · school names
+        <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid rgba(255,255,255,0.08)', fontSize: 11, color: 'rgba(255,255,255,0.35)', fontWeight: 500, letterSpacing: '0.04em' }}>
+          Regions &nbsp;·&nbsp; Countries &nbsp;·&nbsp; Schools
         </div>
       </div>
     </div>

@@ -114,6 +114,8 @@ export interface School {
   distance_city: string | null
   distance_airport: string | null
   open_day_text: string | null
+  open_day_url: string | null
+  prospectus_url: string | null
 
   // Location helpers
   bus_service: boolean | null

@@ -268,3 +268,18 @@ button {
 .blog-content th { text-align: left; padding: 10px 12px; color: var(--navy); font-weight: 700; border-bottom: 2px solid var(--teal); font-family: var(--font-nunito), Nunito, sans-serif; }
 .blog-content td { padding: 12px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
 .blog-content strong { font-weight: 700; color: var(--navy); }
+
+/* Explore This School section + Hero CTAs — mobile responsive */
+@media (max-width: 768px) {
+  .ns-explore-section { flex-direction: column; }
+  .ns-explore-section a,
+  .ns-explore-section button { width: 100%; justify-content: center; }
+  .ns-hero-ctas { flex-direction: column; }
+  .ns-hero-ctas a { width: 100%; justify-content: center; text-align: center; }
+}
+
+@media (max-width: 480px) {
+  .ns-hero-ctas a { font-size: 13px; padding: 10px 16px; }
+  .ns-explore-section a,
+  .ns-explore-section button { font-size: 13px; padding: 11px 16px; }
+}

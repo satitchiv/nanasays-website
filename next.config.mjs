@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  allowedDevOrigins: ['192.168.1.143', '100.100.120.57'],
   transpilePackages: ['react-google-recaptcha'],
   images: {
     remotePatterns: [

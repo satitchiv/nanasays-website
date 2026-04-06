@@ -8,8 +8,10 @@ import { getSchoolBySlug, getSimilarSchools, formatFees, formatAges } from '@/li
 import type { School } from '@/lib/types'
 import Link from 'next/link'
 import { getServerT } from '@/lib/serverI18n'
-import GeneralEnquiryForm from '@/components/school/GeneralEnquiryForm'
 import TrackView from '@/components/school/TrackView'
+import RequestProspectusModal from '@/components/school/RequestProspectusModal'
+import ShareButton from '@/components/school/ShareButton'
+import { buildUtmUrl } from '@/lib/utm'
 
 export const revalidate = 86400 // revalidate school pages every 24 hours
 
@@ -538,6 +540,27 @@ export default async function SchoolPage({ params }: Props) {
               </div>
             </div>
 
+              {/* Hero CTAs — Visit Website + Share */}
+              <div className="ns-hero-ctas" style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
+                {school.official_website && (
+                  <a
+                    href={buildUtmUrl(school.official_website, 'hero-visit-website')}
+                    target="_blank" rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 8,
+                      background: 'var(--teal)', color: '#fff',
+                      padding: '11px 22px', borderRadius: 8, fontSize: 14,
+                      fontWeight: 700, textDecoration: 'none',
+                    }}
+                    onClick={undefined}
+                  >
+                    Visit Official Website
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+                  </a>
+                )}
+                <ShareButton schoolName={school.name} schoolSlug={school.slug} />
+              </div>
+
             {/* Right badge */}
             <div className="ns-school-hero-badge">
               {school.logo_url && (
@@ -599,6 +622,89 @@ export default async function SchoolPage({ params }: Props) {
       {/* MAIN LAYOUT */}
       <div className="ns-school-layout" style={{ maxWidth: 1100, margin: '0 auto', padding: '44px 5%' }}>
         <main style={{ minWidth: 0 }}>
+          {/* EXPLORE THIS SCHOOL */}
+          {(() => {
+            const exploreItems = [
+              school.official_website ? 'website' : null,
+              school.prospectus_url ? 'prospectus' : (school.contact_email ? 'request-prospectus' : null),
+              school.virtual_tour_url ? 'virtual-tour' : null,
+              school.school_video_url ? 'video' : null,
+            ].filter(Boolean)
+            if (exploreItems.length === 0) return null
+            return (
+              <Section>
+                {exploreItems.length >= 2 && <SectionTitle>Explore This School</SectionTitle>}
+                <div className="ns-explore-section" style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                  {school.official_website && (
+                    <a
+                      href={buildUtmUrl(school.official_website, 'explore-visit-website')}
+                      target="_blank" rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 8,
+                        background: 'var(--navy)', color: '#fff',
+                        padding: '12px 22px', borderRadius: 8, fontSize: 14,
+                        fontWeight: 700, textDecoration: 'none',
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                      Visit Website
+                    </a>
+                  )}
+                  {school.prospectus_url ? (
+                    <a
+                      href={buildUtmUrl(school.prospectus_url, 'explore-prospectus')}
+                      target="_blank" rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 8,
+                        background: 'var(--off)', color: 'var(--navy)',
+                        border: '1px solid var(--border)',
+                        padding: '12px 22px', borderRadius: 8, fontSize: 14,
+                        fontWeight: 700, textDecoration: 'none',
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                      View Prospectus
+                    </a>
+                  ) : school.contact_email ? (
+                    <RequestProspectusModal schoolId={school.id} schoolName={school.name} schoolEmail={school.contact_email} />
+                  ) : null}
+                  {school.virtual_tour_url && (
+                    <a
+                      href={buildUtmUrl(school.virtual_tour_url, 'explore-virtual-tour')}
+                      target="_blank" rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 8,
+                        background: 'var(--off)', color: 'var(--navy)',
+                        border: '1px solid var(--border)',
+                        padding: '12px 22px', borderRadius: 8, fontSize: 14,
+                        fontWeight: 700, textDecoration: 'none',
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polygon points="10 8 16 12 10 16 10 8"/></svg>
+                      Virtual Tour
+                    </a>
+                  )}
+                  {school.school_video_url && (
+                    <a
+                      href={buildUtmUrl(school.school_video_url, 'explore-video')}
+                      target="_blank" rel="noopener noreferrer"
+                      style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 8,
+                        background: 'var(--off)', color: 'var(--navy)',
+                        border: '1px solid var(--border)',
+                        padding: '12px 22px', borderRadius: 8, fontSize: 14,
+                        fontWeight: 700, textDecoration: 'none',
+                      }}
+                    >
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+                      Watch Video
+                    </a>
+                  )}
+                </div>
+              </Section>
+            )
+          })()}
+
           {/* OPEN DAY BANNER */}
           {school.open_day_text && (
             <div className="ns-open-day-banner" style={{
@@ -615,16 +721,19 @@ export default async function SchoolPage({ params }: Props) {
                   {t('school_open_day_sub')}
                 </div>
               </div>
-              {school.official_website && (
+              {(school.open_day_url || school.official_website) && (
                 <a
-                  href={school.official_website} target="_blank" rel="noopener noreferrer"
+                  href={school.open_day_url
+                    ? buildUtmUrl(school.open_day_url, 'open-day-link')
+                    : buildUtmUrl(school.official_website!, 'open-day-link')}
+                  target="_blank" rel="noopener noreferrer"
                   style={{
                     background: '#fff', color: 'var(--navy)', padding: '11px 24px',
                     borderRadius: 6, fontSize: 13, fontWeight: 700, textDecoration: 'none',
                     whiteSpace: 'nowrap',
                   }}
                 >
-                  {t('school_cta_register')}
+                  {school.open_day_url ? 'View Open Days' : t('school_cta_register')}
                 </a>
               )}
             </div>
@@ -1684,11 +1793,6 @@ export default async function SchoolPage({ params }: Props) {
             {school.head_of_school && <SidebarStat label={t('school_sidebar_head')} value={school.head_of_school} />}
           </SidebarCard>
 
-          {/* Public enquiry form — all schools */}
-          <div style={{ marginBottom: 10 }}>
-            <GeneralEnquiryForm schoolName={school.name} />
-          </div>
-
           {/* School admin claim prompt */}
           <div style={{
             borderTop: '1px solid var(--border)', paddingTop: 14, marginTop: 4, marginBottom: 10,
@@ -1710,7 +1814,7 @@ export default async function SchoolPage({ params }: Props) {
 
           {school.official_website && (
             <a
-              href={school.official_website} target="_blank" rel="noopener noreferrer"
+              href={buildUtmUrl(school.official_website, 'sidebar-visit-website')} target="_blank" rel="noopener noreferrer"
               style={{
                 display: 'block', width: '100%', background: 'var(--teal)', color: '#fff',
                 textAlign: 'center', padding: '14px 20px', borderRadius: 8, fontSize: 14,
@@ -1758,31 +1862,6 @@ export default async function SchoolPage({ params }: Props) {
               )}
             </div>
           )}
-
-          {/* ADVISOR CTA */}
-          <div style={{
-            marginTop: 16, padding: '16px 18px', borderRadius: 10,
-            background: 'var(--teal-bg)', border: '1px solid rgba(52,195,160,0.25)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--teal-dk)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-              </svg>
-              <span style={{
-                fontFamily: 'var(--font-nunito), Nunito, sans-serif',
-                fontWeight: 800, fontSize: 13, color: 'var(--navy)',
-              }}>
-                {t('school_advisor_title')}
-              </span>
-            </div>
-            <p style={{
-              fontSize: 12, color: 'var(--body)', lineHeight: 1.6, margin: '0 0 12px',
-            }}>
-              {t('school_advisor_sub')}
-            </p>
-            <GeneralEnquiryForm schoolName={school.name} />
-          </div>
 
         </aside>
       </div>
