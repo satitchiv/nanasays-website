@@ -4,6 +4,7 @@ import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
 import { getCountryPageMeta } from '@/lib/countryMeta'
 import { getSchoolsForCountryPage, getCountrySchoolCounts } from '@/lib/schools'
+import { supabase } from '@/lib/supabase'
 import { REGIONS_DATA } from '@/lib/regionData'
 import CountryPageClient from '@/components/country/CountryPageClient'
 
@@ -22,9 +23,18 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const meta = getCountryPageMeta(params.slug)
   if (!meta) return { title: 'Country not found · nanasays' }
+
+  const { count } = await supabase
+    .from('schools')
+    .select('id', { count: 'exact', head: true })
+    .eq('country', meta.name)
+    .eq('is_international', true)
+
+  const countLabel = count && count > 0 ? `${count}+ ` : ''
+
   return {
-    title: `${meta.name} International Schools · nanasays`,
-    description: meta.nanaNote.replace(/['"]/g, ''),
+    title: `International Schools in ${meta.name} — ${countLabel}Fees & Reviews`,
+    description: `Browse ${countLabel}international schools in ${meta.name}. Compare fees, curriculum, boarding options and admissions — all on NanaSays.`,
     openGraph: { images: [{ url: meta.heroImage }] },
   }
 }

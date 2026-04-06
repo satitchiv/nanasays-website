@@ -5,8 +5,8 @@ import Footer from '@/components/Footer'
 import { BLOG_POSTS, CATEGORY_LABELS } from '@/lib/blog'
 
 export const metadata: Metadata = {
-  title: "From Nana's Desk — International School Guides",
-  description: "Honest guides for international school families. Curriculum comparisons, school rankings, and advice from Nana.",
+  title: 'International School Guides & Advice for Expat Families',
+  description: 'Honest guides for international school families. Curriculum comparisons, school rankings, and advice from Nana.',
 }
 
 function formatDate(iso: string) {

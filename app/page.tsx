@@ -1,4 +1,5 @@
 import dynamicImport from 'next/dynamic'
+import type { Metadata } from 'next'
 import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
 import { flagUrl } from '@/lib/regions'
@@ -6,6 +7,11 @@ import { REGIONS_DATA } from '@/lib/regionData'
 import { getCountrySchoolCounts, getTotalSchoolCount } from '@/lib/schools'
 import { BLOG_POSTS, CATEGORY_LABELS } from '@/lib/blog'
 import Link from 'next/link'
+
+export const metadata: Metadata = {
+  title: 'NanaSays — International School Directory · 10,000+ Schools Worldwide',
+  description: 'NanaSays helps international families find the right school abroad. Search 10,000+ verified international schools across 100+ countries with Nana, your AI school advisor.',
+}
 
 export const revalidate = 3600 // revalidate homepage every hour
 
@@ -202,7 +208,7 @@ export default async function HomePage() {
           {[
             { num: totalSchools, suffix: '+', label: 'Schools in our directory' },
             { num: totalCountries, suffix: '', label: 'Countries covered' },
-            { num: totalSchools, suffix: '', label: 'Verified data points' },
+            { num: totalSchools, suffix: '', label: 'International schools verified' },
             { num: 24, suffix: '/7', label: 'Nana is always available' },
           ].map((stat, i) => (
             <div key={i} style={{
