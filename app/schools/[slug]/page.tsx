@@ -12,6 +12,7 @@ import TrackView from '@/components/school/TrackView'
 import RequestProspectusModal from '@/components/school/RequestProspectusModal'
 import ShareButton from '@/components/school/ShareButton'
 import { buildUtmUrl } from '@/lib/utm'
+import FeeTableClient from '@/components/school/FeeTableClient'
 
 export const revalidate = 86400 // revalidate school pages every 24 hours
 
@@ -35,6 +36,34 @@ function isIndexable(school: School): boolean {
     return v !== null && v !== undefined && v !== ''
   }).length
   return filled >= SEO_INDEX_THRESHOLD
+}
+
+const LOGO_BLOCKLIST = ['youtube', 'facebook', 'instagram', 'twitter', 'linkedin', 'tiktok', 'social', '/icon', 'favicon', 'placeholder']
+function isValidLogoUrl(url: string | null | undefined): boolean {
+  if (!url) return false
+  const lower = url.toLowerCase()
+  return !LOGO_BLOCKLIST.some(term => lower.includes(term))
+}
+
+const US_STATES: Record<string, string> = {
+  AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California',
+  CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia',
+  HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa',
+  KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland',
+  MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri',
+  MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire', NJ: 'New Jersey',
+  NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio',
+  OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina',
+  SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont',
+  VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming',
+  DC: 'District of Columbia',
+}
+function expandRegion(region: string | null | undefined, country: string | null | undefined): string | null {
+  if (!region) return null
+  if ((country === 'United States' || country === 'USA') && region.length === 2) {
+    return US_STATES[region.toUpperCase()] ?? region
+  }
+  return region
 }
 
 function shortCurriculum(raw: string): string {
@@ -106,9 +135,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     robots: isIndexable(school)
       ? { index: true, follow: true }
       : { index: false, follow: true },
-    openGraph: school.hero_image
-      ? { images: [{ url: school.hero_image, width: 1200, height: 630, alt: school.name }] }
-      : undefined,
+    openGraph: {
+      title: buildSchoolTitle(school),
+      description: school.description
+        ? school.description.slice(0, 160)
+        : `${school.name} — international school in ${school.city ?? school.country}.`,
+      ...(school.hero_image && {
+        images: [{ url: school.hero_image, width: 1200, height: 630, alt: school.name }],
+      }),
+    },
   }
 }
 
@@ -381,7 +416,7 @@ export default async function SchoolPage({ params }: Props) {
       a: `${school.name} offers the IB Diploma Programme${school.ib_pass_rate ? ` with a ${school.ib_pass_rate}% pass rate` : ''}${school.ib_authorized_year ? `, and has been IB-authorised since ${school.ib_authorized_year}` : ''}.${school.student_teacher_ratio ? ` With a ${school.student_teacher_ratio} student-to-teacher ratio, students receive highly personalised academic support.` : ''}`,
     },
     // 16. Boarding fees
-    school.boarding && {
+    school.boarding === true && {
       q: `What are the boarding fees at ${school.name}?`,
       a: school.boarding_fees_usd
         ? `Full boarding at ${school.name} costs approximately $${school.boarding_fees_usd.toLocaleString()} per year.${school.boarding_type ? ` The school offers ${school.boarding_type}.` : ''}`
@@ -592,7 +627,7 @@ export default async function SchoolPage({ params }: Props) {
                     border: '1px solid rgba(52,195,160,0.3)',
                   }}>{c}</span>
                 ))}
-                {school.boarding && (
+                {school.boarding === true && (
                   <span style={{
                     fontSize: 12, padding: '5px 13px', borderRadius: 100, fontWeight: 600,
                     background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.8)',
@@ -639,14 +674,14 @@ export default async function SchoolPage({ params }: Props) {
 
             {/* Right badge */}
             <div className="ns-school-hero-badge">
-              {school.logo_url && (
+              {isValidLogoUrl(school.logo_url) && (
                 <div style={{
                   background: 'var(--navy)', borderRadius: 8, padding: '14px 18px',
                   marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
                   border: '1px solid rgba(255,255,255,0.15)',
                 }}>
                   <img
-                    src={school.logo_url}
+                    src={school.logo_url!}
                     alt={`${school.name} logo`}
                     style={{ maxWidth: 120, maxHeight: 56, objectFit: 'contain', display: 'block' }}
                   />
@@ -880,7 +915,7 @@ export default async function SchoolPage({ params }: Props) {
             {(school.distance_city || school.distance_airport || school.bus_service || school.nearest_airport || school.flight_hours_from_bkk) && (
               <div className="ns-3col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 16 }}>
                 {school.nearest_airport && <FacilityItem label={`Airport: ${school.nearest_airport}`} />}
-                {!!school.flight_hours_from_bkk && <FacilityItem label={`${school.flight_hours_from_bkk}h from Bangkok`} />}
+                {school.country?.toLowerCase() === 'thailand' && !!school.flight_hours_from_bkk && <FacilityItem label={`${school.flight_hours_from_bkk}h from Bangkok`} />}
                 {school.distance_airport && <FacilityItem label={school.distance_airport} />}
                 {school.distance_city && <FacilityItem label={school.distance_city} />}
                 {school.bus_service && <FacilityItem label={t('school_transport_bus')} />}
@@ -888,10 +923,10 @@ export default async function SchoolPage({ params }: Props) {
             )}
           </Section>
 
-          {/* GALLERY */}
-          {(() => {
+          {/* GALLERY — only shown when images exist */}
+          {(school.gallery_images?.length ?? 0) > 0 && (() => {
             const placeholderLabels = ['Campus', 'Classrooms', 'Boarding', 'Sports', 'Performing Arts']
-            const allImages = school.gallery_images ?? []
+            const allImages = school.gallery_images!
             const cells = Array.from({ length: 5 }, (_, i) => ({
               imageUrl: allImages[i] ?? null,
               label: placeholderLabels[i],
@@ -1309,31 +1344,39 @@ export default async function SchoolPage({ params }: Props) {
           {school.unique_selling_points && (
             <Section>
               <SectionTitle>{t('school_section_why_choose')}</SectionTitle>
-              <ul style={{ listStyle: 'none', padding: 0 }}>
-                {(() => {
-                  const usp = school.unique_selling_points!
-                  try {
-                    const parsed = JSON.parse(usp)
-                    if (Array.isArray(parsed)) return parsed.filter(Boolean)
-                  } catch {}
-                  return usp.split('\n').filter(Boolean)
-                })().map((point, i) => (
-                  <li key={i} style={{
-                    padding: '11px 0', borderBottom: '1px solid var(--border)',
-                    fontSize: 18, color: '#334', display: 'flex',
-                    alignItems: 'flex-start', gap: 12, lineHeight: 1.7,
-                  }}>
-                    <span style={{
-                      width: 20, height: 20, background: 'var(--teal-bg)',
-                      border: '2px solid var(--teal)', borderRadius: '50%',
-                      flexShrink: 0, marginTop: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <span style={{ width: 6, height: 6, background: 'var(--teal)', borderRadius: '50%', display: 'block' }} />
-                    </span>
-                    {point}
-                  </li>
-                ))}
-              </ul>
+              {(() => {
+                const usp = school.unique_selling_points!
+                let items: string[]
+                try {
+                  const parsed = JSON.parse(usp)
+                  items = Array.isArray(parsed) ? parsed.filter(Boolean) : [usp]
+                } catch {
+                  items = usp.split('\n').filter(Boolean)
+                }
+                if (items.length <= 1) {
+                  return <p style={{ color: '#334', fontSize: 16, lineHeight: 1.85 }}>{items[0] ?? usp}</p>
+                }
+                return (
+                  <ul style={{ listStyle: 'none', padding: 0 }}>
+                    {items.map((point, i) => (
+                      <li key={i} style={{
+                        padding: '11px 0', borderBottom: '1px solid var(--border)',
+                        fontSize: 18, color: '#334', display: 'flex',
+                        alignItems: 'flex-start', gap: 12, lineHeight: 1.7,
+                      }}>
+                        <span style={{
+                          width: 20, height: 20, background: 'var(--teal-bg)',
+                          border: '2px solid var(--teal)', borderRadius: '50%',
+                          flexShrink: 0, marginTop: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        }}>
+                          <span style={{ width: 6, height: 6, background: 'var(--teal)', borderRadius: '50%', display: 'block' }} />
+                        </span>
+                        {point}
+                      </li>
+                    ))}
+                  </ul>
+                )
+              })()}
             </Section>
           )}
 
@@ -1390,44 +1433,11 @@ export default async function SchoolPage({ params }: Props) {
             <Section>
               <SectionTitle>{t('school_section_fees')}</SectionTitle>
               {school.fees_by_grade ? (
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-                  <thead>
-                    <tr>
-                      <th style={{
-                        textAlign: 'left', fontSize: 11, textTransform: 'uppercase',
-                        letterSpacing: '0.08em', color: 'var(--muted)', padding: '10px 12px',
-                        background: 'var(--off)', border: '1px solid var(--border)', fontWeight: 600,
-                      }}>Grade / Year</th>
-                      <th style={{
-                        textAlign: 'right', fontSize: 11, textTransform: 'uppercase',
-                        letterSpacing: '0.08em', color: 'var(--muted)', padding: '10px 12px',
-                        background: 'var(--off)', border: '1px solid var(--border)', fontWeight: 600,
-                      }}>Annual Fee</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {Object.entries(school.fees_by_grade as Record<string, number | string>).map(([grade, fee]) => (
-                      <tr key={grade}>
-                        <td style={{ padding: '10px 12px', border: '1px solid var(--border)', color: '#334' }}>{grade}</td>
-                        <td style={{ padding: '10px 12px', border: '1px solid var(--border)', textAlign: 'right', fontWeight: 600, color: 'var(--navy)' }}>
-                          {typeof fee === 'number'
-                            ? `${school.fees_currency ?? 'THB'} ${fee.toLocaleString()}`
-                            : fee}
-                        </td>
-                      </tr>
-                    ))}
-                    {school.boarding_fees_usd && (
-                      <tr style={{ background: 'var(--teal-bg)' }}>
-                        <td style={{ padding: '10px 12px', border: '1px solid var(--border)', color: '#334', fontWeight: 600 }}>
-                          Boarding (Full Year)
-                        </td>
-                        <td style={{ padding: '10px 12px', border: '1px solid var(--border)', textAlign: 'right', fontWeight: 700, color: 'var(--teal-dk)' }}>
-                          ${school.boarding_fees_usd.toLocaleString()}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                <FeeTableClient
+                  fees={school.fees_by_grade as Record<string, number | string>}
+                  currency={school.fees_currency ?? 'USD'}
+                  boardingFeesUsd={school.boarding_fees_usd}
+                />
               ) : (
                 <div style={{
                   background: 'var(--off)', border: '1px solid var(--border)', borderRadius: 10, padding: 20,
@@ -1450,19 +1460,22 @@ export default async function SchoolPage({ params }: Props) {
             <Section>
               <SectionTitle>{t('school_section_admissions_process')}</SectionTitle>
               <ol style={{ listStyle: 'none', padding: 0 }}>
-                {school.admissions_process.split('\n').filter(Boolean).map((step, i) => (
-                  <li key={i} style={{
-                    display: 'flex', gap: 16, padding: '14px 0',
-                    borderBottom: '1px solid var(--border)', fontSize: 14, color: '#334', lineHeight: 1.6,
-                  }}>
-                    <span style={{
-                      width: 28, height: 28, background: 'var(--teal)', color: '#fff',
-                      borderRadius: '50%', fontSize: 12, fontWeight: 700,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                    }}>{i + 1}</span>
-                    {step}
-                  </li>
-                ))}
+                {school.admissions_process.split('\n').filter(Boolean).map((step, i) => {
+                  const cleanStep = step.replace(/^\s*(\d+[.)]\s*|Step\s*\d+[.:)]\s*)/i, '').trim()
+                  return (
+                    <li key={i} style={{
+                      display: 'flex', gap: 16, padding: '14px 0',
+                      borderBottom: '1px solid var(--border)', fontSize: 14, color: '#334', lineHeight: 1.6,
+                    }}>
+                      <span style={{
+                        width: 28, height: 28, background: 'var(--teal)', color: '#fff',
+                        borderRadius: '50%', fontSize: 12, fontWeight: 700,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      }}>{i + 1}</span>
+                      {cleanStep || step}
+                    </li>
+                  )
+                })}
               </ol>
             </Section>
           )}
@@ -1857,7 +1870,7 @@ export default async function SchoolPage({ params }: Props) {
           <SidebarCard>
             <SidebarTitle>{t('school_sidebar_facts')}</SidebarTitle>
             {school.country && <SidebarStat label={t('school_sidebar_country')} value={school.country} />}
-            {school.region && <SidebarStat label={t('school_sidebar_region')} value={school.region} />}
+            {school.region && <SidebarStat label={t('school_sidebar_region')} value={expandRegion(school.region, school.country) ?? school.region} />}
             {school.city && !school.region && <SidebarStat label={t('school_sidebar_city')} value={school.city} />}
             {school.school_type && <SidebarStat label={t('school_sidebar_type')} value={school.school_type} />}
             {school.boarding_type && <SidebarStat label="Boarding Type" value={school.boarding_type} />}

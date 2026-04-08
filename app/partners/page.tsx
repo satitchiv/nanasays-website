@@ -123,7 +123,7 @@ const INSIGHTS = [
   {
     label: 'Data & Benchmarking',
     title: 'What fee transparency actually does to enquiry quality',
-    desc: 'Schools that publish full fee breakdowns receive fewer but far better-qualified enquiries. The data from 4,200+ listed schools tells a clear story.',
+    desc: 'Schools that publish full fee breakdowns receive fewer but far better-qualified enquiries. The data from 10,800+ listed schools tells a clear story.',
   },
   {
     label: 'Partner Success',
@@ -474,7 +474,7 @@ export default function PartnersPage() {
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
               {[
-                { value: '4,200+', label: 'Schools listed' },
+                { value: '10,800+', label: 'Schools listed' },
                 { value: '77', label: 'Countries covered' },
                 { value: '9', label: 'Languages supported' },
                 { value: 'Free', label: 'For families, always' },
@@ -581,7 +581,7 @@ export default function PartnersPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
               {[
                 { icon: '→', text: 'Free to list — no commitment required' },
-                { icon: '→', text: 'Verified directory with 4,200+ schools' },
+                { icon: '→', text: 'Verified directory with 10,800+ schools' },
                 { icon: '→', text: 'Reach families actively comparing schools' },
                 { icon: '→', text: 'Direct access to parent enquiries' },
               ].map((item, i) => (

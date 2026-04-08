@@ -27,7 +27,7 @@ export default function IconSprite() {
     <rect x="7" y="15" width="14" height="12" rx="2.5" stroke="currentColor" stroke-width="1.8"/>
     <path d="M9 15 L9 11.5 C9 8.5 11 7 14 7 C17 7 19 8.5 19 11.5 L19 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none"/>
     <circle cx="14" cy="21" r="1.5" fill="currentColor"/>
-    <text x="20" y="14" font-family="sans-serif" font-size="9" font-weight="700" fill="currentColor">£</text>
+    <path d="M21 8 C21 8 20 7 19 7 C17.5 7 17 8 17 9 C17 9.8 17.4 10.5 18 11 L21 11 M17.5 13 L21 13" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" fill="none"/>
     <line x1="19" y1="7" x2="27" y2="16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
   </symbol>
   <symbol id="ic-award" viewBox="0 0 32 32" fill="none">

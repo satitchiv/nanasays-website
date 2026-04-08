@@ -71,43 +71,26 @@ export default function GalleryLightbox({ cells: _cells, allImages, schoolName }
               }}
             >
               {cell.imageUrl ? (
-                <img
-                  src={cell.imageUrl}
-                  alt={`${schoolName} — ${cell.label}`}
-                  loading="lazy"
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                />
-              ) : (
-                /* PHOTOS COMING SOON — V2: dark navy + camera + pill */
-                <div style={{
-                  position: 'absolute', inset: 0, background: '#111e30',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12,
-                }}>
-                  <svg width={i === 0 ? 26 : 20} height={i === 0 ? 26 : 20} viewBox="0 0 24 24" fill="none" stroke="#34C3A0" strokeWidth="1" opacity="0.5">
-                    <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
-                    <circle cx="12" cy="13" r="4"/>
-                  </svg>
+                <>
+                  <img
+                    src={cell.imageUrl}
+                    alt={`${schoolName} — ${cell.label}`}
+                    loading="lazy"
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  />
+                  {/* Photo count badge on first cell */}
                   {i === 0 && (
                     <div style={{
-                      fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase',
-                      color: 'rgba(52,195,160,0.55)', border: '1px solid rgba(52,195,160,0.2)',
-                      borderRadius: 20, padding: '3px 10px',
-                    }}>Coming soon</div>
+                      position: 'absolute', bottom: 10, right: 10,
+                      background: 'rgba(255,255,255,0.92)', border: '1px solid var(--border)',
+                      borderRadius: 5, fontSize: 12, fontWeight: 600, color: 'var(--navy)',
+                      padding: '5px 12px', pointerEvents: 'none',
+                    }}>
+                      {allImages.length} photos
+                    </div>
                   )}
-                </div>
-              )}
-
-              {/* Photo count badge on first cell */}
-              {i === 0 && (
-                <div style={{
-                  position: 'absolute', bottom: 10, right: 10,
-                  background: 'rgba(255,255,255,0.92)', border: '1px solid var(--border)',
-                  borderRadius: 5, fontSize: 12, fontWeight: 600, color: 'var(--navy)',
-                  padding: '5px 12px', pointerEvents: 'none',
-                }}>
-                  {hasImages ? `${allImages.length} photos` : 'Photos coming soon'}
-                </div>
-              )}
+                </>
+              ) : null}
             </div>
           ))}
         </div>

@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import { Nunito, Nunito_Sans } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import "leaflet/dist/leaflet.css";
 import IconSprite from "@/components/IconSprite";
 import { LanguageProvider } from "@/components/LanguageProvider";
+import SiteTracker from "@/components/SiteTracker";
 
 const nunito = Nunito({
   subsets: ['latin'],
@@ -57,15 +59,30 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
+  const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
+
   return (
     <html lang="en" className={`${nunito.variable} ${nunitoSans.variable}`}>
       <body style={{ fontFamily: 'var(--font-nunito-sans), sans-serif' }}>
+        {/* Google Analytics 4 — add NEXT_PUBLIC_GA_MEASUREMENT_ID to Netlify env vars */}
+        {gaMeasurementId && (
+          <>
+            <Script
+              strategy="afterInteractive"
+              src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}
+            />
+            <Script id="ga4-init" strategy="afterInteractive">
+              {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${gaMeasurementId}');`}
+            </Script>
+          </>
+        )}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
         />
         <LanguageProvider>
           <IconSprite />
+          <SiteTracker />
           {children}
         </LanguageProvider>
       </body>

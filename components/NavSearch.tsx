@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import { REGIONS_DATA } from '@/lib/regionData'
+import { trackSearch } from '@/components/SiteTracker'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -112,12 +113,12 @@ export default function NavSearch() {
     if (e.key === 'ArrowDown') { e.preventDefault(); setActive(a => Math.min(a + 1, results.length - 1)) }
     if (e.key === 'ArrowUp') { e.preventDefault(); setActive(a => Math.max(a - 1, -1)) }
     if (e.key === 'Enter' && active >= 0 && results[active]) {
-      router.push(results[active].href)
-      setOpen(false); setQuery('')
+      navigate(results[active].href, query)
     }
   }
 
-  function navigate(href: string) {
+  function navigate(href: string, searchQuery?: string) {
+    if (searchQuery) trackSearch(searchQuery)
     router.push(href)
     setOpen(false)
     setQuery('')
@@ -214,7 +215,7 @@ export default function NavSearch() {
                   return (
                     <button
                       key={r.href}
-                      onMouseDown={() => navigate(r.href)}
+                      onMouseDown={() => navigate(r.href, query)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 10,
                         width: '100%', padding: '9px 14px',

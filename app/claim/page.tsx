@@ -180,7 +180,7 @@ export default function ClaimPage() {
                   Find your school
                 </h2>
                 <p style={{ fontSize: 13, color: muted, marginBottom: 24, lineHeight: 1.6 }}>
-                  Search by school name. We have 4,200+ international schools listed.
+                  Search by school name. We have 10,800+ international schools listed.
                 </p>
                 <div style={{ position: 'relative' }}>
                   <input

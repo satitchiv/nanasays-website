@@ -8,6 +8,15 @@ const nextConfig = {
       { protocol: 'https', hostname: 'images.unsplash.com' },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: '/blog/singapore-international-school-guide-2025',
+        destination: '/blog/singapore-international-school-guide-2026',
+        permanent: true,
+      },
+    ]
+  },
   async headers() {
     return [
       {

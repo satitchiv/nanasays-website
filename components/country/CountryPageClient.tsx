@@ -68,14 +68,6 @@ function formatSchoolType(t: string | null): string {
   return 'International'
 }
 
-function getNanaQuote(school: SchoolListItem): string | null {
-  const text = school.unique_selling_points
-  if (!text) return null
-  if (text.length <= 150) return text
-  const cut = text.lastIndexOf(' ', 148)
-  return text.slice(0, cut > 0 ? cut : 148) + '…'
-}
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Props {
@@ -531,7 +523,6 @@ interface CardProps {
 function SchoolCard({ school, idx, country, isInCompare, onCompare, onHover, onSelect, highlighted }: CardProps) {
   const isFeatured = idx === 0
   const imgSrc = getSchoolImage(school, idx, country)
-  const nanaQuote = getNanaQuote(school)
 
   // Left badge logic — partner badge always wins
   let leftBadge: { text: string; bg: string; color: string } | null = null
@@ -683,28 +674,6 @@ function SchoolCard({ school, idx, country, isInCompare, onCompare, onHover, onS
             </div>
           ))}
         </div>
-
-        {/* Nana quote */}
-        {nanaQuote && (
-          <div style={{
-            fontSize: 10,
-            fontStyle: 'italic',
-            color: '#4B5563',
-            lineHeight: 1.5,
-            borderLeft: '2.5px solid var(--teal)',
-            padding: '8px 10px',
-            borderRadius: '0 6px 6px 0',
-            background: 'var(--teal-bg)',
-            marginBottom: 8,
-            fontFamily: "'Nunito Sans', sans-serif",
-            overflow: 'hidden',
-            display: '-webkit-box',
-            WebkitLineClamp: 3,
-            WebkitBoxOrient: 'vertical',
-          } as React.CSSProperties}>
-            {nanaQuote}
-          </div>
-        )}
 
         {/* Action buttons */}
         <div style={{ display: 'flex', gap: 7, marginTop: 'auto' }}>

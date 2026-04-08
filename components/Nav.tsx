@@ -41,13 +41,6 @@ export default function Nav() {
         >
           <option value="en">EN — English</option>
           <option value="th">TH — ภาษาไทย</option>
-          <option value="zh">ZH — 中文</option>
-          <option value="ja">JA — 日本語</option>
-          <option value="ko">KO — 한국어</option>
-          <option value="ar">AR — العربية</option>
-          <option value="fr">FR — Français</option>
-          <option value="de">DE — Deutsch</option>
-          <option value="es">ES — Español</option>
         </select>
 
         {/* For Schools */}

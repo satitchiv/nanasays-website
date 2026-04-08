@@ -74,7 +74,7 @@ export const BLOG_CONTENT: Record<string, string> = {
     <p>In practice, the quality of teaching at the specific school matters more than the qualification framework. A mediocre IB programme at a weak school will not outperform a strong A-level programme at an excellent one.</p>
   `,
 
-  'singapore-international-school-guide-2025': `
+  'singapore-international-school-guide-2026': `
     <p>Singapore's international schools are among the best in Asia, and places are fiercely competitive — top schools have waiting lists of 12–18 months. Fees range from SGD 20,000 to SGD 55,000 per year (roughly USD 15,000–41,000), and the right school depends on your child's curriculum, your family's length of stay, and how much flexibility you need if you relocate again.</p>
 
     <h2>The four schools every expat family should know</h2>

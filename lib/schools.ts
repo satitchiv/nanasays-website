@@ -25,18 +25,39 @@ export async function getSchoolsByCountry(country: string, limit = 12): Promise<
   return data as SchoolSummary[]
 }
 
-export async function getSimilarSchools(school: School, limit = 3): Promise<SchoolSummary[]> {
-  const { data, error } = await supabase
-    .from('schools')
-    .select('id,slug,name,country,city,region,school_type,curriculum,fees_usd_min,fees_usd_max,boarding,university_placement_rate,hero_image,review_score,verified_at')
-    .eq('country', school.country ?? '')
-    .eq('is_international', true)
-    .neq('id', school.id)
-    .order('confidence_score', { ascending: false })
-    .limit(limit)
+export async function getSimilarSchools(school: School): Promise<SchoolSummary[]> {
+  const SELECT = 'id,slug,name,country,city,region,school_type,curriculum,fees_usd_min,fees_usd_max,boarding,university_placement_rate,hero_image,review_score,verified_at'
 
-  if (error || !data) return []
-  return data as SchoolSummary[]
+  // Tier 1: same country + same city
+  if (school.city) {
+    const { data } = await supabase
+      .from('schools')
+      .select(SELECT)
+      .eq('country', school.country ?? '')
+      .eq('city', school.city)
+      .eq('is_international', true)
+      .neq('id', school.id)
+      .order('confidence_score', { ascending: false })
+      .limit(3)
+    if (data && data.length >= 2) return data as SchoolSummary[]
+  }
+
+  // Tier 2: same country + same first curriculum
+  const firstCurriculum = school.curriculum?.[0]
+  if (firstCurriculum) {
+    const { data } = await supabase
+      .from('schools')
+      .select(SELECT)
+      .eq('country', school.country ?? '')
+      .contains('curriculum', [firstCurriculum])
+      .eq('is_international', true)
+      .neq('id', school.id)
+      .order('confidence_score', { ascending: false })
+      .limit(3)
+    if (data && data.length >= 2) return data as SchoolSummary[]
+  }
+
+  return []
 }
 
 export async function searchSchools(query: string, limit = 8): Promise<SchoolSummary[]> {
@@ -251,7 +272,10 @@ export async function getSchoolPairs(limit = 500): Promise<{ slugA: string; slug
 }
 
 export function formatFees(school: Pick<School, 'fees_usd_min' | 'fees_usd_max' | 'fees_original' | 'fees_currency'>): string {
-  if (school.fees_original) return school.fees_original
+  if (school.fees_original) {
+    // Ensure space between currency code and number (e.g. "THB343,460" → "THB 343,460")
+    return school.fees_original.replace(/([A-Z]{3})(\d)/, '$1 $2')
+  }
   if (school.fees_usd_min && school.fees_usd_max) {
     return `$${school.fees_usd_min.toLocaleString()} – $${school.fees_usd_max.toLocaleString()}`
   }

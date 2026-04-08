@@ -12,7 +12,7 @@ export const BLOG_POSTS: BlogPost[] = [
     image: 'https://images.unsplash.com/photo-1508009603885-50cf7c579365?w=800&q=80&auto=format&fit=crop',
   },
   {
-    slug: 'singapore-international-school-guide-2025',
+    slug: 'singapore-international-school-guide-2026',
     title: 'Singapore International Schools: The 2026 Parent Guide',
     excerpt: 'SAS, UWCSEA, Tanglin — ranked by curriculum, fees, and waiting list reality. Fees run SGD 20,000–52,000 per year. Here is how to get a place.',
     category: 'guide',
