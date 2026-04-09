@@ -30,6 +30,13 @@ export const metadata: Metadata = {
   },
   description: 'NanaSays helps international families find the perfect school abroad. Search 4,000+ verified schools across 75+ countries with Nana, your AI school advisor.',
   keywords: ['international school', 'boarding school', 'IB school', 'school abroad', 'international school directory'],
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: '32x32', type: 'image/x-icon' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: { url: '/apple-touch-icon.png', sizes: '180x180' },
+  },
   openGraph: {
     siteName: 'NanaSays',
     type: 'website',
