@@ -10,8 +10,10 @@ const BASE_URL = 'https://nanasays.school'
 export const revalidate = 86400 // regenerate sitemap once per day
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // Step 1: single RPC call — returns {slugs:[...]} object so PostgREST treats it as one scalar, not paginated rows
-  const { data: rpcResult } = await supabase.rpc('get_international_school_slugs')
+  // Step 1: fetch only indexable school slugs — mirrors isIndexable() in schools/[slug]/page.tsx
+  // Uses get_indexable_school_slugs() RPC which applies the same 15-field quality score >= 4 filter
+  // This keeps noindex pages out of the sitemap and avoids wasting Googlebot crawl budget
+  const { data: rpcResult } = await supabase.rpc('get_indexable_school_slugs')
   const allSlugs: string[] = (rpcResult as any)?.slugs || []
 
   // Step 2: fetch filter combos

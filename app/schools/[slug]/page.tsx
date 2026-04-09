@@ -119,7 +119,7 @@ function buildSchoolDescription(school: School): string {
   if (curr && fees)
     return `${curr} curriculum · fees from $${fees.toLocaleString()}/yr. Compare admissions and curriculum details for ${school.name} on NanaSays.`
   if (school.description)
-    return `${school.description.slice(0, 145).trimEnd()} — compare fees and admissions on NanaSays.`
+    return `${school.description.slice(0, 116).trimEnd()} — compare fees and admissions on NanaSays.`
   return `Compare fees, admissions, and curriculum details for ${school.name} in ${loc} — all on NanaSays.`
 }
 
@@ -137,9 +137,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       : { index: false, follow: true },
     openGraph: {
       title: buildSchoolTitle(school),
-      description: school.description
-        ? school.description.slice(0, 160)
-        : `${school.name} — international school in ${school.city ?? school.country}.`,
+      description: buildSchoolDescription(school),
       ...(school.hero_image && {
         images: [{ url: school.hero_image, width: 1200, height: 630, alt: school.name }],
       }),
@@ -165,16 +163,16 @@ function CheckIcon({ yes }: { yes: boolean }) {
   )
 }
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
+function SectionTitle({ children, as: Tag = 'h2' }: { children: React.ReactNode; as?: 'h2' | 'div' }) {
   return (
-    <div style={{
+    <Tag style={{
       fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.14em',
       color: 'var(--teal-dk)', marginBottom: 18, paddingBottom: 10,
       borderBottom: '2px solid var(--border)', fontWeight: 800,
       fontFamily: 'var(--font-nunito), Nunito, sans-serif',
     }}>
       {children}
-    </div>
+    </Tag>
   )
 }
 
@@ -489,7 +487,14 @@ export default async function SchoolPage({ params }: Props) {
       ...(school.city && { addressLocality: school.city }),
       ...(school.address && { streetAddress: school.address }),
     },
-    ...(school.fees_usd_min && { tuitionCost: `USD ${school.fees_usd_min.toLocaleString()}–${(school.fees_usd_max ?? school.fees_usd_min).toLocaleString()} per year` }),
+    ...(school.fees_usd_min && {
+      offers: {
+        '@type': 'Offer',
+        category: 'Tuition',
+        priceRange: `$${school.fees_usd_min.toLocaleString()}–$${(school.fees_usd_max ?? school.fees_usd_min).toLocaleString()}`,
+        priceCurrency: 'USD',
+      },
+    }),
     ...(school.curriculum?.length && { curriculumsOffered: school.curriculum }),
     ...(school.student_count && { numberOfStudents: { '@type': 'QuantitativeValue', value: school.student_count } }),
     ...(school.founded_year && { foundingDate: String(school.founded_year) }),
@@ -1483,7 +1488,7 @@ export default async function SchoolPage({ params }: Props) {
           {/* ADMISSIONS DETAILS */}
           {(school.application_deadline || school.admission_deposit_usd != null || school.waitlist || school.eal_cost_usd != null || school.entry_exam_type || school.admissions_open_month) && (
             <Section>
-              <SectionTitle>{t('school_section_admissions')}</SectionTitle>
+              <SectionTitle>{t('school_section_admissions_details')}</SectionTitle>
               <div className="ns-2col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                 {school.admissions_open_month && (
                   <div style={{ background: 'var(--off)', border: '1px solid var(--border)', borderRadius: 10, padding: 20 }}>
