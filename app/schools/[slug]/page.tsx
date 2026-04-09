@@ -89,23 +89,36 @@ function shortCurriculum(raw: string): string {
 }
 
 function buildSchoolTitle(school: School): string {
-  const loc = school.city ? `${school.city}, ${school.country}` : (school.country ?? '')
-  const rawCurr = school.curriculum?.[0] ?? null
-  const curr = rawCurr ? shortCurriculum(rawCurr) : null
-  const fees = school.fees_usd_min
-    ? `Fees from $${school.fees_usd_min.toLocaleString()}`
-    : null
-  const ages = (school.age_min != null && school.age_max != null)
-    ? `Ages ${school.age_min}–${school.age_max}`
-    : null
+  // Returns the full <title> including brand suffix.
+  // Use title: { absolute: buildSchoolTitle(school) } to bypass the layout template.
+  // Tiered fallback: richest format that fits in 60 chars, otherwise drop location,
+  // then drop descriptor, then truncate — so Google never truncates our titles mid-word.
+  const name = school.name ?? 'International School'
+  const curr = school.curriculum?.[0] ? shortCurriculum(school.curriculum[0]) : null
+  const descriptor = curr ? `${curr} School` : 'International School'
+  const suffix = ' | NanaSays'
+  const fits = (s: string) => (s + suffix).length <= 60
 
-  if (curr && fees) return `${school.name} — ${curr} School · ${fees}`
-  if (curr && ages) return `${school.name} — ${curr} School · ${ages}`
-  if (curr)         return `${school.name} — ${curr} School in ${loc}`
-  if (fees)         return `${school.name} — International School · ${fees}`
-  return school.city
-    ? `${school.name} — International School in ${loc}`
-    : `${school.name} — International School in ${school.country}`
+  if (school.city && school.country) {
+    const t = `${name} — ${descriptor} in ${school.city}, ${school.country}`
+    if (fits(t)) return t + suffix
+  }
+  if (school.city) {
+    const t = `${name} — ${descriptor} in ${school.city}`
+    if (fits(t)) return t + suffix
+  }
+  if (school.country) {
+    const t = `${name} — ${descriptor} in ${school.country}`
+    if (fits(t)) return t + suffix
+  }
+  const withDescriptor = `${name} — ${descriptor}`
+  if (fits(withDescriptor)) return withDescriptor + suffix
+
+  // Name-only — most long-named schools land here
+  if ((name + suffix).length <= 60) return name + suffix
+
+  // Hard truncate (very rare — school names > 49 chars)
+  return name.slice(0, 60 - suffix.length - 1) + '\u2026' + suffix
 }
 
 function buildSchoolDescription(school: School): string {
@@ -127,7 +140,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const school = await getSchoolBySlug(params.slug)
   if (!school) return { title: 'School Not Found' }
   return {
-    title: buildSchoolTitle(school),
+    title: { absolute: buildSchoolTitle(school) },
     description: buildSchoolDescription(school),
     alternates: {
       canonical: `https://nanasays.school/schools/${params.slug}`,
