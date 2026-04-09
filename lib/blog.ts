@@ -1,3 +1,4 @@
+// DEPRECATED — migrated to Supabase blog_posts table. Remove after confirming DB migration is complete.
 import type { BlogPost } from './types'
 
 export const BLOG_POSTS: BlogPost[] = [

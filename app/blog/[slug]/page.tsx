@@ -3,61 +3,95 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
-import { BLOG_POSTS, CATEGORY_LABELS } from '@/lib/blog'
-import { BLOG_CONTENT } from '@/lib/blog-content'
+import { supabase } from '@/lib/supabase'
+import { CATEGORY_LABELS } from '@/lib/blog'
 import { getSchoolsByCountry } from '@/lib/schools'
+
+export const revalidate = 3600 // ISR — new posts become available within 1 hour
+export const dynamic = 'force-dynamic'  // never serve stale empty cache
 
 interface Props {
   params: { slug: string }
 }
 
+interface DbPost {
+  id: string
+  slug: string
+  title: string
+  excerpt: string | null
+  category: string | null
+  country: string | null
+  curriculum: string | null
+  city: string | null
+  hero_image: string | null
+  word_count: number | null
+  content: string
+  published_at: string | null
+}
+
+async function getPost(slug: string): Promise<DbPost | null> {
+  const { data } = await supabase
+    .from('blog_posts')
+    .select('id, slug, title, excerpt, category, country, curriculum, city, hero_image, word_count, content, published_at')
+    .eq('slug', slug)
+    .eq('status', 'published')
+    .single()
+  return data ?? null
+}
+
 export async function generateStaticParams() {
-  return BLOG_POSTS.map(p => ({ slug: p.slug }))
+  const { data } = await supabase
+    .from('blog_posts')
+    .select('slug')
+    .eq('status', 'published')
+  return (data ?? []).map(p => ({ slug: p.slug }))
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const post = BLOG_POSTS.find(p => p.slug === params.slug)
+  const post = await getPost(params.slug)
   if (!post) return { title: 'Not Found' }
   return {
     title: post.title,
-    description: post.excerpt,
-    openGraph: { images: post.image ? [post.image] : [] },
+    description: post.excerpt ?? undefined,
+    openGraph: { images: post.hero_image ? [post.hero_image] : [] },
   }
 }
 
-function formatDate(iso: string) {
+function formatDate(iso: string | null) {
+  if (!iso) return ''
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-// Suggest schools based on blog post category/topic
-async function getSuggestedSchools(post: (typeof BLOG_POSTS)[0]) {
+function readTime(wordCount: number | null): number {
+  return Math.ceil((wordCount ?? 800) / 200)
+}
+
+function categoryLabel(category: string | null): string {
+  return CATEGORY_LABELS[category as keyof typeof CATEGORY_LABELS] ?? 'Guide'
+}
+
+async function getSuggestedSchools(post: DbPost) {
   try {
-    if (post.slug.includes('bangkok') || post.slug.includes('thailand')) {
-      return getSchoolsByCountry('Thailand', 3)
-    }
-    if (post.slug.includes('singapore')) {
-      return getSchoolsByCountry('Singapore', 3)
-    }
-    if (post.slug.includes('kuala-lumpur') || post.slug.includes('malaysia')) {
-      return getSchoolsByCountry('Malaysia', 3)
-    }
-    if (post.slug.includes('jakarta') || post.slug.includes('indonesia')) {
-      return getSchoolsByCountry('Indonesia', 3)
-    }
-    if (post.slug.includes('ho-chi-minh') || post.slug.includes('vietnam')) {
-      return getSchoolsByCountry('Vietnam', 3)
-    }
-    if (post.slug.includes('uk') || post.slug.includes('boarding')) {
-      return getSchoolsByCountry('United Kingdom', 3)
-    }
-    return getSchoolsByCountry('Switzerland', 3)
+    // Use country field directly if available (DB posts have it)
+    if (post.country) return getSchoolsByCountry(post.country, 3)
+    // Fallback slug-based detection for legacy posts
+    const slug = post.slug
+    if (slug.includes('bangkok') || slug.includes('thailand')) return getSchoolsByCountry('Thailand', 3)
+    if (slug.includes('singapore'))                              return getSchoolsByCountry('Singapore', 3)
+    if (slug.includes('kuala-lumpur') || slug.includes('malaysia')) return getSchoolsByCountry('Malaysia', 3)
+    if (slug.includes('jakarta') || slug.includes('indonesia')) return getSchoolsByCountry('Indonesia', 3)
+    if (slug.includes('ho-chi-minh') || slug.includes('vietnam')) return getSchoolsByCountry('Vietnam', 3)
+    if (slug.includes('uk') || slug.includes('boarding'))        return getSchoolsByCountry('United Kingdom', 3)
+    return getSchoolsByCountry('Singapore', 3)
   } catch {
     return []
   }
 }
 
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=800&q=80&auto=format&fit=crop'
+
 export default async function BlogPostPage({ params }: Props) {
-  const post = BLOG_POSTS.find(p => p.slug === params.slug)
+  const post = await getPost(params.slug)
   if (!post) notFound()
 
   const suggested = await getSuggestedSchools(post)
@@ -67,10 +101,10 @@ export default async function BlogPostPage({ params }: Props) {
     '@type': 'BlogPosting',
     headline: post.title,
     description: post.excerpt,
-    author: { '@type': 'Person', name: post.author },
-    datePublished: post.publishedAt,
+    author: { '@type': 'Person', name: 'Nana' },
+    datePublished: post.published_at,
     publisher: { '@type': 'Organization', name: 'NanaSays', url: 'https://nanasays.school' },
-    ...(post.image && { image: post.image }),
+    ...(post.hero_image && { image: post.hero_image }),
     url: `https://nanasays.school/blog/${post.slug}`,
     mainEntityOfPage: { '@type': 'WebPage', '@id': `https://nanasays.school/blog/${post.slug}` },
   }
@@ -85,7 +119,7 @@ export default async function BlogPostPage({ params }: Props) {
         <div style={{ position: 'relative', height: 360, overflow: 'hidden' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={post.image}
+            src={post.hero_image || FALLBACK_IMAGE}
             alt={post.title}
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           />
@@ -106,7 +140,7 @@ export default async function BlogPostPage({ params }: Props) {
                 fontSize: 10, fontWeight: 800, padding: '3px 10px', borderRadius: 100,
                 background: 'var(--teal)', color: '#fff', fontFamily: "'Nunito Sans', sans-serif",
               }}>
-                {CATEGORY_LABELS[post.category]}
+                {categoryLabel(post.category)}
               </span>
             </div>
             <h1 style={{
@@ -118,9 +152,9 @@ export default async function BlogPostPage({ params }: Props) {
               {post.title}
             </h1>
             <div style={{ display: 'flex', gap: 16, fontSize: 12, color: 'rgba(255,255,255,.55)', fontFamily: "'Nunito Sans', sans-serif" }}>
-              <span style={{ fontWeight: 700, color: 'rgba(255,255,255,.8)' }}>{post.author}</span>
-              <span>{formatDate(post.publishedAt)}</span>
-              <span>{post.readTime} min read</span>
+              <span style={{ fontWeight: 700, color: 'rgba(255,255,255,.8)' }}>Nana</span>
+              <span>{formatDate(post.published_at)}</span>
+              <span>{readTime(post.word_count)} min read</span>
             </div>
           </div>
         </div>
@@ -129,20 +163,22 @@ export default async function BlogPostPage({ params }: Props) {
         <div style={{ maxWidth: 760, margin: '0 auto', padding: '52px 5%' }}>
 
           {/* Lead excerpt */}
-          <p style={{
-            fontSize: 18, color: 'var(--body)', lineHeight: 1.75,
-            fontWeight: 300, marginBottom: 40,
-            borderLeft: '3px solid var(--teal)', paddingLeft: 20,
-            fontFamily: "'Nunito Sans', sans-serif",
-          }}>
-            {post.excerpt}
-          </p>
+          {post.excerpt && (
+            <p style={{
+              fontSize: 18, color: 'var(--body)', lineHeight: 1.75,
+              fontWeight: 300, marginBottom: 40,
+              borderLeft: '3px solid var(--teal)', paddingLeft: 20,
+              fontFamily: "'Nunito Sans', sans-serif",
+            }}>
+              {post.excerpt}
+            </p>
+          )}
 
           {/* Article content */}
-          {BLOG_CONTENT[post.slug] ? (
+          {post.content ? (
             <div
               className="blog-content"
-              dangerouslySetInnerHTML={{ __html: BLOG_CONTENT[post.slug] }}
+              dangerouslySetInnerHTML={{ __html: post.content }}
               style={{
                 fontSize: 16,
                 lineHeight: 1.8,
@@ -157,23 +193,13 @@ export default async function BlogPostPage({ params }: Props) {
               textAlign: 'center', marginBottom: 52,
             }}>
               <div style={{
-                width: 48, height: 48, borderRadius: '50%',
-                background: 'rgba(52,195,160,.18)', border: '1px solid rgba(52,195,160,.3)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                margin: '0 auto 16px',
-              }}>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" strokeWidth="2" strokeLinecap="round">
-                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                </svg>
-              </div>
-              <div style={{
                 fontFamily: 'var(--font-nunito), Nunito, sans-serif',
                 fontWeight: 800, fontSize: 18, color: '#fff', marginBottom: 10,
               }}>
                 Full article coming soon
               </div>
               <p style={{ fontSize: 14, color: 'rgba(255,255,255,.55)', lineHeight: 1.6, margin: 0 }}>
-                Nana is still writing this one. Check back soon — or explore the schools below while you wait.
+                Nana is still writing this one. Check back soon.
               </p>
             </div>
           )}

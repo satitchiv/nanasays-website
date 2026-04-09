@@ -2,19 +2,66 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
-import { BLOG_POSTS, CATEGORY_LABELS } from '@/lib/blog'
+import { supabase } from '@/lib/supabase'
+import { CATEGORY_LABELS } from '@/lib/blog'
+
+export const revalidate = 3600 // ISR — refresh hourly as new posts are published
+export const dynamic = 'force-dynamic'  // never serve stale empty cache
 
 export const metadata: Metadata = {
   title: 'International School Guides & Advice for Expat Families',
   description: 'Honest guides for international school families. Curriculum comparisons, school rankings, and advice from Nana.',
 }
 
-function formatDate(iso: string) {
+interface DbPost {
+  id: string
+  slug: string
+  title: string
+  excerpt: string | null
+  category: string | null
+  hero_image: string | null
+  word_count: number | null
+  published_at: string | null
+}
+
+async function getBlogPosts(): Promise<DbPost[]> {
+  const { data } = await supabase
+    .from('blog_posts')
+    .select('id, slug, title, excerpt, category, hero_image, word_count, published_at')
+    .eq('status', 'published')
+    .order('published_at', { ascending: false })
+  return data ?? []
+}
+
+function formatDate(iso: string | null) {
+  if (!iso) return ''
   return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
 }
 
-export default function BlogPage() {
-  const [featured, ...rest] = BLOG_POSTS
+function readTime(wordCount: number | null): number {
+  return Math.ceil((wordCount ?? 800) / 200)
+}
+
+function categoryLabel(category: string | null): string {
+  return CATEGORY_LABELS[category as keyof typeof CATEGORY_LABELS] ?? 'Guide'
+}
+
+// Fallback image for posts without a hero_image
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=800&q=80&auto=format&fit=crop'
+
+export default async function BlogPage() {
+  const posts = await getBlogPosts()
+  if (posts.length === 0) return (
+    <>
+      <Nav />
+      <main style={{ paddingTop: 60, minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: 'var(--muted)' }}>No posts yet — check back soon.</p>
+      </main>
+      <Footer />
+    </>
+  )
+
+  const [featured, ...rest] = posts
 
   return (
     <>
@@ -52,7 +99,7 @@ export default function BlogPage() {
               <div style={{ position: 'relative', height: 280, overflow: 'hidden' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={featured.image}
+                  src={featured.hero_image || FALLBACK_IMAGE}
                   alt={featured.title}
                   style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                 />
@@ -66,7 +113,7 @@ export default function BlogPage() {
                     background: 'var(--teal)', color: '#fff',
                     fontFamily: "'Nunito Sans', sans-serif",
                   }}>
-                    {CATEGORY_LABELS[featured.category]}
+                    {categoryLabel(featured.category)}
                   </span>
                   <h2 style={{
                     fontFamily: 'var(--font-nunito), Nunito, sans-serif',
@@ -83,9 +130,9 @@ export default function BlogPage() {
                   {featured.excerpt}
                 </p>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, fontSize: 12, color: 'var(--muted)' }}>
-                  <span style={{ fontWeight: 700, color: 'var(--navy)' }}>{featured.author}</span>
-                  <span>{formatDate(featured.publishedAt)}</span>
-                  <span>{featured.readTime} min read</span>
+                  <span style={{ fontWeight: 700, color: 'var(--navy)' }}>Nana</span>
+                  <span>{formatDate(featured.published_at)}</span>
+                  <span>{readTime(featured.word_count)} min read</span>
                   <span style={{ marginLeft: 'auto', color: 'var(--teal-dk)', fontWeight: 700 }}>Read article →</span>
                 </div>
               </div>
@@ -104,7 +151,7 @@ export default function BlogPage() {
                   <div style={{ height: 180, overflow: 'hidden', position: 'relative' }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
-                      src={post.image}
+                      src={post.hero_image || FALLBACK_IMAGE}
                       alt={post.title}
                       style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
                     />
@@ -114,7 +161,7 @@ export default function BlogPage() {
                         background: 'var(--navy)', color: '#fff',
                         fontFamily: "'Nunito Sans', sans-serif",
                       }}>
-                        {CATEGORY_LABELS[post.category]}
+                        {categoryLabel(post.category)}
                       </span>
                     </div>
                   </div>
@@ -131,7 +178,7 @@ export default function BlogPage() {
                       {post.excerpt}
                     </p>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)' }}>
-                      <span>{formatDate(post.publishedAt)} · {post.readTime} min read</span>
+                      <span>{formatDate(post.published_at)} · {readTime(post.word_count)} min read</span>
                       <span style={{ color: 'var(--teal-dk)', fontWeight: 700 }}>Read →</span>
                     </div>
                   </div>
