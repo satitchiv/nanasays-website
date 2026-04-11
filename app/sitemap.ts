@@ -2,7 +2,6 @@ import { MetadataRoute } from 'next'
 import { supabase } from '@/lib/supabase'
 import { getAllCountrySlugs } from '@/lib/countryMeta'
 import { ALL_REGION_STUBS } from '@/lib/regionData'
-import { BLOG_POSTS } from '@/lib/blog'
 import { getFilterCombinations } from '@/lib/schools'
 
 const BASE_URL = 'https://nanasays.school'
@@ -10,14 +9,20 @@ const BASE_URL = 'https://nanasays.school'
 export const revalidate = 86400 // regenerate sitemap once per day
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // Step 1: fetch only indexable school slugs — mirrors isIndexable() in schools/[slug]/page.tsx
-  // Uses get_indexable_school_slugs() RPC which applies the same 15-field quality score >= 4 filter
-  // This keeps noindex pages out of the sitemap and avoids wasting Googlebot crawl budget
+  // Step 1: indexable school slugs — mirrors isIndexable() in schools/[slug]/page.tsx
   const { data: rpcResult } = await supabase.rpc('get_indexable_school_slugs')
   const allSlugs: string[] = (rpcResult as any)?.slugs || []
 
-  // Step 2: fetch filter combos
+  // Step 2: filter combos — add these back, they qualify (5+ schools threshold)
   const filterCombos = await getFilterCombinations()
+
+  // Step 3: blog posts from Supabase (single source of truth)
+  const { data: blogData } = await supabase
+    .from('blog_posts')
+    .select('slug, published_at')
+    .eq('status', 'published')
+    .order('published_at', { ascending: false })
+  const publishedPosts = blogData ?? []
 
   const schoolUrls: MetadataRoute.Sitemap = allSlugs.map((slug: string) => ({
     url: `${BASE_URL}/schools/${slug}`,
@@ -41,9 +46,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }))
 
-  const blogUrls: MetadataRoute.Sitemap = BLOG_POSTS.map(p => ({
+  const blogUrls: MetadataRoute.Sitemap = publishedPosts.map(p => ({
     url: `${BASE_URL}/blog/${p.slug}`,
-    lastModified: new Date(p.publishedAt),
+    lastModified: p.published_at ? new Date(p.published_at) : new Date(),
     changeFrequency: 'monthly' as const,
     priority: 0.5,
   }))
@@ -55,15 +60,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.75,
   }))
 
-  // compare pages removed from sitemap — thin content dilutes crawl budget
-  // re-add once school data is fully enriched
-
   return [
     { url: BASE_URL, lastModified: new Date(), changeFrequency: 'daily', priority: 1.0 },
     { url: `${BASE_URL}/blog`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.6 },
     ...regionUrls,
     ...countryUrls,
-    ...schoolUrls,   // schools first — most important
+    ...schoolUrls,
     ...filterUrls,
     ...blogUrls,
   ]

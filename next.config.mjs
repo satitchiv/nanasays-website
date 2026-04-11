@@ -6,6 +6,8 @@ const nextConfig = {
     remotePatterns: [
       { protocol: 'https', hostname: 'flagcdn.com' },
       { protocol: 'https', hostname: 'images.unsplash.com' },
+      // Catch-all: school logos and hero images come from hundreds of CDNs
+      { protocol: 'https', hostname: '**' },
     ],
   },
   async redirects() {

@@ -11,6 +11,17 @@ export interface CountryPageMeta {
   schoolCount: number
   mapCenter: [number, number]
   mapZoom: number
+  countryIntro?: string
+  feeTableSchools?: Array<{
+    name: string
+    slug: string
+    curriculum: string | null
+    fees_usd_min: number | null
+    fees_usd_max: number | null
+    city: string | null
+    age_min: number | null
+    age_max: number | null
+  }>
 }
 
 const MAP_CONFIG: Record<string, { center: [number, number]; zoom: number }> = {

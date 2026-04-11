@@ -1,5 +1,6 @@
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import Link from 'next/link'
 import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
@@ -166,11 +167,12 @@ export default async function FilterPage({ params }: Props) {
                   }}>
                     {/* Image */}
                     <div style={{ height: 160, overflow: 'hidden', position: 'relative' }}>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
+                      <Image
                         src={heroUrl}
                         alt={school.name}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        fill
+                        loading="lazy"
+                        style={{ objectFit: 'cover' }}
                       />
                       {school.scholarship_available && (
                         <div style={{

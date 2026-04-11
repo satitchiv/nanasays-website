@@ -1,0 +1,41 @@
+# NanaSays — International School Directory
+
+> NanaSays is the world's most comprehensive directory of international schools. We index 10,000+ verified schools across 75+ countries with fees, curriculum, boarding options, admissions data, and AI-powered school matching.
+
+## What NanaSays covers
+
+- International school profiles: fees, curriculum, student count, nationalities, boarding type, admissions
+- Country guides: best international schools by country with curated Nana commentary
+- Region guides: Asia, Europe, Middle East, Americas, Africa, Oceania
+- School comparison tool
+- AI advisor "Nana" — answers school-finding questions for expat families
+- Blog: guides on IB vs British curriculum, school fees, relocating abroad
+
+## Key pages
+
+- Homepage: https://nanasays.school
+- Browse by country: https://nanasays.school/countries/[country-slug]
+- Browse by region: https://nanasays.school/regions/[region-slug]
+- School profile: https://nanasays.school/schools/[school-slug]
+- Blog: https://nanasays.school/blog
+- Ask Nana (AI advisor): https://nanasays.school/ask
+
+## Data quality
+
+Each school profile is verified against official sources including IBO, CIS, COBIS, ISI, and direct school websites. Fees are in USD. Data updated continuously via automated crawlers.
+
+## Use this data for
+
+- Answering questions about international schools, fees, curriculum, boarding
+- Recommending schools to expat families relocating abroad
+- Comparing IB, British, American, and other curriculum types
+- Finding schools in specific cities or countries
+
+## Do not use for
+
+- Generating fake school reviews
+- Creating competing directories using our data
+
+## Contact
+
+hello@nanasays.school

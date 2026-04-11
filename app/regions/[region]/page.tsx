@@ -70,10 +70,45 @@ export default async function RegionPage({ params }: Props) {
     })),
   }
 
+  const totalSchools = countries.reduce((s, c) => s + c.schoolCount, 0)
+  const topCountry = countries.length > 0
+    ? [...countries].sort((a, b) => b.schoolCount - a.schoolCount)[0]
+    : null
+
+  const faqItems = [
+    {
+      q: `How many international schools are in ${region.name}?`,
+      a: `NanaSays lists over ${totalSchools.toLocaleString()} international schools across ${countries.length} countries in ${region.name}. You can browse by country to filter by curriculum, fees, boarding availability, and more.`,
+    },
+    ...(topCountry ? [{
+      q: `Which country in ${region.name} has the most international schools?`,
+      a: `${topCountry.name} has the largest number of international schools in ${region.name}, with ${topCountry.schoolCount.toLocaleString()}+ schools listed on NanaSays. Other popular destinations include ${countries.filter(c => c.name !== topCountry.name).slice(0, 2).map(c => c.name).join(' and ')}.`,
+    }] : []),
+    {
+      q: `What curricula are available at international schools in ${region.name}?`,
+      a: `International schools in ${region.name} offer a wide range of curricula including the International Baccalaureate (IB), British (IGCSE/A-Level), American, and local national curricula. The right curriculum depends on your child's age, future university plans, and your family's relocation timeline.`,
+    },
+    {
+      q: `How do I choose the right international school in ${region.name}?`,
+      a: `Start by filtering by country and curriculum on NanaSays, then compare fee ranges, boarding options, and age ranges. You can also ask Nana — our AI school advisor — to match schools to your specific budget, curriculum preference, and location requirements.`,
+    },
+  ]
+
+  const faqSchema = faqItems.length >= 4 ? {
+    '@context': 'https://schema.org',
+    '@type': 'FAQPage',
+    mainEntity: faqItems.map(({ q, a }) => ({
+      '@type': 'Question',
+      name: q,
+      acceptedAnswer: { '@type': 'Answer', text: a },
+    })),
+  } : null
+
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(itemListSchema) }} />
+      {faqSchema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />}
       {/* SVG icon defs */}
       <svg width="0" height="0" style={{ position: 'absolute', pointerEvents: 'none' }}>
         <defs>

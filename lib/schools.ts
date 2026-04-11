@@ -57,6 +57,20 @@ export async function getSimilarSchools(school: School): Promise<SchoolSummary[]
     if (data && data.length >= 2) return data as SchoolSummary[]
   }
 
+  // Tier 3: same country, random 3 — never return empty
+  if (school.country) {
+    const { data } = await supabase
+      .from('schools')
+      .select(SELECT)
+      .eq('country', school.country)
+      .eq('is_international', true)
+      .neq('id', school.id)
+      .not('hero_image', 'is', null)
+      .order('confidence_score', { ascending: false })
+      .limit(3)
+    if (data && data.length > 0) return data as SchoolSummary[]
+  }
+
   return []
 }
 

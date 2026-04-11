@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import Link from 'next/link'
 import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
@@ -6,7 +7,6 @@ import { supabase } from '@/lib/supabase'
 import { CATEGORY_LABELS } from '@/lib/blog'
 
 export const revalidate = 3600 // ISR — refresh hourly as new posts are published
-export const dynamic = 'force-dynamic'  // never serve stale empty cache
 
 export const metadata: Metadata = {
   title: 'International School Guides & Advice for Expat Families',
@@ -97,11 +97,12 @@ export default async function BlogPage() {
               transition: 'box-shadow .2s',
             }}>
               <div style={{ position: 'relative', height: 280, overflow: 'hidden' }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={featured.hero_image || FALLBACK_IMAGE}
                   alt={featured.title}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                  fill
+                  priority
+                  style={{ objectFit: 'cover' }}
                 />
                 <div style={{
                   position: 'absolute', inset: 0,
@@ -149,11 +150,12 @@ export default async function BlogPage() {
                   transition: 'box-shadow .2s, border-color .2s',
                 }}>
                   <div style={{ height: 180, overflow: 'hidden', position: 'relative' }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
+                    <Image
                       src={post.hero_image || FALLBACK_IMAGE}
                       alt={post.title}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                      fill
+                      loading="lazy"
+                      style={{ objectFit: 'cover' }}
                     />
                     <div style={{ position: 'absolute', top: 12, left: 12 }}>
                       <span style={{

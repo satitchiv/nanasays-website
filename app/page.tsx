@@ -1,11 +1,13 @@
 import dynamicImport from 'next/dynamic'
 import type { Metadata } from 'next'
+import Image from 'next/image'
 import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
 import { flagUrl } from '@/lib/regions'
 import { REGIONS_DATA } from '@/lib/regionData'
 import { getCountrySchoolCounts, getTotalSchoolCount } from '@/lib/schools'
-import { BLOG_POSTS, CATEGORY_LABELS } from '@/lib/blog'
+import { CATEGORY_LABELS } from '@/lib/blog'
+import { supabase } from '@/lib/supabase'
 import Link from 'next/link'
 
 export const metadata: Metadata = {
@@ -20,7 +22,7 @@ const websiteSchema = {
   '@type': 'WebSite',
   name: 'NanaSays',
   url: 'https://nanasays.school',
-  description: 'NanaSays helps international families find the right school abroad. Search 6,000+ verified international schools across 100+ countries.',
+  description: 'NanaSays helps international families find the right school abroad. Search 10,000+ verified international schools across 100+ countries.',
   potentialAction: {
     '@type': 'SearchAction',
     target: 'https://nanasays.school/ask?q={search_term_string}',
@@ -103,11 +105,17 @@ const FEATURED_SCHOOLS = [
 ]
 
 export default async function HomePage() {
-  const [countryCounts, totalSchools] = await Promise.all([
+  const [countryCounts, totalSchools, blogResult] = await Promise.all([
     getCountrySchoolCounts(),
     getTotalSchoolCount(),
+    supabase.from('blog_posts')
+      .select('slug, title, excerpt, category, hero_image, published_at, word_count')
+      .eq('status', 'published')
+      .order('published_at', { ascending: false })
+      .limit(6),
   ])
   const totalCountries = Object.keys(countryCounts).length
+  const blogPosts = blogResult.data ?? []
 
   return (
     <>
@@ -276,13 +284,13 @@ export default async function HomePage() {
               >
                 {/* Photo */}
                 <div style={{ height: 160, position: 'relative', overflow: 'hidden', background: '#0a1520' }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <Image
                     src={region.heroImage}
                     alt={region.name}
-                    className="ns-region-img"
+                    fill
                     loading="lazy"
-                    style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.75, display: 'block', transition: 'transform .35s' }}
+                    className="ns-region-img"
+                    style={{ objectFit: 'cover', opacity: 0.75, transition: 'transform .35s' }}
                   />
                   <div style={{
                     position: 'absolute', inset: 0,
@@ -368,11 +376,11 @@ export default async function HomePage() {
                   textDecoration: 'none',
                 }}
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={flagUrl(country.flagCode, '24x18')}
                   alt={country.name}
-                  width={24} height={18}
+                  width={24}
+                  height={18}
                   style={{ borderRadius: 2, flexShrink: 0 }}
                 />
                 <div style={{ minWidth: 0 }}>
@@ -429,37 +437,40 @@ export default async function HomePage() {
             </Link>
           </div>
           <div className="ns-blog-grid">
-            {BLOG_POSTS.map((post, i) => (
-              <Link key={post.slug} href={`/blog/${post.slug}`} style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', textDecoration: 'none', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ overflow: 'hidden', position: 'relative', background: 'var(--off2)', height: i === 0 ? 240 : 140 }}>
-                  {post.image && (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={post.image} alt={post.title} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                  )}
-                </div>
-                <div style={{ padding: '20px 22px 22px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-                  <div style={{
-                    fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.8px',
-                    padding: '3px 9px', borderRadius: 100, width: 'fit-content', marginBottom: 10,
-                    background: post.category === 'thai' ? 'var(--teal-bg)' : post.category === 'guide' ? 'var(--blue-bg)' : 'rgba(27,50,82,.08)',
-                    color: post.category === 'thai' ? 'var(--teal-dk)' : post.category === 'guide' ? 'var(--blue)' : 'var(--navy)',
-                  }}>
-                    {CATEGORY_LABELS[post.category]}
+            {blogPosts.map((post, i) => {
+              const readTime = Math.ceil((post.word_count ?? 800) / 200)
+              const cat = post.category ?? 'guide'
+              return (
+                <Link key={post.slug} href={`/blog/${post.slug}`} style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 16, overflow: 'hidden', textDecoration: 'none', display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ overflow: 'hidden', position: 'relative', background: 'var(--off2)', height: i === 0 ? 240 : 140 }}>
+                    {post.hero_image && (
+                      <Image src={post.hero_image} alt={post.title} fill loading="lazy" style={{ objectFit: 'cover' }} />
+                    )}
                   </div>
-                  <h3 style={{ fontFamily: 'var(--font-nunito), Nunito, sans-serif', fontSize: i === 0 ? 20 : 16, fontWeight: 800, color: 'var(--navy)', lineHeight: 1.25, letterSpacing: '-0.2px', marginBottom: 8 }}>{post.title}</h3>
-                  <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.65, fontWeight: 300, flex: 1, marginBottom: 14 }}>{post.excerpt}</p>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)', paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--navy)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="var(--teal)"/><circle cx="12" cy="9" r="2.5" fill="white"/></svg>
-                      </div>
-                      <span>{post.author}</span>
+                  <div style={{ padding: '20px 22px 22px', flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    <div style={{
+                      fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '.8px',
+                      padding: '3px 9px', borderRadius: 100, width: 'fit-content', marginBottom: 10,
+                      background: cat === 'thai' ? 'var(--teal-bg)' : cat === 'guide' ? 'var(--blue-bg)' : 'rgba(27,50,82,.08)',
+                      color: cat === 'thai' ? 'var(--teal-dk)' : cat === 'guide' ? 'var(--blue)' : 'var(--navy)',
+                    }}>
+                      {CATEGORY_LABELS[cat as keyof typeof CATEGORY_LABELS] ?? 'Guide'}
                     </div>
-                    <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--blue)' }}>{post.readTime} min read</span>
+                    <h3 style={{ fontFamily: 'var(--font-nunito), Nunito, sans-serif', fontSize: i === 0 ? 20 : 16, fontWeight: 800, color: 'var(--navy)', lineHeight: 1.25, letterSpacing: '-0.2px', marginBottom: 8 }}>{post.title}</h3>
+                    <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.65, fontWeight: 300, flex: 1, marginBottom: 14 }}>{post.excerpt}</p>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, color: 'var(--muted)', paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'var(--navy)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <svg width="9" height="9" viewBox="0 0 24 24" fill="none"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z" fill="var(--teal)"/><circle cx="12" cy="9" r="2.5" fill="white"/></svg>
+                        </div>
+                        <span>Nana</span>
+                      </div>
+                      <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--blue)' }}>{readTime} min read</span>
+                    </div>
                   </div>
-                </div>
-              </Link>
-            ))}
+                </Link>
+              )
+            })}
           </div>
         </div>
       </div>
@@ -498,7 +509,7 @@ export default async function HomePage() {
                 Ready to find the right school?
               </h2>
               <p style={{ fontSize: 14, color: 'rgba(255,255,255,.6)', fontWeight: 300, lineHeight: 1.65, maxWidth: 420 }}>
-                Browse 4,000+ verified schools across 45+ countries — fees, curriculum, admissions and more.
+                Browse {totalSchools.toLocaleString()}+ verified schools across {totalCountries} countries — fees, curriculum, admissions and more.
               </p>
             </div>
             <div className="ns-hero-search-cta">
@@ -535,12 +546,13 @@ export default async function HomePage() {
                   padding: '18px 20px', overflow: 'hidden',
                   transition: 'box-shadow .2s, border-color .2s',
                 }}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
+                  <Image
                     src={school.logo}
                     alt={school.name}
+                    width={120}
+                    height={56}
                     loading="lazy"
-                    style={{ maxWidth: '100%', maxHeight: 56, objectFit: 'contain', display: 'block', filter: 'none' }}
+                    style={{ maxWidth: '100%', height: 'auto', maxHeight: 56, objectFit: 'contain' }}
                   />
                 </div>
                 <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--navy)', textAlign: 'center', lineHeight: 1.4 }}>{school.name}</div>
@@ -555,7 +567,7 @@ export default async function HomePage() {
                 Ready to find the right school?
               </h2>
               <p style={{ fontSize: 14, color: 'rgba(255,255,255,.6)', fontWeight: 300, lineHeight: 1.65, maxWidth: 420 }}>
-                Browse 4,000+ verified schools across 45+ countries — fees, curriculum, admissions and more.
+                Browse {totalSchools.toLocaleString()}+ verified schools across {totalCountries} countries — fees, curriculum, admissions and more.
               </p>
             </div>
             <div className="ns-hero-search-cta">

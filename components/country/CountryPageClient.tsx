@@ -1,5 +1,6 @@
 'use client'
 
+import Image from 'next/image'
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
@@ -238,7 +239,7 @@ export default function CountryPageClient({ meta, schools }: Props) {
 
                 {/* Country name + flag */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                  <img
+                  <Image
                     src={`https://flagcdn.com/20x15/${meta.flagCode}.png`}
                     alt={meta.name}
                     width={20}
@@ -321,6 +322,105 @@ export default function CountryPageClient({ meta, schools }: Props) {
               </div>
             </div>
           </div>
+
+          {/* Country Intro Copy */}
+          {meta.countryIntro && (
+            <div style={{
+              background: '#fff',
+              border: '1px solid var(--border)',
+              borderRadius: 14,
+              padding: '20px 24px',
+              marginBottom: 14,
+            }}>
+              <h2 style={{
+                fontFamily: 'var(--font-nunito), Nunito, sans-serif',
+                fontSize: 15,
+                fontWeight: 800,
+                color: 'var(--navy)',
+                marginBottom: 10,
+                letterSpacing: '-0.2px',
+              }}>
+                About International Schools in {meta.name}
+              </h2>
+              {meta.countryIntro.split('\n\n').filter(Boolean).map((para, i) => (
+                <p key={i} style={{
+                  fontSize: 13,
+                  color: 'var(--body)',
+                  lineHeight: 1.7,
+                  fontFamily: "'Nunito Sans', sans-serif",
+                  fontWeight: 400,
+                  marginBottom: i === 0 ? 10 : 0,
+                }}>
+                  {para.trim()}
+                </p>
+              ))}
+            </div>
+          )}
+
+          {/* Fee Comparison Table */}
+          {meta.feeTableSchools && meta.feeTableSchools.length > 0 && (
+            <div style={{
+              background: '#fff',
+              border: '1px solid var(--border)',
+              borderRadius: 14,
+              padding: '20px 24px',
+              marginBottom: 14,
+              overflowX: 'auto',
+            }}>
+              <h2 style={{
+                fontFamily: 'var(--font-nunito), Nunito, sans-serif',
+                fontSize: 15,
+                fontWeight: 800,
+                color: 'var(--navy)',
+                marginBottom: 14,
+                letterSpacing: '-0.2px',
+              }}>
+                International School Fees in {meta.name}
+              </h2>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontFamily: "'Nunito Sans', sans-serif" }}>
+                <thead>
+                  <tr style={{ borderBottom: '2px solid var(--border)' }}>
+                    {['School', 'Curriculum', 'Annual Fees (USD)', 'City', 'Ages'].map(h => (
+                      <th key={h} style={{
+                        textAlign: 'left', padding: '6px 10px 8px',
+                        fontWeight: 700, color: 'var(--navy)', fontSize: 11,
+                        textTransform: 'uppercase', letterSpacing: '.4px',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {meta.feeTableSchools.map((s, i) => (
+                    <tr key={s.slug} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? '#fff' : 'var(--off)' }}>
+                      <td style={{ padding: '8px 10px' }}>
+                        <Link href={`/schools/${s.slug}`} style={{ color: 'var(--navy)', fontWeight: 600, textDecoration: 'none' }}>
+                          {s.name}
+                        </Link>
+                      </td>
+                      <td style={{ padding: '8px 10px', color: 'var(--body)' }}>
+                        {s.curriculum ? s.curriculum.split(' ')[0] : '—'}
+                      </td>
+                      <td style={{ padding: '8px 10px', color: 'var(--body)', whiteSpace: 'nowrap' }}>
+                        {s.fees_usd_min
+                          ? `$${Math.round(s.fees_usd_min / 1000)}k${s.fees_usd_max && s.fees_usd_max !== s.fees_usd_min ? `–$${Math.round(s.fees_usd_max / 1000)}k` : '+'}`
+                          : '—'}
+                      </td>
+                      <td style={{ padding: '8px 10px', color: 'var(--body)' }}>{s.city ?? '—'}</td>
+                      <td style={{ padding: '8px 10px', color: 'var(--body)', whiteSpace: 'nowrap' }}>
+                        {s.age_min != null && s.age_max != null ? `${s.age_min}–${s.age_max}` : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 10, fontFamily: "'Nunito Sans', sans-serif" }}>
+                Data verified by NanaSays as of April 2026. Fees shown in USD per year.
+              </p>
+            </div>
+          )}
 
           {/* Sticky Toolbar */}
           <div className="ns-country-toolbar" style={{
@@ -561,7 +661,7 @@ function SchoolCard({ school, idx, country, isInCompare, onCompare, onHover, onS
     >
       {/* LEFT: Image */}
       <div className="sc-left">
-        <img src={imgSrc} alt={school.name} className="sc-img" />
+        <Image src={imgSrc} alt={school.name} fill loading="lazy" className="sc-img" style={{ objectFit: 'cover' }} />
 
         {/* Left badge */}
         {leftBadge && (

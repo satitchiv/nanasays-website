@@ -1,0 +1,202 @@
+{
+  "Thailand": {
+    "intro": "This directory lists 330 international schools across Thailand, with annual fees ranging from $1,000 to $40,000 per year. The schools follow various curricula: British (126 schools), International Baccalaureate (52 schools), American (30 schools), and Canadian (4 schools). Of these, 59 schools offer boarding options, providing families with residential alternatives alongside day school choices across the country.\n\nThailand's international school sector is concentrated geographically, with Bangkok accounting for 194 of the 330 schools listed. This concentration reflects the capital's role as Thailand's largest expat hub. Secondary cities including Chiang Mai, Phuket, and Rayong also have established international school communities, though with significantly fewer options than Bangkok. Families relocating to Thailand will find the widest selection of schools and most established international networks in Bangkok, while other regions offer more limited but growing alternatives for expatriate families.",
+    "generatedAt": "2026-04-10",
+    "data": {
+      "total": 330,
+      "feeMin": 1330,
+      "feeMax": 40468,
+      "boardingCount": 59
+    }
+  },
+  "United Kingdom": {
+    "intro": "The United Kingdom has 2077 international schools listed in this directory, with annual fees ranging from $1000 to $248000 per year. Schools offer multiple curriculum options, with 180 following the International Baccalaureate program, 102 offering the British curriculum, 8 providing French curriculum, and 6 offering American curriculum. The country also includes 400 boarding schools for families seeking residential education options.\n\nLondon has the highest concentration of international schools with 149 institutions, making it the primary destination for families relocating to the UK. The UK's international schools are distinguished by multiple curriculum options including British, IB, French, and American programs, providing educational flexibility. Beyond London, schools are distributed across other cities and regions, though the capital dominates in school count and variety. For relocating families, the choice between day and boarding schools at various fee levels allows families to find options matching their circumstances.",
+    "generatedAt": "2026-04-10",
+    "data": {
+      "total": 2077,
+      "feeMin": 1058,
+      "feeMax": 248031,
+      "boardingCount": 400
+    }
+  },
+  "United Arab Emirates": {
+    "intro": "The United Arab Emirates directory includes 256 international schools with annual fees ranging from $2,000 to $56,000 per year. The International Baccalaureate (IB) curriculum dominates the sector with 141 IB-authorised schools. British curricula are available at 100 schools, American at 22 schools, and French at 2 schools. Four boarding schools operate in the UAE, providing alternatives to day school options.\n\nDubai contains 150 of these schools, offering the highest concentration of international education options in the UAE. This concentration allows relocating families significant choice across curriculum types and schools at different price points. Other emirates maintain established international programs, though with fewer options. The breadth of schools in Dubai—ranging from budget-focused to premium institutions—provides flexibility for families making relocation decisions.",
+    "generatedAt": "2026-04-10",
+    "data": {
+      "total": 256,
+      "feeMin": 1567,
+      "feeMax": 56094,
+      "boardingCount": 4
+    }
+  },
+  "United States": {
+    "intro": "The United States directory lists 1,532 international schools, all offering IB curriculum and authorized by the International Baccalaureate. Annual tuition fees range from $1,000 to $83,000 per year, accommodating families with different financial capacities and educational priorities. Additionally, thirty schools offer boarding programs alongside day school options, providing flexible enrollment and housing arrangements for families with varying accommodation needs and preferences.\n\nInternational schools in the United States are distributed across numerous metropolitan areas and regions, providing families with meaningful geographic choice and relocation options. Chicago leads with 48 schools, making it a significant educational hub for international families. This geographic distribution enables families relocating to the United States to find established international school communities in multiple regions across the country, from major metropolitan centers to secondary cities and suburban areas.",
+    "generatedAt": "2026-04-10",
+    "data": {
+      "total": 1532,
+      "feeMin": 1000,
+      "feeMax": 82710,
+      "boardingCount": 30
+    }
+  },
+  "Canada": {
+    "intro": "This directory lists 380 international schools across Canada, with annual tuition ranging from $3,000 to $75,000 per year depending on school type and location. International Baccalaureate (IB) curriculum is by far the most widely available option, offered by 503 schools, while Canadian curriculum is available at 17 schools, French-language schools at 4 institutions, and German-language education at 1 school. Boarding facilities are available at 39 schools.\n\nCanada offers distinct advantages for international families seeking quality education and long-term stability. Toronto leads the country with the highest concentration of international schools at 26 locations, creating established expat communities with support networks and schools catering to various backgrounds. Other major cities provide diverse options across different regions, helping families make informed relocation decisions based on available curricula, tuition costs, and residential or boarding facilities.",
+    "generatedAt": "2026-04-10",
+    "data": {
+      "total": 380,
+      "feeMin": 2738,
+      "feeMax": 74955,
+      "boardingCount": 39
+    }
+  },
+  "China": {
+    "intro": "China has 630 international schools listed in this directory, with annual fees ranging from $1,000 to $116,000. The majority follow the International Baccalaureate curriculum (277 schools), while British programs are the second most common option (135 schools). American and Australian curricula are available in 38 and 5 schools respectively. Additionally, 243 of these schools offer boarding facilities.\n\nShanghai has the highest concentration of international schools in China, with 128 schools available to prospective families relocating there. Families moving to other major Chinese cities typically find significantly fewer options for international education. For expat families deciding where to settle, the presence of schools across different curricula and boarding options at 243 institutions provides practical flexibility. Families can balance school selection with location decisions, employment opportunities, cost considerations, and their specific educational needs.",
+    "generatedAt": "2026-04-10",
+    "data": {
+      "total": 630,
+      "feeMin": 1351,
+      "feeMax": 115815,
+      "boardingCount": 243
+    }
+  },
+  "Hong Kong": {
+    "intro": "This directory lists 244 international schools across Hong Kong. Annual fees range from $3,000 to $56,000. The International Baccalaureate curriculum is offered by 130 schools, 66 schools follow the British curriculum, 13 offer American education, and 3 provide French curricula. Nine schools offer boarding options.\n\nHong Kong's international education landscape reflects its status as a major global business hub and expatriate destination. Within the territory, 68 schools are concentrated in Hong Kong city, establishing it as the primary location for international schooling in the region. This geographic concentration provides established institutional networks, strong international communities, and diverse extracurricular offerings compared to outlying areas. Families relocating should understand that school availability decreases significantly beyond Hong Kong city. Proximity to employment centers and access to established expat networks often influence school selection for families planning a move to the territory.",
+    "generatedAt": "2026-04-10",
+    "data": {
+      "total": 244,
+      "feeMin": 3272,
+      "feeMax": 55640,
+      "boardingCount": 9
+    }
+  },
+  "Japan": {
+    "intro": "This directory lists 244 international schools across Japan, with annual fees ranging from $1,000 to $71,000 per year. The schools offer curricula including International Baccalaureate programs (157 schools), British education (34 schools), American approaches (17 schools), and Canadian curricula (2 schools). Among these 244 schools, 157 hold International Baccalaureate authorisation, and 38 schools provide boarding facilities for residential students.\n\nTokyo hosts the highest concentration of international schools with 89 establishments, making it the primary destination for expatriate families relocating to Japan. Beyond the capital, international schools are distributed across major urban centers throughout the country, allowing families to select locations aligned with employment opportunities and lifestyle preferences. Schools serve diverse expatriate communities, ranging from temporary expat families to permanent residents, with full educational programs spanning early childhood through secondary levels.",
+    "generatedAt": "2026-04-10",
+    "data": {
+      "total": 244,
+      "feeMin": 1286,
+      "feeMax": 71066,
+      "boardingCount": 38
+    }
+  },
+  "Switzerland": {
+    "intro": "Switzerland has 202 international schools listed in this directory, with annual fees ranging from $1,000 to $185,000 per year. The International Baccalaureate curriculum is the most prevalent, offered at 129 IB-authorised schools, followed by British curriculum (30 schools), American curriculum (11 schools), and Montessori programmes (11 schools). Additionally, 60 boarding schools across the country provide full-time residential options for families relocating internationally.\n\nSwitzerland offers a distributed network of international school options across multiple regions and cantons. Zürich hosts the highest concentration with 24 schools, making location decisions critical for families. The country attracts expatriate families through political stability, multilingual communities, and its central position in Europe. When choosing where to relocate, your selection of canton directly affects the range of school options, fee structures, and logistical considerations for your family.",
+    "generatedAt": "2026-04-10",
+    "data": {
+      "total": 202,
+      "feeMin": 1150,
+      "feeMax": 184511,
+      "boardingCount": 60
+    }
+  },
+  "Germany": {
+    "intro": "Germany's international school directory contains 155 schools, with annual tuition fees ranging from $3,000 to $63,000 per year. The majority offer IB-authorized curricula, with 182 schools teaching International Baccalaureate programmes. Additional curriculum options include British (7 schools), American (3 schools), and French (3 schools). Boarding is available at 25 schools across the country.\n\nInternational schools in Germany are distributed across multiple cities, with Munich hosting the highest concentration at 11 schools. Major business centers like Berlin, Frankfurt, and Hamburg each provide multiple international school options, while smaller cities also host schools. This geographic spread reflects Germany's developed infrastructure for attracting and supporting international families. The fee range from $3,000 to $63,000 annually means schools serve families across different financial circumstances. Germany's stable living environment and strong education system support the relocation decisions of international families.",
+    "generatedAt": "2026-04-10",
+    "data": {
+      "total": 155,
+      "feeMin": 3175,
+      "feeMax": 62640,
+      "boardingCount": 25
+    }
+  },
+  "Malaysia": {
+    "intro": "This directory lists 160 international schools currently operating in Malaysia, with annual tuition fees ranging from $2,000 to $55,000 per year. British curriculum schools lead in prevalence with 71 institutions, while 61 schools are authorised to offer the International Baccalaureate programme. A smaller number of schools, 4 in total, follow the American curriculum. Additionally, 43 of these schools operate as boarding institutions, offering residential education arrangements.\n\nKuala Lumpur contains the highest concentration of international schools with 46 options, making it the primary location for families relocating within Malaysia. The $2,000 to $55,000 annual fee range provides options across different budgets, while multiple curriculum standards—British, IB, and American—serve diverse educational preferences. The availability of both day and boarding schools across the country's major urban areas gives families flexibility in choosing an educational arrangement that suits their circumstances.",
+    "generatedAt": "2026-04-10",
+    "data": {
+      "total": 160,
+      "feeMin": 1785,
+      "feeMax": 54516,
+      "boardingCount": 43
+    }
+  },
+  "Indonesia": {
+    "intro": "This directory lists 143 international schools across Indonesia, with annual tuition fees ranging from $1,000 to $33,000 per year. The International Baccalaureate curriculum is offered at 125 schools, representing the primary curriculum choice. British curricula are available at 23 institutions, and American curricula at 3 schools. Eight boarding schools are included for families seeking residential education options in the country.\n\nJakarta has the highest concentration of international schools with 53 institutions, offering the most school options for expat families relocating to Indonesia. Other cities offer fewer choices but may suit families based on employment location or lifestyle preferences. Indonesia's archipelago geography should be considered when selecting a school, as it directly affects school accessibility, daily commuting times, and the practical logistics of attending school events and family activities throughout the year.",
+    "generatedAt": "2026-04-10",
+    "data": {
+      "total": 143,
+      "feeMin": 1323,
+      "feeMax": 33194,
+      "boardingCount": 8
+    }
+  },
+  "India": {
+    "intro": "India's directory includes 534 international schools with annual fees ranging from $1,000 to $17,479. The International Baccalaureate curriculum dominates with 428 authorised schools, followed by British programs (109), American (2), and French (1) options. Of these institutions, 139 operate as boarding schools, providing residential education across the country. This range of fee structures and boarding options accommodates diverse family budgets and preferences.\n\nIndia offers geographic diversity in international education options. Mumbai leads with 97 schools, the highest concentration in the country, making it a primary choice for relocating families. However, international schools extend across other major cities and regions throughout India, providing options beyond the capital metros. This distribution gives families flexibility in selecting both location and curriculum, making India's education landscape accessible to expat communities in various regions seeking international standards.",
+    "generatedAt": "2026-04-10",
+    "data": {
+      "total": 534,
+      "feeMin": 1008,
+      "feeMax": 17479167,
+      "boardingCount": 139
+    }
+  },
+  "Australia": {
+    "intro": "Australia's international school directory includes 204 schools with annual tuition ranging from $2,000 to $39,000 per year. The majority of schools follow the International Baccalaureate curriculum, with 271 IB-authorised schools available, while 1 school follows the Australian curriculum. Among these options, 63 schools provide boarding facilities, supporting families relocating to Australia and offering both day and residential education options across the country.\n\nSydney has the highest concentration of international schools, with 8 schools operating in the city. For families relocating to Australia, the country offers a distinctive, stable environment with well-established international schools and extensive boarding programs serving students throughout the broader Asia-Pacific region. The wide annual fee range of $2,000 to $39,000 provides options for families with different budgets, ensuring that international education is accessible across varying financial levels and needs.",
+    "generatedAt": "2026-04-10",
+    "data": {
+      "total": 204,
+      "feeMin": 1701,
+      "feeMax": 38641,
+      "boardingCount": 63
+    }
+  },
+  "Singapore": {
+    "intro": "Our directory lists 206 international schools in Singapore, with annual fees ranging from $2,000 to $42,000 per year. The curriculum landscape is dominated by the International Baccalaureate, with 73 IB-authorised schools available. British-style education is the second most common option, offered by 34 schools, followed by American (5 schools) and French (2 schools) curricula. Additionally, 29 schools offer boarding facilities.\n\nSingapore hosts 184 of the 206 listed schools, establishing it as the dominant international education center in the region. This concentration provides expat families relocating to Singapore with substantially more options than other locations. Families can evaluate schools across different curricula (with IB and British options predominating), price points from $2,000 to $42,000 annually, and residential arrangements including 29 boarding schools. The breadth of available institutions means families can filter by educational philosophy, budget, and location according to their specific requirements.",
+    "generatedAt": "2026-04-10",
+    "data": {
+      "total": 206,
+      "feeMin": 2008,
+      "feeMax": 41603,
+      "boardingCount": 29
+    }
+  },
+  "France": {
+    "intro": "France has 110 international schools listed in this directory, with annual fees ranging from $1,000 to $61,000 per year. The primary curricula offered are International Baccalaureate (44 schools), British (25 schools), French (13 schools), and Montessori (7 schools). Of the 44 IB-authorised schools, some also offer boarding facilities. Overall, 16 schools across the country provide boarding options for families seeking residential education.\n\nParis dominates the international school landscape with 32 schools, making it the primary destination for expatriate families relocating to France. Beyond the capital, cities throughout the country provide viable alternatives, with options distributed across different regions. The diversity of curriculum choices—particularly the strong availability of International Baccalaureate and British programs—reflects France's established role in international education. When selecting a school, families should consider both their curriculum preference and geographic location, as the distribution of schools across regions affects accessibility and local community integration.",
+    "generatedAt": "2026-04-10",
+    "data": {
+      "total": 110,
+      "feeMin": 1048,
+      "feeMax": 60988,
+      "boardingCount": 16
+    }
+  },
+  "Netherlands": {
+    "intro": "The Netherlands has 74 international schools listed in this directory, offering curricula ranging from IB programs (available at 83 institutions) to British, American, and Montessori educational approaches. Annual tuition fees range from $3,000 to $47,000 per year depending on the school and program level. The directory includes five boarding school options alongside day schools, providing flexible residential arrangements for families with different circumstances and preferences.\n\nAmsterdam maintains the highest concentration of international schools in the country with 14 institutions, establishing it as the primary hub for international education in the Netherlands. Other major Dutch cities provide additional options for families considering relocation. The availability of multiple curriculum frameworks combined with the wide range of fee structures ensures that families with varying budgets and educational philosophies can locate appropriate school placements across different regions of the country.",
+    "generatedAt": "2026-04-10",
+    "data": {
+      "total": 74,
+      "feeMin": 2646,
+      "feeMax": 47062,
+      "boardingCount": 5
+    }
+  },
+  "Spain": {
+    "intro": "Spain's international school directory contains 424 schools with annual tuition fees ranging from $4,000 to $29,000 per year. The majority of schools follow the International Baccalaureate curriculum, with 453 IB-authorised institutions distributed across the country. British curriculum schools comprise the second-largest group with 62 schools, while American (4 schools) and Montessori (2 schools) options also operate across Spain. This range of curricula provides families with varied educational approaches to consider when choosing a school.\n\nSpain offers significant school availability for families relocating internationally. Madrid has the highest concentration of international schools, with 56 institutions, followed by other major urban centers with substantial options. The distribution of schools across different regions means families can find programs suited to various locations within the country. For families considering boarding education, 31 schools offer residential programs across Spain.",
+    "generatedAt": "2026-04-10",
+    "data": {
+      "total": 424,
+      "feeMin": 3942,
+      "feeMax": 29021,
+      "boardingCount": 31
+    }
+  },
+  "South Korea": {
+    "intro": "South Korea has 70 international schools listed in this directory, with annual fees ranging from $4,000 to $43,000 per year. The majority of schools follow the International Baccalaureate curriculum, with 54 IB-authorised schools providing this pathway. Additionally, 10 schools offer American curricula and 2 offer British programmes, giving families multiple curriculum choices. Of these 70 schools, 17 provide boarding options for families seeking residential education.\n\nSeoul is home to 16 of the country's international schools, while options also exist across South Korea for families relocating to other regions. The combination of curriculum diversity, boarding options, and wide fee range allows families to find schools matching different educational philosophies and financial parameters. This geographic distribution ensures expat families can locate established international education whether settling in the capital or elsewhere in the country.",
+    "generatedAt": "2026-04-10",
+    "data": {
+      "total": 70,
+      "feeMin": 4000,
+      "feeMax": 43333,
+      "boardingCount": 17
+    }
+  },
+  "Vietnam": {
+    "intro": "This directory lists 80 international schools in Vietnam, with annual fees ranging from $3,000 to $38,000 per year. The schools offer diverse curricula, with 33 IB-authorised schools, 11 British curriculum schools, 3 American curriculum schools, and 1 Montessori school. Six schools offer boarding facilities. This range of programs and price points provides families with options across different education philosophies and budgets.\n\nVietnam's international school landscape has developed to serve the country's growing expatriate communities and economic centers. Ho Chi Minh City accounts for 36 of the listed schools, making it the primary destination for families seeking maximum choice in location and program. For families relocating, this concentration in urban centers means school availability varies by region, though the diversity of curricula and fee ranges across all 80 schools provides options for different preferences and budgets.",
+    "generatedAt": "2026-04-10",
+    "data": {
+      "total": 80,
+      "feeMin": 3168,
+      "feeMax": 38360,
+      "boardingCount": 6
+    }
+  }
+}

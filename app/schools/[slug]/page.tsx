@@ -148,6 +148,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     robots: isIndexable(school)
       ? { index: true, follow: true }
       : { index: false, follow: true },
+    other: { robots: 'max-snippet:-1, max-image-preview:large, max-video-preview:-1' },
     openGraph: {
       title: buildSchoolTitle(school),
       description: buildSchoolDescription(school),
@@ -361,7 +362,15 @@ export default async function SchoolPage({ params }: Props) {
     // 4. Curriculum
     school.curriculum?.length && {
       q: `What curriculum does ${school.name} follow?`,
-      a: `${school.name} follows the ${school.curriculum.join(' and ')} curriculum.${school.curriculum.includes('IB') ? ' The International Baccalaureate is recognised by universities worldwide.' : ''}${school.curriculum.some((c: string) => c.match(/British|A-Level|IGCSE/i)) ? ' The British curriculum is widely accepted for university entry globally.' : ''}`,
+      a: (() => {
+        const curricula = Array.from(new Set(school.curriculum as string[])).slice(0, 5)
+        const hasIB = curricula.some((c: string) => /\bIB\b|IB Diploma|IB PYP|IB MYP|IB CP|IBDP|IBPYP|IBMYP/i.test(c))
+        const hasBritish = curricula.some((c: string) => /British|A-Levels|IGCSE|GCSE/i.test(c))
+        const list = curricula.length > 1
+          ? curricula.slice(0, -1).join(', ') + ' and ' + curricula.slice(-1)[0]
+          : curricula[0]
+        return `${school.name} follows the ${list} curriculum.${hasIB ? ' The International Baccalaureate is recognised by universities worldwide.' : ''}${hasBritish ? ' The British curriculum is widely accepted for university entry globally.' : ''}`
+      })(),
     },
     // 5. Ages
     school.age_min != null && {
@@ -421,8 +430,8 @@ export default async function SchoolPage({ params }: Props) {
       q: `What languages are taught at ${school.name}?`,
       a: `${school.name} offers instruction in ${school.languages.join(', ')}.`,
     },
-    // 15. IB
-    school.curriculum?.includes('IB') && {
+    // 15. IB — matches any IB variant in the curriculum array
+    school.curriculum?.some((c: string) => /\bIB\b|IB Diploma|IB PYP|IB MYP|IB CP|IBDP|IBPYP|IBMYP/i.test(c)) && {
       q: `Is ${school.name} a good school for IB?`,
       a: `${school.name} offers the IB Diploma Programme${school.ib_pass_rate ? ` with a ${school.ib_pass_rate}% pass rate` : ''}${school.ib_authorized_year ? `, and has been IB-authorised since ${school.ib_authorized_year}` : ''}.${school.student_teacher_ratio ? ` With a ${school.student_teacher_ratio} student-to-teacher ratio, students receive highly personalised academic support.` : ''}`,
     },
@@ -507,6 +516,26 @@ export default async function SchoolPage({ params }: Props) {
         priceRange: `$${school.fees_usd_min.toLocaleString()}–$${(school.fees_usd_max ?? school.fees_usd_min).toLocaleString()}`,
         priceCurrency: 'USD',
       },
+      hasOfferCatalog: {
+        '@type': 'OfferCatalog',
+        name: 'Tuition Fees',
+        itemListElement: [
+          {
+            '@type': 'Offer',
+            name: 'Annual Tuition',
+            price: String(school.fees_usd_min),
+            priceCurrency: 'USD',
+            ...(school.fees_usd_max && school.fees_usd_max !== school.fees_usd_min && {
+              priceSpecification: {
+                '@type': 'PriceSpecification',
+                minPrice: school.fees_usd_min,
+                maxPrice: school.fees_usd_max,
+                priceCurrency: 'USD',
+              },
+            }),
+          },
+        ],
+      },
     }),
     ...(school.curriculum?.length && { curriculumsOffered: school.curriculum }),
     ...(school.student_count && { numberOfStudents: { '@type': 'QuantitativeValue', value: school.student_count } }),
@@ -535,7 +564,8 @@ export default async function SchoolPage({ params }: Props) {
     ],
   }
 
-  const faqSchema = faqs.length > 0 ? {
+  // Only inject FAQPage schema if 6+ real-data answers — avoids diluting relevance with null fallbacks
+  const faqSchema = faqs.length >= 6 ? {
     '@context': 'https://schema.org',
     '@type': 'FAQPage',
     mainEntity: faqs.map(faq => ({
@@ -1355,6 +1385,9 @@ export default async function SchoolPage({ params }: Props) {
               {school.description.split('\n\n').map((para, i) => (
                 <p key={i} style={{ color: '#334', marginBottom: 14, fontSize: 16, lineHeight: 1.85 }}>{para}</p>
               ))}
+              <p style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, fontFamily: "'Nunito Sans', sans-serif" }}>
+                School data verified by NanaSays. Last updated: April 2026.
+              </p>
             </Section>
           )}
 

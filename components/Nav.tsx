@@ -26,6 +26,41 @@ export default function Nav() {
         </span>
       </Link>
 
+      {/* Primary nav links */}
+      <div className="ns-nav-main-links">
+        <Link href="/regions" style={{
+          padding: '7px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+          color: 'var(--navy)', textDecoration: 'none',
+        }}>
+          Browse Schools
+        </Link>
+        <Link href="/blog" style={{
+          padding: '7px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+          color: 'var(--navy)', textDecoration: 'none',
+        }}>
+          Blog
+        </Link>
+        <Link href="/ask" style={{
+          padding: '7px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+          color: 'var(--teal-dk)', textDecoration: 'none',
+        }}>
+          Ask Nana
+        </Link>
+        <span style={{ width: 1, height: 16, background: 'var(--border)', margin: '0 4px' }} />
+        <Link href="/about" style={{
+          padding: '7px 10px', borderRadius: 8, fontSize: 12, fontWeight: 500,
+          color: 'var(--muted)', textDecoration: 'none',
+        }}>
+          About
+        </Link>
+        <Link href="/methodology" style={{
+          padding: '7px 10px', borderRadius: 8, fontSize: 12, fontWeight: 500,
+          color: 'var(--muted)', textDecoration: 'none',
+        }}>
+          Methodology
+        </Link>
+      </div>
+
       <div className="ns-nav-right">
         {/* Language selector */}
         <select

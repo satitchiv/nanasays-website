@@ -69,6 +69,7 @@ button {
 /* Nav */
 .ns-nav-right { display: flex; gap: 9px; align-items: center; margin-left: auto; }
 .ns-nav-lang { display: block; }
+.ns-nav-main-links { display: flex; gap: 2px; align-items: center; }
 
 /* Homepage hero */
 .ns-hero-inner {
@@ -127,6 +128,7 @@ button {
 @media (max-width: 768px) {
   /* Nav */
   .ns-nav-lang { display: none; }
+  .ns-nav-main-links { display: none; }
   /* Stats — clear visual break from hero */
   .ns-stats-section { border-top: 3px solid var(--teal); }
   /* Partners logo grid — 2 cols on mobile */
