@@ -44,10 +44,12 @@ interface Props {
 
 export default function FilterDrawer({ open, onClose, filters, onChange, matchCount }: Props) {
   const [isMobile, setIsMobile] = useState(false)
+  const [ready, setReady] = useState(false)
 
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
     check()
+    setReady(true)
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
@@ -125,8 +127,8 @@ export default function FilterDrawer({ open, onClose, filters, onChange, matchCo
         }}
       />
 
-      {/* Panel */}
-      <div style={panelStyle}>
+      {/* Panel — not rendered until isMobile is resolved to prevent slide flash on mount */}
+      {ready && <div style={panelStyle}>
         {/* Header */}
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -258,7 +260,7 @@ export default function FilterDrawer({ open, onClose, filters, onChange, matchCo
             Show {matchCount} school{matchCount !== 1 ? 's' : ''}
           </button>
         </div>
-      </div>
+      </div>}
     </>
   )
 }

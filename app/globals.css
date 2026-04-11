@@ -164,7 +164,7 @@ button {
 
   /* Country page — hide map, full-width list */
   .ns-country-layout   { flex-direction: column; min-height: auto; }
-  .ns-country-left-col { height: auto; overflow-y: visible; padding: 0 16px 48px; }
+  .ns-country-left-col { height: auto; overflow-y: visible; overflow-x: visible; padding: 0 16px 48px; }
   .ns-country-map-col  { display: none; }
   .ns-country-header   { flex-direction: column; gap: 12px; }
   .ns-country-chips    { justify-content: flex-start; }

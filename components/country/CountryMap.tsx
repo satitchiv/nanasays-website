@@ -61,15 +61,28 @@ export default function CountryMap({ schools, center, zoom, hoveredSchoolId, sel
         const marker = L.default.marker(coords, { icon }).addTo(map)
 
         marker.bindPopup(`
-          <div style="padding:8px 10px;font-family:'Nunito Sans',sans-serif;min-width:160px;max-width:220px;">
-            <div style="font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;color:#1B3252;line-height:1.3;margin-bottom:4px;">${school.name}</div>
-            <div style="font-size:11px;color:#6B7280;">${school.city ?? ''}</div>
+          <div style="padding:8px 10px;font-family:'Nunito Sans',sans-serif;min-width:180px;max-width:240px;">
+            <div style="font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;color:#1B3252;line-height:1.3;margin-bottom:3px;">${school.name}</div>
+            <div style="font-size:11px;color:#6B7280;margin-bottom:10px;">${school.city ?? ''}</div>
+            <a href="/schools/${school.slug}" style="display:block;text-align:center;padding:8px 12px;background:#1B3252;color:#fff;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;font-family:'Nunito Sans',sans-serif;">View profile →</a>
           </div>
-        `, { maxWidth: 240 })
+        `, { maxWidth: 260 })
 
         marker.on('click', () => onSchoolClick(school.id))
         markersRef.current[school.id] = { marker, school }
       })
+
+      // If a school was already selected when map first mounts (e.g. tapped image before map loaded)
+      if (selectedSchoolId) {
+        const entry = markersRef.current[selectedSchoolId]
+        if (entry) {
+          const coords = getCoords(entry.school)
+          if (coords) {
+            map.setView(coords, Math.max(zoom, 13))
+            entry.marker.openPopup()
+          }
+        }
+      }
     })
 
     return () => {
@@ -97,6 +110,8 @@ export default function CountryMap({ schools, center, zoom, hoveredSchoolId, sel
   // Click from list — pan to school, open popup
   useEffect(() => {
     if (!selectedSchoolId || !mapInstanceRef.current) return
+    // On mobile the map column is display:none (offsetWidth=0) — skip to avoid Leaflet crash
+    if (!mapRef.current || mapRef.current.offsetWidth === 0) return
     const entry = markersRef.current[selectedSchoolId]
     if (!entry) return
     const coords = getCoords(entry.school)

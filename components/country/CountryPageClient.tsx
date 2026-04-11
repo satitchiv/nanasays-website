@@ -88,8 +88,20 @@ export default function CountryPageClient({ meta, schools }: Props) {
   const [hoveredSchoolId, setHoveredSchoolId] = useState<string | null>(null)
   const [selectedSchoolId, setSelectedSchoolId] = useState<string | null>(null)
   const [searchFocused, setSearchFocused] = useState(false)
+  const [introOpen, setIntroOpen] = useState(false)
+  const [feeTableOpen, setFeeTableOpen] = useState(false)
+  const [isMobile, setIsMobile] = useState(false)
+  const [mobileView, setMobileView] = useState<'list' | 'map'>('list')
+  const [mobileMapMounted, setMobileMapMounted] = useState(false)
   const listRef = useRef<HTMLDivElement>(null)
   const leftColRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   // Map pin clicked → scroll list to that school and highlight it
   const handleSchoolClick = useCallback((id: string) => {
@@ -323,113 +335,192 @@ export default function CountryPageClient({ meta, schools }: Props) {
             </div>
           </div>
 
-          {/* Country Intro Copy */}
+          {/* Country Intro Copy — collapsible */}
           {meta.countryIntro && (
             <div style={{
               background: '#fff',
               border: '1px solid var(--border)',
               borderRadius: 14,
-              padding: '20px 24px',
               marginBottom: 14,
+              overflow: 'hidden',
             }}>
-              <h2 style={{
-                fontFamily: 'var(--font-nunito), Nunito, sans-serif',
-                fontSize: 15,
-                fontWeight: 800,
-                color: 'var(--navy)',
-                marginBottom: 10,
-                letterSpacing: '-0.2px',
-              }}>
-                About International Schools in {meta.name}
-              </h2>
-              {meta.countryIntro.split('\n\n').filter(Boolean).map((para, i) => (
-                <p key={i} style={{
-                  fontSize: 13,
-                  color: 'var(--body)',
-                  lineHeight: 1.7,
-                  fontFamily: "'Nunito Sans', sans-serif",
-                  fontWeight: 400,
-                  marginBottom: i === 0 ? 10 : 0,
+              <button
+                onClick={() => setIntroOpen(o => !o)}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '14px 20px',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  borderBottom: introOpen ? '1px solid var(--border)' : 'none',
+                }}
+              >
+                <span style={{
+                  fontFamily: 'var(--font-nunito), Nunito, sans-serif',
+                  fontSize: 14,
+                  fontWeight: 800,
+                  color: 'var(--navy)',
+                  letterSpacing: '-0.2px',
                 }}>
-                  {para.trim()}
-                </p>
-              ))}
+                  About International Schools in {meta.name}
+                </span>
+                <span style={{
+                  fontSize: 16,
+                  color: 'var(--muted)',
+                  transform: introOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s',
+                  flexShrink: 0,
+                  marginLeft: 8,
+                }}>
+                  ↓
+                </span>
+              </button>
+              {introOpen && (
+                <div style={{ padding: '16px 20px' }}>
+                  {meta.countryIntro.split('\n\n').filter(Boolean).map((para, i) => (
+                    <p key={i} style={{
+                      fontSize: 13,
+                      color: 'var(--body)',
+                      lineHeight: 1.7,
+                      fontFamily: "'Nunito Sans', sans-serif",
+                      fontWeight: 400,
+                      marginBottom: i === 0 ? 10 : 0,
+                    }}>
+                      {para.trim()}
+                    </p>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
-          {/* Fee Comparison Table */}
+          {/* Fee Comparison Table — collapsible */}
           {meta.feeTableSchools && meta.feeTableSchools.length > 0 && (
             <div style={{
               background: '#fff',
               border: '1px solid var(--border)',
               borderRadius: 14,
-              padding: '20px 24px',
               marginBottom: 14,
-              overflowX: 'auto',
+              overflow: 'hidden',
             }}>
-              <h2 style={{
-                fontFamily: 'var(--font-nunito), Nunito, sans-serif',
-                fontSize: 15,
-                fontWeight: 800,
-                color: 'var(--navy)',
-                marginBottom: 14,
-                letterSpacing: '-0.2px',
-              }}>
-                International School Fees in {meta.name}
-              </h2>
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, fontFamily: "'Nunito Sans', sans-serif" }}>
-                <thead>
-                  <tr style={{ borderBottom: '2px solid var(--border)' }}>
-                    {['School', 'Curriculum', 'Annual Fees (USD)', 'City', 'Ages'].map(h => (
-                      <th key={h} style={{
-                        textAlign: 'left', padding: '6px 10px 8px',
-                        fontWeight: 700, color: 'var(--navy)', fontSize: 11,
-                        textTransform: 'uppercase', letterSpacing: '.4px',
-                        whiteSpace: 'nowrap',
-                      }}>
-                        {h}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {meta.feeTableSchools.map((s, i) => (
-                    <tr key={s.slug} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? '#fff' : 'var(--off)' }}>
-                      <td style={{ padding: '8px 10px' }}>
-                        <Link href={`/schools/${s.slug}`} style={{ color: 'var(--navy)', fontWeight: 600, textDecoration: 'none' }}>
-                          {s.name}
-                        </Link>
-                      </td>
-                      <td style={{ padding: '8px 10px', color: 'var(--body)' }}>
-                        {s.curriculum ? s.curriculum.split(' ')[0] : '—'}
-                      </td>
-                      <td style={{ padding: '8px 10px', color: 'var(--body)', whiteSpace: 'nowrap' }}>
-                        {s.fees_usd_min
-                          ? `$${Math.round(s.fees_usd_min / 1000)}k${s.fees_usd_max && s.fees_usd_max !== s.fees_usd_min ? `–$${Math.round(s.fees_usd_max / 1000)}k` : '+'}`
-                          : '—'}
-                      </td>
-                      <td style={{ padding: '8px 10px', color: 'var(--body)' }}>{s.city ?? '—'}</td>
-                      <td style={{ padding: '8px 10px', color: 'var(--body)', whiteSpace: 'nowrap' }}>
-                        {s.age_min != null && s.age_max != null ? `${s.age_min}–${s.age_max}` : '—'}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 10, fontFamily: "'Nunito Sans', sans-serif" }}>
-                Data verified by NanaSays as of April 2026. Fees shown in USD per year.
-              </p>
+              <button
+                onClick={() => setFeeTableOpen(o => !o)}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: '14px 20px',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  borderBottom: feeTableOpen ? '1px solid var(--border)' : 'none',
+                  borderRadius: feeTableOpen ? '14px 14px 0 0' : 14,
+                }}
+              >
+                <span style={{
+                  fontFamily: 'var(--font-nunito), Nunito, sans-serif',
+                  fontSize: 14,
+                  fontWeight: 800,
+                  color: 'var(--navy)',
+                  letterSpacing: '-0.2px',
+                }}>
+                  International School Fees in {meta.name}
+                </span>
+                <span style={{
+                  fontSize: 16,
+                  color: 'var(--muted)',
+                  transform: feeTableOpen ? 'rotate(180deg)' : 'rotate(0deg)',
+                  transition: 'transform 0.2s',
+                  flexShrink: 0,
+                  marginLeft: 8,
+                }}>
+                  ↓
+                </span>
+              </button>
+              {feeTableOpen && (
+                <div style={{ padding: '16px 20px' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, fontFamily: "'Nunito Sans', sans-serif", tableLayout: 'fixed' }}>
+                    <colgroup>
+                      {isMobile ? (
+                        <>
+                          <col style={{ width: '48%' }} />
+                          <col style={{ width: '27%' }} />
+                          <col style={{ width: '25%' }} />
+                        </>
+                      ) : (
+                        <>
+                          <col style={{ width: '35%' }} />
+                          <col style={{ width: '20%' }} />
+                          <col style={{ width: '20%' }} />
+                          <col style={{ width: '15%' }} />
+                          <col style={{ width: '10%' }} />
+                        </>
+                      )}
+                    </colgroup>
+                    <thead>
+                      <tr style={{ borderBottom: '2px solid var(--border)' }}>
+                        <th style={{ textAlign: 'left', padding: '6px 8px 8px', fontWeight: 700, color: 'var(--navy)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.4px' }}>School</th>
+                        <th style={{ textAlign: 'left', padding: '6px 8px 8px', fontWeight: 700, color: 'var(--navy)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.4px' }}>Curriculum</th>
+                        <th style={{ textAlign: 'left', padding: '6px 8px 8px', fontWeight: 700, color: 'var(--navy)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.4px' }}>Fees (USD)</th>
+                        {!isMobile && <th style={{ textAlign: 'left', padding: '6px 8px 8px', fontWeight: 700, color: 'var(--navy)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.4px' }}>City</th>}
+                        {!isMobile && <th style={{ textAlign: 'left', padding: '6px 8px 8px', fontWeight: 700, color: 'var(--navy)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '.4px' }}>Ages</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {meta.feeTableSchools.map((s, i) => (
+                        <tr key={s.slug} style={{ borderBottom: '1px solid var(--border)', background: i % 2 === 0 ? '#fff' : 'var(--off)' }}>
+                          <td style={{ padding: '9px 8px' }}>
+                            <Link href={`/schools/${s.slug}`} style={{ color: 'var(--navy)', fontWeight: 600, textDecoration: 'none', lineHeight: 1.3 }}>
+                              {s.name}
+                            </Link>
+                          </td>
+                          <td style={{ padding: '9px 8px', color: 'var(--body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {s.curriculum ? s.curriculum.split(' ')[0] : '—'}
+                          </td>
+                          <td style={{ padding: '9px 8px', color: 'var(--body)' }}>
+                            {s.fees_usd_min
+                              ? `$${Math.round(s.fees_usd_min / 1000)}k${s.fees_usd_max && s.fees_usd_max !== s.fees_usd_min ? `–$${Math.round(s.fees_usd_max / 1000)}k` : '+'}`
+                              : '—'}
+                          </td>
+                          {!isMobile && <td style={{ padding: '9px 8px', color: 'var(--body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.city ?? '—'}</td>}
+                          {!isMobile && <td style={{ padding: '9px 8px', color: 'var(--body)', whiteSpace: 'nowrap' }}>{s.age_min != null && s.age_max != null ? `${s.age_min}–${s.age_max}` : '—'}</td>}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p style={{ fontSize: 11, color: 'var(--muted)', marginTop: 10, fontFamily: "'Nunito Sans', sans-serif" }}>
+                    Data verified by NanaSays as of April 2026. Fees shown in USD per year.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Sticky Toolbar */}
-          <div className="ns-country-toolbar" style={{
+          {/* Sticky wrapper — toolbar + mobile toggle stick together */}
+          <div style={{
             position: 'sticky',
-            top: 0,
-            zIndex: 10,
+            top: 60,
+            zIndex: 20,
+            background: 'var(--off)',
+            marginBottom: 14,
+            // Extend edge-to-edge to match the toolbar's negative-margin reach
+            marginLeft: isMobile ? -16 : -24,
+            marginRight: isMobile ? -16 : -24,
+          }}>
+
+          {/* Toolbar */}
+          <div className="ns-country-toolbar" style={{
             background: 'var(--off)',
             borderBottom: '1px solid var(--border)',
-            marginBottom: 14,
+            marginBottom: 0,
+            // Cancel the class's negative margin — wrapper handles edge-to-edge now
+            margin: 0,
           }}>
             {/* Compare button */}
             <button
@@ -545,8 +636,71 @@ export default function CountryPageClient({ meta, schools }: Props) {
             </span>
           </div>
 
+          {/* Mobile: List / Map toggle row — inside sticky wrapper */}
+          {isMobile && (
+            <div style={{
+              display: 'flex',
+              background: 'var(--off)',
+              borderBottom: '1px solid var(--border)',
+              padding: '8px 16px',
+              gap: 8,
+            }}>
+              {(['list', 'map'] as const).map(view => (
+                <button
+                  key={view}
+                  onClick={() => {
+                    if (view === 'map') setMobileMapMounted(true)
+                    setMobileView(view)
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '7px 0',
+                    borderRadius: 8,
+                    border: `1.5px solid ${mobileView === view ? 'var(--navy)' : 'var(--border)'}`,
+                    cursor: 'pointer',
+                    fontFamily: "'Nunito Sans', sans-serif",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    background: mobileView === view ? 'var(--navy)' : '#fff',
+                    color: mobileView === view ? '#fff' : 'var(--muted)',
+                    transition: 'background .15s, color .15s, border-color .15s',
+                  }}
+                >
+                  {view === 'list' ? 'List' : 'Map'}
+                </button>
+              ))}
+            </div>
+          )}
+
+          </div>{/* end sticky wrapper */}
+
+          {/* Mobile map view */}
+          {isMobile && mobileMapMounted && (
+            <div style={{
+              display: mobileView === 'map' ? 'block' : 'none',
+              height: 'calc(100svh - 180px)',
+              minHeight: 400,
+              borderRadius: 14,
+              overflow: 'hidden',
+              marginBottom: 14,
+              border: '1px solid var(--border)',
+            }}>
+              <CountryMap
+                schools={schools}
+                center={meta.mapCenter}
+                zoom={meta.mapZoom}
+                hoveredSchoolId={hoveredSchoolId}
+                selectedSchoolId={selectedSchoolId}
+                onSchoolClick={(id) => {
+                  handleSchoolClick(id)
+                  setMobileView('list')
+                }}
+              />
+            </div>
+          )}
+
           {/* Schools List */}
-          <div ref={listRef} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div ref={listRef} style={{ display: isMobile && mobileView === 'map' ? 'none' : 'flex', flexDirection: 'column', gap: 12 }}>
             {filtered.length === 0 ? (
               <div style={{
                 textAlign: 'center',
@@ -583,7 +737,13 @@ export default function CountryPageClient({ meta, schools }: Props) {
                   isInCompare={isInCompare(school.id)}
                   onCompare={() => addToCompare(school)}
                   onHover={setHoveredSchoolId}
-                  onSelect={setSelectedSchoolId}
+                  onSelect={(id) => {
+                    setSelectedSchoolId(id)
+                    if (isMobile) {
+                      setMobileMapMounted(true)
+                      setMobileView('map')
+                    }
+                  }}
                   highlighted={selectedSchoolId === school.id}
                 />
               ))
@@ -591,16 +751,18 @@ export default function CountryPageClient({ meta, schools }: Props) {
           </div>
         </div>
 
-        {/* RIGHT COLUMN — Map */}
+        {/* RIGHT COLUMN — Map (desktop only, mobile uses inline toggle) */}
         <div className="ns-country-map-col">
-          <CountryMap
-            schools={schools}
-            center={meta.mapCenter}
-            zoom={meta.mapZoom}
-            hoveredSchoolId={hoveredSchoolId}
-            selectedSchoolId={selectedSchoolId}
-            onSchoolClick={handleSchoolClick}
-          />
+          {!isMobile && (
+            <CountryMap
+              schools={schools}
+              center={meta.mapCenter}
+              zoom={meta.mapZoom}
+              hoveredSchoolId={hoveredSchoolId}
+              selectedSchoolId={selectedSchoolId}
+              onSchoolClick={handleSchoolClick}
+            />
+          )}
         </div>
       </div>
     </>
