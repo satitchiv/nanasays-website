@@ -6,7 +6,13 @@ import { getTotalSchoolCount, getCountrySchoolCounts } from '@/lib/schools'
 
 export const metadata: Metadata = {
   title: 'About NanaSays | International School Directory',
-  description: 'NanaSays is an independent international school directory for expat families. Search 10,000+ verified schools across 100+ countries — fees, curriculum, boarding, and admissions.',
+  description: 'Independent international school directory for expat families. Compare fees, curriculum and boarding across 10,000+ verified schools in 100+ countries.',
+  alternates: { canonical: 'https://nanasays.school/about' },
+  openGraph: {
+    title: 'About NanaSays | International School Directory',
+    description: 'Independent international school directory for expat families. Compare fees, curriculum and boarding across 10,000+ verified schools in 100+ countries.',
+    images: [{ url: 'https://nanasays.school/og-image.jpg', width: 1200, height: 630 }],
+  },
 }
 
 export const revalidate = 3600
@@ -21,8 +27,8 @@ export default async function AboutPage() {
   return (
     <>
       <Nav />
-      <main style={{ paddingTop: 60 }}>
-        <div style={{ maxWidth: 760, margin: '0 auto', padding: '64px 5% 88px' }}>
+      <main>
+        <div style={{ maxWidth: 760, margin: '0 auto', padding: '80px 5% 88px' }}>
 
           <h1 style={{
             fontFamily: 'var(--font-nunito), Nunito, sans-serif',

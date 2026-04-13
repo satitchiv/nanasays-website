@@ -10,7 +10,13 @@ export const revalidate = 3600 // ISR — refresh hourly as new posts are publis
 
 export const metadata: Metadata = {
   title: 'International School Guides & Advice for Expat Families',
-  description: 'Honest guides for international school families. Curriculum comparisons, school rankings, and advice from Nana.',
+  description: 'Honest guides for international school families. Curriculum comparisons, school rankings, boarding advice and expert picks — all free on NanaSays.',
+  alternates: { canonical: 'https://nanasays.school/blog' },
+  openGraph: {
+    title: 'International School Guides & Advice for Expat Families',
+    description: 'Honest guides for international school families. Curriculum comparisons, school rankings, boarding advice and expert picks — all free on NanaSays.',
+    images: [{ url: 'https://nanasays.school/og-image.jpg', width: 1200, height: 630 }],
+  },
 }
 
 interface DbPost {

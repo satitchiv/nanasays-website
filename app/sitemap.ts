@@ -24,6 +24,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .order('published_at', { ascending: false })
   const publishedPosts = blogData ?? []
 
+  // Step 4: news articles from Supabase
+  const { data: newsData } = await supabase
+    .from('articles')
+    .select('id, published_at')
+    .not('english_headline', 'is', null)
+    .order('published_at', { ascending: false })
+    .limit(2000)
+  const publishedNews = newsData ?? []
+
   const schoolUrls: MetadataRoute.Sitemap = allSlugs.map((slug: string) => ({
     url: `${BASE_URL}/schools/${slug}`,
     lastModified: new Date(),
@@ -60,13 +69,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.75,
   }))
 
+  const newsUrls: MetadataRoute.Sitemap = publishedNews.map(a => ({
+    url: `${BASE_URL}/news/${a.id}`,
+    lastModified: a.published_at ? new Date(a.published_at) : new Date(),
+    changeFrequency: 'never' as const,
+    priority: 0.5,
+  }))
+
   return [
     { url: BASE_URL, lastModified: new Date(), changeFrequency: 'daily', priority: 1.0 },
+    { url: `${BASE_URL}/about`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.5 },
+    { url: `${BASE_URL}/methodology`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.5 },
     { url: `${BASE_URL}/blog`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.6 },
+    { url: `${BASE_URL}/news`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.7 },
     ...regionUrls,
     ...countryUrls,
     ...schoolUrls,
     ...filterUrls,
     ...blogUrls,
+    ...newsUrls,
   ]
 }

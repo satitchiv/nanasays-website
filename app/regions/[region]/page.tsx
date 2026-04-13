@@ -21,10 +21,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `${region.name} International Schools · nanasays`,
     description: region.description,
+    alternates: { canonical: `https://nanasays.school/regions/${params.region}` },
     openGraph: {
       title: `${region.name} International Schools · nanasays`,
       description: region.description,
-      images: [{ url: region.heroImage }],
+      images: [{ url: region.heroImage, width: 1200, height: 630 }],
     },
   }
 }
@@ -126,7 +127,7 @@ export default async function RegionPage({ params }: Props) {
       <div style={{
         marginTop: 60,
         background: 'var(--white)', borderBottom: '1px solid var(--border)',
-        padding: '14px 5%',
+        padding: '18px 5%',
         display: 'flex', alignItems: 'center', gap: 6,
         fontSize: 12, color: 'var(--muted)',
       }}>

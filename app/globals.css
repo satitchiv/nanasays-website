@@ -220,6 +220,9 @@ button {
 
   /* School 2-col stat/info grids → 1-col */
   .ns-2col-grid   { grid-template-columns: minmax(0, 1fr) !important; }
+
+  /* News two-column → single column on mobile */
+  .ns-news-grid   { grid-template-columns: 1fr !important; }
 }
 
 /* Hero wrapper — always full height so absolute-positioned bg fills correctly */
@@ -259,6 +262,37 @@ button {
 .view-profile-btn:hover { background: #243f65; }
 .compare-btn { padding: 9px 14px; border-radius: 9px; font-size: 12px; font-weight: 600; background: white; color: var(--navy); border: 1.5px solid var(--bmd); cursor: pointer; font-family: 'Nunito Sans', sans-serif; transition: background .15s, border-color .15s, color .15s; }
 .compare-btn:hover { background: var(--off); border-color: var(--navy); }
+
+/* ─── EduWorld widget base ────────────────────────────────────────────────────
+   Wraps all EduWorld-sourced sections (School Pulse, In the News).
+   Inherits NanaSays font system so widgets auto-adapt to the host page.
+──────────────────────────────────────────────────────────────────────────── */
+.ew-widget {
+  font-family: var(--font-nunito-sans), 'Nunito Sans', sans-serif;
+  color: var(--body);
+  -webkit-font-smoothing: antialiased;
+}
+.ew-widget * {
+  font-family: inherit;
+}
+
+/* Shared EduWorld section header — used by both School Pulse and In the News */
+.ew-section-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--navy);
+  line-height: 1.2;
+  margin: 0 0 8px;
+  font-family: var(--font-nunito), 'Nunito', sans-serif;
+}
+.ew-section-subtitle {
+  font-size: 16px;
+  color: var(--muted);
+  margin: 0 0 20px;
+}
+.ew-section-header {
+  margin-bottom: 28px;
+}
 
 /* Blog article content styles */
 .blog-content h2 { font-family: var(--font-nunito), Nunito, sans-serif; font-weight: 800; font-size: 22px; color: var(--navy); margin: 40px 0 14px; letter-spacing: -0.3px; }

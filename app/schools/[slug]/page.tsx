@@ -13,11 +13,23 @@ import RequestProspectusModal from '@/components/school/RequestProspectusModal'
 import ShareButton from '@/components/school/ShareButton'
 import { buildUtmUrl } from '@/lib/utm'
 import FeeTableClient from '@/components/school/FeeTableClient'
+import { getSchoolFeed, getSchoolNews, getSchoolsWithFeeds, getSchoolPulse, getFollowerCount, getStatBarConfig, getDeadlines, getMostMentionedSchools } from '@/lib/eduworld'
+import type { StatBarConfig } from '@/lib/eduworld'
+import SchoolPulseFeed from '@/components/SchoolPulseFeed'
+import SchoolPulseStatBar from '@/components/SchoolPulseStatBar'
+import PinnedActionCard from '@/components/PinnedActionCard'
+import SchoolFollowForm from '@/components/SchoolFollowForm'
+import FaqAccordion from '@/components/FaqAccordion'
+import FaqSchema from '@/components/FaqSchema'
+import SchoolSchema from '@/components/SchoolSchema'
+import SchoolSummary from '@/components/SchoolSummary'
+import NewsPageClient from '@/components/NewsPageClient'
 
 export const revalidate = 86400 // revalidate school pages every 24 hours
 
 interface Props {
   params: { slug: string }
+  searchParams?: { followed?: string }
 }
 
 // Fields that indicate a school page has enough content to be worth indexing.
@@ -97,7 +109,7 @@ function buildSchoolTitle(school: School): string {
   const curr = school.curriculum?.[0] ? shortCurriculum(school.curriculum[0]) : null
   const descriptor = curr ? `${curr} School` : 'International School'
   const suffix = ' | NanaSays'
-  const fits = (s: string) => (s + suffix).length <= 60
+  const fits = (s: string) => (s + suffix).length <= 65
 
   if (school.city && school.country) {
     const t = `${name} — ${descriptor} in ${school.city}, ${school.country}`
@@ -115,10 +127,10 @@ function buildSchoolTitle(school: School): string {
   if (fits(withDescriptor)) return withDescriptor + suffix
 
   // Name-only — most long-named schools land here
-  if ((name + suffix).length <= 60) return name + suffix
+  if ((name + suffix).length <= 65) return name + suffix
 
-  // Hard truncate (very rare — school names > 49 chars)
-  return name.slice(0, 60 - suffix.length - 1) + '\u2026' + suffix
+  // Hard truncate (very rare — school names > 54 chars)
+  return name.slice(0, 65 - suffix.length - 1) + '\u2026' + suffix
 }
 
 function buildSchoolDescription(school: School): string {
@@ -247,13 +259,32 @@ function SidebarTitle({ children, dark }: { children: React.ReactNode; dark?: bo
   )
 }
 
-export default async function SchoolPage({ params }: Props) {
-  const [school, similarSchools] = await Promise.all([
+export default async function SchoolPage({ params, searchParams }: Props) {
+  const [school, similarSchools, schoolFeedItems, schoolNewsArticles, schoolsWithFeeds, schoolPulse, followerCount, statBarConfig, newsDeadlines, newsMentionedSchools] = await Promise.all([
     getSchoolBySlug(params.slug),
     getSchoolBySlug(params.slug).then(s => s ? getSimilarSchools(s) : []),
+    getSchoolFeed(params.slug),
+    getSchoolNews(params.slug),
+    getSchoolsWithFeeds(),
+    getSchoolPulse(params.slug),
+    getFollowerCount(params.slug),
+    getStatBarConfig(),
+    getDeadlines(3),
+    getMostMentionedSchools(5),
   ])
 
   if (!school) notFound()
+
+  // Build lookup for similar schools that have EduWorld feeds
+  const feedSlugsWithCounts = Object.fromEntries(
+    schoolsWithFeeds.map(s => [s.nanasays_slug, s.update_count])
+  )
+  const feedActivityRatings = Object.fromEntries(
+    schoolsWithFeeds.map(s => [s.nanasays_slug, s.activity_rating])
+  )
+  const similarWithFeeds = similarSchools
+    .filter(s => feedSlugsWithCounts[s.slug] !== undefined)
+    .slice(0, 3)
 
   const t = getServerT()
 
@@ -564,28 +595,17 @@ export default async function SchoolPage({ params }: Props) {
     ],
   }
 
-  // Only inject FAQPage schema if 6+ real-data answers — avoids diluting relevance with null fallbacks
-  const faqSchema = faqs.length >= 6 ? {
-    '@context': 'https://schema.org',
-    '@type': 'FAQPage',
-    mainEntity: faqs.map(faq => ({
-      '@type': 'Question',
-      name: faq.q,
-      acceptedAnswer: { '@type': 'Answer', text: faq.a },
-    })),
-  } : null
-
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schoolSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
-      {faqSchema && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }} />}
+      <SchoolSchema school={school} />
       <TrackView schoolId={school.id} />
       <Nav />
 
       {/* BREADCRUMB */}
       <div style={{
-        background: 'var(--off)', padding: '12px 5%',
+        background: 'var(--off)', padding: '14px 5%',
         borderBottom: '1px solid var(--border)', marginTop: 60,
       }}>
         <div style={{
@@ -781,6 +801,19 @@ export default async function SchoolPage({ params }: Props) {
       {/* MAIN LAYOUT */}
       <div className="ns-school-layout" style={{ maxWidth: 1100, margin: '0 auto', padding: '44px 5%' }}>
         <main style={{ minWidth: 0 }}>
+          <SchoolSummary school={school} />
+
+          {/* FOLLOWED CONFIRMATION BANNER */}
+          {searchParams?.followed === 'true' && (
+            <div style={{
+              padding: '12px 18px', marginBottom: 20,
+              background: '#d1fae5', border: '1px solid #a7f3d0', borderRadius: 8,
+              fontSize: 13, fontWeight: 600, color: '#065f46',
+            }}>
+              You are now following {school?.name}. We will email you when there are important updates.
+            </div>
+          )}
+
           {/* EXPLORE THIS SCHOOL */}
           {(() => {
             const exploreItems = [
@@ -1914,6 +1947,142 @@ export default async function SchoolPage({ params }: Props) {
               </div>
             </Section>
           )}
+
+          {/* SCHOOL PULSE — title + stat bar + feed, all under one heading */}
+          {(schoolFeedItems.length > 0 || statBarConfig) && (
+            <Section style={{ paddingTop: 20, marginTop: 16 }}>
+              {/* Title sits above everything */}
+              <div className="ew-widget ew-section-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                  <p className="ew-section-title" style={{ margin: 0, flex: 1 }}>
+                    School Pulse
+                  </p>
+                  {schoolPulse?.activity_rating && (
+                    <span style={{
+                      fontSize: 14, fontWeight: 600, borderRadius: 100, padding: '4px 14px', flexShrink: 0,
+                      ...(schoolPulse.activity_rating === 'Very active'
+                        ? { color: '#059669', background: '#d1fae5', border: '1px solid #a7f3d0' }
+                        : schoolPulse.activity_rating === 'Active'
+                        ? { color: '#2563eb', background: '#dbeafe', border: '1px solid #bfdbfe' }
+                        : { color: '#666', background: 'var(--off)', border: '1px solid var(--border)' }
+                      ),
+                    }}>
+                      {schoolPulse.activity_rating}
+                    </span>
+                  )}
+                </div>
+                <p className="ew-section-subtitle">
+                  Live updates from {school.name}&apos;s official website · {schoolFeedItems.length} recent update{schoolFeedItems.length !== 1 ? 's' : ''}
+                </p>
+              </div>
+
+              {/* Stat bar — below title */}
+              <SchoolPulseStatBar
+                pulse={schoolPulse}
+                school={school}
+                config={statBarConfig}
+              />
+
+              {/* Pinned action card */}
+              {schoolPulse?.pinned_item && (
+                <div className="ew-widget" style={{ marginTop: 20 }}>
+                  <PinnedActionCard
+                    item={schoolPulse.pinned_item}
+                    schoolName={school.name}
+                  />
+                </div>
+              )}
+
+              {/* Feed items */}
+              {schoolFeedItems.length > 0 && (
+                <div className="ew-widget" style={{ marginTop: 20 }}>
+                  <SchoolPulseFeed
+                    items={schoolFeedItems}
+                    schoolName={school.name}
+                    officialWebsite={school.official_website ?? null}
+                  />
+                </div>
+              )}
+            </Section>
+          )}
+
+          {/* IN THE NEWS — moved to full-width section below school layout */}
+
+          {/* FALLBACK — no feed AND no news */}
+          {schoolFeedItems.length === 0 && schoolNewsArticles.length === 0 && (
+            <Section>
+              <SectionTitle>Stay Informed</SectionTitle>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {school.official_website && (
+                  <a
+                    href={buildUtmUrl(school.official_website, 'pulse-fallback-website')}
+                    target="_blank" rel="noopener noreferrer"
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 8,
+                      background: 'var(--navy)', color: '#fff',
+                      padding: '12px 22px', borderRadius: 8, fontSize: 14,
+                      fontWeight: 700, textDecoration: 'none', width: 'fit-content',
+                    }}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                    Visit {school.name} website
+                  </a>
+                )}
+
+                {/* Ask Nana chips hidden — chatbot not in use */}
+
+                {similarWithFeeds.length > 0 && (
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 12 }}>
+                      Similar schools with recent updates
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {similarWithFeeds.map(s => (
+                        <Link
+                          key={s.id}
+                          href={`/schools/${s.slug}`}
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '12px 16px', border: '1px solid var(--border)', borderRadius: 8,
+                            textDecoration: 'none', background: 'var(--off)',
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--navy)', marginBottom: 2 }}>{s.name}</div>
+                            <div style={{ fontSize: 12, color: 'var(--muted)' }}>{s.city} · {s.curriculum?.[0]}</div>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+                            <span style={{
+                              fontSize: 11, fontWeight: 700, color: 'var(--teal-dk)',
+                              background: 'var(--teal-bg)', borderRadius: 100, padding: '3px 10px',
+                              whiteSpace: 'nowrap',
+                            }}>
+                              {feedSlugsWithCounts[s.slug]} update{feedSlugsWithCounts[s.slug] !== 1 ? 's' : ''}
+                            </span>
+                            {feedActivityRatings[s.slug] && (
+                              <span style={{
+                                fontSize: 10, fontWeight: 700, borderRadius: 100, padding: '2px 8px',
+                                whiteSpace: 'nowrap',
+                                ...(feedActivityRatings[s.slug] === 'Very active'
+                                  ? { color: '#059669', background: '#d1fae5' }
+                                  : feedActivityRatings[s.slug] === 'Active'
+                                  ? { color: '#2563eb', background: '#dbeafe' }
+                                  : { color: '#666', background: 'var(--off)' }
+                                ),
+                              }}>
+                                {feedActivityRatings[s.slug]}
+                              </span>
+                            )}
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </Section>
+          )}
+
         </main>
 
         {/* SIDEBAR */}
@@ -1974,7 +2143,7 @@ export default async function SchoolPage({ params }: Props) {
             <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
               {school.instagram_url && (
                 <a
-                  href={school.instagram_url} target="_blank" rel="noopener noreferrer"
+                  href={buildUtmUrl(school.instagram_url, 'sidebar-instagram')} target="_blank" rel="noopener noreferrer"
                   style={{
                     flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                     background: 'var(--off)', border: '1px solid var(--border)', borderRadius: 8,
@@ -1990,7 +2159,7 @@ export default async function SchoolPage({ params }: Props) {
               )}
               {school.youtube_url && (
                 <a
-                  href={school.youtube_url} target="_blank" rel="noopener noreferrer"
+                  href={buildUtmUrl(school.youtube_url, 'sidebar-youtube')} target="_blank" rel="noopener noreferrer"
                   style={{
                     flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                     background: 'var(--off)', border: '1px solid var(--border)', borderRadius: 8,
@@ -2008,6 +2177,50 @@ export default async function SchoolPage({ params }: Props) {
           )}
 
         </aside>
+      </div>
+
+      {/* IN THE NEWS — single column with new card design */}
+      {schoolNewsArticles.length > 0 && (
+        <div style={{ borderTop: '1px solid var(--border)', paddingTop: 44, marginTop: 12 }}>
+          <div className="ew-widget" style={{ maxWidth: 1100, margin: '0 auto', padding: '0 5% 60px' }}>
+            <NewsPageClient
+              articles={schoolNewsArticles}
+              deadlines={newsDeadlines}
+              mentionedSchools={newsMentionedSchools}
+              mode="school"
+              currentSchoolSlug={params.slug}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* FOLLOW FORM — full width at bottom */}
+      <div style={{ borderTop: '1px solid var(--border)', background: 'var(--teal-bg)' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '56px 5%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px 80px', alignItems: 'center' }}>
+
+          {/* Left — copy */}
+          <div>
+            <div style={{ marginBottom: 10, fontSize: 11, fontWeight: 800, color: 'var(--teal-dk)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+              Follow this school
+            </div>
+            <h2 style={{ fontSize: 32, fontWeight: 800, color: 'var(--navy)', marginBottom: 16, fontFamily: 'var(--font-nunito), Nunito, sans-serif', lineHeight: 1.2 }}>
+              Stay informed about {school.name}
+            </h2>
+            <p style={{ fontSize: 16, color: 'var(--body)', marginBottom: 0, lineHeight: 1.7 }}>
+              Choose what you want to hear about. We send one email when something relevant comes in — no spam, no daily digests.
+            </p>
+          </div>
+
+          {/* Right — form */}
+          <div>
+            <SchoolFollowForm
+              slug={params.slug}
+              schoolName={school.name}
+              initialCount={followerCount}
+            />
+          </div>
+
+        </div>
       </div>
 
       <Footer />

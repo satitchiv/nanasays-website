@@ -12,8 +12,8 @@ export default function MethodologyPage() {
   return (
     <>
       <Nav />
-      <main style={{ paddingTop: 60 }}>
-        <div style={{ maxWidth: 760, margin: '0 auto', padding: '64px 5% 88px' }}>
+      <main>
+        <div style={{ maxWidth: 760, margin: '0 auto', padding: '80px 5% 88px' }}>
 
           <div style={{ marginBottom: 8 }}>
             <Link href="/about" style={{ fontSize: 13, color: 'var(--teal-dk)', textDecoration: 'none', fontWeight: 600 }}>

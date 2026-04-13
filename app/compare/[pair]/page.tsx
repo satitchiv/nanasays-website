@@ -226,16 +226,7 @@ export default async function ComparePage({ params }: Props) {
           }}>
             Not sure which is right for your family?
           </div>
-          <p style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 18 }}>
-            Ask Nana — describe your child and she will give you a personal recommendation.
-          </p>
-          <Link href="/ask" style={{
-            background: 'var(--teal)', color: '#fff', padding: '12px 24px',
-            borderRadius: 8, textDecoration: 'none',
-            fontWeight: 700, fontSize: 14, display: 'inline-block',
-          }}>
-            Ask Nana for advice
-          </Link>
+          {/* Ask Nana CTA hidden — chatbot not in use */}
         </div>
       </main>
 

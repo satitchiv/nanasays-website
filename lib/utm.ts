@@ -15,6 +15,9 @@
  *   explore-prospectus      — Explore section: view prospectus
  *   explore-virtual-tour    — Explore section: virtual tour
  *   explore-video           — Explore section: watch video
+ *   sidebar-instagram       — sidebar Instagram button
+ *   sidebar-youtube         — sidebar YouTube button
+ *   news-read-full          — news article detail page: "Read full article" CTA
  */
 
 export function buildUtmUrl(url: string, placement: string): string {

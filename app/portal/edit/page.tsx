@@ -23,6 +23,7 @@ const EDITABLE_FIELDS = [
   'founded_year', 'school_type', 'languages', 'accreditations', 'school_motto',
   'religious_affiliation', 'student_count', 'teacher_count', 'student_teacher_ratio',
   'typical_class_size', 'nationalities_count', 'international_student_percent',
+  'thai_students', 'thai_community',
   'acceptance_rate', 'fees_usd_min', 'fees_usd_max', 'boarding_fees_usd',
   'application_fee_usd', 'rolling_admissions', 'accepts_mid_year',
   'entrance_exam_required', 'visa_support', 'admissions_process',
@@ -38,7 +39,7 @@ const EDITABLE_FIELDS = [
 
 const NUMBER_FIELDS = new Set([
   'founded_year', 'student_count', 'teacher_count', 'typical_class_size',
-  'nationalities_count', 'international_student_percent', 'acceptance_rate',
+  'nationalities_count', 'international_student_percent', 'thai_students', 'acceptance_rate',
   'fees_usd_min', 'fees_usd_max', 'boarding_fees_usd', 'application_fee_usd',
   'university_placement_rate', 'ib_pass_rate', 'ap_pass_rate', 'oxbridge_rate',
   'boarding_capacity', 'sen_cost_usd', 'eal_cost_usd', 'eal_hours_per_week',
@@ -78,6 +79,8 @@ interface FormState {
   typical_class_size: string
   nationalities_count: string
   international_student_percent: string
+  thai_students: string
+  thai_community: string
   acceptance_rate: string
   fees_usd_min: string
   fees_usd_max: string
@@ -130,6 +133,7 @@ const EMPTY_FORM: FormState = {
   head_of_school: '',
   student_count: '', teacher_count: '', student_teacher_ratio: '',
   typical_class_size: '', nationalities_count: '', international_student_percent: '',
+  thai_students: '', thai_community: '',
   acceptance_rate: '',
   fees_usd_min: '', fees_usd_max: '', boarding_fees_usd: '', application_fee_usd: '',
   rolling_admissions: false, accepts_mid_year: false,
@@ -391,6 +395,8 @@ export default function EditProfilePage() {
         typical_class_size: s.typical_class_size?.toString() ?? '',
         nationalities_count: s.nationalities_count?.toString() ?? '',
         international_student_percent: s.international_student_percent?.toString() ?? '',
+        thai_students: s.thai_students?.toString() ?? '',
+        thai_community: s.thai_community ?? '',
         acceptance_rate: s.acceptance_rate?.toString() ?? '',
         fees_usd_min: s.fees_usd_min?.toString() ?? '',
         fees_usd_max: s.fees_usd_max?.toString() ?? '',
@@ -749,6 +755,12 @@ export default function EditProfilePage() {
             </Field>
             <Field label="International student %">
               <input type="number" value={form.international_student_percent} onChange={e => setField('international_student_percent', e.target.value)} disabled={!isPartner} min="0" max="100" style={i()} />
+            </Field>
+            <Field label="Thai students (count)">
+              <input type="number" value={form.thai_students} onChange={e => setField('thai_students', e.target.value)} disabled={!isPartner} placeholder="e.g. 45" style={i()} />
+            </Field>
+            <Field label="Thai community description">
+              <textarea value={form.thai_community} onChange={e => setField('thai_community', e.target.value)} disabled={!isPartner} placeholder="e.g. Active Thai parent association, 40+ Thai students across all year groups" rows={2} style={{ ...i(), resize: 'vertical' }} />
             </Field>
             <Field label="Acceptance rate %">
               <input type="number" value={form.acceptance_rate} onChange={e => setField('acceptance_rate', e.target.value)} disabled={!isPartner} min="0" max="100" style={i()} />

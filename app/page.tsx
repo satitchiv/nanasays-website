@@ -13,6 +13,15 @@ import Link from 'next/link'
 export const metadata: Metadata = {
   title: 'NanaSays — International School Directory · 10,000+ Schools Worldwide',
   description: 'NanaSays helps international families find the right school abroad. Search 10,000+ verified international schools across 100+ countries with Nana, your AI school advisor.',
+  alternates: { canonical: 'https://nanasays.school' },
+  openGraph: {
+    title: 'NanaSays — International School Directory · 10,000+ Schools Worldwide',
+    description: 'NanaSays helps international families find the right school abroad. Search 10,000+ verified international schools across 100+ countries with Nana, your AI school advisor.',
+    url: 'https://nanasays.school',
+    siteName: 'NanaSays',
+    images: [{ url: 'https://nanasays.school/og-image.jpg', width: 1200, height: 630, alt: 'NanaSays — International School Directory' }],
+    type: 'website',
+  },
 }
 
 export const revalidate = 3600 // revalidate homepage every hour

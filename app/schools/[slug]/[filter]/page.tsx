@@ -27,9 +27,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!meta) return { title: 'Not Found' }
   const filterLabel = filterSlugToLabel(params.filter)
   const title = `${filterLabel} Schools in ${meta.name}`
+  const description = `Find the best ${filterLabel.toLowerCase()} international schools in ${meta.name}. Browse fees, curriculum, boarding options and more on NanaSays.`
   return {
     title: `${title} · nanasays`,
-    description: `Find the best ${filterLabel.toLowerCase()} international schools in ${meta.name}. Browse fees, curriculum, boarding options and more on NanaSays.`,
+    description,
+    alternates: { canonical: `https://nanasays.school/schools/${params.slug}/${params.filter}` },
+    openGraph: {
+      title,
+      description,
+      images: [{ url: meta.heroImage, width: 1200, height: 630 }],
+    },
   }
 }
 

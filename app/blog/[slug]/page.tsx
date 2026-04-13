@@ -52,9 +52,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const post = await getPost(params.slug)
   if (!post) return { title: 'Not Found' }
   return {
-    title: post.title,
+    title: { absolute: `${post.title} | NanaSays` },
     description: post.excerpt ?? undefined,
-    openGraph: { images: post.hero_image ? [post.hero_image] : [] },
+    alternates: { canonical: `https://nanasays.school/blog/${params.slug}` },
+    openGraph: {
+      title: post.title,
+      description: post.excerpt ?? undefined,
+      images: post.hero_image ? [{ url: post.hero_image, width: 1200, height: 630 }] : [],
+    },
   }
 }
 

@@ -49,10 +49,17 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   const countLabel = count && count > 0 ? `${count}+ ` : ''
 
+  const title = `International Schools in ${meta.name} — ${countLabel}Fees & Reviews`
+  const description = `Browse ${countLabel}international schools in ${meta.name}. Compare fees, curriculum, boarding options and admissions — all on NanaSays.`
   return {
-    title: `International Schools in ${meta.name} — ${countLabel}Fees & Reviews`,
-    description: `Browse ${countLabel}international schools in ${meta.name}. Compare fees, curriculum, boarding options and admissions — all on NanaSays.`,
-    openGraph: { images: [{ url: meta.heroImage }] },
+    title,
+    description,
+    alternates: { canonical: `https://nanasays.school/countries/${params.slug}` },
+    openGraph: {
+      title,
+      description,
+      images: [{ url: meta.heroImage, width: 1200, height: 630 }],
+    },
     other: { robots: 'max-snippet:-1, max-image-preview:large, max-video-preview:-1' },
   }
 }

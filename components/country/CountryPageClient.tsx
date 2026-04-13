@@ -267,7 +267,7 @@ export default function CountryPageClient({ meta, schools }: Props) {
                     letterSpacing: '-0.4px',
                     lineHeight: 1.1,
                   }}>
-                    {meta.name} International Schools
+                    International Schools in {meta.name}
                   </h1>
                 </div>
 
@@ -505,7 +505,7 @@ export default function CountryPageClient({ meta, schools }: Props) {
           {/* Sticky wrapper — toolbar + mobile toggle stick together */}
           <div style={{
             position: 'sticky',
-            top: 60,
+            top: 0,
             zIndex: 20,
             background: 'var(--off)',
             marginBottom: 14,

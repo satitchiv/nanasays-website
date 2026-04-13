@@ -6,7 +6,7 @@ export default function Footer() {
       background: 'var(--navy)',
       color: 'rgba(255,255,255,0.4)',
       padding: '40px 5%',
-      marginTop: 64,
+      marginTop: 0,
     }}>
       <div style={{
         maxWidth: 1100, margin: '0 auto',
@@ -25,15 +25,12 @@ export default function Footer() {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 24 }}>
-          {(['About', 'For Schools', 'Contact'] as const).map(label => (
-            <span key={label} style={{ color: 'rgba(255,255,255,0.25)', fontSize: 13 }}>
-              {label}
-            </span>
-          ))}
-          <Link href="/blog" style={{ color: 'rgba(255,255,255,0.4)', textDecoration: 'none', fontSize: 13 }}>
-            Blog
-          </Link>
+        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+          <Link href="/news" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: 13 }}>News</Link>
+          <Link href="/blog" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: 13 }}>Blog</Link>
+          <Link href="/about" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: 13 }}>About</Link>
+          <Link href="/methodology" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: 13 }}>Methodology</Link>
+          <Link href="/partners" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: 13 }}>For Schools</Link>
         </div>
 
         <p style={{ fontSize: 12, maxWidth: 500, lineHeight: 1.6 }}>
