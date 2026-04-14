@@ -24,14 +24,65 @@ export async function getSchoolFeed(slug: string): Promise<any[]> {
 
 export async function getSchoolNews(slug: string): Promise<any[]> {
   try {
-    const { data } = await getDb()
+    const db = getDb()
+
+    // Fetch school profile from NanaSays for relevance scoring
+    const nanasaysDb = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+    const { data: schoolData } = await nanasaysDb
+      .from('schools')
+      .select('country,curriculum,boarding')
+      .eq('slug', slug)
+      .limit(1)
+
+    const school = (schoolData?.[0] || {}) as { country?: string; curriculum?: string[]; boarding?: boolean }
+    const schoolCountry: string = school.country || ''
+    const schoolCurriculum: string[] = school.curriculum || []
+    const schoolBoarding: boolean = school.boarding || false
+
+    // Fetch all full-tier published articles
+    const { data: articles } = await db
       .from('articles')
-      .select('id,english_headline,english_summary,category,published_at,featured_image_url,tags')
+      .select('id,english_headline,english_summary,featured_image_url,category,published_at,schools_mentioned,countries_affected,curriculum_relevant,school_types,urgency,faq_json,bullets_json,source_url,source_name,content_tier')
       .eq('status', 'published')
-      .contains('schools_mentioned', [slug])
+      .eq('content_tier', 'full')
       .order('published_at', { ascending: false })
-      .limit(10)
-    return data || []
+      .limit(100)
+
+    if (!articles) return []
+
+    // Score each article by relevance to this school (matches original Python backend logic)
+    const scored: [number, any][] = []
+    for (const a of articles) {
+      let score = 0
+      const directlyMentioned = (a.schools_mentioned || []).includes(slug)
+
+      if (directlyMentioned) score += 10
+
+      // Country match
+      if (schoolCountry && (a.countries_affected || []).includes(schoolCountry)) score += 3
+
+      // Curriculum match — "All" matches every school
+      const artCurriculum: string[] = a.curriculum_relevant || []
+      if (artCurriculum.includes('All')) score += 1
+      else if (schoolCurriculum.some((c: string) => artCurriculum.includes(c))) score += 2
+
+      // Boarding match
+      const artSchoolTypes = a.school_types || 'both'
+      if (artSchoolTypes === 'both') score += 1
+      else if (artSchoolTypes === 'boarding' && schoolBoarding) score += 2
+      else if (artSchoolTypes === 'day' && !schoolBoarding) score += 2
+
+      // Urgency boost
+      if (a.urgency === 'high') score += 1
+
+      if (directlyMentioned || score >= 3) scored.push([score, a])
+    }
+
+    scored.sort((a, b) => b[0] - a[0] || (b[1].published_at || '').localeCompare(a[1].published_at || ''))
+    return scored.slice(0, 6).map(([, a]) => a)
   } catch {
     return []
   }

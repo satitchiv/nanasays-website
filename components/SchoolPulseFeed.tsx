@@ -1,6 +1,16 @@
 'use client'
 import { useState, useEffect } from 'react'
 
+function decodeHtml(str: string): string {
+  return str
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code)))
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+}
+
 const FEED_CAT_COLORS: Record<string, string> = {
   Results:      '#7c3aed',
   Admissions:   '#059669',
@@ -138,7 +148,7 @@ export default function SchoolPulseFeed({ items, schoolName, officialWebsite }: 
               {/* Title + external link icon */}
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
                 <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--navy)', lineHeight: 1.4 }}>
-                  {item.title}
+                  {decodeHtml(item.title)}
                 </div>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--muted)" strokeWidth="2" style={{ flexShrink: 0, marginTop: 3 }}>
                   <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
@@ -149,7 +159,7 @@ export default function SchoolPulseFeed({ items, schoolName, officialWebsite }: 
 
               {item.summary && (
                 <div style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.55, marginTop: 6 }}>
-                  {item.summary.slice(0, 160)}{item.summary.length > 160 ? '…' : ''}
+                  {(() => { const s = decodeHtml(item.summary); return s.slice(0, 160) + (s.length > 160 ? '…' : '') })()}
                 </div>
               )}
               {item.published_at && (

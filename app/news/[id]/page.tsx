@@ -32,6 +32,25 @@ function humanizeSlug(slug: string): string {
     .join(' ')
 }
 
+function decodeHtml(str: string): string {
+  return str
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code)))
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#039;/g, "'")
+}
+
+function cleanArticleBody(body: string): string {
+  // Decode HTML entities
+  let cleaned = decodeHtml(body)
+  // Strip WordPress RSS footer: "The post X appeared first on Y."
+  const wpIdx = cleaned.lastIndexOf('\nThe post ')
+  if (wpIdx !== -1) cleaned = cleaned.slice(0, wpIdx)
+  return cleaned.trim()
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const article = await getArticleById(params.id)
   if (!article) return { title: 'Article Not Found | NanaSays' }
@@ -62,9 +81,10 @@ export default async function ArticlePage({ params }: Props) {
   if (!article) notFound()
 
   const color = CAT_COLORS[article.category] || '#0891b2'
-  const wordCount = article.english_body?.split(' ').length || 0
+  const cleanBody = article.english_body ? cleanArticleBody(article.english_body) : ''
+  const wordCount = cleanBody.split(' ').length || 0
   const readingTime = Math.max(1, Math.ceil(wordCount / 200))
-  const paragraphs = (article.english_body || '').split(/\n{2,}/).filter(Boolean)
+  const paragraphs = cleanBody.split(/\n{2,}/).filter(Boolean)
   const articleFaqs = (article.faq_json || []).map((f: any) => ({
     question: f.q || f.question,
     answer: f.a || f.answer,
