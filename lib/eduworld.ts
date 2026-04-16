@@ -149,11 +149,103 @@ export async function getMostMentionedSchools(limit = 5): Promise<any[]> {
   }
 }
 
+export type SchoolDimensionCounts = {
+  curriculum: Record<string, number>
+  country: Record<string, number>
+}
+
+export async function getSchoolDimensionCounts(): Promise<SchoolDimensionCounts> {
+  try {
+    const db = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    )
+    const { data } = await db.from('schools').select('country,curriculum').eq('is_international', true)
+    const curriculum: Record<string, number> = {}
+    const country: Record<string, number> = {}
+    for (const s of (data || [])) {
+      if (s.country) country[s.country] = (country[s.country] || 0) + 1
+      for (const c of (s.curriculum || [])) {
+        curriculum[c] = (curriculum[c] || 0) + 1
+      }
+    }
+    return { curriculum, country }
+  } catch {
+    return { curriculum: {}, country: {} }
+  }
+}
+
+// ─── Country name map: article labels → school DB values ─────────────────────
+const ARTICLE_TO_DB_COUNTRY: Record<string, string> = {
+  'USA': 'United States',
+  'UK': 'United Kingdom',
+  'UAE': 'United Arab Emirates',
+  'South Korea': 'South Korea',
+  'Hong Kong': 'Hong Kong',
+}
+
+export interface SchoolPoolEntry {
+  slug: string
+  name: string
+  country: string
+  curriculum: string[]
+}
+
+// Fetches a targeted pool of schools from the NanaSays directory relevant to
+// the given articles (matched by country + global fallback). Called server-side.
+export async function getArticleSchoolsPool(articles: any[]): Promise<SchoolPoolEntry[]> {
+  try {
+    const nanasaysDb = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    )
+
+    // Collect unique countries from the articles
+    const rawCountries = new Set<string>()
+    for (const a of articles) {
+      for (const c of (a.countries_affected || [])) {
+        if (c && c !== 'Global') rawCountries.add(c)
+      }
+    }
+    const dbCountries = Array.from(rawCountries).map(c => ARTICLE_TO_DB_COUNTRY[c] || c)
+
+    const pool: SchoolPoolEntry[] = []
+    const seen = new Set<string>()
+
+    // Fetch up to 60 schools per matched country
+    if (dbCountries.length > 0) {
+      const { data } = await nanasaysDb
+        .from('schools')
+        .select('slug,name,country,curriculum')
+        .in('country', dbCountries)
+        .not('slug', 'is', null)
+        .limit(300)
+      for (const s of (data || [])) {
+        if (s.slug && !seen.has(s.slug)) { seen.add(s.slug); pool.push(s) }
+      }
+    }
+
+    // Always fetch a global fallback pool for Global-scope articles
+    const { data: globalData } = await nanasaysDb
+      .from('schools')
+      .select('slug,name,country,curriculum')
+      .not('slug', 'is', null)
+      .limit(150)
+    for (const s of (globalData || [])) {
+      if (s.slug && !seen.has(s.slug)) { seen.add(s.slug); pool.push(s) }
+    }
+
+    return pool
+  } catch {
+    return []
+  }
+}
+
 export async function getAllPublishedArticles(limit = 20, category?: string): Promise<any[]> {
   try {
     let query = getDb()
       .from('articles')
-      .select('id,english_headline,english_summary,english_body,category,tags,published_at,featured_image_url,schools_mentioned,countries_mentioned,is_featured,is_breaking,view_count,bullets_json,faq_json')
+      .select('id,english_headline,source_title,english_summary,category,tags,published_at,featured_image_url,schools_mentioned,countries_mentioned,countries_affected,curriculum_relevant,is_featured,is_breaking,view_count,bullets_json,faq_json,urgency,source_name,source_url')
       .eq('status', 'published')
       .order('published_at', { ascending: false })
       .limit(limit)

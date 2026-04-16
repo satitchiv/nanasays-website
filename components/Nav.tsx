@@ -27,6 +27,19 @@ export default function Nav() {
       </Link>
 
 
+      {/* Nav links */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+        <Link href="/news" style={{
+          fontSize: 14, fontWeight: 600, color: 'var(--navy)', padding: '6px 14px',
+          borderRadius: 8, textDecoration: 'none', transition: 'background .15s',
+        }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'var(--off)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+        >
+          News
+        </Link>
+      </div>
+
       <div className="ns-nav-right">
         {/* Language selector */}
         <select
