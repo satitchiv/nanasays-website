@@ -142,16 +142,19 @@ function pickRandom<T>(arr: T[], count: number, seed: number): T[] {
 
 // ─── RelevantSchoolsSection ───────────────────────────────────────────────────
 
-function RelevantSchoolsSection({ article, pool }: { article: Article; pool: SchoolPoolEntry[] }) {
+function RelevantSchoolsSection({ article, pool, schoolCounts }: {
+  article: Article
+  pool: SchoolPoolEntry[]
+  schoolCounts?: SchoolDimensionCounts
+}) {
   const [seed, setSeed] = useState(0)
 
   const countries = (article.countries_affected || []).filter(c => c !== 'Global')
   const curricula = (article.curriculum_relevant || []).filter(c => c !== 'All')
   const isGlobal  = countries.length === 0
-
   const dbCountries = countries.map(c => ARTICLE_TO_DB_COUNTRY[c] || c)
 
-  // Filter pool by country (and optionally curriculum)
+  // Filter pool by country then optionally by curriculum
   const filtered = useMemo(() => {
     if (pool.length === 0) return []
     let result = isGlobal ? pool : pool.filter(s => dbCountries.includes(s.country))
@@ -167,45 +170,97 @@ function RelevantSchoolsSection({ article, pool }: { article: Article; pool: Sch
   const shown = useMemo(() => pickRandom(filtered, 4, seed), [filtered, seed])
 
   const scopeLabel = isGlobal
-    ? 'schools worldwide'
-    : dbCountries.length === 1
-      ? `schools in ${dbCountries[0]}`
-      : `schools in ${dbCountries.join(', ')}`
+    ? 'worldwide'
+    : dbCountries.length === 1 ? dbCountries[0] : dbCountries.join(', ')
 
-  if (pool.length === 0) {
-    return <p style={{ fontSize: 13, color: '#bbb', fontStyle: 'italic' }}>Loading schools...</p>
-  }
-  if (shown.length === 0) {
-    return <p style={{ fontSize: 13, color: '#bbb', fontStyle: 'italic' }}>No matching schools found.</p>
+  const hasAnything = isGlobal || countries.length > 0 || curricula.length > 0 || shown.length > 0
+
+  if (!hasAnything && pool.length === 0) {
+    return <p style={{ fontSize: 13, color: '#bbb', fontStyle: 'italic' }}>No scope data for this article.</p>
   }
 
   return (
-    <div>
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' as const, letterSpacing: '.07em', marginBottom: 10 }}>
-        Schools this affects
-      </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 7, marginBottom: 10 }}>
-        {shown.map(s => (
-          <Link key={s.slug} href={`/schools/${s.slug}`}
-            style={{ fontSize: 13, fontWeight: 700, background: '#f0f9ff', color: '#0369a1', border: '1.5px solid #bae6fd', padding: '5px 13px', borderRadius: 12, textDecoration: 'none', whiteSpace: 'nowrap' as const, display: 'inline-block' }}
-            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#e0f2fe' }}
-            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#f0f9ff' }}
-          >
-            {s.name}
-          </Link>
-        ))}
-      </div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 11, color: '#bbb' }}>
-          Showing 4 of {filtered.length.toLocaleString()} {scopeLabel}
-        </span>
-        <button
-          onClick={() => setSeed(s => s + 1)}
-          style={{ fontSize: 11, color: '#34c3a0', fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '2px 0' }}
-        >
-          show others
-        </button>
-      </div>
+    <div style={{ display: 'flex', flexDirection: 'column' as const, gap: 16 }}>
+
+      {/* ── Country tags ── */}
+      {(isGlobal || countries.length > 0) && (
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' as const, letterSpacing: '.08em', marginBottom: 7 }}>
+            Countries affected
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+            {isGlobal ? (
+              <span style={{ fontSize: 12, fontWeight: 700, padding: '4px 12px', borderRadius: 20, background: '#f0fdf9', color: '#065f46', border: '1.5px solid #6ee7b7' }}>
+                Worldwide
+                {schoolCounts && Object.keys(schoolCounts.country).length > 0 && (
+                  <span style={{ fontWeight: 400, opacity: 0.7, marginLeft: 6 }}>
+                    {Object.values(schoolCounts.country).reduce((a, b) => a + b, 0).toLocaleString()} schools
+                  </span>
+                )}
+              </span>
+            ) : dbCountries.map(country => {
+              const count = schoolCounts?.country[country]
+              return (
+                <span key={country} style={{ fontSize: 12, fontWeight: 700, padding: '4px 12px', borderRadius: 20, background: '#f0fdf9', color: '#065f46', border: '1.5px solid #6ee7b7' }}>
+                  {country}
+                  {count ? <span style={{ fontWeight: 400, opacity: 0.7, marginLeft: 6 }}>{count.toLocaleString()} schools</span> : null}
+                </span>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── Curriculum tags ── */}
+      {curricula.length > 0 && (
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' as const, letterSpacing: '.08em', marginBottom: 7 }}>
+            Curriculum
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6 }}>
+            {curricula.map(curr => {
+              const count = schoolCounts?.curriculum[curr]
+              return (
+                <span key={curr} style={{ fontSize: 12, fontWeight: 700, padding: '4px 12px', borderRadius: 20, background: '#f5f3ff', color: '#5b21b6', border: '1.5px solid #c4b5fd' }}>
+                  {curr}
+                  {count ? <span style={{ fontWeight: 400, opacity: 0.7, marginLeft: 6 }}>{count.toLocaleString()} schools</span> : null}
+                </span>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ── School pills ── */}
+      {shown.length > 0 && (
+        <div>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase' as const, letterSpacing: '.08em', marginBottom: 7 }}>
+            Example schools
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap' as const, gap: 6, marginBottom: 8 }}>
+            {shown.map(s => (
+              <Link key={s.slug} href={`/schools/${s.slug}`}
+                style={{ fontSize: 12, fontWeight: 700, background: '#f0f9ff', color: '#0369a1', border: '1.5px solid #bae6fd', padding: '4px 12px', borderRadius: 20, textDecoration: 'none', whiteSpace: 'nowrap' as const, display: 'inline-block' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = '#e0f2fe' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = '#f0f9ff' }}
+              >
+                {s.name}
+              </Link>
+            ))}
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontSize: 11, color: '#bbb' }}>
+              {filtered.length.toLocaleString()} {scopeLabel} schools in directory
+            </span>
+            <button onClick={() => setSeed(s => s + 1)}
+              style={{ fontSize: 11, color: '#34c3a0', fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: '2px 0' }}
+            >
+              show others
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }
@@ -540,7 +595,7 @@ function MobileFeedView({ articles, schoolCounts, schoolsPool = [] }: { articles
           )}
           {rightTab === 'sch' && (
             <div>
-              {a ? <RelevantSchoolsSection article={a} pool={schoolsPool} /> : <p style={{ fontSize: 13, color: '#bbb', fontStyle: 'italic' }}>Select an article.</p>}
+              {a ? <RelevantSchoolsSection article={a} pool={schoolsPool} schoolCounts={schoolCounts} /> : <p style={{ fontSize: 13, color: '#bbb', fontStyle: 'italic' }}>Select an article.</p>}
             </div>
           )}
         </div>
@@ -850,7 +905,7 @@ function DesktopFeedView({ articles, schoolCounts, schoolsPool = [] }: { article
                     Schools affected
                   </div>
                   {a ? (
-                    <RelevantSchoolsSection article={a} pool={schoolsPool} />
+                    <RelevantSchoolsSection article={a} pool={schoolsPool} schoolCounts={schoolCounts} />
                   ) : (
                     <p style={{ fontSize: 13, color: '#bbb', fontStyle: 'italic' }}>Select an article to see affected schools.</p>
                   )}
