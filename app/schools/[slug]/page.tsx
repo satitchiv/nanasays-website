@@ -10,7 +10,6 @@ import Link from 'next/link'
 import { getServerT } from '@/lib/serverI18n'
 import TrackView from '@/components/school/TrackView'
 import RequestProspectusModal from '@/components/school/RequestProspectusModal'
-import PreTourEmailButton from '@/components/school/PreTourEmailButton'
 import ShareButton from '@/components/school/ShareButton'
 import { buildUtmUrl } from '@/lib/utm'
 import FeeTableClient from '@/components/school/FeeTableClient'
@@ -894,7 +893,6 @@ export default async function SchoolPage({ params, searchParams }: Props) {
                       Watch Video
                     </a>
                   )}
-                  <PreTourEmailButton slug={school.slug} schoolName={school.name} />
                 </div>
               </Section>
             )
