@@ -178,6 +178,7 @@ export async function getSchoolDimensionCounts(): Promise<SchoolDimensionCounts>
 // ─── Country name map: article labels → school DB values ─────────────────────
 const ARTICLE_TO_DB_COUNTRY: Record<string, string> = {
   'USA': 'United States',
+  'US': 'United States',
   'UK': 'United Kingdom',
   'UAE': 'United Arab Emirates',
   'South Korea': 'South Korea',
@@ -200,28 +201,38 @@ export async function getArticleSchoolsPool(articles: any[]): Promise<SchoolPool
       process.env.SUPABASE_SERVICE_KEY!
     )
 
-    // Collect unique countries from the articles
+    // Collect unique countries from the articles, deduplicated after mapping
     const rawCountries = new Set<string>()
     for (const a of articles) {
       for (const c of (a.countries_affected || [])) {
         if (c && c !== 'Global') rawCountries.add(c)
       }
     }
-    const dbCountries = Array.from(rawCountries).map(c => ARTICLE_TO_DB_COUNTRY[c] || c)
+    const dbCountries = Array.from(new Set(
+      Array.from(rawCountries).map(c => ARTICLE_TO_DB_COUNTRY[c] || c)
+    ))
 
     const pool: SchoolPoolEntry[] = []
     const seen = new Set<string>()
 
-    // Fetch up to 60 schools per matched country
+    // Fetch up to 50 schools per matched country in parallel so large countries
+    // (UK: 25k, Australia: 10k) don't crowd out small ones (Thailand: 331)
     if (dbCountries.length > 0) {
-      const { data } = await nanasaysDb
-        .from('schools')
-        .select('slug,name,country,curriculum')
-        .in('country', dbCountries)
-        .not('slug', 'is', null)
-        .limit(300)
-      for (const s of (data || [])) {
-        if (s.slug && !seen.has(s.slug)) { seen.add(s.slug); pool.push(s) }
+      const perCountry = await Promise.all(
+        dbCountries.map(country =>
+          nanasaysDb
+            .from('schools')
+            .select('slug,name,country,curriculum')
+            .eq('country', country)
+            .not('slug', 'is', null)
+            .limit(50)
+            .then(r => r.data || [])
+        )
+      )
+      for (const rows of perCountry) {
+        for (const s of rows) {
+          if (s.slug && !seen.has(s.slug)) { seen.add(s.slug); pool.push(s) }
+        }
       }
     }
 

@@ -12,6 +12,9 @@ export interface School {
   fees_usd_max: number | null
   fees_currency: string | null
   fees_original: string | null
+  fees_local_min: number | null
+  fees_local_max: number | null
+  fees_local_currency: string | null
   boarding_fees_usd: number | null
   fees_includes_boarding: boolean | null
   application_fee_usd: number | null

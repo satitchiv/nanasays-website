@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json()
-    const { first_name, email, job_title, school_name, country, message } = body
+    const { first_name, email, job_title, school_name, school_id, country, message } = body
 
     if (!first_name || !email || !school_name) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -66,6 +66,14 @@ export async function POST(req: NextRequest) {
             <tr><td style="padding:10px 0;font-size:13px;color:#888;vertical-align:top;padding-top:14px">Message</td><td style="padding:10px 0;font-size:14px;line-height:1.6;padding-top:14px">${message ? esc(message).replace(/\n/g, '<br>') : '—'}</td></tr>
           </table>
         </div>
+        ${school_id ? `
+        <div style="margin-top:20px;text-align:center">
+          <a href="https://nanasays.school/api/admin/approve-claim?email=${encodeURIComponent(String(email))}&school_id=${encodeURIComponent(String(school_id))}&token=${encodeURIComponent(process.env.ADMIN_APPROVE_TOKEN || '')}"
+             style="display:inline-block;padding:13px 32px;background:#34C3A0;color:#fff;text-decoration:none;border-radius:10px;font-weight:800;font-size:14px;font-family:-apple-system,sans-serif">
+            Approve &amp; Send Portal Invite
+          </a>
+          <p style="margin-top:10px;font-size:11px;color:#9CA3AF">Clicking this sends a magic link to ${esc(email)} and gives them portal access.</p>
+        </div>` : ''}
         <div style="margin-top:16px;font-size:11px;color:#9CA3AF;text-align:center">
           NanaSays &middot; nanasays.school &middot; School claim form
         </div>

@@ -118,7 +118,7 @@ export default function PortalPage() {
   }
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 32px 60px' }}>
+    <div className="ns-portal-content" style={{ padding: '40px 0 60px' }}>
 
       {/* Page header */}
       <div style={{ marginBottom: 32 }}>
@@ -208,7 +208,7 @@ export default function PortalPage() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+      <div className="ns-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
 
         {/* Enquiries quick panel */}
         <div style={{

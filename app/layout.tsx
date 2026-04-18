@@ -5,7 +5,9 @@ import "./globals.css";
 import "leaflet/dist/leaflet.css";
 import IconSprite from "@/components/IconSprite";
 import { LanguageProvider } from "@/components/LanguageProvider";
+import { CurrencyProvider } from "@/components/CurrencyProvider";
 import SiteTracker from "@/components/SiteTracker";
+import OverflowDebugger from "@/components/OverflowDebugger";
 
 const nunito = Nunito({
   subsets: ['latin'],
@@ -83,9 +85,12 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
         />
         <LanguageProvider>
-          <IconSprite />
-          <SiteTracker />
-          {children}
+          <CurrencyProvider>
+            <IconSprite />
+            <SiteTracker />
+            <OverflowDebugger />
+            {children}
+          </CurrencyProvider>
         </LanguageProvider>
       </body>
     </html>

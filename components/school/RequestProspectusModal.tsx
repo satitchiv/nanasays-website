@@ -77,7 +77,7 @@ export default function RequestProspectusModal({ schoolId, schoolName, schoolEma
             padding: '20px',
           }}
         >
-          <div style={{
+          <div className="ns-modal-card" style={{
             background: '#fff', borderRadius: 16, width: '100%', maxWidth: 480,
             padding: '36px', position: 'relative',
             boxShadow: '0 24px 80px rgba(0,0,0,0.25)',

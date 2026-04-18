@@ -207,7 +207,7 @@ export default function AnalyticsPage() {
   }
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 32px 60px' }}>
+    <div className="ns-portal-content" style={{ padding: '40px 0 60px' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32, flexWrap: 'wrap', gap: 16 }}>
@@ -255,7 +255,7 @@ export default function AnalyticsPage() {
       )}
 
       {/* KPI cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
+      <div className="ns-portal-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 24 }}>
         {[
           { label: 'Impressions', value: stats!.totalImpressions, prev: stats!.prevImpressions, desc: 'appeared in search' },
           { label: 'Profile views', value: stats!.totalViews, prev: stats!.prevViews, desc: 'visited your page' },
@@ -313,7 +313,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Insights row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+      <div className="ns-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
 
         {/* Peak day */}
         <div style={{ background: navy, borderRadius: 12, padding: '24px 26px' }}>

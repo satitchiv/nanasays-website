@@ -15,6 +15,7 @@ const navItems = [
   { label: 'Overview', href: '/portal/demo' },
   { label: 'Enquiries', href: '/portal/demo/enquiries' },
   { label: 'Analytics', href: '/portal/demo/analytics' },
+  { label: 'Assistant', href: '/portal/demo/assistant' },
   { label: 'Edit Profile', href: '/portal/demo/edit' },
 ]
 

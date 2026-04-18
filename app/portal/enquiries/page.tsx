@@ -92,7 +92,7 @@ export default function EnquiriesPage() {
   }
 
   return (
-    <div style={{ maxWidth: 1100, margin: '0 auto', padding: '40px 32px 60px' }}>
+    <div className="ns-portal-content" style={{ padding: '40px 0 60px' }}>
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: tealDk, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>
           School Portal

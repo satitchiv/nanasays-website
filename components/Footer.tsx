@@ -8,11 +8,7 @@ export default function Footer() {
       padding: '40px 5%',
       marginTop: 0,
     }}>
-      <div style={{
-        maxWidth: 1100, margin: '0 auto',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        gap: 24, flexWrap: 'wrap',
-      }}>
+      <div className="ns-footer-inner">
         <div>
           <div style={{
             fontFamily: 'var(--font-nunito), Nunito, sans-serif',

@@ -55,7 +55,7 @@ export default function SchoolPulseStatBar({ pulse, school, config }: Props) {
   const cols = Math.min(cards.length, 5)
 
   return (
-    <div style={{
+    <div className="ns-pulse-stats" style={{
       display: 'grid',
       gridTemplateColumns: `repeat(${cols}, 1fr)`,
       gap: 10,

@@ -504,7 +504,7 @@ export default function EditProfilePage() {
   }
 
   return (
-    <div style={{ maxWidth: 820, margin: '0 auto', padding: '40px 32px 80px' }}>
+    <div className="ns-portal-edit-content" style={{ maxWidth: 820, margin: '0 auto', padding: '40px 32px 80px' }}>
 
       <div style={{ marginBottom: 32 }}>
         <div style={{ fontSize: 11, fontWeight: 800, color: tealDk, textTransform: 'uppercase', letterSpacing: '0.12em', marginBottom: 6 }}>
@@ -546,7 +546,7 @@ export default function EditProfilePage() {
         <Section title="Media &amp; Brand" num="01">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="ns-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <Field label="Logo URL" hint="Square PNG or SVG, min 200×200px">
                 <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 8 }}>
                   <input
@@ -600,7 +600,7 @@ export default function EditProfilePage() {
 
             <Field label="Gallery images" hint="Add up to 8 photos shown in the carousel on your profile page.">
               {form.gallery_images.length > 0 && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 10 }}>
+                <div className="ns-portal-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, marginBottom: 10 }}>
                   {form.gallery_images.map((url, idx) => (
                     <div key={idx} style={{ position: 'relative', borderRadius: 8, overflow: 'hidden', aspectRatio: '4/3' }}>
                       <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
@@ -660,7 +660,7 @@ export default function EditProfilePage() {
               )}
             </Field>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="ns-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <Field label="Instagram URL">
                 <input type="url" value={form.instagram_url} onChange={e => setField('instagram_url', e.target.value)} disabled={!isPartner} placeholder="https://instagram.com/yourschool" style={i()} />
               </Field>
@@ -700,7 +700,7 @@ export default function EditProfilePage() {
               </div>
             </Field>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="ns-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <Field label="Founded year">
                 <input type="number" value={form.founded_year} onChange={e => setField('founded_year', e.target.value)} disabled={!isPartner} min="1800" max="2030" style={i()} />
               </Field>
@@ -737,7 +737,7 @@ export default function EditProfilePage() {
 
         {/* 03 — Key Stats */}
         <Section title="Key Stats" num="03">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div className="ns-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <Field label="Number of students">
               <input type="number" value={form.student_count} onChange={e => setField('student_count', e.target.value)} disabled={!isPartner} style={i()} />
             </Field>
@@ -772,7 +772,7 @@ export default function EditProfilePage() {
         <Section title="Fees &amp; Admissions" num="04">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="ns-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <Field label="Annual fees USD — from">
                 <input type="number" value={form.fees_usd_min} onChange={e => setField('fees_usd_min', e.target.value)} disabled={!isPartner} style={i()} />
               </Field>
@@ -812,7 +812,7 @@ export default function EditProfilePage() {
         <Section title="Academic Results" num="05">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="ns-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
               <Field label="University placement rate %">
                 <input type="number" value={form.university_placement_rate} onChange={e => setField('university_placement_rate', e.target.value)} disabled={!isPartner} min="0" max="100" style={i()} />
               </Field>
@@ -848,7 +848,7 @@ export default function EditProfilePage() {
 
             {form.boarding ? (
               <>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div className="ns-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                   <Field label="Boarding type">
                     <input value={form.boarding_type} onChange={e => setField('boarding_type', e.target.value)} disabled={!isPartner} placeholder="Full boarding / Weekly / Flexi" style={i()} />
                   </Field>
@@ -905,7 +905,7 @@ export default function EditProfilePage() {
               )}
               <ToggleRow label="EAL / ESL support available" value={form.eal_support} onChange={v => setField('eal_support', v)} hint="English as an Additional Language" disabled={!isPartner} />
               {form.eal_support && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div className="ns-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                   <Field label="EAL additional cost USD (annual)">
                     <input type="number" value={form.eal_cost_usd} onChange={e => setField('eal_cost_usd', e.target.value)} disabled={!isPartner} style={i()} />
                   </Field>
@@ -955,7 +955,7 @@ export default function EditProfilePage() {
           <div style={{ fontFamily: 'Nunito, sans-serif', fontWeight: 900, fontSize: 15, color: navy, marginBottom: 20 }}>
             Contact &amp; Admin
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+          <div className="ns-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
             <Field label="Website URL">
               <input type="url" value={form.official_website} onChange={e => setField('official_website', e.target.value)} disabled={!isPartner} placeholder="https://www.yourschool.com" style={i()} />
             </Field>

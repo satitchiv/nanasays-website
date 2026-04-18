@@ -87,7 +87,8 @@ interface BulletsJson {
 
 interface Article {
   id: string
-  english_headline: string
+  english_headline?: string | null
+  source_title?: string | null
   source_name?: string
   source_url?: string
   category?: string
@@ -167,7 +168,7 @@ export default function ArticleCard({ article, currentSchoolSlug, defaultExpande
         </div>
 
         <p style={{ fontSize: 15, fontWeight: 500, margin: '0 0 10px', lineHeight: 1.3, color: 'var(--navy)' }}>
-          {article.english_headline}
+          {article.english_headline || article.source_title}
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
@@ -210,7 +211,7 @@ export default function ArticleCard({ article, currentSchoolSlug, defaultExpande
           maxHeight: expanded ? 'none' : 340,
           overflow: 'hidden',
         }}>
-          <div style={{
+          <div className="ns-article-inner" style={{
             display: 'grid',
             gridTemplateColumns: '2fr 1fr',
           }}>
@@ -264,7 +265,7 @@ export default function ArticleCard({ article, currentSchoolSlug, defaultExpande
             fontSize: 28, fontWeight: 700, margin: '0 0 18px',
             lineHeight: 1.35, color: 'var(--navy)',
           }}>
-            {article.english_headline}
+            {article.english_headline || article.source_title}
           </p>
 
           {/* Key points */}

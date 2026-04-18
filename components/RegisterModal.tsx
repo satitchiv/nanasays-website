@@ -35,6 +35,7 @@ export default function RegisterModal({ onClose }: { onClose: () => void }) {
     >
       <div
         onClick={e => e.stopPropagation()}
+        className="ns-modal-card"
         style={{
           background: '#fff', borderRadius: 20, width: '100%', maxWidth: 520,
           padding: '40px 40px 36px', position: 'relative',

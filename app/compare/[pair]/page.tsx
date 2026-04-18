@@ -3,8 +3,10 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
-import { getSchoolPairBySlug, getSchoolPairs, formatFees } from '@/lib/schools'
+import FeeText from '@/components/FeeText'
+import { getSchoolPairBySlug, getSchoolPairs } from '@/lib/schools'
 import type { School } from '@/lib/types'
+import type { ReactNode } from 'react'
 
 interface Props {
   params: { pair: string }
@@ -40,7 +42,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   }
 }
 
-function Row({ label, a, b }: { label: string; a: string | null; b: string | null }) {
+function Row({ label, a, b }: { label: string; a: ReactNode; b: ReactNode }) {
   return (
     <tr>
       <td style={{
@@ -70,7 +72,7 @@ function Row({ label, a, b }: { label: string; a: string | null; b: string | nul
 
 function schoolData(s: School) {
   return {
-    fees: formatFees(s),
+    fees: <FeeText feesUsdMin={s.fees_usd_min} feesUsdMax={s.fees_usd_max} feesOriginal={s.fees_original} />,
     type: s.school_type ?? null,
     curriculum: s.curriculum?.join(', ') ?? null,
     ages: s.age_min != null && s.age_max != null ? `${s.age_min}–${s.age_max}` : null,
@@ -157,7 +159,7 @@ export default async function ComparePage({ params }: Props) {
         </div>
 
         {/* Quick school header cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 32 }}>
+        <div className="ns-compare-cards" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 32 }}>
           {[a, b].map(school => (
             <Link key={school.id} href={`/schools/${school.slug}`} style={{ textDecoration: 'none' }}>
               <div style={{
@@ -184,7 +186,7 @@ export default async function ComparePage({ params }: Props) {
         </div>
 
         {/* Comparison table */}
-        <div style={{ border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+        <div className="ns-compare-wrap" style={{ border: '1px solid var(--border)', borderRadius: 12 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: 'var(--navy)' }}>

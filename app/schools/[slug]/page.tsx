@@ -13,6 +13,7 @@ import RequestProspectusModal from '@/components/school/RequestProspectusModal'
 import ShareButton from '@/components/school/ShareButton'
 import { buildUtmUrl } from '@/lib/utm'
 import FeeTableClient from '@/components/school/FeeTableClient'
+import FeesRangeClient from '@/components/school/FeesRangeClient'
 import { getSchoolFeed, getSchoolNews, getSchoolsWithFeeds, getSchoolPulse, getFollowerCount, getStatBarConfig, getDeadlines, getMostMentionedSchools } from '@/lib/eduworld'
 import type { StatBarConfig } from '@/lib/eduworld'
 import SchoolPulseFeed from '@/components/SchoolPulseFeed'
@@ -1513,7 +1514,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
           )}
 
           {/* FEES */}
-          {(school.fees_by_grade || school.fees_usd_min) && (
+          {(school.fees_by_grade || school.fees_usd_min || school.fees_local_min) && (
             <Section>
               <SectionTitle>{t('school_section_fees')}</SectionTitle>
               {school.fees_by_grade ? (
@@ -1521,6 +1522,12 @@ export default async function SchoolPage({ params, searchParams }: Props) {
                   fees={school.fees_by_grade as Record<string, number | string>}
                   currency={school.fees_currency ?? 'USD'}
                   boardingFeesUsd={school.boarding_fees_usd}
+                />
+              ) : school.fees_local_min && school.fees_local_currency ? (
+                <FeesRangeClient
+                  min={school.fees_local_min}
+                  max={school.fees_local_max}
+                  currency={school.fees_local_currency}
                 />
               ) : (
                 <div style={{
@@ -2196,7 +2203,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
 
       {/* FOLLOW FORM — full width at bottom */}
       <div style={{ borderTop: '1px solid var(--border)', background: 'var(--teal-bg)' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '56px 5%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px 80px', alignItems: 'center' }}>
+        <div className="ns-newsletter-grid" style={{ maxWidth: 1100, margin: '0 auto', padding: '56px 5%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px 80px', alignItems: 'center' }}>
 
           {/* Left — copy */}
           <div>

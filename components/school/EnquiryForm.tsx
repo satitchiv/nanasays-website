@@ -171,7 +171,7 @@ export default function EnquiryForm({ schoolId, schoolName }: Props) {
                   </div>
 
                   {/* Child age + entry year */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div className="ns-form-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div>
                       <label style={{ fontSize: 12, fontWeight: 700, color: navy, display: 'block', marginBottom: 6 }}>
                         Child&apos;s current age

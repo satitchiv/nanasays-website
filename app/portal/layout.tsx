@@ -15,17 +15,18 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
   const pathname = usePathname()
   const [checking, setChecking] = useState(true)
   const [schoolName, setSchoolName] = useState('')
+  const [menuOpen, setMenuOpen] = useState(false)
 
   useEffect(() => {
-    // Demo routes bypass auth entirely
-    if (pathname.startsWith('/portal/demo')) {
+    // These routes bypass auth entirely
+    if (pathname.startsWith('/portal/demo') || pathname.startsWith('/portal/signin')) {
       setChecking(false)
       return
     }
     async function check() {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
-        router.replace('/claim')
+        router.replace('/portal/signin')
         return
       }
       const { data: school } = await supabase
@@ -34,7 +35,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         .eq('admin_email', session.user.email)
         .single()
       if (!school) {
-        router.replace('/claim')
+        router.replace('/portal/signin')
         return
       }
       setSchoolName(school.name)
@@ -43,11 +44,13 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     check()
   }, [router, pathname])
 
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? 'hidden' : ''
+    return () => { document.body.style.overflow = '' }
+  }, [menuOpen])
+
   const navy = '#1B3252'
   const teal = '#34C3A0'
-  const tealDk = '#239C80'
-  const border = '#E2E8F0'
-  const muted = '#6B7280'
   const off = '#F6F8FA'
 
   const navItems = [
@@ -55,10 +58,11 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     { label: 'Enquiries', href: '/portal/enquiries' },
     { label: 'Edit Profile', href: '/portal/edit' },
     { label: 'Analytics', href: '/portal/analytics' },
+    { label: 'Assistant', href: '/portal/assistant' },
   ]
 
-  // Demo routes: render children directly, demo has its own layout
-  if (pathname.startsWith('/portal/demo')) {
+  // These routes render children directly with no portal nav
+  if (pathname.startsWith('/portal/demo') || pathname.startsWith('/portal/signin')) {
     return <>{children}</>
   }
 
@@ -77,6 +81,8 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
     )
   }
 
+  const signOut = async () => { await supabase.auth.signOut(); router.push('/portal/signin') }
+
   return (
     <div style={{ minHeight: '100vh', background: off, display: 'flex', flexDirection: 'column' }}>
       {/* Top nav */}
@@ -84,12 +90,9 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
         background: navy, borderBottom: `1px solid rgba(255,255,255,0.08)`,
         position: 'sticky', top: 0, zIndex: 50,
       }}>
-        <div style={{
-          maxWidth: 1100, margin: '0 auto', padding: '0 32px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 56,
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
-            <Link href="/" style={{ textDecoration: 'none' }}>
+        <div className="ns-portal-topbar-inner">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 32, minWidth: 0 }}>
+            <Link href="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
               <span style={{
                 fontFamily: 'Nunito, sans-serif', fontWeight: 900, fontSize: 18,
                 color: teal, letterSpacing: '-0.02em',
@@ -97,7 +100,7 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
                 nana<span style={{ color: '#fff' }}>says</span>
               </span>
             </Link>
-            <nav style={{ display: 'flex', gap: 4 }}>
+            <nav className="ns-portal-nav-desktop">
               {navItems.map(item => {
                 const active = pathname === item.href
                 return (
@@ -118,11 +121,12 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             </nav>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span className="ns-portal-school-name">
               {schoolName}
             </span>
             <button
-              onClick={async () => { await supabase.auth.signOut(); router.push('/claim') }}
+              onClick={signOut}
+              className="ns-portal-signout-desktop"
               style={{
                 fontSize: 12, color: 'rgba(255,255,255,0.5)', background: 'none',
                 border: '1px solid rgba(255,255,255,0.15)', borderRadius: 7,
@@ -131,7 +135,109 @@ export default function PortalLayout({ children }: { children: React.ReactNode }
             >
               Sign out
             </button>
+            <button
+              className="ns-portal-nav-mobile-btn"
+              aria-label="Open menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen(true)}
+              style={{
+                width: 38, height: 38, borderRadius: 8,
+                border: '1px solid rgba(255,255,255,0.18)',
+                background: 'rgba(255,255,255,0.06)',
+                alignItems: 'center', justifyContent: 'center',
+                padding: 0, cursor: 'pointer',
+              }}
+            >
+              <svg width="18" height="14" viewBox="0 0 18 14" fill="none" aria-hidden="true">
+                <rect y="0" width="18" height="2" rx="1" fill="#fff" />
+                <rect y="6" width="18" height="2" rx="1" fill="#fff" />
+                <rect y="12" width="18" height="2" rx="1" fill="#fff" />
+              </svg>
+            </button>
           </div>
+        </div>
+      </div>
+
+      {/* Mobile menu drawer */}
+      <div
+        onClick={() => setMenuOpen(false)}
+        style={{
+          position: 'fixed', inset: 0, zIndex: 999,
+          background: 'rgba(0,0,0,.5)',
+          opacity: menuOpen ? 1 : 0,
+          pointerEvents: menuOpen ? 'auto' : 'none',
+          transition: 'opacity .25s',
+        }}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Portal menu"
+        style={{
+          position: 'fixed', top: 0, right: 0, bottom: 0,
+          width: 'min(320px, 86vw)',
+          zIndex: 1000, background: '#fff',
+          display: 'flex', flexDirection: 'column',
+          transform: menuOpen ? 'translateX(0)' : 'translateX(100%)',
+          transition: 'transform .28s cubic-bezier(0.32,0,0.67,0)',
+          boxShadow: '-8px 0 40px rgba(0,0,0,.18)',
+        }}
+      >
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '16px 20px', borderBottom: '1px solid #E2E8F0', flexShrink: 0,
+        }}>
+          <span style={{
+            fontFamily: 'Nunito, sans-serif', fontWeight: 800, fontSize: 16, color: navy,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
+            {schoolName || 'Portal'}
+          </span>
+          <button
+            onClick={() => setMenuOpen(false)}
+            aria-label="Close menu"
+            style={{
+              background: 'none', border: '1px solid #E2E8F0', borderRadius: 8,
+              width: 34, height: 34, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 20, color: navy, lineHeight: 1,
+            }}
+          >×</button>
+        </div>
+        <nav style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
+          {navItems.map(item => {
+            const active = pathname === item.href
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMenuOpen(false)}
+                style={{
+                  display: 'block', padding: '14px 20px',
+                  fontSize: 15, fontWeight: 700,
+                  color: active ? teal : navy,
+                  background: active ? 'rgba(52,195,160,.08)' : 'transparent',
+                  textDecoration: 'none',
+                  borderLeft: active ? `3px solid ${teal}` : '3px solid transparent',
+                }}
+              >
+                {item.label}
+              </Link>
+            )
+          })}
+        </nav>
+        <div style={{ padding: '16px 20px', borderTop: '1px solid #E2E8F0' }}>
+          <button
+            onClick={() => { setMenuOpen(false); signOut() }}
+            style={{
+              width: '100%', padding: '12px 16px', borderRadius: 10,
+              fontSize: 14, fontWeight: 700,
+              color: navy, background: off,
+              border: '1px solid #E2E8F0', cursor: 'pointer',
+            }}
+          >
+            Sign out
+          </button>
         </div>
       </div>
 

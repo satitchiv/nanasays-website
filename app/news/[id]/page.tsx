@@ -32,34 +32,15 @@ function humanizeSlug(slug: string): string {
     .join(' ')
 }
 
-function decodeHtml(str: string): string {
-  return str
-    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code)))
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#039;/g, "'")
-}
-
-function cleanArticleBody(body: string): string {
-  // Decode HTML entities
-  let cleaned = decodeHtml(body)
-  // Strip WordPress RSS footer: "The post X appeared first on Y."
-  const wpIdx = cleaned.lastIndexOf('\nThe post ')
-  if (wpIdx !== -1) cleaned = cleaned.slice(0, wpIdx)
-  return cleaned.trim()
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const article = await getArticleById(params.id)
   if (!article) return { title: 'Article Not Found | NanaSays' }
   return {
-    title: `${article.english_headline} | NanaSays`,
+    title: `${article.english_headline || article.source_title} | NanaSays`,
     description: article.english_summary?.slice(0, 160) || undefined,
     alternates: { canonical: `https://nanasays.school/news/${params.id}` },
     openGraph: {
-      title: article.english_headline,
+      title: article.english_headline || article.source_title,
       description: article.english_summary?.slice(0, 160) || undefined,
       type: 'article',
       ...(article.published_at && { publishedTime: article.published_at }),
@@ -81,10 +62,6 @@ export default async function ArticlePage({ params }: Props) {
   if (!article) notFound()
 
   const color = CAT_COLORS[article.category] || '#0891b2'
-  const cleanBody = article.english_body ? cleanArticleBody(article.english_body) : ''
-  const wordCount = cleanBody.split(' ').length || 0
-  const readingTime = Math.max(1, Math.ceil(wordCount / 200))
-  const paragraphs = cleanBody.split(/\n{2,}/).filter(Boolean)
   const articleFaqs = (article.faq_json || []).map((f: any) => ({
     question: f.q || f.question,
     answer: f.a || f.answer,
@@ -133,7 +110,7 @@ export default async function ArticlePage({ params }: Props) {
           fontSize: 28, fontWeight: 900, color: 'var(--navy)', lineHeight: 1.3,
           marginBottom: 16, fontFamily: 'var(--font-nunito), Nunito, sans-serif',
         }}>
-          {article.english_headline}
+          {article.english_headline || article.source_title}
         </h1>
 
         {/* Meta line */}
@@ -145,7 +122,6 @@ export default async function ArticlePage({ params }: Props) {
               })}
             </span>
           )}
-          <span>{readingTime} min read</span>
         </div>
 
         {/* Hero image */}
@@ -153,7 +129,7 @@ export default async function ArticlePage({ params }: Props) {
           <div style={{ marginBottom: 32, borderRadius: 10, overflow: 'hidden' }}>
             <img
               src={article.featured_image_url}
-              alt={article.english_headline}
+              alt={article.english_headline || article.source_title || ''}
               style={{ width: '100%', height: 360, objectFit: 'cover', display: 'block' }}
             />
           </div>
@@ -216,22 +192,6 @@ export default async function ArticlePage({ params }: Props) {
                 {hasRealAction ? actionNeeded : 'Nothing required at this time — for your information only.'}
               </p>
             </div>
-          </div>
-        )}
-
-        {/* Body */}
-        {paragraphs.length > 0 && (
-          <div style={{ marginBottom: 36 }}>
-            {bullets.length > 0 && (
-              <p style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 18, paddingTop: 4, borderTop: '2px solid var(--border)' }}>
-                Full Article
-              </p>
-            )}
-            {paragraphs.map((para: string, i: number) => (
-              <p key={i} style={{ fontSize: 16, color: '#334', lineHeight: 1.85, marginBottom: 18 }}>
-                {para}
-              </p>
-            ))}
           </div>
         )}
 
@@ -359,7 +319,7 @@ export default async function ArticlePage({ params }: Props) {
                       </div>
                     )}
                     <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--navy)', lineHeight: 1.35 }}>
-                      {rel.english_headline}
+                      {rel.english_headline || rel.source_title}
                     </div>
                   </div>
                 </Link>

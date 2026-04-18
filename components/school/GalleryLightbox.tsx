@@ -50,7 +50,7 @@ export default function GalleryLightbox({ cells: _cells, allImages, schoolName }
       <div style={{ position: 'relative', marginBottom: 52 }}>
 
         {/* Grid */}
-        <div style={{
+        <div className="ns-gallery-grid" style={{
           display: 'grid',
           gridTemplateColumns: '2fr 1fr 1fr',
           gridTemplateRows: '180px 180px',
@@ -99,10 +99,11 @@ export default function GalleryLightbox({ cells: _cells, allImages, schoolName }
         {allImages.length > 5 && (
           <>
             <button
+              className="ns-gallery-arrow-prev"
               onClick={() => setOffset(o => Math.max(0, o - 5))}
               disabled={!canPrev}
               style={{
-                position: 'absolute', left: -18, top: '50%', transform: 'translateY(-50%)',
+                position: 'absolute', top: '50%', transform: 'translateY(-50%)',
                 width: 36, height: 36, borderRadius: '50%',
                 background: canPrev ? '#fff' : 'rgba(255,255,255,0.4)',
                 border: '1px solid var(--border)',
@@ -114,10 +115,11 @@ export default function GalleryLightbox({ cells: _cells, allImages, schoolName }
               }}
             >‹</button>
             <button
+              className="ns-gallery-arrow-next"
               onClick={() => setOffset(o => Math.min(allImages.length - 5, o + 5))}
               disabled={!canNext}
               style={{
-                position: 'absolute', right: -18, top: '50%', transform: 'translateY(-50%)',
+                position: 'absolute', top: '50%', transform: 'translateY(-50%)',
                 width: 36, height: 36, borderRadius: '50%',
                 background: canNext ? '#fff' : 'rgba(255,255,255,0.4)',
                 border: '1px solid var(--border)',

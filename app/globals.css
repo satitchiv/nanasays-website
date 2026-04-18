@@ -31,10 +31,6 @@ html {
   scroll-behavior: smooth;
 }
 
-html {
-  overflow-x: hidden;
-}
-
 body {
   font-family: var(--font-nunito-sans), 'Nunito Sans', sans-serif;
   background: var(--white);
@@ -70,6 +66,42 @@ button {
 .ns-nav-right { display: flex; gap: 9px; align-items: center; margin-left: auto; }
 .ns-nav-lang { display: block; }
 .ns-nav-main-links { display: flex; gap: 2px; align-items: center; }
+.ns-nav-burger { display: none; }
+
+/* Fee table (school detail) — horizontal scroll on phones */
+.ns-fee-table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* Compare page — horizontal scroll wrapper */
+.ns-compare-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; border-radius: 12px; }
+
+/* Gallery lightbox arrows — repositioned for mobile */
+.ns-gallery-arrow-prev { left: -18px; }
+.ns-gallery-arrow-next { right: -18px; }
+
+/* Search dropdown — responsive positioning */
+.ns-search-dropdown { /* desktop defaults handled inline */ }
+
+/* Modal cards — mobile-safe sizing */
+.ns-modal-card { /* desktop defaults handled inline */ }
+
+/* Form rows — 2-col on desktop, 1-col on mobile */
+.ns-form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+/* Footer */
+.ns-footer-inner { max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; gap: 24px; flex-wrap: wrap; }
+
+/* Portal */
+.ns-portal-topbar-inner { max-width: 1100px; margin: 0 auto; padding: 0 32px; display: flex; align-items: center; justify-content: space-between; height: 56px; }
+.ns-portal-nav { display: flex; gap: 4px; }
+.ns-portal-nav-desktop { display: flex; gap: 4px; }
+.ns-portal-nav-mobile-btn { display: none; }
+.ns-portal-signout-desktop { display: inline-flex; }
+.ns-portal-school-name { font-size: 12px; color: rgba(255,255,255,0.5); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ns-portal-content { max-width: 1100px; margin: 0 auto; padding: 32px; }
+.ns-portal-grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.ns-portal-grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+.ns-portal-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+.ns-portal-row { display: flex; gap: 16px; align-items: center; }
 
 /* Homepage hero */
 .ns-hero-inner {
@@ -129,6 +161,50 @@ button {
   /* Nav */
   .ns-nav-lang { display: none; }
   .ns-nav-main-links { display: none; }
+  .ns-nav-burger { display: flex; }
+
+  /* Fee table — tighter on mobile */
+  .ns-fee-table-wrap table { min-width: 0; font-size: 13px; }
+
+  /* Compare page — keep table readable by horizontal scroll, stack header cards */
+  .ns-compare-wrap table { min-width: 560px; }
+  .ns-compare-cards { grid-template-columns: 1fr !important; }
+
+  /* Gallery arrows — inset so they stay visible on narrow phones */
+  .ns-gallery-arrow-prev { left: 8px !important; }
+  .ns-gallery-arrow-next { right: 8px !important; }
+
+  /* Search dropdown — hug viewport edges */
+  .ns-search-dropdown { left: 8px !important; right: 8px !important; width: auto !important; }
+
+  /* Modal cards — leave 12px margin around viewport, tighten padding */
+  .ns-modal-card { max-width: calc(100vw - 24px) !important; width: calc(100vw - 24px) !important; max-height: calc(100vh - 24px) !important; overflow-y: auto; padding: 24px 20px !important; }
+
+  /* Form rows — stack on mobile (override inline gridTemplateColumns) */
+  .ns-form-row { grid-template-columns: 1fr !important; gap: 12px !important; }
+
+  /* Newsletter follow-school section — stack copy + form */
+  .ns-newsletter-grid { grid-template-columns: 1fr !important; gap: 28px !important; padding: 40px 20px !important; }
+
+  /* School Pulse stat bar — 2-col on mobile instead of up to 5 */
+  .ns-pulse-stats { grid-template-columns: repeat(2, 1fr) !important; }
+
+  /* Footer — stack, left-align */
+  .ns-footer-inner { flex-direction: column; align-items: flex-start; gap: 20px; }
+
+  /* Portal — hamburger nav, tighter content */
+  .ns-portal-topbar-inner { padding: 0 16px; gap: 12px; }
+  .ns-portal-nav-desktop { display: none; }
+  .ns-portal-nav-mobile-btn { display: flex; }
+  .ns-portal-signout-desktop { display: none; }
+  .ns-portal-school-name { display: none; }
+  .ns-portal-content { padding: 20px 16px; }
+  .ns-portal-edit-content { padding: 24px 16px 60px !important; }
+  .ns-portal-assistant-content { padding: 20px 14px !important; }
+  .ns-portal-grid-4 { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .ns-portal-grid-3 { grid-template-columns: 1fr; gap: 16px; }
+  .ns-portal-grid-2 { grid-template-columns: 1fr; gap: 16px; }
+  .ns-portal-row { flex-wrap: wrap; gap: 12px; }
   /* Stats — clear visual break from hero */
   .ns-stats-section { border-top: 3px solid var(--teal); }
   /* Partners logo grid — 2 cols on mobile */
@@ -223,6 +299,9 @@ button {
 
   /* News two-column → single column on mobile */
   .ns-news-grid   { grid-template-columns: 1fr !important; }
+
+  /* Article card (school page news widget) — stack article + Nana's Take */
+  .ns-article-inner { grid-template-columns: 1fr !important; }
 }
 
 /* Hero wrapper — always full height so absolute-positioned bg fills correctly */
@@ -235,12 +314,42 @@ button {
   .ns-hero-bg    { position: relative; inset: auto; }
 }
 
+@media (max-width: 640px) {
+  /* Compare page — tighten label column, smaller font */
+  .ns-compare-wrap td,
+  .ns-compare-wrap th { font-size: 12px !important; padding: 10px 12px !important; }
+
+  /* Gallery lightbox — shrink arrow buttons, 2-col grid layout */
+  .ns-gallery-arrow-prev,
+  .ns-gallery-arrow-next { width: 32px !important; height: 32px !important; }
+  .ns-gallery-grid { grid-template-columns: 1fr 1fr !important; grid-template-rows: 130px 130px !important; gap: 4px !important; }
+  .ns-gallery-grid > *:first-child { grid-row: 1 / 3 !important; }
+
+  /* Fee table — tighter padding */
+  .ns-fee-table-wrap th,
+  .ns-fee-table-wrap td { padding: 8px 10px !important; }
+
+  /* Blog content — prevent overflow from long URLs, scrollable tables */
+  .blog-content { word-wrap: break-word; overflow-wrap: break-word; }
+  .blog-content pre,
+  .blog-content code { white-space: pre-wrap; word-break: break-word; }
+  .blog-content table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+  /* Footer — tighter padding */
+  .ns-footer-inner { gap: 16px; }
+
+  /* Portal — tighter padding at small-phone width */
+  .ns-portal-content { padding: 16px 12px; }
+}
+
 @media (max-width: 480px) {
   /* Extra-small: country header tighter */
   .ns-country-left-col  { padding: 0 12px 40px; }
   .ns-country-toolbar   { padding: 10px 12px; margin: 0 -12px; }
   .ns-hero-inner        { padding: 32px 4% 40px; }
   .ns-stats-grid        { grid-template-columns: repeat(2, 1fr); }
+  .ns-school-hero-inner { gap: 14px; }
+  .ns-stats-bar         { gap: 0; font-size: 12px; }
 }
 
 /* CountryPageClient animation + card styles */

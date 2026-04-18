@@ -108,6 +108,7 @@ interface Props {
 
 const ARTICLE_TO_DB_COUNTRY: Record<string, string> = {
   'USA': 'United States',
+  'US': 'United States',
   'UK': 'United Kingdom',
   'UAE': 'United Arab Emirates',
 }

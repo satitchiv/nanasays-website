@@ -77,6 +77,7 @@ export default function ClaimPage() {
         email: form.email.trim(),
         job_title: form.jobTitle.trim() || null,
         school_name: selectedSchool.name,
+        school_id: selectedSchool.id,
         country: form.country.trim() || null,
         message: form.message.trim() || null,
       }),

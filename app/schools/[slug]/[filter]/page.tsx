@@ -4,6 +4,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
+import FeeText from '@/components/FeeText'
 import { getCountryPageMeta } from '@/lib/countryMeta'
 import {
   getSchoolsByFilter,
@@ -153,12 +154,6 @@ export default async function FilterPage({ params }: Props) {
             gap: 20,
           }}>
             {schools.map((school) => {
-              const feesText = school.fees_original
-                ? school.fees_original
-                : school.fees_usd_min
-                  ? `$${school.fees_usd_min.toLocaleString()}${school.fees_usd_max ? `–$${school.fees_usd_max.toLocaleString()}` : '+'}/yr`
-                  : 'Contact school'
-
               const heroUrl = school.hero_image
                 ?? `https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=600&q=70&auto=format&fit=crop`
 
@@ -225,7 +220,12 @@ export default async function FilterPage({ params }: Props) {
                         fontSize: 13, fontWeight: 700, color: 'var(--navy)',
                         borderTop: '1px solid var(--border)', paddingTop: 10, marginTop: 4,
                       }}>
-                        {feesText}
+                        <FeeText
+                          feesUsdMin={school.fees_usd_min}
+                          feesUsdMax={school.fees_usd_max}
+                          feesOriginal={school.fees_original}
+                          suffix="/yr"
+                        />
                       </div>
                     </div>
                   </article>

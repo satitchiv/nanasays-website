@@ -8,6 +8,8 @@ import { useRouter } from 'next/navigation'
 import type { CountryPageMeta } from '@/lib/countryMeta'
 import type { SchoolListItem } from '@/lib/types'
 import FilterDrawer, { type FilterState, EMPTY_FILTERS, countActiveFilters } from './FilterDrawer'
+import { useCurrency } from '../CurrencyProvider'
+import { convertFee, CURRENCY_SYMBOL } from '@/lib/currencies'
 
 const CountryMap = dynamic(() => import('./CountryMap'), { ssr: false })
 
@@ -40,12 +42,18 @@ function getSchoolImage(school: SchoolListItem, idx: number, country: string): s
 
 // ─── Formatters ───────────────────────────────────────────────────────────────
 
-function formatFee(school: SchoolListItem): string {
+function formatFee(school: SchoolListItem, displayCurrency: string = 'USD'): string {
+  if (school.fees_usd_min) {
+    const amount = displayCurrency === 'USD'
+      ? school.fees_usd_min
+      : (convertFee(school.fees_usd_min, 'USD', displayCurrency) ?? school.fees_usd_min)
+    const symbol = CURRENCY_SYMBOL[displayCurrency] ?? displayCurrency
+    return `${symbol} ${Math.round(amount / 1000)}k+`
+  }
   if (school.fees_original) {
     const parts = school.fees_original.split(' - ')
     return parts[0] + (parts.length > 1 ? '+' : '')
   }
-  if (school.fees_usd_min) return `$${Math.round(school.fees_usd_min / 1000)}k+`
   return 'Contact'
 }
 
@@ -80,6 +88,9 @@ interface Props {
 
 export default function CountryPageClient({ meta, schools }: Props) {
   const router = useRouter()
+  const { currency } = useCurrency()
+  const currencySymbol = CURRENCY_SYMBOL[currency] ?? currency
+  const toDisplay = (usd: number) => currency === 'USD' ? usd : (convertFee(usd, 'USD', currency) ?? usd)
   const [filters, setFilters] = useState<FilterState>(EMPTY_FILTERS)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -485,7 +496,7 @@ export default function CountryPageClient({ meta, schools }: Props) {
                           </td>
                           <td style={{ padding: '9px 8px', color: 'var(--body)' }}>
                             {s.fees_usd_min
-                              ? `$${Math.round(s.fees_usd_min / 1000)}k${s.fees_usd_max && s.fees_usd_max !== s.fees_usd_min ? `–$${Math.round(s.fees_usd_max / 1000)}k` : '+'}`
+                              ? `${currencySymbol} ${Math.round(toDisplay(s.fees_usd_min) / 1000)}k${s.fees_usd_max && s.fees_usd_max !== s.fees_usd_min ? `–${currencySymbol} ${Math.round(toDisplay(s.fees_usd_max) / 1000)}k` : '+'}`
                               : '—'}
                           </td>
                           {!isMobile && <td style={{ padding: '9px 8px', color: 'var(--body)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.city ?? '—'}</td>}
@@ -783,6 +794,7 @@ interface CardProps {
 }
 
 function SchoolCard({ school, idx, country, isInCompare, onCompare, onHover, onSelect, highlighted }: CardProps) {
+  const { currency } = useCurrency()
   const isFeatured = idx === 0
   const imgSrc = getSchoolImage(school, idx, country)
 
@@ -802,7 +814,7 @@ function SchoolCard({ school, idx, country, isInCompare, onCompare, onHover, onS
 
   // Stat cells
   const stats = [
-    { label: 'Fee', value: formatFee(school) },
+    { label: 'Fee', value: formatFee(school, currency) },
     { label: 'Ages', value: formatAges(school) },
     { label: 'Curriculum', value: formatCurriculum(school) },
     { label: school.nationalities_count ? 'Nationalities' : (school.boarding ? 'Type' : 'Students'), value: school.nationalities_count ? `${school.nationalities_count}+` : (school.boarding ? 'Boarding' : 'Day') },

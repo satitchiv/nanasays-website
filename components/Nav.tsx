@@ -2,9 +2,13 @@
 
 import Link from 'next/link'
 import { useLang } from './LanguageProvider'
+import { useCurrency } from './CurrencyProvider'
+
+const TOP_CURRENCIES = ['USD', 'THB', 'GBP', 'EUR', 'SGD', 'HKD', 'CHF', 'AUD', 'JPY', 'CNY']
 
 export default function Nav() {
   const { lang, setLang, t } = useLang()
+  const { currency, setCurrency } = useCurrency()
 
   return (
     <nav style={{
@@ -28,6 +32,24 @@ export default function Nav() {
 
 
       <div className="ns-nav-right">
+        {/* Currency selector */}
+        <select
+          className="ns-nav-lang"
+          value={currency}
+          onChange={e => setCurrency(e.target.value)}
+          aria-label="Display currency"
+          style={{
+            padding: '7px 12px', borderRadius: 8, fontSize: 13, fontWeight: 600,
+            border: '1px solid var(--border)', background: 'var(--off)',
+            color: 'var(--navy)', cursor: 'pointer', outline: 'none',
+            fontFamily: "'Nunito Sans', sans-serif",
+          }}
+        >
+          {TOP_CURRENCIES.map(c => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+
         {/* Language selector */}
         <select
           className="ns-nav-lang"

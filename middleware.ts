@@ -8,19 +8,14 @@ export function middleware(req: NextRequest) {
     return NextResponse.next()
   }
 
-  // All other /portal/* routes require a Supabase session cookie
-  if (pathname.startsWith('/portal')) {
-    const hasSession = [...req.cookies.getAll()].some(
-      c => c.name.includes('auth-token') && c.value
-    )
-    if (!hasSession) {
-      return NextResponse.redirect(new URL('/claim', req.url))
-    }
-  }
-
+  // All other portal and auth routes pass through to client-side auth.
+  // Supabase magic links deliver the token as a URL hash (#access_token=...)
+  // which is processed client-side only — the cookie is not set when middleware
+  // runs, so server-side cookie checks here will always block magic link flows.
+  // The portal layout handles auth client-side and redirects if no session.
   return NextResponse.next()
 }
 
 export const config = {
-  matcher: ['/portal/:path*'],
+  matcher: ['/portal/:path*', '/auth/callback'],
 }

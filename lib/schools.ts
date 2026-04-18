@@ -285,9 +285,16 @@ export async function getSchoolPairs(limit = 500): Promise<{ slugA: string; slug
   return pairs
 }
 
-export function formatFees(school: Pick<School, 'fees_usd_min' | 'fees_usd_max' | 'fees_original' | 'fees_currency'>): string {
+export function formatFees(school: Pick<School, 'fees_usd_min' | 'fees_usd_max' | 'fees_original' | 'fees_currency' | 'fees_local_min' | 'fees_local_max' | 'fees_local_currency'>): string {
+  if (school.fees_local_min && school.fees_local_currency) {
+    const currency = school.fees_local_currency
+    const min = school.fees_local_min.toLocaleString()
+    if (school.fees_local_max && school.fees_local_max !== school.fees_local_min) {
+      return `${currency} ${min} – ${school.fees_local_max.toLocaleString()}`
+    }
+    return `From ${currency} ${min}`
+  }
   if (school.fees_original) {
-    // Ensure space between currency code and number (e.g. "THB343,460" → "THB 343,460")
     return school.fees_original.replace(/([A-Z]{3})(\d)/, '$1 $2')
   }
   if (school.fees_usd_min && school.fees_usd_max) {
