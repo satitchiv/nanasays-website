@@ -20,6 +20,7 @@ const DEFAULT_GROUPS: TocGroup[] = [
       { href: '#admissions',    label: 'Admissions' },
       { href: '#fees',          label: 'Fees & true cost' },
       { href: '#pastoral',      label: 'Pastoral & facilities' },
+      { href: '#sports',        label: 'Sport & athletics' },
       { href: '#community',     label: 'Student community' },
       { href: '#daily-life',    label: 'Daily life' },
       { href: '#recent',        label: 'Last 12 months' },

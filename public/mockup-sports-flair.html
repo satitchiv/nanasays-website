@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Sports section — 3 flair variants · Reed's School</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root{
+    --navy:#1B3252; --navy-d:#0f2238;
+    --teal:#34C3A0; --teal-dk:#239C80; --teal-bg:#E8FAF6;
+    --amber:#D97706; --amber-bg:#FEF3C7;
+    --red:#B91C1C; --red-bg:#FEE2E2;
+    --green:#059669; --green-bg:#D1FAE5;
+    --blue:#2D7DD2; --blue-bg:#EBF4FF;
+    --border:#E5E7EB; --muted:#6B7280; --off:#F6F8FA;
+    --text:#1f2937;
+  }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Nunito Sans', sans-serif; background: var(--off); color: var(--text); line-height: 1.65; }
+  a { color: var(--teal-dk); text-decoration: none; }
+
+  .page { max-width: 1100px; margin: 0 auto; padding: 40px 24px 120px; }
+  header.intro { padding: 20px 0 40px; border-bottom: 2px solid var(--border); margin-bottom: 40px; }
+  header.intro .eyebrow { font-size: 11px; font-weight: 900; color: var(--teal-dk); letter-spacing: .18em; text-transform: uppercase; margin-bottom: 10px; }
+  header.intro h1 { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 32px; color: var(--navy); margin-bottom: 8px; letter-spacing: -.02em; }
+  header.intro p { font-size: 15px; color: var(--text); max-width: 720px; line-height: 1.65; }
+  header.intro .toc { display: flex; gap: 14px; margin-top: 18px; flex-wrap: wrap; }
+  header.intro .toc a { background: #fff; border: 1px solid var(--border); border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 700; color: var(--navy); }
+
+  .variant { margin-bottom: 80px; scroll-margin-top: 24px; }
+  .variant-header { margin-bottom: 20px; padding: 18px 22px; background: var(--navy); color: #fff; border-radius: 12px; }
+  .variant-header .label { font-size: 10px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--teal); margin-bottom: 6px; }
+  .variant-header h2 { font-family: 'Nunito', sans-serif; font-size: 22px; font-weight: 900; margin-bottom: 8px; }
+  .variant-header .meta { font-size: 14px; color: rgba(255,255,255,.8); line-height: 1.55; }
+
+  h3.sub { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 17px; color: var(--navy); margin: 22px 0 8px; }
+  .section-wrap { background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 26px 28px; }
+  .block-title { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 22px; color: var(--navy); letter-spacing: -.01em; margin-bottom: 14px; }
+
+  table { width: 100%; border-collapse: collapse; margin: 14px 0; font-size: 14px; }
+  table th { background: var(--off); color: var(--navy); text-align: left; padding: 10px 12px; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; border-bottom: 1px solid var(--border); }
+  table td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  table tr:last-child td { border-bottom: 0; }
+
+  /* ═══════════════════════════════════════════════ */
+  /* VARIANT 1 — Signature flair                     */
+  /* ═══════════════════════════════════════════════ */
+
+  /* Tier cards (Major / Academy / Optional) */
+  .v1-tiers { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; margin: 16px 0 24px; }
+  .v1-tier { padding: 18px 20px; border-radius: 14px; border: 1px solid var(--border); background: #fff; position: relative; }
+  .v1-tier.major { background: linear-gradient(135deg, #fff, var(--teal-bg)); border-color: var(--teal); }
+  .v1-tier.academy { background: linear-gradient(135deg, #fff, var(--blue-bg)); border-color: var(--blue); }
+  .v1-tier.optional { background: var(--off); }
+  .v1-tier .tier-label { font-size: 10px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 8px; }
+  .v1-tier.major .tier-label { color: var(--teal-dk); }
+  .v1-tier.academy .tier-label { color: var(--blue); }
+  .v1-tier.optional .tier-label { color: var(--muted); }
+  .v1-tier .tier-list { display: flex; flex-wrap: wrap; gap: 6px; }
+  .v1-tier .tier-list span { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 14px; color: var(--navy); padding: 4px 10px; background: rgba(255,255,255,.7); border-radius: 8px; border: 1px solid rgba(0,0,0,.05); }
+
+  /* Signature competitions banner */
+  .v1-comp-featured { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; margin: 12px 0 20px; }
+  .v1-comp-card { padding: 16px 18px; border-radius: 12px; background: #fff; border: 2px solid var(--teal); display: flex; gap: 14px; align-items: center; box-shadow: 0 4px 12px rgba(46,92,75,0.08); }
+  .v1-comp-card .icon { font-size: 28px; line-height: 1; }
+  .v1-comp-card .comp-info { flex: 1; }
+  .v1-comp-card .sport { font-size: 10px; font-weight: 900; letter-spacing: .12em; color: var(--teal-dk); text-transform: uppercase; }
+  .v1-comp-card .name { font-family: 'Nunito', sans-serif; font-weight: 800; color: var(--navy); font-size: 15px; line-height: 1.25; margin-top: 2px; }
+  .v1-comp-card .tag { display: inline-block; font-size: 9px; font-weight: 900; padding: 2px 6px; border-radius: 8px; letter-spacing: .06em; text-transform: uppercase; background: var(--teal-bg); color: var(--teal-dk); margin-top: 4px; }
+  .v1-comp-card .tag.hosts { background: var(--amber-bg); color: var(--amber); }
+
+  /* Coaches avatar grid */
+  .v1-coaches { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 12px 0; }
+  .v1-coach { display: flex; gap: 12px; align-items: center; padding: 12px 14px; background: var(--off); border-radius: 12px; border: 1px solid var(--border); }
+  .v1-coach .avatar { width: 42px; height: 42px; border-radius: 50%; background: var(--navy); color: #fff; display: flex; align-items: center; justify-content: center; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 15px; flex-shrink: 0; }
+  .v1-coach.pro .avatar { background: var(--teal); color: var(--navy); }
+  .v1-coach .info { flex: 1; min-width: 0; }
+  .v1-coach .name { font-family: 'Nunito', sans-serif; font-weight: 800; color: var(--navy); font-size: 14px; line-height: 1.2; }
+  .v1-coach .role { font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.3; }
+  .v1-coach .badge { display: inline-block; margin-left: 6px; font-size: 9px; font-weight: 900; padding: 2px 6px; border-radius: 8px; background: var(--teal-bg); color: var(--teal-dk); letter-spacing: .06em; text-transform: uppercase; vertical-align: middle; }
+
+  /* Facilities icon grid */
+  .v1-fac-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin: 12px 0; }
+  .v1-fac { display: flex; gap: 10px; align-items: center; padding: 10px 12px; background: var(--off); border-radius: 10px; border: 1px solid var(--border); }
+  .v1-fac .icon { font-size: 20px; line-height: 1; }
+  .v1-fac .label { font-size: 13px; color: var(--navy); font-weight: 600; line-height: 1.3; }
+
+  /* ═══════════════════════════════════════════════ */
+  /* VARIANT 2 — Card-first                          */
+  /* ═══════════════════════════════════════════════ */
+
+  .v2-hero { background: linear-gradient(135deg, var(--navy), var(--navy-d)); color: #fff; border-radius: 18px; padding: 28px 32px; margin: 14px 0 24px; }
+  .v2-hero .eyebrow { font-size: 11px; font-weight: 900; color: var(--teal); letter-spacing: .18em; text-transform: uppercase; margin-bottom: 8px; }
+  .v2-hero .headline { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 22px; line-height: 1.2; margin-bottom: 6px; }
+  .v2-hero .summary { font-size: 14.5px; color: rgba(255,255,255,.8); line-height: 1.6; max-width: 700px; }
+  .v2-hero-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 14px; margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,.2); }
+  .v2-hero-stat .v2-num { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 28px; color: var(--teal); line-height: 1; }
+  .v2-hero-stat .v2-sub { font-size: 11px; color: rgba(255,255,255,.65); text-transform: uppercase; letter-spacing: .08em; margin-top: 4px; font-weight: 700; }
+
+  .v2-comp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px; margin: 16px 0; }
+  .v2-comp { padding: 16px; background: #fff; border: 1px solid var(--border); border-radius: 12px; display: flex; gap: 12px; }
+  .v2-comp.national { border-left: 4px solid var(--teal); }
+  .v2-comp.regional { border-left: 4px solid var(--amber); }
+  .v2-comp.county   { border-left: 4px solid var(--blue); }
+  .v2-comp.school   { border-left: 4px solid var(--muted); }
+  .v2-comp .emoji { font-size: 26px; }
+  .v2-comp .body { flex: 1; }
+  .v2-comp .sport { font-size: 11px; font-weight: 800; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
+  .v2-comp .name { font-family: 'Nunito', sans-serif; font-weight: 800; color: var(--navy); font-size: 14px; line-height: 1.3; margin-top: 2px; }
+  .v2-comp .scope-tag { display: inline-block; margin-top: 4px; font-size: 9px; font-weight: 900; padding: 2px 7px; border-radius: 8px; letter-spacing: .06em; text-transform: uppercase; }
+  .v2-comp.national .scope-tag { background: var(--teal-bg); color: var(--teal-dk); }
+  .v2-comp.regional .scope-tag { background: var(--amber-bg); color: var(--amber); }
+  .v2-comp.county .scope-tag { background: var(--blue-bg); color: var(--blue); }
+  .v2-comp.school .scope-tag { background: var(--off); color: var(--muted); }
+
+  /* Coach carousel-style */
+  .v2-coach-band { display: flex; gap: 12px; overflow-x: auto; padding: 8px 2px 16px; margin: 12px -4px; scroll-snap-type: x mandatory; }
+  .v2-coach-band .card { flex: 0 0 auto; width: 210px; padding: 16px; border-radius: 14px; background: linear-gradient(135deg, #fff, var(--off)); border: 1px solid var(--border); scroll-snap-align: start; }
+  .v2-coach-band .card .sport-tag { font-size: 10px; font-weight: 900; color: var(--teal-dk); letter-spacing: .1em; text-transform: uppercase; margin-bottom: 6px; }
+  .v2-coach-band .card .name { font-family: 'Nunito', sans-serif; font-weight: 800; color: var(--navy); font-size: 15px; margin-bottom: 4px; }
+  .v2-coach-band .card .role { font-size: 12px; color: var(--muted); line-height: 1.4; }
+  .v2-coach-band .card.pro { background: linear-gradient(135deg, var(--teal-bg), #fff); border-color: var(--teal); }
+
+  /* ═══════════════════════════════════════════════ */
+  /* VARIANT 3 — Sport-by-sport cards                */
+  /* ═══════════════════════════════════════════════ */
+
+  .v3-sport-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; margin: 14px 0 24px; }
+  .v3-sport-card { background: #fff; border-radius: 16px; border: 1px solid var(--border); padding: 22px 24px; position: relative; overflow: hidden; }
+  .v3-sport-card::before { content: ''; position: absolute; left: 0; top: 0; right: 0; height: 6px; background: var(--teal); }
+  .v3-sport-card.major::before   { background: linear-gradient(90deg, var(--teal), var(--teal-dk)); }
+  .v3-sport-card.academy::before { background: linear-gradient(90deg, var(--blue), #1e5ea8); }
+  .v3-sport-card.optional::before { background: var(--border); }
+  .v3-sport-card .sport-emoji { font-size: 36px; line-height: 1; margin-bottom: 6px; }
+  .v3-sport-card .sport-name { font-family: 'Nunito', sans-serif; font-weight: 900; color: var(--navy); font-size: 20px; letter-spacing: -.01em; }
+  .v3-sport-card .sport-tier { display: inline-block; font-size: 10px; font-weight: 900; padding: 3px 8px; border-radius: 8px; letter-spacing: .08em; text-transform: uppercase; margin-left: 8px; vertical-align: middle; }
+  .v3-sport-card .sport-tier.major { background: var(--teal-bg); color: var(--teal-dk); }
+  .v3-sport-card .sport-tier.academy { background: var(--blue-bg); color: var(--blue); }
+  .v3-sport-card .sport-stat-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 14px 0; }
+  .v3-sport-card .sport-stat { background: var(--off); padding: 10px 12px; border-radius: 8px; }
+  .v3-sport-card .sport-stat .num { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px; color: var(--navy); line-height: 1; }
+  .v3-sport-card .sport-stat .lbl { font-size: 10px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-top: 3px; }
+  .v3-sport-card .sport-block { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border); }
+  .v3-sport-card .sport-block .label { font-size: 10px; font-weight: 900; color: var(--muted); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 4px; }
+  .v3-sport-card .sport-block .value { font-size: 13px; color: var(--text); line-height: 1.5; }
+  .v3-sport-card .sport-block .value strong { color: var(--navy); }
+
+  .v3-other-sports { display: flex; flex-wrap: wrap; gap: 6px; padding: 16px 20px; background: var(--off); border-radius: 12px; margin-top: 12px; }
+  .v3-other-sports .chip { background: #fff; border: 1px solid var(--border); font-size: 13px; padding: 4px 10px; border-radius: 20px; color: var(--muted); font-weight: 600; }
+
+</style>
+</head>
+<body>
+<main class="page">
+
+<header class="intro">
+  <div class="eyebrow">Sport section · flair exploration</div>
+  <h1>3 ways to add visual flair to the sports section</h1>
+  <p>Same Reed&apos;s data you already have in the report — three different visual treatments. Pick one or mix (e.g. V1 tier cards + V2 competition cards). The data tables that are working well (opponents, team depth) stay unchanged; the variants only touch the sections that feel like &quot;blob of text&quot; today.</p>
+  <div class="toc">
+    <a href="#v1">V1 · Signature flair</a>
+    <a href="#v2">V2 · Card-first</a>
+    <a href="#v3">V3 · Sport-by-sport cards</a>
+  </div>
+</header>
+
+<!-- ═════════════════════════════════════════════ -->
+<!-- V1 — Signature flair                         -->
+<!-- ═════════════════════════════════════════════ -->
+<section class="variant" id="v1">
+  <div class="variant-header">
+    <div class="label">Variant 1 · "Signature flair"</div>
+    <h2>Minimal change — visual anchors on key blocks, data tables stay</h2>
+    <div class="meta">Keeps the rigour of tables for competitions/teams/opponents. Adds colour-coded tier cards, trophy cards for national tournaments, avatar cards for coaches, and icon-grid facilities. Safe, scannable, on-brand.</div>
+  </div>
+
+  <div class="section-wrap">
+    <h2 class="block-title">Sport & athletics</h2>
+
+    <!-- Sport tiers as cards -->
+    <div class="v1-tiers">
+      <div class="v1-tier major">
+        <div class="tier-label">★ Major sports</div>
+        <div class="tier-list">
+          <span>Rugby Union</span><span>Hockey</span><span>Cricket</span>
+        </div>
+      </div>
+      <div class="v1-tier academy">
+        <div class="tier-label">◆ Academy (high-performance)</div>
+        <div class="tier-list">
+          <span>Tennis</span><span>Ski Racing</span><span>Golf</span><span>Swimming</span>
+        </div>
+      </div>
+      <div class="v1-tier optional">
+        <div class="tier-label">· Optional</div>
+        <div class="tier-list">
+          <span>Netball</span><span>Squash</span><span>Athletics</span><span>+7 more</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Signature competitions -->
+    <h3 class="sub">Featured national competitions</h3>
+    <div class="v1-comp-featured">
+      <div class="v1-comp-card">
+        <span class="icon">🏉</span>
+        <div class="comp-info">
+          <div class="sport">Rugby Union</div>
+          <div class="name">Daily Mail Trophy</div>
+          <span class="tag">National · Featured</span>
+        </div>
+      </div>
+      <div class="v1-comp-card">
+        <span class="icon">🏆</span>
+        <div class="comp-info">
+          <div class="sport">Rugby Sevens</div>
+          <div class="name">Rosslyn Park National Schools Sevens</div>
+          <span class="tag">National · Featured</span>
+        </div>
+      </div>
+      <div class="v1-comp-card" style="border-color: var(--amber);">
+        <span class="icon">🏟️</span>
+        <div class="comp-info">
+          <div class="sport">Rugby Sevens</div>
+          <div class="name">The Reed&apos;s Sevens (hosted here)</div>
+          <span class="tag hosts">Hosts</span>
+        </div>
+      </div>
+    </div>
+
+    <p style="font-size: 13px; color: var(--muted); margin: -8px 0 16px;">Plus 8 more competitions (Continental Tyres Schools Cup, National Schools Hockey, SSCA Cricket…) — see full table below.</p>
+
+    <table>
+      <thead><tr><th>Sport</th><th>Competition</th><th>Scope</th></tr></thead>
+      <tbody>
+        <tr><td>Rugby Union</td><td>Continental Tyres Schools Cup</td><td>National</td></tr>
+        <tr><td>Cricket</td><td>Surrey Schools&apos; Cricket Association (SSCA)</td><td>County</td></tr>
+        <tr><td>Hockey</td><td>National Schools Hockey Championships</td><td>National</td></tr>
+        <tr><td>Hockey</td><td>Inspiresport ISHC Competitions</td><td>Regional</td></tr>
+        <tr><td>…</td><td>(+7 more)</td><td>—</td></tr>
+      </tbody>
+    </table>
+
+    <!-- Coaches as avatar cards -->
+    <h3 class="sub">Coaching staff</h3>
+    <div class="v1-coaches">
+      <div class="v1-coach pro">
+        <div class="avatar">DC</div>
+        <div class="info">
+          <div class="name">Danny Care <span class="badge">Pro</span></div>
+          <div class="role">Rugby · Former England international</div>
+        </div>
+      </div>
+      <div class="v1-coach pro">
+        <div class="avatar">KM</div>
+        <div class="info">
+          <div class="name">Keith Medlycott <span class="badge">Pro</span></div>
+          <div class="role">Cricket · Professional cricket coach</div>
+        </div>
+      </div>
+      <div class="v1-coach pro">
+        <div class="avatar">MW</div>
+        <div class="info">
+          <div class="name">Mike Williamson <span class="badge">Pro</span></div>
+          <div class="role">Hockey · Professional hockey coach</div>
+        </div>
+      </div>
+      <div class="v1-coach">
+        <div class="avatar">NJ</div>
+        <div class="info">
+          <div class="name">Nick Jones</div>
+          <div class="role">Tennis Academy Head · RPDC Programme Manager</div>
+        </div>
+      </div>
+      <div class="v1-coach">
+        <div class="avatar">TA</div>
+        <div class="info">
+          <div class="name">Taryn Archbold</div>
+          <div class="role">Head Ski Coach</div>
+        </div>
+      </div>
+      <div class="v1-coach">
+        <div class="avatar">CG</div>
+        <div class="info">
+          <div class="name">Craig Gibbons</div>
+          <div class="role">Head Coach · Reed&apos;s Swimming Academy</div>
+        </div>
+      </div>
+    </div>
+    <p style="font-size: 13px; color: var(--muted); margin-top: 4px;">+ 4 more (Will Davis, Nick Greenhouse, Ben Haran, Meg Crowson).</p>
+
+    <!-- Facilities as icon cards -->
+    <h3 class="sub">Signature facilities</h3>
+    <div class="v1-fac-grid">
+      <div class="v1-fac"><span class="icon">🏏</span><div class="label">Jarrett Indoor Cricket Centre · 5 nets + PitchVision</div></div>
+      <div class="v1-fac"><span class="icon">⚽</span><div class="label">2 floodlit astroturf pitches</div></div>
+      <div class="v1-fac"><span class="icon">🏊</span><div class="label">25-metre indoor swimming pool</div></div>
+      <div class="v1-fac"><span class="icon">🎾</span><div class="label">Indoor + outdoor tennis courts</div></div>
+      <div class="v1-fac"><span class="icon">🎯</span><div class="label">Squash courts</div></div>
+      <div class="v1-fac"><span class="icon">🏋️</span><div class="label">Multi-fitness gym</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════ -->
+<!-- V2 — Card-first with hero                     -->
+<!-- ═════════════════════════════════════════════ -->
+<section class="variant" id="v2">
+  <div class="variant-header">
+    <div class="label">Variant 2 · "Card-first with hero"</div>
+    <h2>Dark navy hero at top with the headline story, then cards everywhere</h2>
+    <div class="meta">Bigger visual impact. A big navy hero banner opens the section with the most impressive stats. Competitions become coloured cards sorted by scope (national → regional → county → school). Coaches in a horizontal card band. Most maximalist of the three.</div>
+  </div>
+
+  <div class="section-wrap">
+    <h2 class="block-title">Sport & athletics</h2>
+
+    <!-- Hero banner -->
+    <div class="v2-hero">
+      <div class="eyebrow">Sport at Reed&apos;s</div>
+      <div class="headline">Mid-to-high tier competitive sport — national rugby and hockey, Academy programmes in tennis, skiing, golf and swimming.</div>
+      <div class="summary">Reed&apos;s fields <strong style="color:var(--teal)">105 teams</strong> across <strong style="color:var(--teal)">18 sports</strong>, enters the <strong style="color:var(--teal)">Daily Mail Trophy</strong> and <strong style="color:var(--teal)">Rosslyn Park 7s</strong>, and employs professional coaches including <strong style="color:var(--teal)">Danny Care</strong> (former England rugby).</div>
+      <div class="v2-hero-stats">
+        <div class="v2-hero-stat"><div class="v2-num">18</div><div class="v2-sub">Sports</div></div>
+        <div class="v2-hero-stat"><div class="v2-num">105</div><div class="v2-sub">Teams</div></div>
+        <div class="v2-hero-stat"><div class="v2-num">11</div><div class="v2-sub">Competitions</div></div>
+        <div class="v2-hero-stat"><div class="v2-num">4</div><div class="v2-sub">National-tier</div></div>
+        <div class="v2-hero-stat"><div class="v2-num">1,200</div><div class="v2-sub">Fixtures / yr</div></div>
+      </div>
+    </div>
+
+    <!-- Competitions as colour-coded cards -->
+    <h3 class="sub">Competitions entered</h3>
+    <div class="v2-comp-grid">
+      <div class="v2-comp national">
+        <span class="emoji">🏉</span>
+        <div class="body">
+          <div class="sport">Rugby Union</div>
+          <div class="name">Daily Mail Trophy</div>
+          <span class="scope-tag">National · Featured</span>
+        </div>
+      </div>
+      <div class="v2-comp national">
+        <span class="emoji">🏆</span>
+        <div class="body">
+          <div class="sport">Rugby Sevens</div>
+          <div class="name">Rosslyn Park National Schools Sevens</div>
+          <span class="scope-tag">National · Featured</span>
+        </div>
+      </div>
+      <div class="v2-comp national">
+        <span class="emoji">🏑</span>
+        <div class="body">
+          <div class="sport">Hockey</div>
+          <div class="name">National Schools Hockey Championships</div>
+          <span class="scope-tag">National</span>
+        </div>
+      </div>
+      <div class="v2-comp national">
+        <span class="emoji">🏉</span>
+        <div class="body">
+          <div class="sport">Rugby Union</div>
+          <div class="name">Continental Tyres Schools Cup</div>
+          <span class="scope-tag">National</span>
+        </div>
+      </div>
+      <div class="v2-comp regional">
+        <span class="emoji">🏑</span>
+        <div class="body">
+          <div class="sport">Hockey</div>
+          <div class="name">Inspiresport ISHC Competitions</div>
+          <span class="scope-tag">Regional</span>
+        </div>
+      </div>
+      <div class="v2-comp county">
+        <span class="emoji">🏏</span>
+        <div class="body">
+          <div class="sport">Cricket</div>
+          <div class="name">Surrey Schools&apos; Cricket Association (SSCA)</div>
+          <span class="scope-tag">County</span>
+        </div>
+      </div>
+      <div class="v2-comp school">
+        <span class="emoji">🏟️</span>
+        <div class="body">
+          <div class="sport">Rugby Sevens</div>
+          <div class="name">The Reed&apos;s Sevens <em style="color:var(--amber); font-size: 11px;">(hosted by Reed&apos;s)</em></div>
+          <span class="scope-tag">School-hosted</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Coach horizontal band -->
+    <h3 class="sub">Coaching staff</h3>
+    <div class="v2-coach-band">
+      <div class="card pro">
+        <div class="sport-tag">Rugby Union</div>
+        <div class="name">Danny Care</div>
+        <div class="role">Professional Rugby Coach · Former England international</div>
+      </div>
+      <div class="card pro">
+        <div class="sport-tag">Cricket</div>
+        <div class="name">Keith Medlycott</div>
+        <div class="role">Professional Cricket Coach</div>
+      </div>
+      <div class="card pro">
+        <div class="sport-tag">Hockey</div>
+        <div class="name">Mike Williamson</div>
+        <div class="role">Professional Hockey Coach</div>
+      </div>
+      <div class="card">
+        <div class="sport-tag">Tennis</div>
+        <div class="name">Nick Jones</div>
+        <div class="role">Tennis Academy Head · RPDC Programme Manager</div>
+      </div>
+      <div class="card">
+        <div class="sport-tag">Ski Racing</div>
+        <div class="name">Taryn Archbold</div>
+        <div class="role">Head Ski Coach</div>
+      </div>
+      <div class="card">
+        <div class="sport-tag">Swimming</div>
+        <div class="name">Craig Gibbons</div>
+        <div class="role">Head Coach · Reed&apos;s Swimming Academy</div>
+      </div>
+    </div>
+    <p style="font-size: 12px; color: var(--muted); margin-top: -4px;">Scroll sideways on mobile · + 4 more coaches</p>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════ -->
+<!-- V3 — Sport-by-sport cards                      -->
+<!-- ═════════════════════════════════════════════ -->
+<section class="variant" id="v3">
+  <div class="variant-header">
+    <div class="label">Variant 3 · "Sport-by-sport cards"</div>
+    <h2>One card per signature sport — full picture of that sport in one glance</h2>
+    <div class="meta">Groups all data by sport: teams + competitions + coach + alumni in a single card per Major/Academy sport. Best if a parent cares about ONE sport more than the portfolio. Less comparison-friendly but very story-driven.</div>
+  </div>
+
+  <div class="section-wrap">
+    <h2 class="block-title">Sport & athletics</h2>
+
+    <div class="v3-sport-grid">
+
+      <div class="v3-sport-card major">
+        <span class="sport-emoji">🏉</span>
+        <div class="sport-name">Rugby Union <span class="sport-tier major">Major</span></div>
+        <div class="sport-stat-row">
+          <div class="sport-stat"><div class="num">1</div><div class="lbl">1st XI through U12</div></div>
+          <div class="sport-stat"><div class="num">2</div><div class="lbl">National comps</div></div>
+        </div>
+        <div class="sport-block">
+          <div class="label">Competitions</div>
+          <div class="value">Daily Mail Trophy · Continental Tyres Cup · Rosslyn Park 7s · Reed&apos;s Sevens (hosted)</div>
+        </div>
+        <div class="sport-block">
+          <div class="label">Notable coach</div>
+          <div class="value"><strong>Danny Care</strong> — former England international</div>
+        </div>
+        <div class="sport-block">
+          <div class="label">Notable alumni</div>
+          <div class="value"><strong>Paul Brown</strong> (Exeter Chiefs) · <strong>Jack Kenningham</strong> (Harlequins)</div>
+        </div>
+      </div>
+
+      <div class="v3-sport-card major">
+        <span class="sport-emoji">🏏</span>
+        <div class="sport-name">Cricket <span class="sport-tier major">Major</span></div>
+        <div class="sport-stat-row">
+          <div class="sport-stat"><div class="num">21</div><div class="lbl">Boys teams</div></div>
+          <div class="sport-stat"><div class="num">1</div><div class="lbl">Girls 1st XI</div></div>
+        </div>
+        <div class="sport-block">
+          <div class="label">Competitions</div>
+          <div class="value">Surrey Schools&apos; Cricket Association (SSCA) · block fixtures Wed + Sat</div>
+        </div>
+        <div class="sport-block">
+          <div class="label">Notable coach</div>
+          <div class="value"><strong>Keith Medlycott</strong> — professional cricket coach</div>
+        </div>
+        <div class="sport-block">
+          <div class="label">Facility</div>
+          <div class="value"><strong>Jarrett Indoor Cricket Centre</strong> · 5 nets · PitchVision analysis system</div>
+        </div>
+        <div class="sport-block">
+          <div class="label">Notable alumni</div>
+          <div class="value"><strong>Dan Douthwaite</strong> (Glamorgan) · <strong>Phil Salt</strong> (Sussex)</div>
+        </div>
+      </div>
+
+      <div class="v3-sport-card major">
+        <span class="sport-emoji">🏑</span>
+        <div class="sport-name">Hockey <span class="sport-tier major">Major</span></div>
+        <div class="sport-stat-row">
+          <div class="sport-stat"><div class="num">5</div><div class="lbl">Girls team levels</div></div>
+          <div class="sport-stat"><div class="num">3</div><div class="lbl">Competitions</div></div>
+        </div>
+        <div class="sport-block">
+          <div class="label">Competitions</div>
+          <div class="value">National Schools Hockey Championships · Inspiresport ISHC · SOCS St George&apos;s Sixes</div>
+        </div>
+        <div class="sport-block">
+          <div class="label">Notable coach</div>
+          <div class="value"><strong>Mike Williamson</strong> — professional hockey coach</div>
+        </div>
+        <div class="sport-block">
+          <div class="label">Notable alumni</div>
+          <div class="value"><strong>Connor Williamson OLY</strong> (England, Olympian) · <strong>Catherine De Ledesma</strong> (England)</div>
+        </div>
+      </div>
+
+      <div class="v3-sport-card academy">
+        <span class="sport-emoji">🎾</span>
+        <div class="sport-name">Tennis <span class="sport-tier academy">Academy</span></div>
+        <div class="sport-stat-row">
+          <div class="sport-stat"><div class="num">18</div><div class="lbl">Team levels</div></div>
+          <div class="sport-stat"><div class="num">3</div><div class="lbl">Named coaches</div></div>
+        </div>
+        <div class="sport-block">
+          <div class="label">Programme</div>
+          <div class="value">Regional Player Development Centre (RPDC) · indoor + outdoor courts</div>
+        </div>
+        <div class="sport-block">
+          <div class="label">Notable coach</div>
+          <div class="value"><strong>Nick Jones</strong> — Tennis Academy Head, RPDC Programme Manager</div>
+        </div>
+        <div class="sport-block">
+          <div class="label">Notable alumni</div>
+          <div class="value"><strong>Jack Draper</strong> (professional) · <strong>Tim Henman OBE</strong> · <strong>Jamie Delgado</strong> (Murray coach)</div>
+        </div>
+      </div>
+
+      <div class="v3-sport-card academy">
+        <span class="sport-emoji">⛷️</span>
+        <div class="sport-name">Ski Racing <span class="sport-tier academy">Academy</span></div>
+        <div class="sport-stat-row">
+          <div class="sport-stat"><div class="num">1</div><div class="lbl">Performance Squad</div></div>
+          <div class="sport-stat"><div class="num">2</div><div class="lbl">Olympians</div></div>
+        </div>
+        <div class="sport-block">
+          <div class="label">Training venues</div>
+          <div class="value">Sandown + Aldershot · winter on-snow training</div>
+        </div>
+        <div class="sport-block">
+          <div class="label">Notable coach</div>
+          <div class="value"><strong>Taryn Archbold</strong> — Head Ski Coach</div>
+        </div>
+        <div class="sport-block">
+          <div class="label">Notable alumni</div>
+          <div class="value"><strong>Luke Steyn OLY</strong> · <strong>Jack Gower</strong> · Roy-Alexander Steudle (World Cup)</div>
+        </div>
+      </div>
+
+      <div class="v3-sport-card academy">
+        <span class="sport-emoji">⛳</span>
+        <div class="sport-name">Golf <span class="sport-tier academy">Academy</span></div>
+        <div class="sport-stat-row">
+          <div class="sport-stat"><div class="num">5</div><div class="lbl">Team levels</div></div>
+          <div class="sport-stat"><div class="num">1</div><div class="lbl">Close Squad</div></div>
+        </div>
+        <div class="sport-block">
+          <div class="label">Partner venue</div>
+          <div class="value"><strong>Burhill Golf Club</strong> (10 mins away) · Academy partnership</div>
+        </div>
+        <div class="sport-block">
+          <div class="label">Alumni society</div>
+          <div class="value">OR Golf Society · annual days at Sunningdale, Tyrrells Wood, Farnham, Hartley Wintney</div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="v3-other-sports">
+      <span style="font-size: 11px; font-weight: 900; color: var(--muted); letter-spacing: .1em; text-transform: uppercase; margin-right: 6px;">Also offered:</span>
+      <span class="chip">Swimming</span>
+      <span class="chip">Athletics</span>
+      <span class="chip">Netball</span>
+      <span class="chip">Squash</span>
+      <span class="chip">Badminton</span>
+      <span class="chip">Football</span>
+      <span class="chip">Basketball</span>
+      <span class="chip">Beach Volleyball</span>
+      <span class="chip">Biathlon</span>
+      <span class="chip">Cross Country</span>
+      <span class="chip">Indoor Hockey</span>
+      <span class="chip">Hockey Sixes</span>
+    </div>
+  </div>
+</section>
+
+<!-- Decision block -->
+<div style="margin-top: 60px; padding: 24px; background: var(--teal-bg); border: 1px solid var(--teal); border-radius: 14px;">
+  <h3 style="margin: 0 0 10px; color: var(--navy); font-family: 'Nunito', sans-serif;">Which one?</h3>
+  <p style="margin: 0; font-size: 14.5px; color: var(--text); line-height: 1.6;">
+    <strong>V1 · Signature flair</strong> — Safe, keeps everything you have. Just adds tier cards, trophy cards, avatar coaches, icon facilities. ~30 min to build.<br><br>
+    <strong>V2 · Card-first</strong> — Biggest visual impact. Dark hero banner, coloured competition cards, horizontal coach scroll. ~45 min.<br><br>
+    <strong>V3 · Sport-by-sport cards</strong> — Tells the best story per sport. Major redesign of the middle of the section. ~1 hour. (I&apos;d pair this with keeping the opponents + team-depth tables at the bottom for rigour.)
+  </p>
+  <p style="margin: 12px 0 0; font-size: 14px;">
+    <strong>My pick:</strong> V1 (low risk, looks meaningfully better) or <strong>V1 + parts of V3</strong> (tier cards from V1, sport-by-sport cards for the 3 Major sports only, tables for the rest). Tell me which way.
+  </p>
+</div>
+
+</main>
+</body>
+</html>

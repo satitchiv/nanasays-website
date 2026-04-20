@@ -14,6 +14,8 @@ import CurriculumSection      from '@/components/report/CurriculumSection'
 import UniversityDestinations from '@/components/report/UniversityDestinations'
 import AdmissionsSection      from '@/components/report/AdmissionsSection'
 import CommunityProfile       from '@/components/report/CommunityProfile'
+import FeesSection            from '@/components/report/FeesSection'
+import SportsSection          from '@/components/report/SportsSection'
 import '@/app/schools/[slug]/report/report.css'
 
 type Props = {
@@ -32,7 +34,10 @@ export default function ListingReportPreview({ slug, schoolName, structured, stu
     structured.university_destinations ||
     structured.admissions_format ||
     structured.student_community ||
-    structured.wellbeing_staffing
+    structured.wellbeing_staffing ||
+    structured.sports_profile ||
+    structured.fees_by_grade ||
+    structured.fees_local_min
 
   if (!hasAnything) return null
 
@@ -92,6 +97,15 @@ export default function ListingReportPreview({ slug, schoolName, structured, stu
           examResults={structured.exam_results}
         />
 
+        <FeesSection
+          feesMin={structured.fees_local_min || structured.fees_min}
+          feesMax={structured.fees_local_max || structured.fees_max}
+          currency={structured.fees_local_currency || structured.fees_currency}
+          feesByGrade={structured.fees_by_grade}
+          includesBoarding={structured.fees_includes_boarding}
+          applicationFee={structured.application_fee_usd}
+        />
+
         <UniversityDestinations destinations={structured.university_destinations} />
 
         <AdmissionsSection
@@ -99,6 +113,8 @@ export default function ListingReportPreview({ slug, schoolName, structured, stu
           registrationDeadline={structured.registration_deadline}
           entryExamType={structured.entry_exam_type}
         />
+
+        <SportsSection sports={structured.sports_profile} compact />
 
         <CommunityProfile
           community={structured.student_community}

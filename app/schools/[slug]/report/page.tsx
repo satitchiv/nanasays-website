@@ -22,6 +22,7 @@ import UniversityDestinations from '@/components/report/UniversityDestinations'
 import AdmissionsSection      from '@/components/report/AdmissionsSection'
 import FeesSection            from '@/components/report/FeesSection'
 import PastoralSection        from '@/components/report/PastoralSection'
+import SportsSection          from '@/components/report/SportsSection'
 import CommunityProfile       from '@/components/report/CommunityProfile'
 import DailyLifeGrid          from '@/components/report/DailyLifeGrid'
 import RecentSection          from '@/components/report/RecentSection'
@@ -347,6 +348,8 @@ export default async function SchoolReportPage({ params }: Props) {
           facilities={structured?.facilities}
           pastoralModel={structured?.pastoral_model}
         />
+
+        <SportsSection sports={structured?.sports_profile} />
 
         <CommunityProfile
           community={structured?.student_community}

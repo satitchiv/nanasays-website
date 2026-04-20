@@ -262,6 +262,200 @@
 }
 .q-text { font-size: 14.5px; color: var(--body); line-height: 1.6; }
 
+/* ─── Sport flair (V1 + V3 mix) ─────────────────────────────────── */
+
+/* Sport tiers as colour-coded cards */
+.report-page .sport-tiers {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px; margin: 14px 0 24px;
+}
+.report-page .sport-tier {
+  padding: 18px 20px; border-radius: 14px; border: 1px solid var(--border);
+  background: #fff; position: relative;
+}
+.report-page .sport-tier.major {
+  background: linear-gradient(135deg, #fff, var(--teal-bg));
+  border-color: var(--teal);
+}
+.report-page .sport-tier.academy {
+  background: linear-gradient(135deg, #fff, #EBF4FF);
+  border-color: #2D7DD2;
+}
+.report-page .sport-tier.optional { background: var(--off); }
+.report-page .sport-tier .tier-label {
+  font-size: 10px; font-weight: 900; letter-spacing: .12em;
+  text-transform: uppercase; margin-bottom: 8px;
+}
+.report-page .sport-tier.major .tier-label    { color: var(--teal-dk); }
+.report-page .sport-tier.academy .tier-label  { color: #2D7DD2; }
+.report-page .sport-tier.optional .tier-label { color: var(--muted); }
+.report-page .sport-tier .tier-list {
+  display: flex; flex-wrap: wrap; gap: 6px;
+}
+.report-page .sport-tier .tier-list span {
+  font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 14px;
+  color: var(--navy); padding: 4px 10px;
+  background: rgba(255,255,255,.7); border-radius: 8px;
+  border: 1px solid rgba(0,0,0,.05);
+}
+
+/* Featured competition trophy cards */
+.report-page .featured-comps {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px; margin: 12px 0 20px;
+}
+.report-page .featured-comp {
+  padding: 16px 18px; border-radius: 12px; background: #fff;
+  border: 2px solid var(--teal);
+  display: flex; gap: 14px; align-items: center;
+  box-shadow: 0 4px 12px rgba(52,195,160,0.08);
+}
+.report-page .featured-comp.hosts { border-color: #D97706; }
+.report-page .featured-comp .emoji { font-size: 28px; line-height: 1; }
+.report-page .featured-comp .comp-info { flex: 1; min-width: 0; }
+.report-page .featured-comp .sport-label {
+  font-size: 10px; font-weight: 900; letter-spacing: .12em;
+  color: var(--teal-dk); text-transform: uppercase;
+}
+.report-page .featured-comp.hosts .sport-label { color: #D97706; }
+.report-page .featured-comp .name {
+  font-family: 'Nunito', sans-serif; font-weight: 800;
+  color: var(--navy); font-size: 15px; line-height: 1.25; margin-top: 2px;
+}
+.report-page .featured-comp .tag {
+  display: inline-block; font-size: 9px; font-weight: 900;
+  padding: 2px 6px; border-radius: 8px;
+  letter-spacing: .06em; text-transform: uppercase; margin-top: 4px;
+  background: var(--teal-bg); color: var(--teal-dk);
+}
+.report-page .featured-comp.hosts .tag { background: #FEF3C7; color: #D97706; }
+
+/* Per-sport deep-dive cards (V3) */
+.report-page .sport-cards {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px; margin: 14px 0 24px;
+}
+.report-page .sport-card {
+  background: #fff; border-radius: 16px; border: 1px solid var(--border);
+  padding: 22px 24px; position: relative; overflow: hidden;
+}
+.report-page .sport-card::before {
+  content: ''; position: absolute; left: 0; top: 0; right: 0;
+  height: 6px; background: var(--border);
+}
+.report-page .sport-card.major::before {
+  background: linear-gradient(90deg, var(--teal), var(--teal-dk));
+}
+.report-page .sport-card.academy::before {
+  background: linear-gradient(90deg, #2D7DD2, #1e5ea8);
+}
+.report-page .sport-card .sport-emoji {
+  font-size: 36px; line-height: 1; margin-bottom: 6px;
+}
+.report-page .sport-card .sport-name {
+  font-family: 'Nunito', sans-serif; font-weight: 900;
+  color: var(--navy); font-size: 20px; letter-spacing: -.01em;
+}
+.report-page .sport-card .sport-tier-tag {
+  display: inline-block; font-size: 10px; font-weight: 900;
+  padding: 3px 8px; border-radius: 8px;
+  letter-spacing: .08em; text-transform: uppercase;
+  margin-left: 8px; vertical-align: middle;
+}
+.report-page .sport-card .sport-tier-tag.major   { background: var(--teal-bg); color: var(--teal-dk); }
+.report-page .sport-card .sport-tier-tag.academy { background: #EBF4FF; color: #2D7DD2; }
+.report-page .sport-card .sport-stat-row {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 8px; margin: 14px 0;
+}
+.report-page .sport-card .sport-stat {
+  background: var(--off); padding: 10px 12px; border-radius: 8px;
+}
+.report-page .sport-card .sport-stat .num {
+  font-family: 'Nunito', sans-serif; font-weight: 900;
+  font-size: 20px; color: var(--navy); line-height: 1;
+}
+.report-page .sport-card .sport-stat .lbl {
+  font-size: 10px; color: var(--muted); font-weight: 700;
+  text-transform: uppercase; letter-spacing: .06em; margin-top: 3px;
+}
+.report-page .sport-card .sport-block {
+  margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--border);
+}
+.report-page .sport-card .sport-block .label {
+  font-size: 10px; font-weight: 900; color: var(--muted);
+  letter-spacing: .08em; text-transform: uppercase; margin-bottom: 4px;
+}
+.report-page .sport-card .sport-block .value {
+  font-size: 13px; color: var(--body); line-height: 1.5;
+}
+.report-page .sport-card .sport-block .value strong { color: var(--navy); }
+
+/* Other sports chip row */
+.report-page .other-sports {
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  padding: 14px 18px; background: var(--off);
+  border-radius: 12px; margin: 8px 0 20px;
+}
+.report-page .other-sports .other-label {
+  font-size: 10px; font-weight: 900; color: var(--muted);
+  letter-spacing: .1em; text-transform: uppercase; margin-right: 6px;
+}
+.report-page .other-sports .chip {
+  background: #fff; border: 1px solid var(--border);
+  font-size: 13px; padding: 4px 10px; border-radius: 20px;
+  color: var(--muted); font-weight: 600;
+}
+
+/* Coach avatar grid (V1) */
+.report-page .coach-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px; margin: 12px 0;
+}
+.report-page .coach-card {
+  display: flex; gap: 12px; align-items: center;
+  padding: 12px 14px; background: var(--off);
+  border-radius: 12px; border: 1px solid var(--border);
+}
+.report-page .coach-card .avatar {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: var(--navy); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Nunito', sans-serif; font-weight: 900;
+  font-size: 15px; flex-shrink: 0;
+}
+.report-page .coach-card.pro .avatar { background: var(--teal); color: var(--navy); }
+.report-page .coach-card .info { flex: 1; min-width: 0; }
+.report-page .coach-card .name {
+  font-family: 'Nunito', sans-serif; font-weight: 800;
+  color: var(--navy); font-size: 14px; line-height: 1.2;
+}
+.report-page .coach-card .role {
+  font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.3;
+}
+.report-page .coach-card .badge {
+  display: inline-block; margin-left: 6px;
+  font-size: 9px; font-weight: 900;
+  padding: 2px 6px; border-radius: 8px;
+  background: var(--teal-bg); color: var(--teal-dk);
+  letter-spacing: .06em; text-transform: uppercase; vertical-align: middle;
+}
+
+/* Facility icon grid (V1) */
+.report-page .facility-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px; margin: 12px 0;
+}
+.report-page .facility-item {
+  display: flex; gap: 10px; align-items: center;
+  padding: 10px 12px; background: var(--off);
+  border-radius: 10px; border: 1px solid var(--border);
+}
+.report-page .facility-item .icon { font-size: 20px; line-height: 1; flex-shrink: 0; }
+.report-page .facility-item .facility-label {
+  font-size: 13px; color: var(--navy); font-weight: 600; line-height: 1.3;
+}
+
 /* ── Part header + Premium Part 2 accent ─────────────── */
 .report-page .part { margin-top: 48px; }
 .report-page .part-label {

@@ -28,7 +28,10 @@ import SchoolSchema from '@/components/SchoolSchema'
 import SchoolSummary from '@/components/SchoolSummary'
 import NewsPageClient from '@/components/NewsPageClient'
 
-export const revalidate = 86400 // revalidate school pages every 24 hours
+// Temporarily force-dynamic while we iterate on the sports/fees extraction.
+// Once data is stable, switch back to: export const revalidate = 86400
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
 
 interface Props {
   params: { slug: string }

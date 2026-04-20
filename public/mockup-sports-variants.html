@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Sport Section — 3 Mockup Variants · Reed's School</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root{
+    --navy:#1B3252; --navy-d:#0f2238;
+    --teal:#34C3A0; --teal-dk:#239C80; --teal-bg:#E8FAF6;
+    --amber:#D97706; --amber-bg:#FEF3C7;
+    --red:#B91C1C; --red-bg:#FEE2E2;
+    --green:#059669; --green-bg:#D1FAE5;
+    --border:#E5E7EB; --muted:#6B7280; --off:#F6F8FA;
+    --text:#1f2937;
+    --blue:#2D7DD2; --blue-bg:#EBF4FF;
+  }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Nunito Sans', sans-serif; background: var(--off); color: var(--text); line-height: 1.65; }
+  a { color: var(--teal-dk); text-decoration: none; }
+  a:hover { color: var(--navy); }
+
+  /* ─── Layout ─── */
+  .page { max-width: 1100px; margin: 0 auto; padding: 40px 24px 120px; }
+  header.intro { padding: 20px 0 40px; border-bottom: 2px solid var(--border); margin-bottom: 40px; }
+  header.intro .eyebrow { font-size: 11px; font-weight: 900; color: var(--teal-dk); letter-spacing: .18em; text-transform: uppercase; margin-bottom: 10px; }
+  header.intro h1 { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 32px; color: var(--navy); margin-bottom: 8px; letter-spacing: -.02em; }
+  header.intro p { font-size: 15px; color: var(--text); max-width: 720px; line-height: 1.65; margin-bottom: 8px; }
+  header.intro .toc { display: flex; gap: 14px; margin-top: 18px; flex-wrap: wrap; }
+  header.intro .toc a { background: #fff; border: 1px solid var(--border); border-radius: 20px; padding: 6px 14px; font-size: 12px; font-weight: 700; color: var(--navy); }
+  header.intro .toc a:hover { background: var(--teal-bg); border-color: var(--teal); color: var(--teal-dk); }
+
+  .variant { margin-bottom: 80px; scroll-margin-top: 24px; }
+  .variant-header { margin-bottom: 20px; padding: 18px 22px; background: var(--navy); color: #fff; border-radius: 12px; }
+  .variant-header .label { font-size: 10px; font-weight: 900; letter-spacing: .2em; text-transform: uppercase; color: var(--teal); margin-bottom: 6px; }
+  .variant-header h2 { font-family: 'Nunito', sans-serif; font-size: 22px; font-weight: 900; margin-bottom: 8px; letter-spacing: -.01em; }
+  .variant-header .meta { font-size: 14px; color: rgba(255,255,255,.75); line-height: 1.55; }
+  .variant-header .pros { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px; font-size: 12.5px; color: rgba(255,255,255,.85); }
+  .variant-header .pros strong { color: var(--teal); font-weight: 800; display: block; margin-bottom: 3px; letter-spacing: .06em; text-transform: uppercase; font-size: 10.5px; }
+
+  /* ─── SHARED ─── */
+  h3 { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 17px; color: var(--navy); margin: 18px 0 8px; }
+  h3.sub { font-size: 15px; color: var(--navy); margin: 16px 0 6px; font-weight: 800; }
+
+  .uni-list { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 14px; }
+  .uni-pill { background: #fff; border: 1px solid var(--border); border-radius: 20px; padding: 5px 12px; font-size: 13px; color: var(--navy); font-weight: 600; }
+  .uni-pill.sig { background: var(--teal-bg); border-color: var(--teal); color: var(--teal-dk); font-weight: 800; }
+  .uni-pill.national { background: var(--blue-bg); border-color: var(--blue); color: var(--blue); font-weight: 800; }
+
+  /* ═══════════════════════════════════════════════ */
+  /* VARIANT 1 — COMPACT STATS CARD                   */
+  /* ═══════════════════════════════════════════════ */
+  .v1-card { background: #fff; border: 1px solid var(--border); border-radius: 16px; padding: 24px 28px; }
+  .v1-card .v1-title { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 22px; color: var(--navy); letter-spacing: -.01em; }
+  .v1-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin: 16px 0 18px; }
+  .v1-stat { padding: 12px 16px; background: var(--off); border: 1px solid var(--border); border-radius: 12px; }
+  .v1-stat-label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; }
+  .v1-stat-value { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 24px; color: var(--navy); line-height: 1.1; }
+  .v1-stat-value small { font-size: 12px; color: var(--muted); font-weight: 600; }
+  .v1-highlight { background: linear-gradient(135deg, var(--navy), var(--navy-d)); color: #fff; padding: 16px 18px; border-radius: 12px; margin: 12px 0; display: flex; align-items: center; gap: 14px; }
+  .v1-highlight .icon { font-size: 28px; }
+  .v1-highlight .text { flex: 1; }
+  .v1-highlight .label { font-size: 10px; font-weight: 900; color: var(--teal); letter-spacing: .14em; text-transform: uppercase; margin-bottom: 4px; }
+  .v1-highlight .name { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 15px; }
+  .v1-dos { padding: 12px 14px; background: var(--teal-bg); border-left: 3px solid var(--teal); border-radius: 6px; font-size: 13.5px; }
+  .v1-dos strong { color: var(--navy); }
+  .v1-footer { margin-top: 14px; display: flex; justify-content: space-between; align-items: center; font-size: 12.5px; color: var(--muted); }
+  .v1-footer a { font-weight: 700; }
+
+  /* ═══════════════════════════════════════════════ */
+  /* VARIANT 2 — VISUAL SHOWCASE                      */
+  /* ═══════════════════════════════════════════════ */
+  .v2-hero { background: linear-gradient(135deg, #fff 0%, var(--teal-bg) 100%); border: 1px solid var(--teal); border-radius: 18px; padding: 28px 32px; margin-bottom: 24px; }
+  .v2-hero h2 { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 26px; color: var(--navy); margin-bottom: 6px; }
+  .v2-hero p { color: var(--muted); font-size: 14.5px; max-width: 640px; line-height: 1.6; }
+  .v2-sport-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 18px 0 0; }
+  .v2-sport-card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 16px; text-align: center; box-shadow: 0 2px 8px rgba(27,50,82,.04); transition: transform .15s, box-shadow .15s; }
+  .v2-sport-card:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(27,50,82,.1); }
+  .v2-sport-card .emoji { font-size: 32px; display: block; margin-bottom: 6px; }
+  .v2-sport-card .name { font-family: 'Nunito', sans-serif; font-weight: 800; color: var(--navy); font-size: 15px; }
+  .v2-sport-card .tag { display: inline-block; margin-top: 4px; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 10px; background: var(--teal-bg); color: var(--teal-dk); letter-spacing: .08em; text-transform: uppercase; }
+
+  .v2-alumni { margin: 28px 0; }
+  .v2-alumni-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+  .v2-alumni-card { background: #fff; border: 1px solid var(--border); border-radius: 14px; padding: 18px; display: flex; gap: 14px; align-items: flex-start; }
+  .v2-alumni-card .medal { font-size: 28px; line-height: 1; }
+  .v2-alumni-card .body { flex: 1; font-size: 13.5px; }
+  .v2-alumni-card .name { font-family: 'Nunito', sans-serif; font-weight: 800; color: var(--navy); font-size: 15px; margin-bottom: 3px; }
+  .v2-alumni-card .detail { color: var(--text); line-height: 1.5; }
+  .v2-alumni-card .level { margin-top: 5px; display: inline-block; font-size: 10px; font-weight: 800; padding: 2px 7px; border-radius: 10px; letter-spacing: .06em; text-transform: uppercase; }
+  .v2-alumni-card .level.international { background: var(--blue-bg); color: var(--blue); }
+  .v2-alumni-card .level.national { background: var(--teal-bg); color: var(--teal-dk); }
+  .v2-alumni-card .level.school { background: var(--amber-bg); color: var(--amber); }
+
+  .v2-facilities { margin: 28px 0; }
+  .v2-facilities-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+  .v2-facility { background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 14px; display: flex; gap: 12px; align-items: center; }
+  .v2-facility .icon { font-size: 24px; }
+  .v2-facility .label { font-weight: 700; color: var(--navy); font-size: 14px; line-height: 1.35; }
+  .v2-facility .year { font-size: 11px; color: var(--muted); font-weight: 600; }
+
+  .v2-dos { background: var(--navy); color: #fff; border-radius: 14px; padding: 20px 24px; display: flex; gap: 18px; align-items: center; margin: 24px 0 0; }
+  .v2-dos .avatar { width: 56px; height: 56px; border-radius: 50%; background: var(--teal); color: var(--navy); display: flex; align-items: center; justify-content: center; font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 22px; }
+  .v2-dos .info { flex: 1; }
+  .v2-dos .role-label { font-size: 10px; font-weight: 900; color: var(--teal); text-transform: uppercase; letter-spacing: .14em; margin-bottom: 4px; }
+  .v2-dos .name { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 17px; }
+  .v2-dos .contact { font-size: 13px; color: rgba(255,255,255,.7); margin-top: 4px; }
+
+  /* ═══════════════════════════════════════════════ */
+  /* VARIANT 3 — COMPARISON DATA TABLE                */
+  /* ═══════════════════════════════════════════════ */
+  .v3-wrapper { background: #fff; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  .v3-section { padding: 20px 24px; border-bottom: 1px solid var(--border); }
+  .v3-section:last-child { border-bottom: 0; }
+  .v3-label { font-size: 10px; font-weight: 900; color: var(--teal-dk); letter-spacing: .14em; text-transform: uppercase; margin-bottom: 6px; }
+  .v3-section h3 { margin-top: 0; margin-bottom: 8px; font-size: 16px; }
+  .v3-big-number { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 34px; color: var(--navy); line-height: 1; display: flex; align-items: baseline; gap: 10px; }
+  .v3-big-number .caption { font-size: 12px; color: var(--muted); font-weight: 500; }
+
+  table.v3-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13.5px; }
+  table.v3-table th { text-align: left; background: var(--off); color: var(--navy); padding: 10px 12px; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; border-bottom: 1px solid var(--border); }
+  table.v3-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  table.v3-table tr:last-child td { border-bottom: 0; }
+  table.v3-table td.sport-name { font-weight: 700; color: var(--navy); }
+  table.v3-table td.signature { background: var(--teal-bg); }
+  table.v3-table td.signature::before { content: '★ '; color: var(--teal-dk); }
+  .v3-benchmark { background: #FFFBEB; border-left: 4px solid var(--amber); border-radius: 8px; padding: 12px 16px; margin-top: 12px; font-size: 13px; line-height: 1.55; }
+  .v3-benchmark::before { content: '→ Sector benchmark'; display: block; font-size: 10.5px; font-weight: 900; color: var(--amber); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; }
+  .v3-benchmark strong { color: var(--navy); }
+
+  .v3-gap { background: var(--amber-bg); border: 1px solid #FDE68A; border-radius: 8px; padding: 12px 14px; margin-top: 10px; font-size: 13px; color: var(--amber); line-height: 1.55; }
+  .v3-gap strong { color: var(--navy); }
+
+  /* Ask on tour box (reused) */
+  .ask-tour { background: var(--teal-bg); border-left: 4px solid var(--teal); border-radius: 8px; padding: 12px 16px; margin-top: 14px; font-size: 13.5px; line-height: 1.55; }
+  .ask-tour::before { content: '→ Ask on tour'; display: block; font-size: 10.5px; font-weight: 900; color: var(--teal-dk); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 4px; }
+
+  .legend { display: flex; gap: 16px; margin: 12px 0; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .legend-item { display: flex; align-items: center; gap: 6px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+</style>
+</head>
+<body>
+<main class="page">
+
+<header class="intro">
+  <div class="eyebrow">Design exploration · pick one (or remix)</div>
+  <h1>Sport section — 3 mockup variants</h1>
+  <p>Same data, three different presentations. All use Reed&apos;s School&apos;s real extracted data (plus a couple of hypothetical team-count figures shown with dashed placeholders so you can see how it would look at full coverage).</p>
+  <p>Scroll through all three, pick your favourite — I can mix elements from each.</p>
+  <div class="toc">
+    <a href="#v1">1 · Compact stats card</a>
+    <a href="#v2">2 · Visual showcase</a>
+    <a href="#v3">3 · Comparison data table</a>
+  </div>
+</header>
+
+<!-- ═════════════════════════════════════════════ -->
+<!-- VARIANT 1 — COMPACT                           -->
+<!-- ═════════════════════════════════════════════ -->
+<section class="variant" id="v1">
+  <div class="variant-header">
+    <div class="label">Variant 1</div>
+    <h2>Compact stats card — data-dense, scannable</h2>
+    <div class="meta">A single card that fits in ~400px vertical space. Good when sport is secondary to the rest of the page and parents want numbers fast.</div>
+    <div class="pros">
+      <div><strong>Best for</strong> Listing-page preview. Parents scanning many schools.</div>
+      <div><strong>Watch out</strong> Less emotional impact — feels like a dashboard, not a story.</div>
+    </div>
+  </div>
+
+  <div class="v1-card">
+    <div class="v1-title">Sport & athletics</div>
+
+    <h3 class="sub" style="margin-top: 12px;">Signature sports</h3>
+    <div class="uni-list">
+      <span class="uni-pill sig">★ Rugby</span>
+      <span class="uni-pill sig">★ Cricket</span>
+      <span class="uni-pill sig">★ Tennis</span>
+      <span class="uni-pill sig">★ Athletics</span>
+    </div>
+
+    <div class="v1-stats">
+      <div class="v1-stat"><div class="v1-stat-label">Sports offered</div><div class="v1-stat-value">10</div></div>
+      <div class="v1-stat"><div class="v1-stat-label">Notable alumni athletes</div><div class="v1-stat-value">4 <small>on Hall of Fame</small></div></div>
+      <div class="v1-stat"><div class="v1-stat-label">Flagship facility</div><div class="v1-stat-value" style="font-size: 15px;">Jarrett Cricket Centre <small>(2018)</small></div></div>
+      <div class="v1-stat"><div class="v1-stat-label">Olympic alumni</div><div class="v1-stat-value">1 <small>Hockey</small></div></div>
+    </div>
+
+    <div class="v1-highlight">
+      <div class="icon">🏆</div>
+      <div class="text">
+        <div class="label">Most recent notable alumnus</div>
+        <div class="name">Jack Draper — professional tennis player (Old Reedonian, 2020)</div>
+      </div>
+    </div>
+
+    <div class="v1-dos">
+      <strong>Director of Sport:</strong> Name not published online — ask at admissions.
+    </div>
+
+    <div class="v1-footer">
+      <span>Source: <a href="#">reeds.surrey.sch.uk + sport.reeds.surrey.sch.uk</a></span>
+      <a href="#">Full sport section in the Deep Report →</a>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════ -->
+<!-- VARIANT 2 — VISUAL SHOWCASE                   -->
+<!-- ═════════════════════════════════════════════ -->
+<section class="variant" id="v2">
+  <div class="variant-header">
+    <div class="label">Variant 2</div>
+    <h2>Visual showcase — story-driven, emotional</h2>
+    <div class="meta">Big cards, icons, a Director of Sport avatar, alumni as medal cards. Meant to create impact and feel like a brochure section.</div>
+    <div class="pros">
+      <div><strong>Best for</strong> Report page. Parents committing 7+ years need inspiration.</div>
+      <div><strong>Watch out</strong> Takes more vertical space. Less direct for comparison-hunting parents.</div>
+    </div>
+  </div>
+
+  <div class="v2-hero">
+    <h2>Sport at Reed&apos;s</h2>
+    <p>Four signature sports with a century of tradition, a £-built cricket centre, and alumni playing international tennis, England hockey, and professional rugby.</p>
+
+    <div class="v2-sport-grid">
+      <div class="v2-sport-card"><span class="emoji">🏉</span><div class="name">Rugby</div><div class="tag">Signature</div></div>
+      <div class="v2-sport-card"><span class="emoji">🏏</span><div class="name">Cricket</div><div class="tag">Signature</div></div>
+      <div class="v2-sport-card"><span class="emoji">🎾</span><div class="name">Tennis</div><div class="tag">Signature</div></div>
+      <div class="v2-sport-card"><span class="emoji">🏃</span><div class="name">Athletics</div><div class="tag">Signature</div></div>
+      <div class="v2-sport-card"><span class="emoji">🏑</span><div class="name">Hockey</div></div>
+      <div class="v2-sport-card"><span class="emoji">⚽</span><div class="name">Football</div></div>
+      <div class="v2-sport-card"><span class="emoji">🏀</span><div class="name">Basketball</div></div>
+      <div class="v2-sport-card"><span class="emoji">🏸</span><div class="name">Badminton</div></div>
+      <div class="v2-sport-card"><span class="emoji">🎯</span><div class="name">Squash</div></div>
+      <div class="v2-sport-card"><span class="emoji">🏊</span><div class="name">Swimming</div></div>
+    </div>
+  </div>
+
+  <div class="v2-alumni">
+    <h3>Recent Old Reedonians making waves</h3>
+    <div class="v2-alumni-grid">
+      <div class="v2-alumni-card">
+        <div class="medal">🥇</div>
+        <div class="body">
+          <div class="name">Jack Draper</div>
+          <div class="detail">Professional Tennis Player (Bristowe 2020)</div>
+          <span class="level national">National</span>
+        </div>
+      </div>
+      <div class="v2-alumni-card">
+        <div class="medal">🏅</div>
+        <div class="body">
+          <div class="name">Connor Williamson</div>
+          <div class="detail">England Hockey Player, Olympian (Mullens 2020)</div>
+          <span class="level international">International</span>
+        </div>
+      </div>
+      <div class="v2-alumni-card">
+        <div class="medal">🏆</div>
+        <div class="body">
+          <div class="name">Paul Brown</div>
+          <div class="detail">Pro Rugby, England U18s, Exeter Chiefs (Mullens 2020)</div>
+          <span class="level national">National</span>
+        </div>
+      </div>
+      <div class="v2-alumni-card">
+        <div class="medal">⭐</div>
+        <div class="body">
+          <div class="name">Athletics records 2022</div>
+          <div class="detail">New school records set across multiple age groups</div>
+          <span class="level school">School</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="v2-facilities">
+    <h3>Facilities</h3>
+    <div class="v2-facilities-grid">
+      <div class="v2-facility"><span class="icon">🏟️</span><div><div class="label">Sports Centre</div><div class="year">Basketball + badminton hall</div></div></div>
+      <div class="v2-facility"><span class="icon">🏊</span><div><div class="label">25-metre indoor pool</div></div></div>
+      <div class="v2-facility"><span class="icon">🎯</span><div><div class="label">Squash courts</div></div></div>
+      <div class="v2-facility"><span class="icon">🏏</span><div><div class="label">Jarrett Cricket Centre</div><div class="year">Opened 2018 · 5 lanes · state-of-the-art tech</div></div></div>
+    </div>
+  </div>
+
+  <div class="v2-dos">
+    <div class="avatar">?</div>
+    <div class="info">
+      <div class="role-label">Director of Sport</div>
+      <div class="name">Name not published publicly — ask at admissions</div>
+      <div class="contact">rsfees@reeds.surrey.sch.uk (general) · sport subdomain lists fixtures but not the named head</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═════════════════════════════════════════════ -->
+<!-- VARIANT 3 — COMPARISON DATA TABLE             -->
+<!-- ═════════════════════════════════════════════ -->
+<section class="variant" id="v3">
+  <div class="variant-header">
+    <div class="label">Variant 3</div>
+    <h2>Comparison data table — analytical, benchmark-ready</h2>
+    <div class="meta">Matches the tone of the Financial Health table. Parents who are comparing 3+ schools want columns, not cards. Adds sector benchmarks so a number always has context.</div>
+    <div class="pros">
+      <div><strong>Best for</strong> Data-focused parents. Multi-school comparisons. The "honest consultant" voice.</div>
+      <div><strong>Watch out</strong> Less emotional impact. Alumni feel like a spreadsheet row.</div>
+    </div>
+  </div>
+
+  <div class="v3-wrapper">
+    <div class="v3-section">
+      <div class="v3-label">Headline</div>
+      <div class="v3-big-number">
+        10 sports <span class="caption">offered · 4 signature · 4 notable alumni · 4 facilities</span>
+      </div>
+      <div class="v3-benchmark">
+        <strong>UK boarding schools of this scale (600–1000 pupils) typically offer 12–20 sports</strong> with 3–6 "signature" sports that the school is known for. Reed&apos;s sits at the focused end of the spectrum — depth over breadth, which many parents prefer for a child likely to play seriously.
+      </div>
+    </div>
+
+    <div class="v3-section">
+      <h3>Sports offered</h3>
+      <table class="v3-table">
+        <thead>
+          <tr>
+            <th>Sport</th>
+            <th>Status</th>
+            <th>Alumni notable here</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="sport-name signature">Rugby</td><td>Signature</td><td>Paul Brown — England U18s, Exeter Chiefs</td></tr>
+          <tr><td class="sport-name signature">Cricket</td><td>Signature</td><td>— (Jarrett Cricket Centre 2018)</td></tr>
+          <tr><td class="sport-name signature">Tennis</td><td>Signature</td><td>Jack Draper — professional</td></tr>
+          <tr><td class="sport-name signature">Athletics</td><td>Signature</td><td>School records 2022</td></tr>
+          <tr><td class="sport-name">Hockey</td><td>Offered</td><td>Connor Williamson — England, Olympian</td></tr>
+          <tr><td class="sport-name">Football</td><td>Offered</td><td>—</td></tr>
+          <tr><td class="sport-name">Basketball</td><td>Offered</td><td>—</td></tr>
+          <tr><td class="sport-name">Badminton</td><td>Offered</td><td>—</td></tr>
+          <tr><td class="sport-name">Squash</td><td>Offered</td><td>—</td></tr>
+          <tr><td class="sport-name">Swimming</td><td>Offered</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="v3-section">
+      <h3>Facilities</h3>
+      <table class="v3-table">
+        <thead>
+          <tr><th>Facility</th><th>Built / Note</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Sports Centre (hall, badminton, basketball)</td><td>—</td></tr>
+          <tr><td>25-metre indoor swimming pool</td><td>—</td></tr>
+          <tr><td>Squash courts</td><td>—</td></tr>
+          <tr><td>Jarrett Cricket Centre</td><td>Opened 2018 · 5 lanes · state-of-the-art tech</td></tr>
+        </tbody>
+      </table>
+      <div class="v3-benchmark">
+        <strong>Reed&apos;s has invested recently in cricket specifically</strong> (Jarrett Centre, 2018). For a parent whose child is a serious cricketer, this is a strong signal — new infrastructure usually means dedicated coaching and programme investment follows.
+      </div>
+    </div>
+
+    <div class="v3-section">
+      <h3>Team structure (gap)</h3>
+      <div class="v3-gap">
+        <strong>Reed&apos;s publishes fixtures and results on sport.reeds.surrey.sch.uk but we haven&apos;t yet pulled</strong> team counts or fixture volumes into structured data. From the crawl we can see teams labelled 1st XI, 2nd XI, U12A–U15A across cricket and tennis. Ask on tour: &quot;How many pupils represent the school competitively in their main sport in a typical term?&quot;
+      </div>
+    </div>
+
+    <div class="v3-section">
+      <h3>Director of Sport</h3>
+      <div class="v3-gap">
+        <strong>Not named on the public sport subdomain or main site in our crawl.</strong> The general sports enquiry address is <a href="mailto:rsfees@reeds.surrey.sch.uk">rsfees@reeds.surrey.sch.uk</a>. Request the named lead from admissions before a tour — a well-run sport programme has a clearly-named head.
+      </div>
+    </div>
+  </div>
+
+  <div class="ask-tour">
+    <strong>Whichever variant wins,</strong> the section always ends with a clear tour-question so the parent leaves with something specific to say when they visit.
+  </div>
+</section>
+
+<div style="margin-top: 80px; padding: 20px 24px; background: var(--teal-bg); border: 1px solid var(--teal); border-radius: 12px;">
+  <h3 style="margin-top: 0;">Which do you want me to build?</h3>
+  <p style="color: var(--text); margin: 0 0 10px; font-size: 14px;">Tell me <strong>V1 / V2 / V3</strong> — or mix: e.g. &quot;V2 hero and sport grid, but V3 benchmark callouts and the data table for alumni.&quot;</p>
+  <p style="color: var(--muted); margin: 0; font-size: 13px;"><em>I can also build a different variant you describe. These three just bound the design space.</em></p>
+</div>
+
+</main>
+</body>
+</html>
