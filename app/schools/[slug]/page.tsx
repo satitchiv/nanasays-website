@@ -15,6 +15,8 @@ import { buildUtmUrl } from '@/lib/utm'
 import FeeTableClient from '@/components/school/FeeTableClient'
 import FeesRangeClient from '@/components/school/FeesRangeClient'
 import { getSchoolFeed, getSchoolNews, getSchoolsWithFeeds, getSchoolPulse, getFollowerCount, getStatBarConfig, getDeadlines, getMostMentionedSchools } from '@/lib/eduworld'
+import { createClient } from '@supabase/supabase-js'
+import ListingReportPreview from '@/components/school/ListingReportPreview'
 import type { StatBarConfig } from '@/lib/eduworld'
 import SchoolPulseFeed from '@/components/SchoolPulseFeed'
 import SchoolPulseStatBar from '@/components/SchoolPulseStatBar'
@@ -261,7 +263,12 @@ function SidebarTitle({ children, dark }: { children: React.ReactNode; dark?: bo
 }
 
 export default async function SchoolPage({ params, searchParams }: Props) {
-  const [school, similarSchools, schoolFeedItems, schoolNewsArticles, schoolsWithFeeds, schoolPulse, followerCount, statBarConfig, newsDeadlines, newsMentionedSchools] = await Promise.all([
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+
+  const [school, similarSchools, schoolFeedItems, schoolNewsArticles, schoolsWithFeeds, schoolPulse, followerCount, statBarConfig, newsDeadlines, newsMentionedSchools, structuredDataRow] = await Promise.all([
     getSchoolBySlug(params.slug),
     getSchoolBySlug(params.slug).then(s => s ? getSimilarSchools(s) : []),
     getSchoolFeed(params.slug),
@@ -272,9 +279,16 @@ export default async function SchoolPage({ params, searchParams }: Props) {
     getStatBarConfig(),
     getDeadlines(3),
     getMostMentionedSchools(5),
+    supabase.from('school_structured_data').select('*').eq('school_slug', params.slug).maybeSingle(),
   ])
 
   if (!school) notFound()
+
+  // Strip narrative JSONBs (paid content — report-only) before passing to listing preview
+  const structuredForListing = structuredDataRow?.data ? (() => {
+    const { report_verdict, report_parent_fit, report_tour_questions, ...safe } = structuredDataRow.data
+    return safe
+  })() : null
 
   // Build lookup for similar schools that have EduWorld feeds
   const feedSlugsWithCounts = Object.fromEntries(
@@ -1410,6 +1424,16 @@ export default async function SchoolPage({ params, searchParams }: Props) {
                 </a>
               )}
             </Section>
+          )}
+
+          {/* EXTENDED RESEARCH (structured_data preview + link to paid report) */}
+          {structuredForListing && (
+            <ListingReportPreview
+              slug={params.slug}
+              schoolName={school.name}
+              structured={structuredForListing}
+              studentCountFallback={school.student_count}
+            />
           )}
 
           {/* ABOUT */}
