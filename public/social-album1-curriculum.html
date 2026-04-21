@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Album 1 — IB vs IGCSE vs A-Level (No Photos)</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #94a3b8; display: flex; flex-direction: column; align-items: center;
+    padding: 48px 24px; gap: 6px; font-family: 'Nunito Sans', sans-serif; }
+  .album-label { font-size: 12px; font-weight: 700; color: #334155; letter-spacing: 1px;
+    text-transform: uppercase; margin-bottom: 4px; }
+  .album-sub { font-size: 11px; color: #64748b; margin-bottom: 20px; }
+  .slide-label { font-size: 10px; font-weight: 700; color: #475569; letter-spacing: .5px;
+    text-transform: uppercase; margin-bottom: 6px; margin-top: 18px; align-self: flex-start; }
+
+  .post { width: 540px; height: 540px; overflow: hidden; position: relative;
+    box-shadow: 0 8px 40px rgba(0,0,0,.3); flex-shrink: 0; display: flex; flex-direction: column; }
+
+  .slide-num { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 5px; z-index: 10; }
+  .pip { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.3); }
+  .pip.active { background: #34C3A0; width: 20px; border-radius: 4px; }
+  .pip.dk { background: rgba(27,50,82,.2); }
+  .pip.dk.active { background: #34C3A0; }
+
+  /* ─── SLIDE 1: Cover ─── */
+  .s1 { background: #1B3252; padding: 32px 36px 40px; position: relative; }
+  .s1::before {
+    content: ''; position: absolute; top: -60px; right: -60px;
+    width: 280px; height: 280px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(52,195,160,.14) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .s1::after {
+    content: ''; position: absolute; bottom: -80px; left: -80px;
+    width: 320px; height: 320px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(52,195,160,.08) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .wm { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 22px;
+    letter-spacing: -.5px; position: relative; }
+  .wn { color: #fff; } .ws { color: #34C3A0; }
+  .s1-body { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; position: relative; padding-top: 12px; }
+  .s1-eyebrow { font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+    color: #34C3A0; margin-bottom: 18px; }
+  .s1-title { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 66px;
+    color: #fff; line-height: .96; letter-spacing: -2.5px; margin-bottom: 22px; }
+  .s1-title span { color: #34C3A0; }
+  .s1-sub { font-size: 18px; color: rgba(255,255,255,.55); font-weight: 400; line-height: 1.5; }
+  .swipe-hint { position: absolute; bottom: 30px; right: 0;
+    font-size: 11px; color: rgba(255,255,255,.35); font-weight: 700; letter-spacing: 1.5px;
+    display: flex; align-items: center; gap: 6px; }
+  .arrow { font-size: 16px; color: #34C3A0; }
+
+  /* ─── SLIDE 2: IB — teal ─── */
+  .s2 { background: #239C80; padding: 28px 30px 36px; position: relative; overflow: hidden; }
+  .s2::before {
+    content: ''; position: absolute; bottom: -80px; right: -80px;
+    width: 300px; height: 300px; border-radius: 50%; background: rgba(0,0,0,.1);
+    pointer-events: none;
+  }
+  .s2-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; position: relative; }
+  .s2-wm { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px; }
+  .s2-chip { font-size: 11px; font-weight: 800; letter-spacing: 1.8px; text-transform: uppercase;
+    color: rgba(255,255,255,.75); background: rgba(0,0,0,.15); border: 1px solid rgba(255,255,255,.25);
+    padding: 6px 14px; border-radius: 100px; }
+  .s2-abbr { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 108px;
+    color: #fff; line-height: 1; letter-spacing: -5px; position: relative; margin-bottom: 2px; }
+  .s2-full { font-size: 16px; color: rgba(255,255,255,.65); font-weight: 500; margin-bottom: 18px; position: relative; }
+  .s2-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; flex: 1; position: relative; }
+  .s2-fact { background: rgba(0,0,0,.16); border-radius: 12px; padding: 16px 16px;
+    display: flex; flex-direction: column; justify-content: space-between; }
+  .s2-lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px;
+    color: rgba(255,255,255,.55); margin-bottom: 8px; }
+  .s2-val { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 26px;
+    color: #fff; letter-spacing: -.6px; line-height: 1.1; }
+  .s2-sub { font-size: 13px; color: rgba(255,255,255,.5); margin-top: 5px; line-height: 1.3; }
+
+  /* ─── SLIDE 3: IGCSE — diagonal ─── */
+  .s3 { background: #fff; position: relative; overflow: hidden; }
+  .s3-nav-bg { position: absolute; top: 0; left: 0; right: 0; height: 50%; background: #1B3252;
+    clip-path: polygon(0 0, 100% 0, 100% 78%, 0 100%); z-index: 0; }
+  .s3-content { position: relative; z-index: 1; display: flex; flex-direction: column;
+    flex: 1; padding: 26px 30px 36px; height: 100%; }
+  .s3-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .s3-wm { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px; }
+  .s3-chip { font-size: 11px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase;
+    background: rgba(52,195,160,.15); color: #34C3A0; border: 1px solid rgba(52,195,160,.4);
+    padding: 6px 13px; border-radius: 100px; }
+  .s3-abbr { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 82px;
+    color: #fff; line-height: 1; letter-spacing: -3px; margin-bottom: 2px; }
+  .s3-full { font-size: 14px; color: rgba(255,255,255,.55); font-weight: 500; margin-bottom: 0; }
+  .s3-facts { display: flex; flex-direction: column; gap: 9px; margin-top: auto; padding-top: 16px; }
+  .s3-row { display: flex; align-items: center; justify-content: space-between;
+    padding: 13px 16px; background: #F6F8FA; border-radius: 10px; border: 1px solid #E5E7EB; }
+  .s3-key { font-size: 15px; font-weight: 600; color: #6B7280; }
+  .s3-vl { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 22px; color: #1B3252; }
+  .s3-vl.teal { color: #239C80; }
+
+  /* ─── SLIDE 4: A-Level ─── */
+  .s4 { background: #fff; padding: 28px 32px 36px; }
+  .s4-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .s4-wm { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px; }
+  .s4-chip { font-size: 11px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase;
+    background: #E8FAF6; color: #239C80; border: 1px solid rgba(52,195,160,.3);
+    padding: 6px 13px; border-radius: 100px; }
+  .s4-abbr { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 104px;
+    color: #1B3252; line-height: 1; letter-spacing: -4px; margin-bottom: 2px; }
+  .s4-abbr span { color: #34C3A0; }
+  .s4-full { font-size: 15px; color: #9CA3AF; font-weight: 500; margin-bottom: 16px; }
+  .s4-rule { height: 3px; background: #1B3252; width: 52px; margin-bottom: 16px; border-radius: 2px; }
+  .s4-facts { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+  .s4-row { display: flex; justify-content: space-between; align-items: center;
+    padding: 12px 0; border-bottom: 1px solid #E5E7EB; }
+  .s4-row:last-child { border-bottom: none; }
+  .s4-key { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #9CA3AF; }
+  .s4-vl { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 24px;
+    color: #1B3252; text-align: right; letter-spacing: -.5px; }
+  .s4-vl small { font-size: 13px; color: #6B7280; font-family: 'Nunito Sans', sans-serif;
+    font-weight: 500; display: block; margin-top: 2px; }
+
+  /* ─── SLIDE 5: Comparison ─── */
+  .s5 { background: #F6F8FA; padding: 24px 26px 36px; }
+  .s5-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .s5-wm { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px; }
+  .s5-title { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 32px;
+    color: #1B3252; letter-spacing: -.9px; margin-bottom: 14px; }
+  .s5-table { flex: 1; display: flex; flex-direction: column; }
+  .s5-head { display: grid; grid-template-columns: 1.1fr 1fr 1fr 1fr; margin-bottom: 4px; }
+  .s5-hcell { font-size: 13px; font-weight: 800; text-transform: uppercase; letter-spacing: 1px;
+    color: #fff; background: #1B3252; text-align: center; padding: 11px 4px; }
+  .s5-hcell:first-child { background: transparent; color: #9CA3AF; text-align: left; }
+  .s5-hcell:nth-child(2) { border-radius: 6px 0 0 0; }
+  .s5-hcell:nth-child(4) { border-radius: 0 6px 0 0; }
+  .s5-body { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+  .s5-row { display: grid; grid-template-columns: 1.1fr 1fr 1fr 1fr; border-bottom: 1px solid #E5E7EB; }
+  .s5-row:last-child { border-bottom: none; }
+  .s5-cell { padding: 11px 4px; font-size: 15px; font-weight: 700; color: #1B3252;
+    text-align: center; display: flex; align-items: center; justify-content: center; }
+  .s5-cell:first-child { font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .7px; color: #6B7280; text-align: left; justify-content: flex-start; }
+  .s5-cell.good { color: #239C80; }
+  .s5-cell.mid { color: #B45309; }
+
+  /* ─── SLIDE 6: CTA ─── */
+  .s6 { background: #1B3252; align-items: center; justify-content: center;
+    padding: 36px 36px 40px; text-align: center; position: relative; }
+  .s6::before {
+    content: ''; position: absolute; top: -60px; right: -60px;
+    width: 280px; height: 280px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(52,195,160,.12) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .s6-wm { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px;
+    margin-bottom: 0; position: relative; align-self: flex-start; }
+  .s6-spacer { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; position: relative; }
+  .s6-icon { font-size: 64px; }
+  .s6-q { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 40px;
+    color: #fff; line-height: 1.05; letter-spacing: -1.3px; }
+  .s6-q span { color: #34C3A0; }
+  .s6-sub { font-size: 18px; color: rgba(255,255,255,.5); line-height: 1.5; }
+  .s6-cta { background: #34C3A0; color: #1B3252; font-family: 'Nunito', sans-serif;
+    font-weight: 900; font-size: 20px; letter-spacing: -.3px;
+    padding: 16px 36px; border-radius: 100px; display: inline-block; }
+  .s6-url { font-size: 13px; color: rgba(255,255,255,.3); position: relative; }
+</style>
+</head>
+<body>
+
+<div class="album-label">Album 1 — Curriculum Guide · No Photos · Large text</div>
+<div class="album-sub">6 slides · IB vs IGCSE vs A-Level · Swipe format for Facebook / Instagram</div>
+
+<!-- ── SLIDE 1 ── -->
+<div class="slide-label">Slide 1 of 6 — Cover</div>
+<div class="post s1">
+  <div class="wm"><span class="wn">Nana</span><span class="ws">Says</span></div>
+  <div class="s1-body">
+    <div class="s1-eyebrow">Parent's Guide · Curriculum Series</div>
+    <div class="s1-title">IB vs<br>IGCSE<br>vs <span>A-Level</span></div>
+    <div class="s1-sub">Which curriculum is right for your child? Everything parents need to know.</div>
+  </div>
+  <div class="swipe-hint"><span class="arrow">→</span> SWIPE TO EXPLORE</div>
+  <div class="slide-num">
+    <div class="pip active"></div><div class="pip"></div><div class="pip"></div>
+    <div class="pip"></div><div class="pip"></div><div class="pip"></div>
+  </div>
+</div>
+
+<!-- ── SLIDE 2 ── -->
+<div class="slide-label">Slide 2 of 6 — IB Diploma</div>
+<div class="post s2">
+  <div class="s2-top">
+    <div class="s2-wm"><span class="wn" style="color:#fff">Nana</span><span class="ws" style="color:#1B3252">Says</span></div>
+    <div class="s2-chip">01 / 03</div>
+  </div>
+  <div class="s2-abbr">IB</div>
+  <div class="s2-full">International Baccalaureate Diploma Programme</div>
+  <div class="s2-grid">
+    <div class="s2-fact">
+      <div class="s2-lbl">Age range</div>
+      <div class="s2-val">16 – 19</div>
+      <div class="s2-sub">Years 12–13</div>
+    </div>
+    <div class="s2-fact">
+      <div class="s2-lbl">Assessment</div>
+      <div class="s2-val">70 / 30</div>
+      <div class="s2-sub">Exams / coursework</div>
+    </div>
+    <div class="s2-fact">
+      <div class="s2-lbl">Subjects</div>
+      <div class="s2-val">6</div>
+      <div class="s2-sub">+ TOK + Extended Essay</div>
+    </div>
+    <div class="s2-fact">
+      <div class="s2-lbl">Best for</div>
+      <div class="s2-val" style="font-size:20px">Top uni<br>track</div>
+      <div class="s2-sub">3,500+ universities globally</div>
+    </div>
+  </div>
+  <div class="slide-num">
+    <div class="pip"></div><div class="pip active"></div><div class="pip"></div>
+    <div class="pip"></div><div class="pip"></div><div class="pip"></div>
+  </div>
+</div>
+
+<!-- ── SLIDE 3 ── -->
+<div class="slide-label">Slide 3 of 6 — IGCSE</div>
+<div class="post s3">
+  <div class="s3-nav-bg"></div>
+  <div class="s3-content">
+    <div class="s3-top">
+      <div class="s3-wm"><span class="wn">Nana</span><span class="ws">Says</span></div>
+      <div class="s3-chip">02 / 03</div>
+    </div>
+    <div class="s3-abbr">IGCSE</div>
+    <div class="s3-full">International General Certificate of Secondary Education</div>
+    <div class="s3-facts">
+      <div class="s3-row">
+        <span class="s3-key">Age range</span>
+        <span class="s3-vl">14 – 16</span>
+      </div>
+      <div class="s3-row">
+        <span class="s3-key">Assessment</span>
+        <span class="s3-vl">Exam-heavy</span>
+      </div>
+      <div class="s3-row">
+        <span class="s3-key">Subjects</span>
+        <span class="s3-vl teal">Choose 5 – 14</span>
+      </div>
+      <div class="s3-row">
+        <span class="s3-key">Best for</span>
+        <span class="s3-vl teal">Early specialisation</span>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">
+    <div class="pip"></div><div class="pip"></div><div class="pip active"></div>
+    <div class="pip"></div><div class="pip"></div><div class="pip"></div>
+  </div>
+</div>
+
+<!-- ── SLIDE 4 ── -->
+<div class="slide-label">Slide 4 of 6 — A-Level</div>
+<div class="post s4">
+  <div class="s4-top">
+    <div class="s4-wm"><span class="wn" style="color:#1B3252">Nana</span><span class="ws">Says</span></div>
+    <div class="s4-chip">03 / 03</div>
+  </div>
+  <div class="s4-abbr">A-<span>Level</span></div>
+  <div class="s4-full">Advanced Level — British university entrance qualification</div>
+  <div class="s4-rule"></div>
+  <div class="s4-facts">
+    <div class="s4-row">
+      <div class="s4-key">Age range</div>
+      <div class="s4-vl">16 – 18<small>Years 12 – 13</small></div>
+    </div>
+    <div class="s4-row">
+      <div class="s4-key">Subjects</div>
+      <div class="s4-vl">3 – 4<small>Deep specialisation</small></div>
+    </div>
+    <div class="s4-row">
+      <div class="s4-key">Assessment</div>
+      <div class="s4-vl">80%+<small>Final written exams</small></div>
+    </div>
+    <div class="s4-row">
+      <div class="s4-key">Best for</div>
+      <div class="s4-vl" style="font-size:18px">UK university<small>Russell Group · Oxbridge</small></div>
+    </div>
+  </div>
+  <div class="slide-num">
+    <div class="pip dk"></div><div class="pip dk"></div><div class="pip dk"></div>
+    <div class="pip dk active"></div><div class="pip dk"></div><div class="pip dk"></div>
+  </div>
+</div>
+
+<!-- ── SLIDE 5 ── -->
+<div class="slide-label">Slide 5 of 6 — Side-by-side comparison</div>
+<div class="post s5">
+  <div class="s5-top">
+    <div class="s5-wm"><span class="wn" style="color:#1B3252">Nana</span><span class="ws">Says</span></div>
+  </div>
+  <div class="s5-title">Side by side</div>
+  <div class="s5-table">
+    <div class="s5-head">
+      <div class="s5-hcell"></div>
+      <div class="s5-hcell">IB</div>
+      <div class="s5-hcell">IGCSE</div>
+      <div class="s5-hcell">A-Level</div>
+    </div>
+    <div class="s5-body">
+      <div class="s5-row">
+        <div class="s5-cell">Age</div>
+        <div class="s5-cell">16–19</div>
+        <div class="s5-cell">14–16</div>
+        <div class="s5-cell">16–18</div>
+      </div>
+      <div class="s5-row">
+        <div class="s5-cell">Breadth</div>
+        <div class="s5-cell good">★★★★★</div>
+        <div class="s5-cell good">★★★★</div>
+        <div class="s5-cell mid">★★</div>
+      </div>
+      <div class="s5-row">
+        <div class="s5-cell">Depth</div>
+        <div class="s5-cell mid">★★★</div>
+        <div class="s5-cell mid">★★★</div>
+        <div class="s5-cell good">★★★★★</div>
+      </div>
+      <div class="s5-row">
+        <div class="s5-cell">Global unis</div>
+        <div class="s5-cell good">✓✓✓</div>
+        <div class="s5-cell good">✓✓</div>
+        <div class="s5-cell mid">✓✓</div>
+      </div>
+      <div class="s5-row">
+        <div class="s5-cell">UK unis</div>
+        <div class="s5-cell good">✓✓✓</div>
+        <div class="s5-cell mid">✓✓</div>
+        <div class="s5-cell good">✓✓✓</div>
+      </div>
+      <div class="s5-row">
+        <div class="s5-cell">Difficulty</div>
+        <div class="s5-cell mid">High</div>
+        <div class="s5-cell good">Medium</div>
+        <div class="s5-cell mid">High</div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">
+    <div class="pip dk"></div><div class="pip dk"></div><div class="pip dk"></div>
+    <div class="pip dk"></div><div class="pip dk active"></div><div class="pip dk"></div>
+  </div>
+</div>
+
+<!-- ── SLIDE 6 ── -->
+<div class="slide-label">Slide 6 of 6 — CTA</div>
+<div class="post s6">
+  <div class="s6-wm"><span class="wn">Nana</span><span class="ws">Says</span></div>
+  <div class="s6-spacer">
+    <div class="s6-icon">🎓</div>
+    <div class="s6-q">Find the right <span>school</span> for your child</div>
+    <div class="s6-sub">90+ verified international schools — fees, inspection ratings and curriculum in one place.</div>
+    <div class="s6-cta">Search schools free →</div>
+    <div class="s6-url">nanasays.com</div>
+  </div>
+  <div class="slide-num">
+    <div class="pip"></div><div class="pip"></div><div class="pip"></div>
+    <div class="pip"></div><div class="pip"></div><div class="pip active"></div>
+  </div>
+</div>
+
+</body>
+</html>

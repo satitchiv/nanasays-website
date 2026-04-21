@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Location Mockup C — Compact single column · Reed's School</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy:#1B3252; --teal:#34C3A0; --teal-dk:#239C80; --teal-bg:#E8FAF6;
+    --amber:#D97706; --amber-bg:#FEF3C7; --red:#B91C1C;
+    --green:#059669; --green-bg:#D1FAE5;
+    --border:#E5E7EB; --muted:#6B7280; --off:#F6F8FA; --text:#1f2937;
+    --forest:#2E5C4B; --paper:#F5F1EA; --ink:#1C1C1C; --rule:#D8D1C2; --ochre:#B08A3E;
+  }
+  body { font-family:'Nunito Sans',sans-serif; background:#f8f6f2; color:var(--ink); line-height:1.65; padding:40px 24px 80px; }
+  .page { max-width:860px; margin:0 auto; }
+  .label { font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; margin-bottom:14px; display:flex; align-items:center; gap:10px; }
+  .label::after { content:''; flex:1; height:1px; background:var(--rule); }
+  .mockup-badge { display:inline-block; background:#fef3c7; border:1px solid #f59e0b; color:#92400e; font-size:10px; font-weight:800; padding:4px 12px; border-radius:20px; margin-bottom:24px; letter-spacing:.06em; text-transform:uppercase; }
+  .design-label { font-size:20px; font-family:'Nunito',sans-serif; font-weight:900; color:var(--navy); margin-bottom:6px; }
+  .design-desc { font-size:13px; color:var(--muted); margin-bottom:28px; }
+
+  /* ── Compact single card ── */
+  .loc-card { background:#fff; border:1px solid var(--rule); border-radius:14px; overflow:hidden; margin-bottom:16px; }
+
+  /* Stats strip at top */
+  .stats-strip { display:grid; grid-template-columns: repeat(4,1fr); border-bottom:1px solid var(--rule); }
+  .strip-item { padding:14px 16px; border-right:1px solid var(--rule); }
+  .strip-item:last-child { border-right:none; }
+  .strip-label { font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:4px; }
+  .strip-val { font-size:13.5px; font-weight:700; color:var(--ink); }
+  .strip-val small { display:block; font-size:11px; font-weight:400; color:var(--muted); }
+
+  /* Map full-width */
+  .loc-map iframe { display:block; width:100%; height:280px; border:0; }
+  .map-bar { padding:10px 18px; background:#fafaf8; border-top:1px solid var(--rule); display:flex; justify-content:space-between; align-items:center; font-size:12px; color:var(--muted); }
+  .map-bar a { color:var(--teal-dk); font-weight:700; font-size:12px; text-decoration:none; }
+
+  /* Two-column lower section */
+  .lower { display:grid; grid-template-columns:1fr 1fr; border-top:1px solid var(--rule); }
+  .lower-col { padding:18px 20px; }
+  .lower-col:first-child { border-right:1px solid var(--rule); }
+  .lower-title { font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; margin-bottom:10px; }
+
+  /* Airport pills */
+  .airport-pill { display:flex; justify-content:space-between; align-items:center; padding:7px 10px; background:var(--off); border-radius:8px; margin-bottom:6px; }
+  .airport-pill:last-child { margin-bottom:0; }
+  .ap-name { font-size:13px; font-weight:600; color:var(--ink); }
+  .ap-meta { font-size:11px; color:var(--muted); text-align:right; }
+
+  /* Attractions compact list */
+  .attract-item { display:flex; align-items:center; justify-content:space-between; padding:7px 0; border-bottom:1px solid #f5f2ec; }
+  .attract-item:last-child { border-bottom:none; }
+  .attract-left { display:flex; align-items:center; gap:7px; }
+  .attract-dot { width:7px; height:7px; border-radius:50%; background:var(--teal); flex-shrink:0; }
+  .attract-name { font-size:12.5px; font-weight:500; color:var(--ink); }
+  .attract-right { display:flex; align-items:center; gap:8px; }
+  .attract-type-tag { font-size:9px; background:var(--teal-bg); color:var(--teal-dk); border-radius:8px; padding:1px 7px; font-weight:700; text-transform:capitalize; }
+  .attract-km { font-size:11px; color:var(--muted); }
+
+  /* Setting note */
+  .setting-row { padding:12px 20px; background:#fafaf8; border-top:1px solid var(--rule); font-size:12.5px; color:var(--muted); font-style:italic; display:flex; gap:8px; align-items:flex-start; }
+
+  /* ── Crime locked card ── */
+  .crime-card { background:#fff; border:1px solid var(--rule); border-radius:14px; overflow:hidden; }
+  .crime-head { background:var(--navy); padding:14px 20px; display:flex; justify-content:space-between; align-items:center; }
+  .crime-head-title { color:#fff; font-family:'Nunito',sans-serif; font-weight:800; font-size:14px; }
+  .paid-pill { background:var(--ochre); color:#fff; font-size:10px; font-weight:800; padding:3px 9px; border-radius:10px; text-transform:uppercase; letter-spacing:.06em; }
+  .crime-body { padding:18px 20px; }
+
+  /* Verdict row */
+  .verdict-row { display:flex; align-items:center; gap:16px; padding-bottom:14px; margin-bottom:14px; border-bottom:1px solid var(--rule); }
+  .verdict-chip { padding:6px 14px; border-radius:20px; font-size:12px; font-weight:800; background:var(--green-bg); color:var(--green); }
+  .verdict-meta { font-size:12px; color:var(--muted); }
+
+  .crime-interp { font-size:13px; color:var(--text); line-height:1.65; margin-bottom:14px; }
+  .crime-interp strong { color:var(--navy); }
+
+  /* Horizontal bar chart */
+  .bars { display:flex; flex-direction:column; gap:7px; margin-bottom:14px; }
+  .b-row { display:grid; grid-template-columns:150px 1fr 34px; align-items:center; gap:8px; }
+  .b-label { font-size:11.5px; color:var(--text); }
+  .b-track { background:#f0ece4; border-radius:3px; height:6px; }
+  .b-fill { height:6px; border-radius:3px; background:var(--teal); }
+  .b-fill.warn { background:var(--amber); }
+  .b-pct { font-size:11px; color:var(--muted); }
+
+  .intl-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .intl-item { background:var(--off); border-radius:8px; padding:9px 12px; }
+  .intl-country { font-size:11px; font-weight:700; color:var(--navy); margin-bottom:3px; }
+  .intl-rate { font-size:12px; color:var(--muted); }
+  .intl-note { font-size:10.5px; color:var(--muted); font-style:italic; margin-top:2px; }
+
+  .tour-q { margin-top:14px; padding:10px 14px; border-left:3px solid var(--teal); font-size:12.5px; color:var(--text); }
+  .tour-q strong { color:var(--navy); display:block; font-size:10px; text-transform:uppercase; letter-spacing:.08em; margin-bottom:3px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="mockup-badge">Mockup C — Layout Option</div>
+  <div class="design-label">Design C: Compact single card, stats strip on top</div>
+  <div class="design-desc">Stats strip at top of card, map below, airports + attractions in two columns. Most compact. Crime section uses an international comparison grid. Best for mobile and for fitting into an existing long page.</div>
+
+  <div class="label">Location <span style="color:var(--teal-dk);font-size:11px;font-weight:700;background:var(--teal-bg);padding:2px 10px;border-radius:10px;letter-spacing:0;text-transform:none;">Free</span></div>
+
+  <div class="loc-card">
+    <!-- Stats strip -->
+    <div class="stats-strip">
+      <div class="strip-item">
+        <div class="strip-label">Postcode</div>
+        <div class="strip-val">KT11 2PU<small>Elmbridge</small></div>
+      </div>
+      <div class="strip-item">
+        <div class="strip-label">Setting</div>
+        <div class="strip-val">Suburban<small>Surrey</small></div>
+      </div>
+      <div class="strip-item">
+        <div class="strip-label">Train station</div>
+        <div class="strip-val">Oxshott<small>0.9 km</small></div>
+      </div>
+      <div class="strip-item">
+        <div class="strip-label">Nearest airport</div>
+        <div class="strip-val">Heathrow<small>16 km</small></div>
+      </div>
+    </div>
+
+    <!-- Map -->
+    <div class="loc-map">
+      <iframe src="https://maps.google.com/maps?q=Reed%27s+School+Cobham+Surrey&output=embed&z=15" title="Reed's School"></iframe>
+    </div>
+    <div class="map-bar">
+      <span>Sandy Lane, Cobham, Surrey KT11 2PU</span>
+      <a href="https://www.google.com/maps/@51.3375,-0.3746,3a,90y,0h,90t/data=!3m4!1e1" target="_blank">Street View ↗</a>
+    </div>
+
+    <!-- Two-column lower -->
+    <div class="lower">
+      <div class="lower-col">
+        <div class="lower-title">Airports</div>
+        <div class="airport-pill">
+          <span class="ap-name">✈ Heathrow</span>
+          <span class="ap-meta">16 km · ~31 min</span>
+        </div>
+        <div class="airport-pill">
+          <span class="ap-name">✈ Gatwick</span>
+          <span class="ap-meta">24 km · ~41 min</span>
+        </div>
+        <div class="airport-pill">
+          <span class="ap-name">✈ London City</span>
+          <span class="ap-meta">35 km · ~56 min</span>
+        </div>
+      </div>
+      <div class="lower-col">
+        <div class="lower-title">Nearby for families</div>
+        <div class="attract-item">
+          <div class="attract-left"><div class="attract-dot"></div><span class="attract-name">Chessington World of Adventures</span></div>
+          <div class="attract-right"><span class="attract-type-tag">theme park</span><span class="attract-km">8 km</span></div>
+        </div>
+        <div class="attract-item">
+          <div class="attract-left"><div class="attract-dot"></div><span class="attract-name">Windsor Castle</span></div>
+          <div class="attract-right"><span class="attract-type-tag">castle</span><span class="attract-km">14 km</span></div>
+        </div>
+        <div class="attract-item">
+          <div class="attract-left"><div class="attract-dot"></div><span class="attract-name">Hampton Court Palace</span></div>
+          <div class="attract-right"><span class="attract-type-tag">palace</span><span class="attract-km">12 km</span></div>
+        </div>
+        <div class="attract-item">
+          <div class="attract-left"><div class="attract-dot"></div><span class="attract-name">RHS Wisley Garden</span></div>
+          <div class="attract-right"><span class="attract-type-tag">attraction</span><span class="attract-km">7 km</span></div>
+        </div>
+        <div class="attract-item">
+          <div class="attract-left"><div class="attract-dot"></div><span class="attract-name">Kew Gardens</span></div>
+          <div class="attract-right"><span class="attract-type-tag">attraction</span><span class="attract-km">19 km</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Setting note -->
+    <div class="setting-row">
+      <span>📍</span>
+      <span>Prosperous Surrey commuter town on the edge of open countryside, roughly 20 miles southwest of London. Excellent Heathrow access — ideal for international families flying in.</span>
+    </div>
+  </div>
+
+  <!-- PAID: Crime -->
+  <div class="label" style="margin-top:28px;">Safety Data <span style="color:var(--ochre);font-size:11px;font-weight:700;background:#fef3c7;padding:2px 10px;border-radius:10px;letter-spacing:0;text-transform:none;">Premium report</span></div>
+
+  <div class="crime-card">
+    <div class="crime-head">
+      <div class="crime-head-title">🔒 Local Crime Profile</div>
+      <div class="paid-pill">Deep Report only</div>
+    </div>
+    <div class="crime-body">
+      <div class="verdict-row">
+        <div class="verdict-chip">Below Surrey average</div>
+        <div class="verdict-meta">208 incidents · 1 mile · Feb 2025 – Jan 2026</div>
+      </div>
+
+      <p class="crime-interp">
+        208 reported incidents near Reed's over 12 months is <strong>at or below the Surrey average</strong> for a similar suburb. The "40% violent crime" figure looks alarming but reflects the <strong>UK's broad definition</strong> — it includes minor altercations and harassment, not just serious assault. Families from Bangkok, Singapore, or Hong Kong are accustomed to much narrower crime categories, so direct comparison significantly overstates UK risk.
+      </p>
+
+      <div class="bars">
+        <div class="b-row"><span class="b-label">Violent crime</span><div class="b-track"><div class="b-fill" style="width:40%"></div></div><span class="b-pct">40%</span></div>
+        <div class="b-row"><span class="b-label">Anti-social behaviour</span><div class="b-track"><div class="b-fill" style="width:20%"></div></div><span class="b-pct">20%</span></div>
+        <div class="b-row"><span class="b-label">Burglary</span><div class="b-track"><div class="b-fill warn" style="width:9%"></div></div><span class="b-pct">9%</span></div>
+        <div class="b-row"><span class="b-label">Public order</span><div class="b-track"><div class="b-fill" style="width:7%"></div></div><span class="b-pct">7%</span></div>
+        <div class="b-row"><span class="b-label">Vehicle crime</span><div class="b-track"><div class="b-fill" style="width:5%"></div></div><span class="b-pct">5%</span></div>
+      </div>
+
+      <!-- International comparison grid -->
+      <div class="lower-title" style="margin-bottom:8px;">How does this compare globally?</div>
+      <div class="intl-grid">
+        <div class="intl-item">
+          <div class="intl-country">🇬🇧 Surrey, England</div>
+          <div class="intl-rate">~55–65 / 1k residents</div>
+          <div class="intl-note">Reed's area is within this range</div>
+        </div>
+        <div class="intl-item">
+          <div class="intl-country">🇹🇭 Bangkok, Thailand</div>
+          <div class="intl-rate">~20–25 official / 1k</div>
+          <div class="intl-note">Estimated 2–3× higher; "violent crime" = serious assault only</div>
+        </div>
+        <div class="intl-item">
+          <div class="intl-country">🇸🇬 Singapore</div>
+          <div class="intl-rate">~6–8 / 1k residents</div>
+          <div class="intl-note">Very low; narrow crime definitions</div>
+        </div>
+        <div class="intl-item">
+          <div class="intl-country">🇺🇸 United States</div>
+          <div class="intl-rate">~40–50 / 1k residents</div>
+          <div class="intl-note">Violent crime threshold higher than UK</div>
+        </div>
+      </div>
+
+      <div class="tour-q">
+        <strong>Tour question to ask</strong>
+        Ask about the school's security gate arrangements and whether there have been any campus-perimeter incidents in the past year.
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

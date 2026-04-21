@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V3 — Topic Sections</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito Sans', sans-serif; background: #f8f9fa; color: #374151; }
+  .nav { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 0 5%; display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .nav-logo { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px; color: #0f2b4c; }
+  .nav-logo span { color: #34c3a0; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 40px 5%; }
+  .page-label { font-size: 11px; font-weight: 800; color: #34c3a0; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px; }
+  h1 { font-family: 'Nunito', sans-serif; font-size: 32px; font-weight: 900; color: #0f2b4c; margin-bottom: 6px; }
+  .sub { font-size: 15px; color: #6b7280; margin-bottom: 40px; }
+
+  /* Section header */
+  .section-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid; }
+  .section-hd-left { display: flex; align-items: center; gap: 10px; }
+  .section-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .section-label { font-family: 'Nunito', sans-serif; font-size: 18px; font-weight: 900; color: #0f2b4c; }
+  .section-count { font-size: 12px; color: #6b7280; font-weight: 500; }
+  .see-all { font-size: 13px; font-weight: 700; text-decoration: none; }
+  .section-wrap { margin-bottom: 44px; }
+
+  /* 3-col cards */
+  .cards3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+  .card { background: #fff; border-radius: 12px; border: 1px solid #e5e7eb; padding: 0; overflow: hidden; cursor: pointer; transition: box-shadow .15s; }
+  .card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.08); }
+  .card-top { height: 4px; }
+  .card-body { padding: 16px; }
+  .card-title { font-family: 'Nunito', sans-serif; font-size: 15px; font-weight: 800; color: #0f2b4c; line-height: 1.35; margin-bottom: 8px; }
+  .card-sum { font-size: 12px; color: #6b7280; line-height: 1.5; margin-bottom: 10px; }
+  .card-foot { display: flex; align-items: center; justify-content: space-between; }
+  .card-source { font-size: 11px; color: #9ca3af; }
+  .card-action { font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 10px; }
+  .urgent { background: #fee2e2; color: #b91c1c; }
+  .version-tag { position: fixed; top: 70px; right: 20px; background: #0f2b4c; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; font-family: 'Nunito', sans-serif; }
+
+  /* 2-col cards (for some sections) */
+  .cards2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 14px; }
+  .card-big { background: #fff; border-radius: 12px; border: 1px solid #e5e7eb; padding: 0; overflow: hidden; cursor: pointer; transition: box-shadow .15s; }
+  .card-big:hover { box-shadow: 0 4px 14px rgba(0,0,0,.08); }
+  .card-big-top { height: 5px; }
+  .card-big-body { padding: 20px; }
+  .card-big-title { font-family: 'Nunito', sans-serif; font-size: 17px; font-weight: 800; color: #0f2b4c; line-height: 1.35; margin-bottom: 10px; }
+  .card-big-sum { font-size: 13px; color: #374151; line-height: 1.6; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<div class="version-tag">V3 — Topic Sections</div>
+
+<nav class="nav">
+  <div class="nav-logo">Nana<span>Says</span></div>
+  <div style="display:flex;gap:24px;font-size:14px;font-weight:600;color:#6b7280;">
+    <span>Schools</span><span style="color:#0f2b4c;">News</span><span>Compare</span>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="page-label">Education Intelligence</div>
+  <h1>International Education News</h1>
+  <p class="sub">Organised by topic — find what matters to your family</p>
+
+  <!-- ADMISSIONS -->
+  <div class="section-wrap">
+    <div class="section-hd" style="border-color:#059669;">
+      <div class="section-hd-left">
+        <div class="section-dot" style="background:#059669;"></div>
+        <span class="section-label">Admissions</span>
+        <span class="section-count">13 articles</span>
+      </div>
+      <a class="see-all" style="color:#059669;" href="#">See all →</a>
+    </div>
+    <div class="cards3">
+      <div class="card">
+        <div class="card-top" style="background:#059669;"></div>
+        <div class="card-body">
+          <div class="card-title">IB Diploma hits 220,000 candidates as Asia-Pacific expansion accelerates</div>
+          <div class="card-sum">Thailand now leads mainland Southeast Asia with 52 IB World Schools.</div>
+          <div class="card-foot"><span class="card-source">ICEF Monitor · 2d</span><span class="card-action urgent">Urgent</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-top" style="background:#059669;"></div>
+        <div class="card-body">
+          <div class="card-title">Oxford and Cambridge break international application records as Asian students surge</div>
+          <div class="card-sum">Thai and Vietnamese applications to Cambridge more than doubled compared to 2024.</div>
+          <div class="card-foot"><span class="card-source">ICEF Monitor · 2d</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-top" style="background:#059669;"></div>
+        <div class="card-body">
+          <div class="card-title">Leading US universities expand need-blind financial aid to all international students</div>
+          <div class="card-sum">Princeton, MIT, Amherst and 12 partner colleges for January 2027 entry.</div>
+          <div class="card-foot"><span class="card-source">Inside Higher Ed · 4d</span><span class="card-action urgent">Urgent</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FEES -->
+  <div class="section-wrap">
+    <div class="section-hd" style="border-color:#dc2626;">
+      <div class="section-hd-left">
+        <div class="section-dot" style="background:#dc2626;"></div>
+        <span class="section-label">Fees &amp; Funding</span>
+        <span class="section-count">11 articles</span>
+      </div>
+      <a class="see-all" style="color:#dc2626;" href="#">See all →</a>
+    </div>
+    <div class="cards2">
+      <div class="card-big">
+        <div class="card-big-top" style="background:#dc2626;"></div>
+        <div class="card-big-body">
+          <div class="card-big-title">Russell Group universities considering raising international student fees above £50,000 per year</div>
+          <div class="card-big-sum">More than 12 Russell Group universities are reviewing fee structures for the 2027-28 academic year, with several considering fees above £50,000 for high-demand courses.</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;"><span style="font-size:12px;color:#9ca3af;">The Guardian · 3d</span></div>
+        </div>
+      </div>
+      <div class="card-big">
+        <div class="card-big-top" style="background:#dc2626;"></div>
+        <div class="card-big-body">
+          <div class="card-big-title">Thai families spending record $7.8 billion annually on international education as school numbers boom</div>
+          <div class="card-big-sum">35% increase over five years, with families prioritising UK, Australia, US and Switzerland for university study.</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;"><span style="font-size:12px;color:#9ca3af;">TIER Research · 2d</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VISA -->
+  <div class="section-wrap">
+    <div class="section-hd" style="border-color:#2563eb;">
+      <div class="section-hd-left">
+        <div class="section-dot" style="background:#2563eb;"></div>
+        <span class="section-label">Visa &amp; Immigration</span>
+        <span class="section-count">9 articles</span>
+      </div>
+      <a class="see-all" style="color:#2563eb;" href="#">See all →</a>
+    </div>
+    <div class="cards3">
+      <div class="card">
+        <div class="card-top" style="background:#2563eb;"></div>
+        <div class="card-body">
+          <div class="card-title">Australia visa refusal rates reach record high — 43.5% of Thai ELICOS applications rejected</div>
+          <div class="card-sum">Highest refusal rate in 21 years. September 2026 review pending.</div>
+          <div class="card-foot"><span class="card-source">ICEF Monitor · 1d</span><span class="card-action urgent">Urgent</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-top" style="background:#2563eb;"></div>
+        <div class="card-body">
+          <div class="card-title">Australia overhauls student visa — 5-day processing for Tier 1 universities from July 2026</div>
+          <div class="card-sum">Risk-based tiering replaces blanket restrictions. Thai students benefit.</div>
+          <div class="card-foot"><span class="card-source">ICEF Monitor · 2d</span><span class="card-action urgent">Urgent</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-top" style="background:#2563eb;"></div>
+        <div class="card-body">
+          <div class="card-title">Canada extends post-graduation work permit to 3 years for all eligible graduates</div>
+          <div class="card-sum">Changes take effect June 1, 2026. Designated institution eligibility required.</div>
+          <div class="card-foot"><span class="card-source">CIC News · 4d</span><span class="card-action urgent">Urgent</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCHOLARSHIPS -->
+  <div class="section-wrap">
+    <div class="section-hd" style="border-color:#34c3a0;">
+      <div class="section-hd-left">
+        <div class="section-dot" style="background:#34c3a0;"></div>
+        <span class="section-label">Scholarships</span>
+        <span class="section-count">5 articles</span>
+      </div>
+      <a class="see-all" style="color:#1a9478;" href="#">See all →</a>
+    </div>
+    <div class="cards2">
+      <div class="card-big">
+        <div class="card-big-top" style="background:#34c3a0;"></div>
+        <div class="card-big-body">
+          <div class="card-big-title">UK universities commit £180M to international scholarships — Thailand named as target market</div>
+          <div class="card-big-sum">Edinburgh, Manchester and King's College London increasing scholarship budgets by 40-60% for September 2026 entry.</div>
+          <div><span style="font-size:12px;color:#9ca3af;">Study International · 2d</span></div>
+        </div>
+      </div>
+      <div class="card-big">
+        <div class="card-big-top" style="background:#34c3a0;"></div>
+        <div class="card-big-body">
+          <div class="card-big-title">Germany's DAAD offers 1,000+ annual scholarships for ASEAN students as applications surge 25%</div>
+          <div class="card-big-sum">Thai applications to German universities jumped 52% year-on-year. Near-zero tuition driving interest.</div>
+          <div><span style="font-size:12px;color:#9ca3af;">Study International · 2d</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

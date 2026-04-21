@@ -4,5 +4,7 @@ Disallow: /api/
 Disallow: /portal/
 Disallow: /claim/
 Disallow: /demo/
+Disallow: /render/
+Disallow: /admin/
 
 Sitemap: https://nanasays.school/sitemap.xml

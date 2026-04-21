@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pillar 3 — Inspection Snapshot</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #cbd5e1; display: flex; flex-direction: column; align-items: center;
+    padding: 48px 24px; gap: 10px; font-family: 'Nunito Sans', sans-serif; }
+  .caption { font-size: 12px; font-weight: 700; color: #475569; letter-spacing: .5px; text-transform: uppercase; margin-bottom: 4px; }
+  .sub-caption { font-size: 11px; color: #94a3b8; margin-bottom: 16px; }
+
+  .post {
+    width: 540px; height: 540px;
+    display: flex; flex-direction: row;
+    box-shadow: 0 12px 48px rgba(0,0,0,.28);
+    overflow: hidden;
+  }
+
+  /* ── Left navy panel ── */
+  .left {
+    width: 200px; flex-shrink: 0;
+    background: #1B3252;
+    display: flex; flex-direction: column;
+    padding: 28px 22px 26px;
+  }
+
+  .wordmark { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px;
+    letter-spacing: -.5px; margin-bottom: 10px; }
+  .wn { color: #fff; } .ws { color: #34C3A0; }
+
+  .chip { font-size: 8.5px; font-weight: 700; letter-spacing: 1.3px; text-transform: uppercase;
+    background: rgba(52,195,160,.15); color: #34C3A0; border: 1px solid rgba(52,195,160,.3);
+    padding: 5px 10px; border-radius: 100px; display: inline-block; margin-bottom: 22px; }
+
+  .school-name { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px;
+    color: #fff; line-height: 1.1; letter-spacing: -.5px; margin-bottom: 6px; }
+  .school-sub { font-size: 10px; color: rgba(255,255,255,.38); line-height: 1.6; margin-bottom: 0; }
+
+  /* Rating hero */
+  .rating-hero { margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(255,255,255,.1); }
+  .rating-lbl { font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.2px; color: rgba(255,255,255,.35); margin-bottom: 8px; }
+  .rating-val { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 28px;
+    color: #34C3A0; line-height: 1; letter-spacing: -.8px; margin-bottom: 4px; }
+  .rating-body { font-size: 11px; color: rgba(255,255,255,.55); font-weight: 600; }
+  .rating-year { font-size: 10px; color: rgba(255,255,255,.3); margin-top: 3px; }
+
+  .verified-left { display: flex; align-items: center; gap: 5px;
+    font-size: 9px; font-weight: 600; color: rgba(255,255,255,.28); margin-top: 14px; }
+  .dot { width: 5px; height: 5px; border-radius: 50%; background: #34C3A0; flex-shrink: 0; }
+
+  /* ── Right panel ── */
+  .right {
+    flex: 1; background: #F6F8FA;
+    display: flex; flex-direction: column;
+    padding: 22px 22px 20px;
+  }
+
+  .section-lbl { font-size: 9.5px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 2px; color: #9CA3AF; margin-bottom: 16px; }
+
+  /* Quality signals */
+  .signals { flex: 1; display: flex; flex-direction: column; justify-content: space-between; margin-bottom: 16px; }
+  .signal-row { display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid #E5E7EB; }
+  .signal-row:last-child { border-bottom: none; }
+  .signal-key { font-size: 11px; font-weight: 600; color: #6B7280; }
+  .signal-val { font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 800;
+    color: #1B3252; text-align: right; }
+  .signal-val.good { color: #239C80; }
+
+  /* Accreditation chips */
+  .accred-lbl { font-size: 9px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 1.5px; color: #9CA3AF; margin-bottom: 8px; }
+  .chips-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .accred-chip { font-size: 11px; font-weight: 700; color: #239C80;
+    background: #E8FAF6; border: 1px solid rgba(52,195,160,.25);
+    padding: 5px 12px; border-radius: 100px; }
+
+  .footer-right { padding-top: 10px; border-top: 1px solid #E5E7EB;
+    display: flex; align-items: center; justify-content: flex-end; }
+  .url { font-size: 10px; color: #9CA3AF; font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="caption">Pillar 3 — Inspection Snapshot</div>
+<div class="sub-caption">1080 × 1080 · Split panel · Rating hero left · Signals right</div>
+
+<div class="post">
+
+  <div class="left">
+    <div class="wordmark"><span class="wn">Nana</span><span class="ws">Says</span></div>
+    <div class="chip">Quality Signals</div>
+    <div class="school-name">Bangkok Patana School</div>
+    <div class="school-sub">Bangkok,<br>Thailand<br><br>Est. 1957</div>
+
+    <div class="rating-hero">
+      <div class="rating-lbl">Inspection rating</div>
+      <div class="rating-val">Excellent</div>
+      <div class="rating-body">BSO inspection</div>
+      <div class="rating-year">2023</div>
+    </div>
+
+    <div class="verified-left"><div class="dot"></div>Verified Apr 2026</div>
+  </div>
+
+  <div class="right">
+    <div class="section-lbl">Quality indicators</div>
+
+    <div class="signals">
+      <div class="signal-row">
+        <span class="signal-key">Student : Teacher</span>
+        <span class="signal-val good">8 : 1</span>
+      </div>
+      <div class="signal-row">
+        <span class="signal-key">Boarding quality</span>
+        <span class="signal-val good">Excellent</span>
+      </div>
+      <div class="signal-row">
+        <span class="signal-key">Scholarships</span>
+        <span class="signal-val good">Available</span>
+      </div>
+      <div class="signal-row">
+        <span class="signal-key">Boarding places</span>
+        <span class="signal-val">350</span>
+      </div>
+      <div class="signal-row">
+        <span class="signal-key">Programmes</span>
+        <span class="signal-val">IB · IGCSE · A-Level</span>
+      </div>
+    </div>
+
+    <div class="accred-lbl">Accreditations</div>
+    <div class="chips-row">
+      <span class="accred-chip">CIS</span>
+      <span class="accred-chip">IAPS</span>
+      <span class="accred-chip">BSO</span>
+    </div>
+
+    <div class="footer-right"><div class="url">nanasays.com</div></div>
+  </div>
+
+</div>
+
+</body>
+</html>

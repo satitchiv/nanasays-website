@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SN3 — Category Sections</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito Sans', sans-serif; background: #f8f9fa; color: #374151; }
+  .nav { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 0 5%; display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .nav-logo { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px; color: #0f2b4c; }
+  .nav-logo span { color: #34c3a0; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 40px 5%; }
+  .page-label { font-size: 11px; font-weight: 800; color: #34c3a0; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px; }
+  h1 { font-family: 'Nunito', sans-serif; font-size: 32px; font-weight: 900; color: #0f2b4c; margin-bottom: 6px; }
+  .sub { font-size: 15px; color: #6b7280; margin-bottom: 36px; }
+  .version-tag { position: fixed; top: 70px; right: 20px; background: #0f2b4c; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; font-family: 'Nunito', sans-serif; }
+
+  /* Category section */
+  .cat-section { margin-bottom: 48px; }
+  .cat-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 2px solid; }
+  .cat-hd-left { display: flex; align-items: center; gap: 10px; }
+  .cat-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .cat-icon svg { width: 16px; height: 16px; }
+  .cat-label { font-family: 'Nunito', sans-serif; font-size: 18px; font-weight: 900; color: #0f2b4c; }
+  .cat-count { font-size: 12px; color: #9ca3af; }
+  .see-all { font-size: 13px; font-weight: 700; text-decoration: none; }
+
+  /* Cards */
+  .cards { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+  .card { background: #fff; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden; cursor: pointer; transition: box-shadow .15s; }
+  .card:hover { box-shadow: 0 4px 14px rgba(0,0,0,.08); }
+  .card-stripe { height: 3px; }
+  .card-body { padding: 14px 16px; }
+  .card-school { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; }
+  .card-title { font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 800; color: #0f2b4c; line-height: 1.4; margin-bottom: 6px; }
+  .card-desc { font-size: 12px; color: #6b7280; line-height: 1.5; margin-bottom: 8px; }
+  .card-foot { display: flex; align-items: center; justify-content: space-between; }
+  .card-date { font-size: 11px; color: #9ca3af; }
+  .flag-yellow { font-size: 10px; font-weight: 700; background: #fef3c7; color: #92400e; padding: 2px 7px; border-radius: 7px; }
+  .flag-red { font-size: 10px; font-weight: 700; background: #fee2e2; color: #b91c1c; padding: 2px 7px; border-radius: 7px; }
+
+  /* 2-col cards for large sections */
+  .cards2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .card-big { background: #fff; border-radius: 12px; border: 1px solid #e5e7eb; overflow: hidden; cursor: pointer; transition: box-shadow .15s; }
+  .card-big:hover { box-shadow: 0 4px 14px rgba(0,0,0,.08); }
+  .card-big-stripe { height: 4px; }
+  .card-big-body { padding: 18px 20px; }
+  .card-big-school { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+  .card-big-title { font-family: 'Nunito', sans-serif; font-size: 16px; font-weight: 800; color: #0f2b4c; line-height: 1.35; margin-bottom: 8px; }
+  .card-big-desc { font-size: 13px; color: #6b7280; line-height: 1.6; margin-bottom: 10px; }
+  .card-big-foot { display: flex; align-items: center; justify-content: space-between; }
+</style>
+</head>
+<body>
+
+<div class="version-tag">SN3 — Category Sections</div>
+
+<nav class="nav">
+  <div class="nav-logo">Nana<span>Says</span></div>
+  <div style="display:flex;gap:24px;font-size:14px;font-weight:600;color:#6b7280;">
+    <span>Schools</span><span style="color:#0f2b4c;">School News</span><span>Compare</span>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="page-label">Direct from schools</div>
+  <h1>School Updates</h1>
+  <p class="sub">Browse what's happening across Bangkok's international schools by category</p>
+
+  <!-- RESULTS -->
+  <div class="cat-section">
+    <div class="cat-hd" style="border-color:#059669;">
+      <div class="cat-hd-left">
+        <div class="cat-icon" style="background:#f0fdf4;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <span class="cat-label">Results</span>
+        <span class="cat-count">12 updates</span>
+      </div>
+      <a class="see-all" style="color:#059669;" href="#">See all →</a>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <div class="card-stripe" style="background:#059669;"></div>
+        <div class="card-body">
+          <div class="card-school" style="color:#059669;">Bangkok Patana School</div>
+          <div class="card-title">Year 12 IB results — 43% of students achieve 38 points or above</div>
+          <div class="card-desc">Average score 35.4, with 6 students achieving the maximum 45 points.</div>
+          <div class="card-foot"><span class="card-date">4d ago</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-stripe" style="background:#059669;"></div>
+        <div class="card-body">
+          <div class="card-school" style="color:#059669;">Ruamrudee International</div>
+          <div class="card-title">IB Diploma class of 2025 — average 34.1, 4 students score 42 or above</div>
+          <div class="card-desc">Strong performance in science and extended essays across all programmes.</div>
+          <div class="card-foot"><span class="card-date">2w ago</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-stripe" style="background:#059669;"></div>
+        <div class="card-body">
+          <div class="card-school" style="color:#059669;">St. Andrews International</div>
+          <div class="card-title">IGCSE results — 89% A*–B grades, school's best performance in six years</div>
+          <div class="card-desc">Mathematics and sciences saw the highest improvement year-on-year.</div>
+          <div class="card-foot"><span class="card-date">3w ago</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EVENTS & ADMISSIONS (2-col large) -->
+  <div class="cat-section">
+    <div class="cat-hd" style="border-color:#2563eb;">
+      <div class="cat-hd-left">
+        <div class="cat-icon" style="background:#eff6ff;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <span class="cat-label">Events &amp; Admissions</span>
+        <span class="cat-count">10 updates</span>
+      </div>
+      <a class="see-all" style="color:#2563eb;" href="#">See all →</a>
+    </div>
+    <div class="cards2">
+      <div class="card-big">
+        <div class="card-big-stripe" style="background:#2563eb;"></div>
+        <div class="card-big-body">
+          <div class="card-big-school" style="color:#2563eb;">Ruamrudee International</div>
+          <div class="card-big-title">Open house — Saturday 19 April, all Year 7 entry families welcome</div>
+          <div class="card-big-desc">Tour the campus, meet department heads and current Year 7 students. No booking required — arrive any time between 9am and 1pm.</div>
+          <div class="card-big-foot"><span style="font-size:11px;color:#9ca3af;">3 days ago</span><span class="flag-yellow">Upcoming</span></div>
+        </div>
+      </div>
+      <div class="card-big">
+        <div class="card-big-stripe" style="background:#2563eb;"></div>
+        <div class="card-big-body">
+          <div class="card-big-school" style="color:#2563eb;">Bangkok Patana School</div>
+          <div class="card-big-title">Extended campus tour dates released for prospective families</div>
+          <div class="card-big-desc">Three new tour dates in April and May, including a Saturday morning and an evening session for working parents. Places limited to 20 families.</div>
+          <div class="card-big-foot"><span style="font-size:11px;color:#9ca3af;">1 week ago</span><span class="flag-yellow">Upcoming</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SPORT -->
+  <div class="cat-section">
+    <div class="cat-hd" style="border-color:#ea580c;">
+      <div class="cat-hd-left">
+        <div class="cat-icon" style="background:#fff7ed;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#ea580c" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><path d="M12 8l1.5 3h3l-2.5 2 1 3L12 14.5 9 16l1-3-2.5-2H11z"/></svg>
+        </div>
+        <span class="cat-label">Sport</span>
+        <span class="cat-count">7 updates</span>
+      </div>
+      <a class="see-all" style="color:#ea580c;" href="#">See all →</a>
+    </div>
+    <div class="cards">
+      <div class="card">
+        <div class="card-stripe" style="background:#ea580c;"></div>
+        <div class="card-body">
+          <div class="card-school" style="color:#ea580c;">Shrewsbury International</div>
+          <div class="card-title">Football team wins BISAC championship for second consecutive year</div>
+          <div class="card-desc">The Year 10-11 squad won 3-1 against Wells International in the final.</div>
+          <div class="card-foot"><span class="card-date">6d ago</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-stripe" style="background:#ea580c;"></div>
+        <div class="card-body">
+          <div class="card-school" style="color:#ea580c;">NIST International</div>
+          <div class="card-title">Swimming team wins gold at BISAC — four individual records broken</div>
+          <div class="card-desc">Year 9-10 team dominated relay events at the regional tournament.</div>
+          <div class="card-foot"><span class="card-date">5d ago</span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-stripe" style="background:#ea580c;"></div>
+        <div class="card-body">
+          <div class="card-school" style="color:#ea580c;">Bangkok Patana School</div>
+          <div class="card-title">Girls football team qualifies for FOBISIA Regional Championships in Singapore</div>
+          <div class="card-desc">Year 10-11 girls squad earned their spot at the June tournament.</div>
+          <div class="card-foot"><span class="card-date">2w ago</span><span class="flag-yellow">Upcoming</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCHOLARSHIPS -->
+  <div class="cat-section">
+    <div class="cat-hd" style="border-color:#34c3a0;">
+      <div class="cat-hd-left">
+        <div class="cat-icon" style="background:#f0fdf9;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#34c3a0" stroke-width="2.5"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+        </div>
+        <span class="cat-label">Scholarships</span>
+        <span class="cat-count">4 updates</span>
+      </div>
+      <a class="see-all" style="color:#34c3a0;" href="#">See all →</a>
+    </div>
+    <div class="cards2">
+      <div class="card-big">
+        <div class="card-big-stripe" style="background:#34c3a0;"></div>
+        <div class="card-big-body">
+          <div class="card-big-school" style="color:#1a9478;">NIST International</div>
+          <div class="card-big-title">Scholarship applications now open for 2026-27 entry — deadline 30 April</div>
+          <div class="card-big-desc">Merit-based awards covering up to 50% of tuition fees. Open to external applicants entering Grades 7-11.</div>
+          <div class="card-big-foot"><span style="font-size:11px;color:#9ca3af;">2 days ago</span><span class="flag-red">Deadline 30 April</span></div>
+        </div>
+      </div>
+      <div class="card-big">
+        <div class="card-big-stripe" style="background:#34c3a0;"></div>
+        <div class="card-big-body">
+          <div class="card-big-school" style="color:#1a9478;">St. Andrews International</div>
+          <div class="card-big-title">Performing Arts scholarship 2026-27 — auditions open to external students</div>
+          <div class="card-big-desc">Full and partial scholarships available for music, drama and dance. Audition dates in May and June 2026.</div>
+          <div class="card-big-foot"><span style="font-size:11px;color:#9ca3af;">1 week ago</span><span class="flag-yellow">Applications open</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

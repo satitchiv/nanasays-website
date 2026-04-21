@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Social Option A — Big Stats</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #e5e7eb; display: flex; flex-direction: column; align-items: center; padding: 40px 24px; gap: 16px; font-family: 'Nunito Sans', sans-serif; }
+  .label { font-size: 13px; font-weight: 700; color: #6B7280; margin-bottom: 8px; }
+
+  /* ── Canvas: 1080×1080 displayed at 50% ── */
+  .canvas {
+    width: 540px; height: 540px;
+    background: #F6F8FA;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 40px rgba(0,0,0,.18);
+  }
+  .inner { padding: 32px; display: flex; flex-direction: column; height: 100%; }
+
+  /* Top bar */
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .wordmark { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 15px; letter-spacing: -0.3px; }
+  .wordmark .n { color: #1B3252; }
+  .wordmark .s { color: #34C3A0; }
+  .chip { font-size: 8px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+    background: #E8FAF6; color: #239C80; border: 1px solid rgba(52,195,160,.25);
+    padding: 4px 10px; border-radius: 100px; font-family: 'Nunito Sans', sans-serif; }
+
+  /* School name */
+  .school-name { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 28px;
+    line-height: 1.05; letter-spacing: -0.8px; color: #1B3252; margin-bottom: 6px; }
+  .school-sub { font-size: 11px; color: #6B7280; font-weight: 500; margin-bottom: 18px; letter-spacing: 0.2px; }
+
+  /* Divider */
+  .rule { height: 1px; background: #E5E7EB; margin-bottom: 18px; }
+
+  /* Big stat grid — 2×2 */
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .stat-box { background: #fff; border: 1px solid #E5E7EB; border-radius: 10px; padding: 14px 14px 12px; }
+  .stat-num { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 32px;
+    color: #1B3252; line-height: 1; letter-spacing: -1px; font-variant-numeric: tabular-nums; }
+  .stat-num .accent { color: #34C3A0; }
+  .stat-label { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+    color: #6B7280; margin-top: 4px; }
+  .stat-detail { font-size: 10px; color: #9CA3AF; margin-top: 2px; font-weight: 400; }
+
+  /* Accred chips row */
+  .accred-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin-bottom: auto; }
+  .accred-label { font-size: 9px; font-weight: 700; color: #6B7280; text-transform: uppercase; letter-spacing: 1px; margin-right: 2px; }
+  .accred-chip { font-size: 10px; font-weight: 700; color: #239C80;
+    background: #E8FAF6; border: 1px solid rgba(52,195,160,.2);
+    padding: 3px 8px; border-radius: 100px; }
+
+  /* Footer */
+  .footer { display: flex; align-items: center; justify-content: space-between;
+    padding-top: 12px; border-top: 1px solid #E5E7EB; margin-top: 14px; }
+  .verified { display: flex; align-items: center; gap: 5px; font-size: 9px; font-weight: 700; color: #239C80; }
+  .dot { width: 5px; height: 5px; border-radius: 50%; background: #34C3A0; }
+  .footer-url { font-size: 9px; color: #9CA3AF; font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="label">Option A — "Big Stats" (School Spotlight)</div>
+
+<div class="canvas">
+  <div class="inner">
+    <div class="topbar">
+      <div class="wordmark"><span class="n">Nana</span><span class="s">Says</span></div>
+      <div class="chip">School Spotlight</div>
+    </div>
+
+    <div class="school-name">Bangkok Patana School</div>
+    <div class="school-sub">Bangkok, Thailand · Day School</div>
+
+    <div class="rule"></div>
+
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-num">1957</div>
+        <div class="stat-label">Founded</div>
+        <div class="stat-detail">67 years of operation</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num">~<span class="accent">2,300</span></div>
+        <div class="stat-label">Students enrolled</div>
+        <div class="stat-detail">Early Years – Year 13</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num" style="font-size:20px; padding-top:4px">IB · IGCSE<br><span style="font-size:17px">A-Level</span></div>
+        <div class="stat-label">Curricula offered</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num">3<span class="accent" style="font-size:22px">–</span>18</div>
+        <div class="stat-label">Age range</div>
+        <div class="stat-detail">Nursery through Sixth Form</div>
+      </div>
+    </div>
+
+    <div class="accred-row">
+      <span class="accred-label">Accredited by</span>
+      <span class="accred-chip">CIS</span>
+      <span class="accred-chip">IAPS</span>
+      <span class="accred-chip">BSO</span>
+    </div>
+
+    <div class="footer">
+      <div class="verified"><div class="dot"></div>Verified Apr 2026</div>
+      <div class="footer-url">nanasays.com</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

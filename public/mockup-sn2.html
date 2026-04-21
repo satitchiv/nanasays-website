@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SN2 — Grouped by School</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito Sans', sans-serif; background: #f8f9fa; color: #374151; }
+  .nav { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 0 5%; display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .nav-logo { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px; color: #0f2b4c; }
+  .nav-logo span { color: #34c3a0; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 40px 5%; }
+  .page-label { font-size: 11px; font-weight: 800; color: #34c3a0; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px; }
+  h1 { font-family: 'Nunito', sans-serif; font-size: 32px; font-weight: 900; color: #0f2b4c; margin-bottom: 6px; }
+  .sub { font-size: 15px; color: #6b7280; margin-bottom: 32px; }
+  .version-tag { position: fixed; top: 70px; right: 20px; background: #0f2b4c; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; font-family: 'Nunito', sans-serif; }
+
+  /* School section */
+  .school-section { margin-bottom: 44px; }
+  .school-hd { display: flex; align-items: center; justify-content: space-between; padding-bottom: 14px; border-bottom: 2px solid #e5e7eb; margin-bottom: 16px; }
+  .school-hd-left { display: flex; align-items: center; gap: 12px; }
+  .school-avatar { width: 44px; height: 44px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-family: 'Nunito', sans-serif; font-size: 15px; font-weight: 900; color: #fff; flex-shrink: 0; }
+  .school-name { font-family: 'Nunito', sans-serif; font-size: 18px; font-weight: 900; color: #0f2b4c; }
+  .school-meta { font-size: 12px; color: #9ca3af; }
+  .school-hd-right { display: flex; align-items: center; gap: 12px; }
+  .school-count { font-size: 12px; color: #9ca3af; }
+  .see-all { font-size: 13px; font-weight: 700; color: #34c3a0; text-decoration: none; }
+
+  /* Card grid for each school */
+  .school-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .scard { background: #fff; border-radius: 10px; border: 1px solid #e5e7eb; padding: 14px 16px; cursor: pointer; transition: box-shadow .15s; }
+  .scard:hover { box-shadow: 0 3px 12px rgba(0,0,0,.07); }
+  .scard-cat-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .scard-cat { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 10px; }
+  .scard-date { font-size: 11px; color: #9ca3af; }
+  .scard-title { font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 800; color: #0f2b4c; line-height: 1.4; margin-bottom: 6px; }
+  .scard-desc { font-size: 12px; color: #6b7280; line-height: 1.5; }
+  .flag { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 7px; }
+  .flag-yellow { background: #fef3c7; color: #92400e; }
+  .flag-red { background: #fee2e2; color: #b91c1c; }
+</style>
+</head>
+<body>
+
+<div class="version-tag">SN2 — Grouped by School</div>
+
+<nav class="nav">
+  <div class="nav-logo">Nana<span>Says</span></div>
+  <div style="display:flex;gap:24px;font-size:14px;font-weight:600;color:#6b7280;">
+    <span>Schools</span><span style="color:#0f2b4c;">School News</span><span>Compare</span>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="page-label">Direct from schools</div>
+  <h1>School Updates</h1>
+  <p class="sub">Events, results, admissions and more — grouped by school</p>
+
+  <!-- Bangkok Patana -->
+  <div class="school-section">
+    <div class="school-hd">
+      <div class="school-hd-left">
+        <div class="school-avatar" style="background:#0f2b4c;">BP</div>
+        <div>
+          <div class="school-name">Bangkok Patana School</div>
+          <div class="school-meta">British curriculum · Sukhumvit · Grades 1–13</div>
+        </div>
+      </div>
+      <div class="school-hd-right">
+        <span class="school-count">8 updates this month</span>
+        <a class="see-all" href="#">See all →</a>
+      </div>
+    </div>
+    <div class="school-cards">
+      <div class="scard">
+        <div class="scard-cat-row">
+          <span class="scard-cat" style="background:#f0fdf9;color:#1a9478;">Results</span>
+          <span class="scard-date">4d ago</span>
+        </div>
+        <div class="scard-title">Year 12 IB results — 43% of students achieve 38 points or above</div>
+        <div class="scard-desc">Average score 35.4, with 6 students achieving the maximum 45 points.</div>
+      </div>
+      <div class="scard">
+        <div class="scard-cat-row">
+          <span class="scard-cat" style="background:#eff6ff;color:#1d4ed8;">Admissions</span>
+          <span class="scard-date">1w ago</span>
+        </div>
+        <div class="scard-title">Extended campus tour dates released for prospective families</div>
+        <div class="scard-desc">New April and May dates, including evening tours for working parents. <span class="flag flag-yellow">Upcoming</span></div>
+      </div>
+      <div class="scard">
+        <div class="scard-cat-row">
+          <span class="scard-cat" style="background:#fdf4ff;color:#7c3aed;">Leadership</span>
+          <span class="scard-date">2w ago</span>
+        </div>
+        <div class="scard-title">New Head of Primary — Ms. Sarah Chen joins from British School Jakarta</div>
+        <div class="scard-desc">Takes up her role from August 2026.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Ruamrudee -->
+  <div class="school-section">
+    <div class="school-hd">
+      <div class="school-hd-left">
+        <div class="school-avatar" style="background:#059669;">RI</div>
+        <div>
+          <div class="school-name">Ruamrudee International School</div>
+          <div class="school-meta">IB · Catholic · Lad Phrao · Grades K–12</div>
+        </div>
+      </div>
+      <div class="school-hd-right">
+        <span class="school-count">6 updates this month</span>
+        <a class="see-all" href="#">See all →</a>
+      </div>
+    </div>
+    <div class="school-cards">
+      <div class="scard">
+        <div class="scard-cat-row">
+          <span class="scard-cat" style="background:#f0fdf4;color:#166534;">Events</span>
+          <span class="scard-date">3d ago</span>
+        </div>
+        <div class="scard-title">Open house — Saturday 19 April, all Year 7 entry families welcome</div>
+        <div class="scard-desc">Tour the campus, meet department heads and current students. <span class="flag flag-yellow">Upcoming</span></div>
+      </div>
+      <div class="scard">
+        <div class="scard-cat-row">
+          <span class="scard-cat" style="background:#fdf4ff;color:#7c3aed;">Leadership</span>
+          <span class="scard-date">1w ago</span>
+        </div>
+        <div class="scard-title">New head of secondary — Mr. James Whitfield joins from Harrow Bangkok</div>
+        <div class="scard-desc">Mr. Whitfield brings 18 years of international secondary leadership.</div>
+      </div>
+      <div class="scard">
+        <div class="scard-cat-row">
+          <span class="scard-cat" style="background:#f0fdf9;color:#1a9478;">Results</span>
+          <span class="scard-date">2w ago</span>
+        </div>
+        <div class="scard-title">IB Diploma class of 2025 — average 34.1, 4 students score 42+</div>
+        <div class="scard-desc">Strong performance across science and mathematics extended essays.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- NIST -->
+  <div class="school-section">
+    <div class="school-hd">
+      <div class="school-hd-left">
+        <div class="school-avatar" style="background:#2563eb;">NI</div>
+        <div>
+          <div class="school-name">NIST International School</div>
+          <div class="school-meta">IB · Sukhumvit · Grades K–12</div>
+        </div>
+      </div>
+      <div class="school-hd-right">
+        <span class="school-count">5 updates this month</span>
+        <a class="see-all" href="#">See all →</a>
+      </div>
+    </div>
+    <div class="school-cards">
+      <div class="scard">
+        <div class="scard-cat-row">
+          <span class="scard-cat" style="background:#f0fdf9;color:#1a9478;">Scholarships</span>
+          <span class="scard-date">2d ago</span>
+        </div>
+        <div class="scard-title">Scholarship applications now open for 2026-27 entry — deadline 30 April</div>
+        <div class="scard-desc">Merit-based awards covering up to 50% of tuition. <span class="flag flag-red">Deadline soon</span></div>
+      </div>
+      <div class="scard">
+        <div class="scard-cat-row">
+          <span class="scard-cat" style="background:#fef9c3;color:#854d0e;">Sport</span>
+          <span class="scard-date">5d ago</span>
+        </div>
+        <div class="scard-title">Swimming team wins gold at BISAC Championships — four individual records broken</div>
+        <div class="scard-desc">Year 9-10 team dominated the relay events at the regional tournament.</div>
+      </div>
+      <div class="scard">
+        <div class="scard-cat-row">
+          <span class="scard-cat" style="background:#eff6ff;color:#1d4ed8;">Curriculum</span>
+          <span class="scard-date">1w ago</span>
+        </div>
+        <div class="scard-title">New AI and Computational Thinking strand added to MYP curriculum from August 2026</div>
+        <div class="scard-desc">Partnership with MIT STEP programme to deliver specialist teacher training.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Concordian -->
+  <div class="school-section">
+    <div class="school-hd">
+      <div class="school-hd-left">
+        <div class="school-avatar" style="background:#7c3aed;">CI</div>
+        <div>
+          <div class="school-name">Concordian International School</div>
+          <div class="school-meta">American · Bang Na · Grades PK–12</div>
+        </div>
+      </div>
+      <div class="school-hd-right">
+        <span class="school-count">4 updates this month</span>
+        <a class="see-all" href="#">See all →</a>
+      </div>
+    </div>
+    <div class="school-cards">
+      <div class="scard">
+        <div class="scard-cat-row">
+          <span class="scard-cat" style="background:#f5f3ff;color:#5b21b6;">Facilities</span>
+          <span class="scard-date">5d ago</span>
+        </div>
+        <div class="scard-title">New STEAM building on track for September 2026 opening</div>
+        <div class="scard-desc">12,000 sq ft facility housing robotics, design studios and a broadcast studio.</div>
+      </div>
+      <div class="scard">
+        <div class="scard-cat-row">
+          <span class="scard-cat" style="background:#fef9c3;color:#854d0e;">Community</span>
+          <span class="scard-date">1w ago</span>
+        </div>
+        <div class="scard-title">Annual International Day — Saturday 10 May, families invited</div>
+        <div class="scard-desc">40+ countries represented, food fair, performances and cultural showcases.</div>
+      </div>
+      <div class="scard">
+        <div class="scard-cat-row">
+          <span class="scard-cat" style="background:#eff6ff;color:#1d4ed8;">Admissions</span>
+          <span class="scard-date">2w ago</span>
+        </div>
+        <div class="scard-title">Year 2026-27 enrollment now open — rolling admissions with immediate assessment</div>
+        <div class="scard-desc">Limited places remaining in Grades 6, 9 and 11.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V5 — Unified Feed + Source Tabs</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito Sans', sans-serif; background: #f8f9fa; color: #374151; }
+  .nav { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 0 5%; display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .nav-logo { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px; color: #0f2b4c; }
+  .nav-logo span { color: #34c3a0; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 40px 5%; }
+  .page-label { font-size: 11px; font-weight: 800; color: #34c3a0; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px; }
+  h1 { font-family: 'Nunito', sans-serif; font-size: 32px; font-weight: 900; color: #0f2b4c; margin-bottom: 6px; }
+  .sub { font-size: 15px; color: #6b7280; margin-bottom: 24px; }
+
+  /* Source tabs */
+  .tabs { display: flex; gap: 0; border-bottom: 2px solid #e5e7eb; margin-bottom: 28px; }
+  .tab { padding: 10px 20px; font-size: 13px; font-weight: 700; color: #6b7280; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px; font-family: inherit; background: none; border-top: none; border-left: none; border-right: none; }
+  .tab.active { color: #0f2b4c; border-bottom-color: #0f2b4c; }
+  .tab-count { font-size: 11px; font-weight: 600; background: #f3f4f6; color: #6b7280; padding: 1px 7px; border-radius: 10px; margin-left: 6px; }
+  .tab.active .tab-count { background: #e8edf5; color: #0f2b4c; }
+
+  /* Category pills (secondary) */
+  .pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 28px; }
+  .pill { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid #e5e7eb; background: #fff; color: #6b7280; font-family: inherit; }
+  .pill.active { background: #0f2b4c; color: #fff; border-color: #0f2b4c; }
+
+  .version-tag { position: fixed; top: 70px; right: 20px; background: #0f2b4c; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; font-family: 'Nunito', sans-serif; }
+
+  /* Layout */
+  .layout { display: grid; grid-template-columns: minmax(0,1.6fr) minmax(0,1fr); gap: 32px; align-items: start; }
+
+  /* Feed */
+  .feed-item { display: flex; align-items: flex-start; gap: 14px; padding: 16px 0; border-bottom: 1px solid #f3f4f6; cursor: pointer; }
+  .feed-item:last-child { border-bottom: none; }
+  .feed-item:hover .feed-title { color: #34c3a0; }
+  .feed-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; margin-top: 5px; }
+  .feed-content { flex: 1; min-width: 0; }
+  .feed-title { font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 800; color: #0f2b4c; line-height: 1.4; margin-bottom: 5px; transition: color .15s; }
+  .feed-summary { font-size: 12px; color: #6b7280; line-height: 1.5; margin-bottom: 5px; }
+  .feed-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .feed-type { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; padding: 2px 8px; border-radius: 10px; }
+  .type-world { background: #eff6ff; color: #1d4ed8; }
+  .type-school { background: #f0fdf9; color: #1a9478; }
+  .feed-cat { font-size: 11px; font-weight: 700; }
+  .feed-meta { font-size: 11px; color: #9ca3af; }
+  .feed-sep { color: #d1d5db; font-size: 11px; }
+  .urgent-badge { font-size: 10px; font-weight: 700; background: #fee2e2; color: #b91c1c; padding: 1px 7px; border-radius: 8px; }
+  .school-chip { font-size: 11px; font-weight: 700; color: #0f2b4c; background: #f3f4f6; padding: 2px 8px; border-radius: 10px; }
+  .load-more { width: 100%; margin-top: 8px; padding: 12px; background: none; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 13px; font-weight: 600; color: #0f2b4c; cursor: pointer; font-family: inherit; }
+
+  /* Sidebar */
+  .sidebar-box { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+  .sidebar-title { font-size: 13px; font-weight: 700; color: #0f2b4c; margin-bottom: 12px; }
+  .trend-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .trend-num { font-size: 16px; font-weight: 800; color: #e5e7eb; min-width: 20px; }
+  .trend-label { font-size: 13px; color: #374151; font-weight: 600; }
+  .trend-count { font-size: 11px; color: #6b7280; }
+  .school-tag { display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; border-radius: 8px; padding: 7px 10px; margin-bottom: 6px; }
+  .badge { font-size: 11px; color: #2563eb; font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="version-tag">V5 — Unified Feed + Source Tabs</div>
+
+<nav class="nav">
+  <div class="nav-logo">Nana<span>Says</span></div>
+  <div style="display:flex;gap:24px;font-size:14px;font-weight:600;color:#6b7280;">
+    <span>Schools</span><span style="color:#0f2b4c;">News</span><span>Compare</span>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="page-label">Education Intelligence</div>
+  <h1>International Education News</h1>
+  <p class="sub">World education news and direct updates from schools — all in one place</p>
+
+  <!-- Source tabs -->
+  <div class="tabs">
+    <button class="tab active">All <span class="tab-count">83</span></button>
+    <button class="tab">World News <span class="tab-count">59</span></button>
+    <button class="tab">School Updates <span class="tab-count">24</span></button>
+  </div>
+
+  <!-- Category pills -->
+  <div class="pills">
+    <button class="pill active">All topics</button>
+    <button class="pill">Admissions</button>
+    <button class="pill">Fees</button>
+    <button class="pill">Visa</button>
+    <button class="pill">Scholarships</button>
+    <button class="pill">Events</button>
+    <button class="pill">Results</button>
+    <button class="pill">Sport</button>
+  </div>
+
+  <div class="layout">
+    <div>
+      <!-- World news item -->
+      <div class="feed-item">
+        <div class="feed-dot" style="background:#059669;"></div>
+        <div class="feed-content">
+          <div class="feed-title">IB Diploma hits 220,000 candidates as Asia-Pacific expansion accelerates</div>
+          <div class="feed-summary">Thailand now leads mainland Southeast Asia with 52 IB World Schools. IB graduates maintain significantly higher university acceptance rates.</div>
+          <div class="feed-row">
+            <span class="feed-type type-world">World News</span>
+            <span class="feed-cat" style="color:#059669;">Admissions</span>
+            <span class="feed-sep">·</span>
+            <span class="feed-meta">ICEF Monitor · 2d</span>
+            <span class="urgent-badge">Urgent</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- School news item -->
+      <div class="feed-item">
+        <div class="feed-dot" style="background:#34c3a0;"></div>
+        <div class="feed-content">
+          <div class="feed-title">Open house — Saturday 19 April, all Year 7 entry families welcome</div>
+          <div class="feed-row">
+            <span class="feed-type type-school">School Update</span>
+            <span class="school-chip">Ruamrudee International</span>
+            <span class="feed-cat" style="color:#34c3a0;">Events</span>
+            <span class="feed-sep">·</span>
+            <span class="feed-meta">3d</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- World news item -->
+      <div class="feed-item">
+        <div class="feed-dot" style="background:#dc2626;"></div>
+        <div class="feed-content">
+          <div class="feed-title">Russell Group universities considering raising international student fees above £50,000</div>
+          <div class="feed-summary">More than 12 universities reviewing fee structures for the 2027-28 academic year.</div>
+          <div class="feed-row">
+            <span class="feed-type type-world">World News</span>
+            <span class="feed-cat" style="color:#dc2626;">Fees</span>
+            <span class="feed-sep">·</span>
+            <span class="feed-meta">The Guardian · 3d</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- School news item -->
+      <div class="feed-item">
+        <div class="feed-dot" style="background:#34c3a0;"></div>
+        <div class="feed-content">
+          <div class="feed-title">Year 12 IB results — 43% of students score 38 points or above</div>
+          <div class="feed-row">
+            <span class="feed-type type-school">School Update</span>
+            <span class="school-chip">Bangkok Patana School</span>
+            <span class="feed-cat" style="color:#34c3a0;">Results</span>
+            <span class="feed-sep">·</span>
+            <span class="feed-meta">4d</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- World news item -->
+      <div class="feed-item">
+        <div class="feed-dot" style="background:#2563eb;"></div>
+        <div class="feed-content">
+          <div class="feed-title">Australia visa refusal rates reach record high — 43.5% of Thai ELICOS applications rejected</div>
+          <div class="feed-summary">Highest refusal rate in 21 years. September 2026 reform review pending.</div>
+          <div class="feed-row">
+            <span class="feed-type type-world">World News</span>
+            <span class="feed-cat" style="color:#2563eb;">Visa</span>
+            <span class="feed-sep">·</span>
+            <span class="feed-meta">ICEF Monitor · 1d</span>
+            <span class="urgent-badge">Urgent</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- School news item -->
+      <div class="feed-item">
+        <div class="feed-dot" style="background:#34c3a0;"></div>
+        <div class="feed-content">
+          <div class="feed-title">New STEAM building opens September 2026 — construction update</div>
+          <div class="feed-row">
+            <span class="feed-type type-school">School Update</span>
+            <span class="school-chip">Concordian International</span>
+            <span class="feed-cat" style="color:#34c3a0;">Facilities</span>
+            <span class="feed-sep">·</span>
+            <span class="feed-meta">5d</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- World news item -->
+      <div class="feed-item">
+        <div class="feed-dot" style="background:#34c3a0;"></div>
+        <div class="feed-content">
+          <div class="feed-title">UK universities commit £180M to international scholarships — Thailand named as target market</div>
+          <div class="feed-summary">Edinburgh, Manchester and King's College London increasing scholarship budgets by 40-60%.</div>
+          <div class="feed-row">
+            <span class="feed-type type-world">World News</span>
+            <span class="feed-cat" style="color:#1a9478;">Scholarships</span>
+            <span class="feed-sep">·</span>
+            <span class="feed-meta">Study International · 2d</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- School news item -->
+      <div class="feed-item">
+        <div class="feed-dot" style="background:#34c3a0;"></div>
+        <div class="feed-content">
+          <div class="feed-title">Scholarship applications now open for 2026-27 entry — deadline 30 April</div>
+          <div class="feed-row">
+            <span class="feed-type type-school">School Update</span>
+            <span class="school-chip">NIST International</span>
+            <span class="feed-cat" style="color:#34c3a0;">Scholarships</span>
+            <span class="feed-sep">·</span>
+            <span class="feed-meta">2d</span>
+            <span class="urgent-badge">Urgent</span>
+          </div>
+        </div>
+      </div>
+
+      <button class="load-more">Load more</button>
+    </div>
+
+    <!-- Sidebar -->
+    <div style="position:sticky;top:20px;">
+      <div class="sidebar-box">
+        <div class="sidebar-title">Trending topics</div>
+        <div class="trend-row"><span class="trend-num">1</span><span><span class="trend-label">Admissions</span><br><span class="trend-count">13 articles</span></span></div>
+        <div class="trend-row"><span class="trend-num">2</span><span><span class="trend-label">Fees</span><br><span class="trend-count">11 articles</span></span></div>
+        <div class="trend-row"><span class="trend-num">3</span><span><span class="trend-label">Visa</span><br><span class="trend-count">9 articles</span></span></div>
+        <div class="trend-row"><span class="trend-num">4</span><span><span class="trend-label">Results</span><br><span class="trend-count">8 updates</span></span></div>
+      </div>
+      <div class="sidebar-box">
+        <div class="sidebar-title">Active schools</div>
+        <div class="school-tag"><span style="font-size:12px;font-weight:700;color:#0f2b4c;">Ruamrudee International</span><span class="badge">5 updates</span></div>
+        <div class="school-tag"><span style="font-size:12px;font-weight:700;color:#0f2b4c;">Bangkok Patana School</span><span class="badge">4 updates</span></div>
+        <div class="school-tag"><span style="font-size:12px;font-weight:700;color:#0f2b4c;">NIST International</span><span class="badge">3 updates</span></div>
+      </div>
+      <div class="sidebar-box" style="background:#f0fdf9;border-color:rgba(52,195,160,.25);">
+        <div class="sidebar-title">Weekly briefing</div>
+        <p style="font-size:12px;color:#6b7280;margin-bottom:10px;line-height:1.5;">Top education news for international families, every week.</p>
+        <input type="email" placeholder="your@email.com" style="width:100%;padding:8px 12px;border-radius:20px;border:1px solid rgba(52,195,160,.4);font-size:12px;margin-bottom:8px;font-family:inherit;">
+        <button style="width:100%;padding:8px;border-radius:20px;background:#0f2b4c;color:#fff;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Subscribe</button>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

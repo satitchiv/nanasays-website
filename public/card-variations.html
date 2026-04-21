@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ArticleCard — 4 NanaSays Variations</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy: #1B3252;
+  --blue: #2D7DD2;
+  --teal: #34C3A0;
+  --teal-dk: #239C80;
+  --teal-bg: #E8FAF6;
+  --blue-bg: #EBF4FF;
+  --body: #374151;
+  --muted: #6B7280;
+  --border: #E5E7EB;
+  --off: #F6F8FA;
+  --shadow: rgba(27,50,82,0.08);
+  --shadow-lg: rgba(27,50,82,0.16);
+}
+
+body {
+  font-family: 'Nunito Sans', system-ui, sans-serif;
+  background: #f0f2f5;
+  padding: 48px 24px;
+  color: var(--body);
+}
+
+.page { max-width: 860px; margin: 0 auto; }
+
+.variation-label {
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--teal-dk);
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--border);
+}
+.variation-desc {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 20px;
+  line-height: 1.5;
+}
+
+.divider { border: none; border-top: 1px dashed var(--border); margin: 48px 0; }
+
+/* ─── SHARED CARD STRUCTURE ─── */
+.card {
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 0;
+}
+.card-body {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+}
+.card-left { padding: 22px 24px; }
+.card-right { display: flex; flex-direction: column; }
+.right-box { flex: 1; padding: 18px 18px; display: flex; flex-direction: column; gap: 10px; }
+
+.source-row { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 700;
+  flex-shrink: 0;
+}
+.source-name { font-size: 16px; font-weight: 600; color: var(--navy); }
+.source-time { font-size: 14px; color: var(--muted); margin-top: 1px; }
+.headline {
+  font-family: 'Nunito', sans-serif;
+  font-size: 28px; font-weight: 700; color: var(--navy);
+  line-height: 1.3; margin-bottom: 18px;
+}
+.kp-label {
+  font-size: 14px; font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--muted);
+  margin-bottom: 12px;
+}
+.bullet { display: flex; gap: 12px; margin-bottom: 12px; align-items: flex-start; }
+.bullet-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 9px; }
+.bullet-text { font-size: 17px; color: var(--body); line-height: 1.6; }
+.expand-btn {
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: 15px; font-weight: 700; color: var(--blue);
+  background: none; border: none; cursor: pointer; padding: 0;
+  display: flex; align-items: center; gap: 4px; margin-top: 4px;
+}
+.box-label {
+  font-size: 20px; font-weight: 700;
+}
+.box-tags { display: flex; flex-wrap: wrap; gap: 7px; }
+.box-tag { font-size: 17px; padding: 5px 13px; border-radius: 10px; font-weight: 500; line-height: 1.4; }
+.box-text { font-size: 17px; line-height: 1.6; }
+.card-footer {
+  padding: 12px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.btn-read {
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: 16px; padding: 9px 22px;
+  border-radius: 20px; font-weight: 700;
+  border: none; cursor: pointer; text-decoration: none; display: inline-block;
+}
+.credit { font-size: 15px; color: var(--muted); }
+.credit a { color: var(--muted); text-decoration: none; font-weight: 500; }
+
+
+/* ════════════════════════════════
+   VARIATION 1 — "Clean Shadow"
+   White card + soft navy shadow
+   Teal left accent stripe
+   Off-white right pane
+════════════════════════════════ */
+.v1 {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 2px 16px var(--shadow);
+  overflow: hidden;
+}
+.v1 .card-body { border-left: 4px solid var(--teal); }
+.v1 .card-left { padding: 22px 24px; }
+.v1 .card-right { border-left: 1px solid var(--border); }
+.v1 .right-box { background: var(--off); }
+.v1 .right-box + .right-box { border-top: 1px solid var(--border); }
+.v1 .avatar { background: var(--teal-bg); color: var(--teal-dk); border: 1px solid rgba(52,195,160,0.25); }
+.v1 .cat-pill {
+  font-size: 14px; padding: '4px 12px'; border-radius: 100px;
+  background: var(--teal-bg); color: var(--teal-dk);
+  border: 1px solid rgba(52,195,160,0.3); padding: 3px 12px; font-weight: 600;
+}
+.v1 .bullet-dot { background: var(--teal); }
+.v1 .box-label-affected { color: var(--teal-dk); }
+.v1 .box-tag { background: var(--teal-bg); color: var(--teal-dk); border: 1px solid rgba(52,195,160,0.2); }
+.v1 .box-label-action { color: var(--navy); }
+.v1 .box-text { color: var(--body); }
+.v1 .card-footer { background: #fff; border-top: 1px solid var(--border); }
+.v1 .btn-read { background: var(--navy); color: #fff; }
+.v1 .headline-text { color: var(--navy); }
+
+
+/* ════════════════════════════════
+   VARIATION 2 — "Teal Featured"
+   Teal top border (like featured school card)
+   Stronger shadow, right pane teal-bg / off
+════════════════════════════════ */
+.v2 {
+  background: #fff;
+  border: 1.5px solid var(--teal);
+  border-radius: 14px;
+  box-shadow: 0 4px 24px rgba(27,50,82,0.10);
+  overflow: hidden;
+}
+.v2 .top-bar { height: 4px; background: var(--teal); }
+.v2 .card-right { border-left: 1px solid var(--border); }
+.v2 .right-box-top { background: var(--teal-bg); }
+.v2 .right-box-bottom { background: var(--off); border-top: 1px solid rgba(52,195,160,0.25); }
+.v2 .avatar { background: var(--teal-bg); color: var(--teal-dk); border: 1px solid rgba(52,195,160,0.3); }
+.v2 .cat-pill {
+  font-size: 14px; border-radius: 100px;
+  background: var(--teal-bg); color: var(--teal-dk);
+  border: 1px solid rgba(52,195,160,0.3); padding: 3px 12px; font-weight: 600;
+}
+.v2 .bullet-dot { background: var(--teal); }
+.v2 .box-label-affected { color: var(--teal-dk); }
+.v2 .box-tag { background: rgba(52,195,160,0.15); color: var(--teal-dk); border: 1px solid rgba(52,195,160,0.25); }
+.v2 .box-label-action { color: var(--navy); }
+.v2 .box-text { color: var(--body); }
+.v2 .card-footer { background: #fff; border-top: 1px solid var(--border); }
+.v2 .btn-read { background: var(--teal-dk); color: #fff; }
+
+
+/* ════════════════════════════════
+   VARIATION 3 — "Navy Split"
+   Navy top bar + right pane navy accent
+   Blue-bg for action, teal-bg for affected
+   Most structured / editorial feel
+════════════════════════════════ */
+.v3 {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 2px 12px var(--shadow);
+  overflow: hidden;
+}
+.v3 .top-bar { height: 5px; background: var(--navy); }
+.v3 .card-right { background: var(--navy); }
+.v3 .right-box {
+  background: #fff;
+  margin: 0;
+}
+.v3 .right-box + .right-box { border-top: 1px solid var(--border); }
+.v3 .card-right-inner { display: flex; flex-direction: column; height: 100%; margin: 10px; gap: 10px; border-radius: 10px; overflow: hidden; }
+.v3 .right-box-inner { flex: 1; padding: 16px 16px; background: var(--off); border-radius: 0; }
+.v3 .right-box-inner + .right-box-inner { border-top: 1px solid var(--border); }
+.v3 .avatar { background: #1B325218; color: var(--navy); border: 1px solid #1B325230; }
+.v3 .cat-pill {
+  font-size: 14px; border-radius: 100px;
+  background: var(--blue-bg); color: var(--blue);
+  border: 1px solid rgba(45,125,210,0.3); padding: 3px 12px; font-weight: 600;
+}
+.v3 .bullet-dot { background: var(--navy); }
+.v3 .box-label-affected { color: var(--teal-dk); }
+.v3 .box-tag { background: var(--teal-bg); color: var(--teal-dk); border: 1px solid rgba(52,195,160,0.2); }
+.v3 .box-label-action { color: var(--navy); }
+.v3 .box-text { color: var(--body); }
+.v3 .card-footer { background: #fff; border-top: 1px solid var(--border); }
+.v3 .btn-read { background: var(--navy); color: #fff; }
+
+
+/* ════════════════════════════════
+   VARIATION 4 — "Floating Elevated"
+   No top bar, no border — just shadow
+   Larger border-radius (16px)
+   Right pane blue-bg / teal-bg split
+   Feels the most modern / premium
+════════════════════════════════ */
+.v4 {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 6px 32px rgba(27,50,82,0.12), 0 1px 4px rgba(27,50,82,0.06);
+  overflow: hidden;
+}
+.v4 .card-right { border-left: 1px solid var(--border); }
+.v4 .right-box-top { background: var(--blue-bg); }
+.v4 .right-box-bottom { background: var(--teal-bg); border-top: 1px solid rgba(52,195,160,0.2); }
+.v4 .avatar { background: var(--blue-bg); color: var(--blue); border: 1px solid rgba(45,125,210,0.2); }
+.v4 .cat-pill {
+  font-size: 14px; border-radius: 100px;
+  background: var(--blue-bg); color: var(--blue);
+  border: 1px solid rgba(45,125,210,0.3); padding: 3px 12px; font-weight: 600;
+}
+.v4 .bullet-dot { background: var(--blue); }
+.v4 .box-label-affected { color: var(--blue); }
+.v4 .box-tag { background: rgba(45,125,210,0.12); color: var(--blue); border: 1px solid rgba(45,125,210,0.2); }
+.v4 .box-label-action { color: var(--teal-dk); }
+.v4 .box-text { color: var(--body); }
+.v4 .card-footer { background: #fff; border-top: 1px solid var(--border); }
+.v4 .btn-read { background: var(--navy); color: #fff; }
+
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- ══════════════════════════════
+     VARIATION 1 — Clean Shadow
+══════════════════════════════ -->
+<p class="variation-label">Variation 1 — Clean Shadow</p>
+<p class="variation-desc">Teal left accent stripe · White card · Soft navy shadow · Off-white right pane · Teal-tinted tags. Closest to the NanaSays school card feel — clean, trustworthy, subtle.</p>
+
+<div class="v1 card">
+  <div class="card-body">
+    <div class="card-left">
+      <div class="source-row">
+        <div class="avatar v1">IB</div>
+        <div>
+          <div class="source-name">IB Organization</div>
+          <div class="source-time">2 days ago</div>
+        </div>
+        <div style="margin-left:auto">
+          <span class="cat-pill v1">Admissions</span>
+        </div>
+      </div>
+      <div class="headline">IB Diploma hits 220,000 candidates as Asia-Pacific expansion accelerates</div>
+      <div class="kp-label">Key points</div>
+      <div style="position:relative;max-height:110px;overflow:hidden;">
+        <div class="bullet"><span class="bullet-dot v1"></span><span class="bullet-text">IB Diploma candidates reached 220,000 globally, up 8% from last year, with Asia-Pacific driving the majority of growth.</span></div>
+        <div class="bullet"><span class="bullet-dot v1"></span><span class="bullet-text">Ruamrudee International School is among 14 Thai schools newly accredited for the full IB continuum in 2024.</span></div>
+        <div style="position:absolute;bottom:0;left:0;right:0;height:44px;background:linear-gradient(transparent,#fff);pointer-events:none;"></div>
+      </div>
+      <button class="expand-btn">&#9662; Show all key points</button>
+    </div>
+    <div class="card-right v1">
+      <div class="right-box">
+        <div class="box-label box-label-affected v1">Affected</div>
+        <div class="box-tags">
+          <span class="box-tag v1">IB students</span>
+          <span class="box-tag v1">Grade 11–12</span>
+        </div>
+      </div>
+      <div class="right-box" style="border-top:1px solid var(--border);">
+        <div class="box-label box-label-action v1">Action needed</div>
+        <div class="box-text" style="color:var(--body);font-style:italic;">Informational — no action required.</div>
+      </div>
+    </div>
+  </div>
+  <div class="card-footer">
+    <a href="#" class="btn-read v1">Read more →</a>
+    <span class="credit">Credit source: <a href="#">IB Organization</a></span>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ══════════════════════════════
+     VARIATION 2 — Teal Featured
+══════════════════════════════ -->
+<p class="variation-label">Variation 2 — Teal Featured</p>
+<p class="variation-desc">Teal full top border (4px) + teal card border · Like a NanaSays "featured school" card · Teal-bg right pane top, off-white bottom · Teal read more button.</p>
+
+<div class="v2 card">
+  <div class="top-bar v2"></div>
+  <div class="card-body">
+    <div class="card-left">
+      <div class="source-row">
+        <div class="avatar v2">BP</div>
+        <div>
+          <div class="source-name">Bangkok Post</div>
+          <div class="source-time">Today</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+          <span class="cat-pill v2">Visa</span>
+          <span style="font-size:14px;border-radius:100px;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;padding:3px 12px;font-weight:700;">Urgent</span>
+        </div>
+      </div>
+      <div class="headline">Thailand extends student visa grace period for international school graduates</div>
+      <div class="kp-label">Key points</div>
+      <div style="position:relative;max-height:110px;overflow:hidden;">
+        <div class="bullet"><span class="bullet-dot v2"></span><span class="bullet-text">Thai immigration extended the post-graduation visa grace period from 30 to 90 days for international school graduates.</span></div>
+        <div class="bullet"><span class="bullet-dot v2"></span><span class="bullet-text">Students must notify their school registrar to file for the extension — it is not automatic.</span></div>
+        <div style="position:absolute;bottom:0;left:0;right:0;height:44px;background:linear-gradient(transparent,#fff);pointer-events:none;"></div>
+      </div>
+      <button class="expand-btn">&#9662; Show all key points</button>
+    </div>
+    <div class="card-right v2">
+      <div class="right-box right-box-top v2">
+        <div class="box-label box-label-affected v2">Affected</div>
+        <div class="box-tags">
+          <span class="box-tag v2">International students</span>
+          <span class="box-tag v2">ED visa holders</span>
+        </div>
+      </div>
+      <div class="right-box right-box-bottom v2">
+        <div class="box-label box-label-action v2">Action needed</div>
+        <div class="box-text" style="color:#7f1d1d;">Contact your school registrar immediately to file for the 90-day visa extension before the original visa expires.</div>
+      </div>
+    </div>
+  </div>
+  <div class="card-footer">
+    <a href="#" class="btn-read v2">Read more →</a>
+    <span class="credit">Credit source: <a href="#">Bangkok Post</a></span>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ══════════════════════════════
+     VARIATION 3 — Navy Split
+══════════════════════════════ -->
+<p class="variation-label">Variation 3 — Navy Split</p>
+<p class="variation-desc">Navy top bar (5px) · Navy sidebar frame around right pane · Content boxes float inside on off-white · Most editorial / structured feel — like a newspaper layout.</p>
+
+<div class="v3 card">
+  <div class="top-bar v3"></div>
+  <div class="card-body">
+    <div class="card-left">
+      <div class="source-row">
+        <div class="avatar v3">QS</div>
+        <div>
+          <div class="source-name">QS Rankings</div>
+          <div class="source-time">5 days ago</div>
+        </div>
+        <div style="margin-left:auto">
+          <span class="cat-pill v3">Rankings</span>
+        </div>
+      </div>
+      <div class="headline">Asia-Pacific universities surge in global rankings as IB acceptance rates hit 94%</div>
+      <div class="kp-label">Key points</div>
+      <div style="position:relative;max-height:110px;overflow:hidden;">
+        <div class="bullet"><span class="bullet-dot v3"></span><span class="bullet-text">Nine out of ten Asia-Pacific universities in the QS top 100 saw IB acceptance rates climb above 90% for the first time.</span></div>
+        <div class="bullet"><span class="bullet-dot v3"></span><span class="bullet-text">National University of Singapore and Chulalongkorn University jointly topped the Southeast Asia sub-ranking.</span></div>
+        <div style="position:absolute;bottom:0;left:0;right:0;height:44px;background:linear-gradient(transparent,#fff);pointer-events:none;"></div>
+      </div>
+      <button class="expand-btn">&#9662; Show all key points</button>
+    </div>
+    <div class="card-right v3" style="padding:10px;gap:10px;display:flex;flex-direction:column;">
+      <div style="flex:1;background:var(--off);border-radius:8px;padding:16px 16px;display:flex;flex-direction:column;gap:10px;">
+        <div class="box-label box-label-affected v3">Affected</div>
+        <div class="box-tags">
+          <span class="box-tag v3">IB students</span>
+          <span class="box-tag v3">University applicants</span>
+        </div>
+      </div>
+      <div style="flex:1;background:var(--off);border-radius:8px;padding:16px 16px;display:flex;flex-direction:column;gap:10px;">
+        <div class="box-label box-label-action v3">Action needed</div>
+        <div class="box-text" style="color:var(--muted);font-style:italic;">Informational — no action required.</div>
+      </div>
+    </div>
+  </div>
+  <div class="card-footer">
+    <a href="#" class="btn-read v3">Read more →</a>
+    <span class="credit">Credit source: <a href="#">QS Rankings</a></span>
+  </div>
+</div>
+
+<hr class="divider">
+
+<!-- ══════════════════════════════
+     VARIATION 4 — Floating Elevated
+══════════════════════════════ -->
+<p class="variation-label">Variation 4 — Floating Elevated</p>
+<p class="variation-desc">No top bar, no border — pure shadow elevation (most premium feel) · Blue-bg Affected pane · Teal-bg Action pane · 16px radius · Most modern of the four.</p>
+
+<div class="v4 card">
+  <div class="card-body">
+    <div class="card-left" style="padding:24px 26px;">
+      <div class="source-row">
+        <div class="avatar v4">SN</div>
+        <div>
+          <div class="source-name">School News Asia</div>
+          <div class="source-time">1 week ago</div>
+        </div>
+        <div style="margin-left:auto">
+          <span class="cat-pill v4">School News</span>
+        </div>
+      </div>
+      <div class="headline">Bangkok international schools report record enrollment for 2025–26 academic year</div>
+      <div class="kp-label">Key points</div>
+      <div style="position:relative;max-height:110px;overflow:hidden;">
+        <div class="bullet"><span class="bullet-dot v4"></span><span class="bullet-text">Total enrollment across Bangkok's 38 accredited international schools rose 12% year-on-year.</span></div>
+        <div class="bullet"><span class="bullet-dot v4"></span><span class="bullet-text">Waiting lists at IB-accredited schools now average 18 months, up from 11 months in 2023.</span></div>
+        <div style="position:absolute;bottom:0;left:0;right:0;height:44px;background:linear-gradient(transparent,#fff);pointer-events:none;"></div>
+      </div>
+      <button class="expand-btn">&#9662; Show all key points</button>
+    </div>
+    <div class="card-right v4">
+      <div class="right-box right-box-top v4" style="padding:20px 18px;">
+        <div class="box-label box-label-affected v4">Affected</div>
+        <div class="box-tags">
+          <span class="box-tag v4">All families</span>
+          <span class="box-tag v4">Applying 2025</span>
+        </div>
+      </div>
+      <div class="right-box right-box-bottom v4" style="padding:20px 18px;">
+        <div class="box-label box-label-action v4">Action needed</div>
+        <div class="box-text" style="color:var(--teal-dk);font-style:italic;">Informational — no action required.</div>
+      </div>
+    </div>
+  </div>
+  <div class="card-footer" style="padding:14px 26px;">
+    <a href="#" class="btn-read v4">Read more →</a>
+    <span class="credit">Credit source: <a href="#">School News Asia</a></span>
+  </div>
+</div>
+
+<p style="font-size:13px;color:#bbb;text-align:center;margin-top:48px;">
+  View at http://192.168.1.143:3000/card-variations.html
+</p>
+
+</div>
+</body>
+</html>

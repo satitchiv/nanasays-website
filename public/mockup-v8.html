@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V8 — Magazine with School Ticker</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito Sans', sans-serif; background: #f8f9fa; color: #374151; }
+  .nav { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 0 5%; display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .nav-logo { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px; color: #0f2b4c; }
+  .nav-logo span { color: #34c3a0; }
+  .version-tag { position: fixed; top: 70px; right: 20px; background: #0f2b4c; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; font-family: 'Nunito', sans-serif; }
+
+  /* School ticker bar */
+  .ticker-bar { background: #0f2b4c; padding: 0 5%; display: flex; align-items: center; height: 38px; gap: 16px; overflow: hidden; }
+  .ticker-label { font-size: 10px; font-weight: 800; color: #34c3a0; text-transform: uppercase; letter-spacing: .08em; white-space: nowrap; flex-shrink: 0; padding-right: 16px; border-right: 1px solid rgba(255,255,255,.15); }
+  .ticker-items { display: flex; gap: 28px; align-items: center; overflow: hidden; }
+  .ticker-item { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
+  .ticker-school { font-size: 11px; font-weight: 700; color: rgba(255,255,255,.6); }
+  .ticker-text { font-size: 11px; color: rgba(255,255,255,.85); }
+  .ticker-cat { font-size: 10px; font-weight: 700; background: rgba(52,195,160,.2); color: #34c3a0; padding: 1px 7px; border-radius: 8px; }
+  .ticker-sep { color: rgba(255,255,255,.2); }
+
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 40px 5%; }
+  .page-label { font-size: 11px; font-weight: 800; color: #34c3a0; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px; }
+  h1 { font-family: 'Nunito', sans-serif; font-size: 32px; font-weight: 900; color: #0f2b4c; margin-bottom: 6px; }
+  .sub { font-size: 15px; color: #6b7280; margin-bottom: 28px; }
+  .pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 28px; }
+  .pill { padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; }
+  .pill.active { background: #0f2b4c; color: #fff; }
+  .pill.off { background: #fff; color: #6b7280; border: 1px solid #e5e7eb; }
+
+  /* Main layout */
+  .layout { display: grid; grid-template-columns: minmax(0,1.5fr) minmax(0,1fr); gap: 32px; align-items: start; }
+
+  /* Hero */
+  .hero { background: #fff; border-radius: 14px; overflow: hidden; border: 1px solid #e5e7eb; margin-bottom: 20px; display: grid; grid-template-columns: 1fr 1fr; }
+  .hero-img { background: linear-gradient(135deg,#0f2b4c 0%,#1a4a7a 100%); display: flex; align-items: flex-end; padding: 24px; min-height: 210px; }
+  .hero-img .cat { display: inline-block; background: #34c3a0; color: #fff; font-size: 11px; font-weight: 800; padding: 4px 12px; border-radius: 20px; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 10px; }
+  .hero-headline { font-family: 'Nunito', sans-serif; font-size: 20px; font-weight: 800; color: #fff; line-height: 1.3; }
+  .hero-body { padding: 24px; display: flex; flex-direction: column; justify-content: center; }
+  .hero-summary { font-size: 13px; color: #374151; line-height: 1.7; margin-bottom: 12px; }
+  .hero-meta { font-size: 12px; color: #6b7280; }
+  .hero-cta { display: inline-block; margin-top: 14px; font-size: 12px; font-weight: 700; color: #34c3a0; }
+
+  /* 3-col grid */
+  .grid3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 12px; }
+  .card { background: #fff; border-radius: 10px; border: 1px solid #e5e7eb; padding: 14px; transition: box-shadow .15s; cursor: pointer; }
+  .card:hover { box-shadow: 0 3px 12px rgba(0,0,0,.07); }
+  .card-cat { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px; }
+  .card-title { font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 800; color: #0f2b4c; line-height: 1.35; margin-bottom: 8px; }
+  .card-source { font-size: 11px; color: #9ca3af; }
+  .card-bar { height: 3px; border-radius: 2px; margin-bottom: 12px; }
+  .urgent-badge { font-size: 10px; font-weight: 700; background: #fee2e2; color: #b91c1c; padding: 1px 7px; border-radius: 8px; margin-left: 4px; }
+
+  /* Sidebar */
+  .sidebar-box { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+  .sidebar-title { font-size: 13px; font-weight: 700; color: #0f2b4c; margin-bottom: 12px; }
+  .trend-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .trend-num { font-size: 16px; font-weight: 800; color: #e5e7eb; min-width: 20px; }
+  .trend-label { font-size: 13px; color: #374151; font-weight: 600; }
+  .trend-count { font-size: 11px; color: #6b7280; }
+
+  /* School sidebar feed */
+  .school-update { padding: 10px 0; border-bottom: 1px solid #f3f4f6; cursor: pointer; }
+  .school-update:last-child { border-bottom: none; }
+  .school-update:hover .su-title { color: #34c3a0; }
+  .su-school { font-size: 10px; font-weight: 800; color: #34c3a0; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
+  .su-title { font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 700; color: #0f2b4c; line-height: 1.4; margin-bottom: 3px; transition: color .15s; }
+  .su-row { display: flex; align-items: center; gap: 6px; }
+  .su-cat { font-size: 10px; font-weight: 700; background: #f0fdf9; color: #1a9478; padding: 1px 6px; border-radius: 7px; }
+  .su-date { font-size: 10px; color: #9ca3af; }
+  .su-flag { font-size: 10px; font-weight: 700; background: #fee2e2; color: #b91c1c; padding: 1px 6px; border-radius: 7px; }
+  .see-all-link { display: block; text-align: center; margin-top: 8px; font-size: 12px; font-weight: 700; color: #34c3a0; text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div class="version-tag">V8 — Magazine + School Ticker</div>
+
+<nav class="nav">
+  <div class="nav-logo">Nana<span>Says</span></div>
+  <div style="display:flex;gap:24px;font-size:14px;font-weight:600;color:#6b7280;">
+    <span>Schools</span><span style="color:#0f2b4c;">News</span><span>Compare</span>
+  </div>
+</nav>
+
+<!-- School ticker bar — live school updates scroll across -->
+<div class="ticker-bar">
+  <span class="ticker-label">School Updates</span>
+  <div class="ticker-items">
+    <div class="ticker-item">
+      <span class="ticker-school">Ruamrudee</span>
+      <span class="ticker-sep">·</span>
+      <span class="ticker-text">Open house Saturday 19 April</span>
+      <span class="ticker-cat">Events</span>
+    </div>
+    <div class="ticker-item">
+      <span class="ticker-school">Bangkok Patana</span>
+      <span class="ticker-sep">·</span>
+      <span class="ticker-text">Year 12 IB — 43% score 38+ points</span>
+      <span class="ticker-cat">Results</span>
+    </div>
+    <div class="ticker-item">
+      <span class="ticker-school">NIST International</span>
+      <span class="ticker-sep">·</span>
+      <span class="ticker-text">Scholarship deadline 30 April</span>
+      <span class="ticker-cat">Scholarships</span>
+    </div>
+    <div class="ticker-item">
+      <span class="ticker-school">Shrewsbury</span>
+      <span class="ticker-sep">·</span>
+      <span class="ticker-text">BISAC football champions 2026</span>
+      <span class="ticker-cat">Sport</span>
+    </div>
+    <div class="ticker-item">
+      <span class="ticker-school">Concordian</span>
+      <span class="ticker-sep">·</span>
+      <span class="ticker-text">New STEAM building opens Sept</span>
+      <span class="ticker-cat">Facilities</span>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="page-label">Education Intelligence</div>
+  <h1>International Education News</h1>
+  <p class="sub">Schools, scholarships, visas and policy — curated for international families</p>
+
+  <div class="pills">
+    <button class="pill active">All 59</button>
+    <button class="pill off">Admissions 13</button>
+    <button class="pill off">Fees 11</button>
+    <button class="pill off">Visa 9</button>
+    <button class="pill off">Policy 9</button>
+    <button class="pill off">Scholarships 5</button>
+    <button class="pill off">Rankings 5</button>
+  </div>
+
+  <div class="layout">
+    <!-- Left — main news area -->
+    <div>
+      <div class="hero">
+        <div class="hero-img">
+          <div>
+            <div class="cat">Admissions</div>
+            <div class="hero-headline">IB Diploma hits 220,000 candidates as Asia-Pacific expansion accelerates</div>
+          </div>
+        </div>
+        <div class="hero-body">
+          <div class="hero-summary">Thailand now leads mainland Southeast Asia with 52 IB World Schools. IB graduates maintain significantly higher acceptance rates at elite universities.</div>
+          <div class="hero-meta">ICEF Monitor · 2 days ago · <span style="font-size:10px;font-weight:700;background:#fee2e2;color:#b91c1c;padding:2px 8px;border-radius:10px;">Urgent</span></div>
+          <a class="hero-cta" href="#">Read full article →</a>
+        </div>
+      </div>
+
+      <div class="grid3">
+        <div class="card">
+          <div class="card-bar" style="background:#2563eb;"></div>
+          <div class="card-cat" style="color:#2563eb;">Visa</div>
+          <div class="card-title">Australia visa refusal rates reach record high — 43.5% of Thai ELICOS rejected</div>
+          <div class="card-source">ICEF Monitor · 1d <span class="urgent-badge">Urgent</span></div>
+        </div>
+        <div class="card">
+          <div class="card-bar" style="background:#34c3a0;"></div>
+          <div class="card-cat" style="color:#1a9478;">Scholarships</div>
+          <div class="card-title">UK universities commit £180M to international scholarships — Thailand targeted</div>
+          <div class="card-source">Study International · 2d</div>
+        </div>
+        <div class="card">
+          <div class="card-bar" style="background:#dc2626;"></div>
+          <div class="card-cat" style="color:#dc2626;">Fees</div>
+          <div class="card-title">Russell Group considering raising international fees above £50,000</div>
+          <div class="card-source">The Guardian · 3d</div>
+        </div>
+        <div class="card">
+          <div class="card-bar" style="background:#059669;"></div>
+          <div class="card-cat" style="color:#059669;">Admissions</div>
+          <div class="card-title">Oxford and Cambridge break international application records</div>
+          <div class="card-source">ICEF Monitor · 2d</div>
+        </div>
+        <div class="card">
+          <div class="card-bar" style="background:#2563eb;"></div>
+          <div class="card-cat" style="color:#2563eb;">Visa</div>
+          <div class="card-title">Canada extends post-grad work permit to 3 years for eligible graduates</div>
+          <div class="card-source">CIC News · 4d <span class="urgent-badge">Urgent</span></div>
+        </div>
+        <div class="card">
+          <div class="card-bar" style="background:#7c3aed;"></div>
+          <div class="card-cat" style="color:#7c3aed;">Rankings</div>
+          <div class="card-title">Singapore cements position as Asia's premier international education hub</div>
+          <div class="card-source">Study International · 3d</div>
+        </div>
+      </div>
+
+      <button style="width:100%;padding:12px;background:none;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-weight:600;color:#0f2b4c;cursor:pointer;font-family:inherit;margin-top:4px;">Load more articles</button>
+    </div>
+
+    <!-- Sidebar -->
+    <div style="position:sticky;top:20px;">
+      <div class="sidebar-box">
+        <div class="sidebar-title">Trending this week</div>
+        <div class="trend-row"><span class="trend-num">1</span><span><span class="trend-label">Admissions</span><br><span class="trend-count">13 articles</span></span></div>
+        <div class="trend-row"><span class="trend-num">2</span><span><span class="trend-label">Fees</span><br><span class="trend-count">11 articles</span></span></div>
+        <div class="trend-row"><span class="trend-num">3</span><span><span class="trend-label">Visa</span><br><span class="trend-count">9 articles</span></span></div>
+        <div class="trend-row"><span class="trend-num">4</span><span><span class="trend-label">Policy</span><br><span class="trend-count">9 articles</span></span></div>
+      </div>
+
+      <!-- School updates in sidebar -->
+      <div class="sidebar-box">
+        <div class="sidebar-title">Latest from schools</div>
+        <div class="school-update">
+          <div class="su-school">Ruamrudee International</div>
+          <div class="su-title">Open house — Saturday 19 April, Year 7 entry families welcome</div>
+          <div class="su-row"><span class="su-cat">Events</span><span class="su-date">3d</span><span class="su-flag">Upcoming</span></div>
+        </div>
+        <div class="school-update">
+          <div class="su-school">Bangkok Patana School</div>
+          <div class="su-title">Year 12 IB results — 43% score 38 points or above</div>
+          <div class="su-row"><span class="su-cat">Results</span><span class="su-date">4d</span></div>
+        </div>
+        <div class="school-update">
+          <div class="su-school">NIST International</div>
+          <div class="su-title">Scholarship applications open — deadline 30 April</div>
+          <div class="su-row"><span class="su-cat">Scholarships</span><span class="su-date">2d</span><span class="su-flag">Deadline soon</span></div>
+        </div>
+        <div class="school-update">
+          <div class="su-school">Shrewsbury International</div>
+          <div class="su-title">Football team wins BISAC championship 2026</div>
+          <div class="su-row"><span class="su-cat">Sport</span><span class="su-date">6d</span></div>
+        </div>
+        <a class="see-all-link" href="#">See all school updates →</a>
+      </div>
+
+      <div class="sidebar-box" style="background:#f0fdf9;border-color:rgba(52,195,160,.25);">
+        <div class="sidebar-title">Weekly briefing</div>
+        <p style="font-size:12px;color:#6b7280;margin-bottom:10px;line-height:1.5;">Top education news for international families, every week.</p>
+        <input type="email" placeholder="your@email.com" style="width:100%;padding:8px 12px;border-radius:20px;border:1px solid rgba(52,195,160,.4);font-size:12px;margin-bottom:8px;font-family:inherit;">
+        <button style="width:100%;padding:8px;border-radius:20px;background:#0f2b4c;color:#fff;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Subscribe</button>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

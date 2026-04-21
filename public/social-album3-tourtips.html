@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Album 3 — What to Ask on Your School Tour</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #cbd5e1; display: flex; flex-direction: column; align-items: center;
+    padding: 48px 24px; gap: 10px; font-family: 'Nunito Sans', sans-serif; }
+  .caption { font-size: 12px; font-weight: 700; color: #475569; letter-spacing: .5px;
+    text-transform: uppercase; margin-bottom: 4px; }
+  .sub-caption { font-size: 11px; color: #94a3b8; margin-bottom: 20px; }
+
+  /* ── Shared slide shell ── */
+  .slide {
+    width: 540px; height: 540px;
+    display: flex; flex-direction: column;
+    overflow: hidden; position: relative;
+    box-shadow: 0 12px 48px rgba(0,0,0,.28);
+    margin-bottom: 32px;
+  }
+
+  /* ── Wordmark ── */
+  .wordmark { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 20px; letter-spacing: -.5px; }
+  .wn-w  { color: #fff; }
+  .ws-t  { color: #34C3A0; }
+  .wn-n  { color: #1B3252; }
+  .ws-t2 { color: #34C3A0; }
+  .wn-w2 { color: #fff; }
+  .ws-n  { color: #1B3252; }
+
+  /* ── Progress dots ── */
+  .dots { display: flex; gap: 6px; align-items: center; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .dot.on  { width: 18px; border-radius: 100px; }
+
+  /* ========== SLIDE 1 — Cover (Navy) ========== */
+  .s1 { background: #1B3252; }
+  .s1::before { content: ''; position: absolute; top: -80px; right: -80px;
+    width: 320px; height: 320px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(52,195,160,.13) 0%, transparent 65%);
+    pointer-events: none; }
+  .s1-inner { flex: 1; display: flex; flex-direction: column;
+    padding: 28px 32px 28px; }
+  .s1-top { display: flex; align-items: center; justify-content: space-between; }
+  .s1-chip { font-size: 9px; font-weight: 700; letter-spacing: 1.4px;
+    text-transform: uppercase; background: rgba(52,195,160,.15);
+    color: #34C3A0; border: 1px solid rgba(52,195,160,.35);
+    padding: 5px 12px; border-radius: 100px; }
+  .s1-hero { flex: 1; display: flex; flex-direction: column;
+    justify-content: center; padding: 12px 0; }
+  .s1-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: #34C3A0; margin-bottom: 16px; }
+  .s1-title { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 54px; color: #fff; line-height: 1.0; letter-spacing: -2px;
+    margin-bottom: 20px; }
+  .s1-sub { font-size: 16px; color: rgba(255,255,255,.65); line-height: 1.5;
+    max-width: 380px; }
+  .s1-bottom { display: flex; align-items: center; justify-content: space-between; }
+  .s1-count { font-size: 12px; color: rgba(255,255,255,.45); font-weight: 600; }
+
+  /* ========== SLIDE 2 — Academics (Light) ========== */
+  .s2 { background: #F6F8FA; }
+  .s2-inner { flex: 1; display: flex; flex-direction: column;
+    padding: 24px 28px 22px; }
+  .s2-top { display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 18px; }
+  .s2-chip { font-size: 9px; font-weight: 700; letter-spacing: 1.4px;
+    text-transform: uppercase; background: rgba(27,50,82,.08);
+    color: #1B3252; border: 1px solid rgba(27,50,82,.15);
+    padding: 5px 12px; border-radius: 100px; }
+  .s2-qs { flex: 1; display: flex; flex-direction: column;
+    justify-content: center; gap: 14px; }
+  .s2-bottom { display: flex; align-items: center; justify-content: space-between;
+    margin-top: 16px; }
+
+  /* ── Question block — light bg ── */
+  .qblock-light { background: #fff; border-radius: 14px;
+    border: 1px solid rgba(27,50,82,.1);
+    padding: 18px 20px; display: flex; gap: 16px; align-items: flex-start; }
+  .qnum-light { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 38px; color: #34C3A0; line-height: 1; flex-shrink: 0;
+    width: 36px; margin-top: 2px; }
+  .qtext-light .q { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 20px; color: #1B3252; line-height: 1.2; letter-spacing: -.4px;
+    margin-bottom: 8px; }
+  .qtext-light .why { font-size: 13px; color: #6B7280; line-height: 1.4; }
+  .qtext-light .why strong { color: #239C80; font-weight: 700; }
+
+  /* ── Question block — dark bg ── */
+  .qblock-dark { background: rgba(255,255,255,.07); border-radius: 14px;
+    border: 1px solid rgba(255,255,255,.12);
+    padding: 18px 20px; display: flex; gap: 16px; align-items: flex-start; }
+  .qnum-dark { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 38px; color: #34C3A0; line-height: 1; flex-shrink: 0;
+    width: 36px; margin-top: 2px; }
+  .qtext-dark .q { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 20px; color: #fff; line-height: 1.2; letter-spacing: -.4px;
+    margin-bottom: 8px; }
+  .qtext-dark .why { font-size: 13px; color: rgba(255,255,255,.55); line-height: 1.4; }
+  .qtext-dark .why strong { color: #34C3A0; font-weight: 700; }
+
+  /* ========== SLIDE 3 — Teachers (Navy) ========== */
+  .s3 { background: #1B3252; }
+  .s3-inner { flex: 1; display: flex; flex-direction: column;
+    padding: 24px 28px 22px; }
+  .s3-top { display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 18px; }
+  .s3-chip { font-size: 9px; font-weight: 700; letter-spacing: 1.4px;
+    text-transform: uppercase; background: rgba(52,195,160,.15);
+    color: #34C3A0; border: 1px solid rgba(52,195,160,.35);
+    padding: 5px 12px; border-radius: 100px; }
+  .s3-qs { flex: 1; display: flex; flex-direction: column;
+    justify-content: center; gap: 14px; }
+  .s3-bottom { display: flex; align-items: center; justify-content: space-between;
+    margin-top: 16px; }
+
+  /* ========== SLIDE 4 — Fees (White) ========== */
+  .s4 { background: #fff; }
+  .s4-inner { flex: 1; display: flex; flex-direction: column;
+    padding: 24px 28px 22px; }
+  .s4-top { display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 18px; }
+  .s4-chip { font-size: 9px; font-weight: 700; letter-spacing: 1.4px;
+    text-transform: uppercase; background: rgba(27,50,82,.06);
+    color: #1B3252; border: 1px solid rgba(27,50,82,.12);
+    padding: 5px 12px; border-radius: 100px; }
+  .s4-qs { flex: 1; display: flex; flex-direction: column;
+    justify-content: center; gap: 14px; }
+  .s4-bottom { display: flex; align-items: center; justify-content: space-between;
+    margin-top: 16px; }
+
+  .qblock-white { background: #F6F8FA; border-radius: 14px;
+    border: 1px solid rgba(27,50,82,.07);
+    padding: 18px 20px; display: flex; gap: 16px; align-items: flex-start; }
+
+  /* ========== SLIDE 5 — Wellbeing (Navy) ========== */
+  .s5 { background: #1B3252; }
+  .s5-inner { flex: 1; display: flex; flex-direction: column;
+    padding: 24px 28px 22px; }
+  .s5-top { display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 18px; }
+  .s5-chip { font-size: 9px; font-weight: 700; letter-spacing: 1.4px;
+    text-transform: uppercase; background: rgba(52,195,160,.15);
+    color: #34C3A0; border: 1px solid rgba(52,195,160,.35);
+    padding: 5px 12px; border-radius: 100px; }
+  .s5-qs { flex: 1; display: flex; flex-direction: column;
+    justify-content: center; gap: 14px; }
+  .s5-bottom { display: flex; align-items: center; justify-content: space-between;
+    margin-top: 16px; }
+
+  /* ========== SLIDE 6 — Admissions (Light) ========== */
+  .s6 { background: #F6F8FA; }
+  .s6-inner { flex: 1; display: flex; flex-direction: column;
+    padding: 24px 28px 22px; }
+  .s6-top { display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 18px; }
+  .s6-chip { font-size: 9px; font-weight: 700; letter-spacing: 1.4px;
+    text-transform: uppercase; background: rgba(27,50,82,.08);
+    color: #1B3252; border: 1px solid rgba(27,50,82,.15);
+    padding: 5px 12px; border-radius: 100px; }
+  .s6-qs { flex: 1; display: flex; flex-direction: column;
+    justify-content: center; gap: 14px; }
+  .s6-bottom { display: flex; align-items: center; justify-content: space-between;
+    margin-top: 16px; }
+
+  /* ========== SLIDE 7 — After School (Navy) ========== */
+  .s7 { background: #1B3252; }
+  .s7-inner { flex: 1; display: flex; flex-direction: column;
+    padding: 24px 28px 22px; }
+  .s7-top { display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 18px; }
+  .s7-chip { font-size: 9px; font-weight: 700; letter-spacing: 1.4px;
+    text-transform: uppercase; background: rgba(52,195,160,.15);
+    color: #34C3A0; border: 1px solid rgba(52,195,160,.35);
+    padding: 5px 12px; border-radius: 100px; }
+  .s7-qs { flex: 1; display: flex; flex-direction: column;
+    justify-content: center; gap: 14px; }
+  .s7-bottom { display: flex; align-items: center; justify-content: space-between;
+    margin-top: 16px; }
+
+  /* ========== SLIDE 8 — CTA (Teal) ========== */
+  .s8 { background: #239C80; }
+  .s8::before { content: ''; position: absolute; bottom: -100px; right: -100px;
+    width: 340px; height: 340px; border-radius: 50%;
+    background: rgba(0,0,0,.08); pointer-events: none; }
+  .s8::after { content: ''; position: absolute; bottom: -60px; right: -60px;
+    width: 200px; height: 200px; border-radius: 50%;
+    background: rgba(0,0,0,.06); pointer-events: none; }
+  .s8-inner { flex: 1; display: flex; flex-direction: column;
+    padding: 28px 32px 28px; position: relative; z-index: 1; }
+  .s8-top { display: flex; align-items: center; justify-content: space-between; }
+  .s8-hero { flex: 1; display: flex; flex-direction: column; justify-content: center;
+    padding: 8px 0; }
+  .s8-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: rgba(255,255,255,.65); margin-bottom: 14px; }
+  .s8-title { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 40px; color: #fff; line-height: 1.1; letter-spacing: -1.5px;
+    margin-bottom: 20px; }
+  .s8-sub { font-size: 15px; color: rgba(255,255,255,.75); line-height: 1.5;
+    margin-bottom: 28px; max-width: 360px; }
+  .s8-url { display: inline-flex; align-items: center; gap: 10px;
+    background: #1B3252; color: #fff; font-family: 'Nunito', sans-serif;
+    font-weight: 900; font-size: 16px; letter-spacing: -.3px;
+    padding: 14px 28px; border-radius: 100px; text-decoration: none; }
+  .s8-url span { font-size: 18px; }
+  .s8-bottom { display: flex; align-items: center; justify-content: space-between; }
+  .s8-count { font-size: 12px; color: rgba(255,255,255,.45); font-weight: 600; }
+
+  /* Dot colors */
+  .dot-navy  { background: rgba(255,255,255,.28); }
+  .dot-navy.on  { background: #34C3A0; }
+  .dot-light { background: rgba(27,50,82,.2); }
+  .dot-light.on { background: #1B3252; }
+  .dot-teal  { background: rgba(255,255,255,.3); }
+  .dot-teal.on  { background: #1B3252; }
+</style>
+</head>
+<body>
+
+<div class="caption">Album 3 — What to Ask on Your School Tour</div>
+<div class="sub-caption">8 slides · No photos · Editorial · Large text</div>
+
+<!-- ══════════ SLIDE 1 — Cover (Navy) ══════════ -->
+<!-- Background: Navy #1B3252 → Nana=white, Says=teal -->
+<div class="slide s1">
+  <div class="s1-inner">
+    <div class="s1-top">
+      <div class="wordmark"><span class="wn-w">Nana</span><span class="ws-t">Says</span></div>
+      <div class="s1-chip">School Tours</div>
+    </div>
+    <div class="s1-hero">
+      <div class="s1-eyebrow">Parent's guide</div>
+      <div class="s1-title">12 Questions<br>to Ask on<br>Your Tour</div>
+      <div class="s1-sub">Most parents leave the school visit impressed but uninformed. Ask these instead.</div>
+    </div>
+    <div class="s1-bottom">
+      <div class="dots">
+        <div class="dot dot-navy on"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+      </div>
+      <div class="s1-count">1 / 8</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 2 — Academics (Light) ══════════ -->
+<!-- Background: #F6F8FA light → Nana=navy, Says=teal -->
+<div class="slide s2">
+  <div class="s2-inner">
+    <div class="s2-top">
+      <div class="wordmark"><span class="wn-n">Nana</span><span class="ws-t2">Says</span></div>
+      <div class="s2-chip">Academics</div>
+    </div>
+    <div class="s2-qs">
+      <div class="qblock-light">
+        <div class="qnum-light">1</div>
+        <div class="qtext-light">
+          <div class="q">What percentage of students achieve their target grades?</div>
+          <div class="why"><strong>Why it matters:</strong> Marketing shows top scores. This question reveals what's normal — not exceptional.</div>
+        </div>
+      </div>
+      <div class="qblock-light">
+        <div class="qnum-light">2</div>
+        <div class="qtext-light">
+          <div class="q">Are students grouped by ability, or mixed in every class?</div>
+          <div class="why"><strong>Why it matters:</strong> Streaming vs. mixed ability affects your child's daily experience and pace of learning far more than the curriculum name does.</div>
+        </div>
+      </div>
+    </div>
+    <div class="s2-bottom">
+      <div class="dots">
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light on"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+      </div>
+      <div style="font-size:12px;color:#9CA3AF;font-weight:600;">2 / 8</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 3 — Teachers (Navy) ══════════ -->
+<!-- Background: Navy #1B3252 → Nana=white, Says=teal -->
+<div class="slide s3">
+  <div class="s3-inner">
+    <div class="s3-top">
+      <div class="wordmark"><span class="wn-w">Nana</span><span class="ws-t">Says</span></div>
+      <div class="s3-chip">Teachers</div>
+    </div>
+    <div class="s3-qs">
+      <div class="qblock-dark">
+        <div class="qnum-dark">3</div>
+        <div class="qtext-dark">
+          <div class="q">What is the average teacher tenure at this school?</div>
+          <div class="why"><strong>Why it matters:</strong> High turnover means your child loses their teacher every year. Stability builds trust and continuity.</div>
+        </div>
+      </div>
+      <div class="qblock-dark">
+        <div class="qnum-dark">4</div>
+        <div class="qtext-dark">
+          <div class="q">What professional development do teachers receive each year?</div>
+          <div class="why"><strong>Why it matters:</strong> Schools that invest in their staff produce better outcomes. Ask for specifics — not just "ongoing training".</div>
+        </div>
+      </div>
+    </div>
+    <div class="s3-bottom">
+      <div class="dots">
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy on"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+      </div>
+      <div style="font-size:12px;color:rgba(255,255,255,.4);font-weight:600;">3 / 8</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 4 — Fees (White) ══════════ -->
+<!-- Background: white #fff → Nana=navy, Says=teal -->
+<div class="slide s4">
+  <div class="s4-inner">
+    <div class="s4-top">
+      <div class="wordmark"><span class="wn-n">Nana</span><span class="ws-t2">Says</span></div>
+      <div class="s4-chip">Fees & Costs</div>
+    </div>
+    <div class="s4-qs">
+      <div class="qblock-white">
+        <div class="qnum-light">5</div>
+        <div class="qtext-light">
+          <div class="q">What costs are NOT included in the tuition fee quote?</div>
+          <div class="why"><strong>Why it matters:</strong> Activity fees, uniforms, textbooks, and school trips can add 20–40% on top. Always ask for the full-year cost estimate.</div>
+        </div>
+      </div>
+      <div class="qblock-white">
+        <div class="qnum-light">6</div>
+        <div class="qtext-light">
+          <div class="q">By how much do fees typically increase each year?</div>
+          <div class="why"><strong>Why it matters:</strong> A 5% annual rise means you pay significantly more by Year 6. Budget for the full journey, not just Year 1.</div>
+        </div>
+      </div>
+    </div>
+    <div class="s4-bottom">
+      <div class="dots">
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light on"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+      </div>
+      <div style="font-size:12px;color:#9CA3AF;font-weight:600;">4 / 8</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 5 — Wellbeing (Navy) ══════════ -->
+<!-- Background: Navy #1B3252 → Nana=white, Says=teal -->
+<div class="slide s5">
+  <div class="s5-inner">
+    <div class="s5-top">
+      <div class="wordmark"><span class="wn-w">Nana</span><span class="ws-t">Says</span></div>
+      <div class="s5-chip">Student Wellbeing</div>
+    </div>
+    <div class="s5-qs">
+      <div class="qblock-dark">
+        <div class="qnum-dark">7</div>
+        <div class="qtext-dark">
+          <div class="q">How does the school handle bullying? Can you give a recent example?</div>
+          <div class="why"><strong>Why it matters:</strong> Any school will say "we take it seriously." A real example tells you if the policy actually gets used — or just lives in a handbook.</div>
+        </div>
+      </div>
+      <div class="qblock-dark">
+        <div class="qnum-dark">8</div>
+        <div class="qtext-dark">
+          <div class="q">What is the counsellor-to-student ratio?</div>
+          <div class="why"><strong>Why it matters:</strong> Mental health support is scarce at most international schools. The ratio tells you whether your child can actually access help when they need it.</div>
+        </div>
+      </div>
+    </div>
+    <div class="s5-bottom">
+      <div class="dots">
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy on"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+      </div>
+      <div style="font-size:12px;color:rgba(255,255,255,.4);font-weight:600;">5 / 8</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 6 — Admissions & Fit (Light) ══════════ -->
+<!-- Background: #F6F8FA light → Nana=navy, Says=teal -->
+<div class="slide s6">
+  <div class="s6-inner">
+    <div class="s6-top">
+      <div class="wordmark"><span class="wn-n">Nana</span><span class="ws-t2">Says</span></div>
+      <div class="s6-chip">Admissions & Fit</div>
+    </div>
+    <div class="s6-qs">
+      <div class="qblock-light">
+        <div class="qnum-light">9</div>
+        <div class="qtext-light">
+          <div class="q">What are the main reasons students leave before graduation?</div>
+          <div class="why"><strong>Why it matters:</strong> Expat relocation is one answer. But "academic mismatch" or "pastoral issues" in the answer reveals real problems you'd never see on the tour.</div>
+        </div>
+      </div>
+      <div class="qblock-light">
+        <div class="qnum-light">10</div>
+        <div class="qtext-light">
+          <div class="q">What does the school value that a transcript doesn't show?</div>
+          <div class="why"><strong>Why it matters:</strong> This exposes whether the school is a genuine fit for your child's personality — not just their grades.</div>
+        </div>
+      </div>
+    </div>
+    <div class="s6-bottom">
+      <div class="dots">
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light on"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+      </div>
+      <div style="font-size:12px;color:#9CA3AF;font-weight:600;">6 / 8</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 7 — After School (Navy) ══════════ -->
+<!-- Background: Navy #1B3252 → Nana=white, Says=teal -->
+<div class="slide s7">
+  <div class="s7-inner">
+    <div class="s7-top">
+      <div class="wordmark"><span class="wn-w">Nana</span><span class="ws-t">Says</span></div>
+      <div class="s7-chip">University & Beyond</div>
+    </div>
+    <div class="s7-qs">
+      <div class="qblock-dark">
+        <div class="qnum-dark">11</div>
+        <div class="qtext-dark">
+          <div class="q">Where did your last three graduating classes actually go to university?</div>
+          <div class="why"><strong>Why it matters:</strong> Schools highlight their best outcomes. Three years of real data shows the consistent picture — not just the outliers on the wall.</div>
+        </div>
+      </div>
+      <div class="qblock-dark">
+        <div class="qnum-dark">12</div>
+        <div class="qtext-dark">
+          <div class="q">Which clubs and sports does the school genuinely invest in — not just list?</div>
+          <div class="why"><strong>Why it matters:</strong> Resources follow real priorities. If the school has 30 clubs listed but only funds 5, your child may not get what they came for.</div>
+        </div>
+      </div>
+    </div>
+    <div class="s7-bottom">
+      <div class="dots">
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy on"></div>
+        <div class="dot dot-navy"></div>
+      </div>
+      <div style="font-size:12px;color:rgba(255,255,255,.4);font-weight:600;">7 / 8</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 8 — CTA (Teal) ══════════ -->
+<!-- Background: Teal #239C80 → Nana=white, Says=navy -->
+<div class="slide s8">
+  <div class="s8-inner">
+    <div class="s8-top">
+      <div class="wordmark"><span class="wn-w2">Nana</span><span class="ws-n">Says</span></div>
+      <div class="dots">
+        <div class="dot dot-teal"></div>
+        <div class="dot dot-teal"></div>
+        <div class="dot dot-teal"></div>
+        <div class="dot dot-teal"></div>
+        <div class="dot dot-teal"></div>
+        <div class="dot dot-teal"></div>
+        <div class="dot dot-teal"></div>
+        <div class="dot dot-teal on"></div>
+      </div>
+    </div>
+    <div class="s8-hero">
+      <div class="s8-eyebrow">Free at nanasays.com</div>
+      <div class="s8-title">Get the full<br>School Tour<br>Checklist</div>
+      <div class="s8-sub">Save this post — or visit NanaSays for verified fees, inspection reports, and curriculum guides for every school in your city.</div>
+      <div class="s8-url">nanasays.com <span>→</span></div>
+    </div>
+    <div class="s8-bottom">
+      <div style="font-size:11px;color:rgba(255,255,255,.5);">Free · No sign-up · Updated 2025</div>
+      <div class="s8-count">8 / 8</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V7 — Featured Top + Two Feeds Below</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito Sans', sans-serif; background: #f8f9fa; color: #374151; }
+  .nav { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 0 5%; display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .nav-logo { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px; color: #0f2b4c; }
+  .nav-logo span { color: #34c3a0; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 40px 5%; }
+  .page-label { font-size: 11px; font-weight: 800; color: #34c3a0; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px; }
+  h1 { font-family: 'Nunito', sans-serif; font-size: 32px; font-weight: 900; color: #0f2b4c; margin-bottom: 6px; }
+  .sub { font-size: 15px; color: #6b7280; margin-bottom: 32px; }
+  .version-tag { position: fixed; top: 70px; right: 20px; background: #0f2b4c; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; font-family: 'Nunito', sans-serif; }
+
+  /* Featured strip */
+  .featured-strip { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-bottom: 44px; }
+  .feat-card { background: #fff; border-radius: 14px; border: 1px solid #e5e7eb; overflow: hidden; cursor: pointer; transition: box-shadow .15s; }
+  .feat-card:hover { box-shadow: 0 6px 20px rgba(0,0,0,.1); }
+  .feat-img { height: 120px; display: flex; align-items: flex-end; padding: 14px; position: relative; }
+  .feat-cat { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; padding: 3px 10px; border-radius: 20px; background: rgba(255,255,255,0.18); color: #fff; backdrop-filter: blur(4px); border: 1px solid rgba(255,255,255,0.25); }
+  .feat-body { padding: 14px 16px; }
+  .feat-title { font-family: 'Nunito', sans-serif; font-size: 15px; font-weight: 800; color: #0f2b4c; line-height: 1.35; margin-bottom: 7px; }
+  .feat-meta { display: flex; align-items: center; justify-content: space-between; }
+  .feat-source { font-size: 11px; color: #9ca3af; }
+  .feat-urgent { font-size: 10px; font-weight: 700; background: #fee2e2; color: #b91c1c; padding: 2px 8px; border-radius: 10px; }
+  .section-divider { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+  .divider-line { flex: 1; height: 1px; background: #e5e7eb; }
+
+  /* Two feed columns */
+  .feeds { display: grid; grid-template-columns: 1.2fr 1fr; gap: 28px; align-items: start; }
+
+  /* Feed column header */
+  .feed-col-hd { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid; }
+  .feed-col-title { font-family: 'Nunito', sans-serif; font-size: 15px; font-weight: 900; }
+  .feed-col-count { font-size: 11px; color: #9ca3af; }
+  .see-all { font-size: 12px; font-weight: 700; text-decoration: none; }
+
+  /* World news feed */
+  .wfeed-item { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid #f3f4f6; cursor: pointer; }
+  .wfeed-item:last-child { border-bottom: none; }
+  .wfeed-item:hover .wfeed-title { color: #34c3a0; }
+  .wfeed-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+  .wfeed-content { flex: 1; min-width: 0; }
+  .wfeed-title { font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 800; color: #0f2b4c; line-height: 1.4; margin-bottom: 4px; transition: color .15s; }
+  .wfeed-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .wfeed-cat { font-size: 11px; font-weight: 700; }
+  .wfeed-sep { font-size: 11px; color: #d1d5db; }
+  .wfeed-date { font-size: 11px; color: #9ca3af; }
+  .wfeed-urgent { font-size: 10px; font-weight: 700; background: #fee2e2; color: #b91c1c; padding: 1px 6px; border-radius: 8px; }
+
+  /* School feed */
+  .sfeed-item { padding: 12px 0; border-bottom: 1px solid #f3f4f6; cursor: pointer; }
+  .sfeed-item:last-child { border-bottom: none; }
+  .sfeed-item:hover .sfeed-title { color: #34c3a0; }
+  .sfeed-school { font-size: 10px; font-weight: 800; color: #34c3a0; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 3px; }
+  .sfeed-title { font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 800; color: #0f2b4c; line-height: 1.4; margin-bottom: 4px; transition: color .15s; }
+  .sfeed-row { display: flex; align-items: center; gap: 6px; }
+  .sfeed-cat { font-size: 10px; font-weight: 700; background: #f0fdf9; color: #1a9478; padding: 1px 7px; border-radius: 8px; }
+  .sfeed-date { font-size: 11px; color: #9ca3af; }
+  .sfeed-flag { font-size: 10px; font-weight: 700; background: #fee2e2; color: #b91c1c; padding: 1px 7px; border-radius: 8px; }
+
+  .load-more { width: 100%; margin-top: 6px; padding: 10px; background: none; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 12px; font-weight: 600; color: #0f2b4c; cursor: pointer; font-family: inherit; }
+</style>
+</head>
+<body>
+
+<div class="version-tag">V7 — Featured Top + Two Feeds Below</div>
+
+<nav class="nav">
+  <div class="nav-logo">Nana<span>Says</span></div>
+  <div style="display:flex;gap:24px;font-size:14px;font-weight:600;color:#6b7280;">
+    <span>Schools</span><span style="color:#0f2b4c;">News</span><span>Compare</span>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="page-label">Education Intelligence</div>
+  <h1>International Education News</h1>
+  <p class="sub">Top stories, world news and direct school updates — all in one place</p>
+
+  <!-- Featured top 3 -->
+  <div class="featured-strip">
+    <div class="feat-card">
+      <div class="feat-img" style="background:linear-gradient(135deg,#0f2b4c 0%,#1a4a7a 100%);">
+        <span class="feat-cat">Admissions</span>
+      </div>
+      <div class="feat-body">
+        <div class="feat-title">IB Diploma hits 220,000 candidates as Asia-Pacific expansion accelerates</div>
+        <div class="feat-meta"><span class="feat-source">ICEF Monitor · 2d</span><span class="feat-urgent">Urgent</span></div>
+      </div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-img" style="background:linear-gradient(135deg,#7c1d1d 0%,#dc2626 100%);">
+        <span class="feat-cat">Fees</span>
+      </div>
+      <div class="feat-body">
+        <div class="feat-title">Russell Group universities considering raising international fees above £50,000</div>
+        <div class="feat-meta"><span class="feat-source">The Guardian · 3d</span></div>
+      </div>
+    </div>
+    <div class="feat-card">
+      <div class="feat-img" style="background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 100%);">
+        <span class="feat-cat">Visa</span>
+      </div>
+      <div class="feat-body">
+        <div class="feat-title">Australia visa refusal rates reach record high — 43.5% of Thai ELICOS rejected</div>
+        <div class="feat-meta"><span class="feat-source">ICEF Monitor · 1d</span><span class="feat-urgent">Urgent</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Divider -->
+  <div class="section-divider">
+    <div class="divider-line"></div>
+    <span style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.08em;">More from this week</span>
+    <div class="divider-line"></div>
+  </div>
+
+  <!-- Two feeds side by side -->
+  <div class="feeds">
+
+    <!-- Left — world news feed -->
+    <div>
+      <div class="feed-col-hd" style="border-color:#0f2b4c;">
+        <span class="feed-col-title" style="color:#0f2b4c;">World Education News</span>
+        <a class="see-all" style="color:#0f2b4c;" href="#">See all 59 →</a>
+      </div>
+
+      <div class="wfeed-item">
+        <div class="wfeed-dot" style="background:#2563eb;"></div>
+        <div class="wfeed-content">
+          <div class="wfeed-title">Australia overhauls student visa — 5-day processing for Tier 1 universities from July 2026</div>
+          <div class="wfeed-row"><span class="wfeed-cat" style="color:#2563eb;">Visa</span><span class="wfeed-sep">·</span><span class="wfeed-date">2d</span><span class="wfeed-urgent">Urgent</span></div>
+        </div>
+      </div>
+
+      <div class="wfeed-item">
+        <div class="wfeed-dot" style="background:#059669;"></div>
+        <div class="wfeed-content">
+          <div class="wfeed-title">Oxford and Cambridge break international application records as Asian students surge</div>
+          <div class="wfeed-row"><span class="wfeed-cat" style="color:#059669;">Admissions</span><span class="wfeed-sep">·</span><span class="wfeed-date">2d</span></div>
+        </div>
+      </div>
+
+      <div class="wfeed-item">
+        <div class="wfeed-dot" style="background:#34c3a0;"></div>
+        <div class="wfeed-content">
+          <div class="wfeed-title">UK universities commit £180M to international scholarships — Thailand named as target</div>
+          <div class="wfeed-row"><span class="wfeed-cat" style="color:#1a9478;">Scholarships</span><span class="wfeed-sep">·</span><span class="wfeed-date">2d</span></div>
+        </div>
+      </div>
+
+      <div class="wfeed-item">
+        <div class="wfeed-dot" style="background:#dc2626;"></div>
+        <div class="wfeed-content">
+          <div class="wfeed-title">Thai families spending record $7.8 billion annually on international education</div>
+          <div class="wfeed-row"><span class="wfeed-cat" style="color:#dc2626;">Fees</span><span class="wfeed-sep">·</span><span class="wfeed-date">2d</span></div>
+        </div>
+      </div>
+
+      <div class="wfeed-item">
+        <div class="wfeed-dot" style="background:#2563eb;"></div>
+        <div class="wfeed-content">
+          <div class="wfeed-title">Canada extends post-graduation work permit to 3 years for all eligible graduates</div>
+          <div class="wfeed-row"><span class="wfeed-cat" style="color:#2563eb;">Visa</span><span class="wfeed-sep">·</span><span class="wfeed-date">4d</span><span class="wfeed-urgent">Urgent</span></div>
+        </div>
+      </div>
+
+      <div class="wfeed-item">
+        <div class="wfeed-dot" style="background:#7c3aed;"></div>
+        <div class="wfeed-content">
+          <div class="wfeed-title">Singapore cements position as Asia's premier international education hub in QS Rankings</div>
+          <div class="wfeed-row"><span class="wfeed-cat" style="color:#7c3aed;">Rankings</span><span class="wfeed-sep">·</span><span class="wfeed-date">3d</span></div>
+        </div>
+      </div>
+
+      <button class="load-more">Load more world news</button>
+    </div>
+
+    <!-- Right — school updates -->
+    <div>
+      <div class="feed-col-hd" style="border-color:#34c3a0;">
+        <span class="feed-col-title" style="color:#1a9478;">School Updates</span>
+        <a class="see-all" style="color:#34c3a0;" href="#">See all 24 →</a>
+      </div>
+
+      <div class="sfeed-item">
+        <div class="sfeed-school">Ruamrudee International</div>
+        <div class="sfeed-title">Open house — Saturday 19 April, all Year 7 entry families welcome</div>
+        <div class="sfeed-row"><span class="sfeed-cat">Events</span><span class="sfeed-date">3d ago</span><span class="sfeed-flag">Upcoming</span></div>
+      </div>
+
+      <div class="sfeed-item">
+        <div class="sfeed-school">Bangkok Patana School</div>
+        <div class="sfeed-title">Year 12 IB results — 43% of students score 38 points or above</div>
+        <div class="sfeed-row"><span class="sfeed-cat">Results</span><span class="sfeed-date">4d ago</span></div>
+      </div>
+
+      <div class="sfeed-item">
+        <div class="sfeed-school">NIST International</div>
+        <div class="sfeed-title">Scholarship applications now open for 2026-27 — deadline 30 April</div>
+        <div class="sfeed-row"><span class="sfeed-cat">Scholarships</span><span class="sfeed-date">2d ago</span><span class="sfeed-flag">Deadline soon</span></div>
+      </div>
+
+      <div class="sfeed-item">
+        <div class="sfeed-school">Concordian International</div>
+        <div class="sfeed-title">New STEAM building opens September 2026 — construction on track</div>
+        <div class="sfeed-row"><span class="sfeed-cat">Facilities</span><span class="sfeed-date">5d ago</span></div>
+      </div>
+
+      <div class="sfeed-item">
+        <div class="sfeed-school">Shrewsbury International</div>
+        <div class="sfeed-title">Football team wins BISAC championship for second year running</div>
+        <div class="sfeed-row"><span class="sfeed-cat">Sport</span><span class="sfeed-date">6d ago</span></div>
+      </div>
+
+      <div class="sfeed-item">
+        <div class="sfeed-school">Ruamrudee International</div>
+        <div class="sfeed-title">New head of secondary — Mr. James Whitfield joins from Harrow Bangkok</div>
+        <div class="sfeed-row"><span class="sfeed-cat">Leadership</span><span class="sfeed-date">1w ago</span></div>
+      </div>
+
+      <button class="load-more">Load more school updates</button>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

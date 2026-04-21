@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Report Location Sections — Style C · Reed's School</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy:#1B3252; --teal:#34C3A0; --teal-dk:#239C80; --teal-bg:#E8FAF6;
+    --amber:#D97706; --amber-bg:#FEF3C7; --green:#059669; --green-bg:#D1FAE5;
+    --border:#E5E7EB; --muted:#6B7280; --off:#F6F8FA; --text:#1f2937;
+    --forest:#2E5C4B; --rule:#D8D1C2; --ochre:#B08A3E;
+  }
+  body { font-family:'Nunito Sans',sans-serif; background:var(--off); color:var(--text); line-height:1.7; padding:40px 24px 80px; }
+  .page { max-width:860px; margin:0 auto; }
+  h3 { font-family:'Nunito',sans-serif; font-weight:800; font-size:17px; color:var(--navy); margin:28px 0 10px; }
+  p { margin-bottom:14px; font-size:15px; line-height:1.72; }
+  strong { color:var(--navy); }
+
+  .mockup-badge { display:inline-block; background:#fef3c7; border:1px solid #f59e0b; color:#92400e; font-size:10px; font-weight:800; padding:4px 12px; border-radius:20px; margin-bottom:8px; letter-spacing:.06em; text-transform:uppercase; }
+  .style-title { font-size:20px; font-family:'Nunito',sans-serif; font-weight:900; color:var(--navy); margin-bottom:4px; }
+  .style-desc { font-size:13px; color:var(--muted); margin-bottom:32px; }
+  .section-card { background:#fff; border:1px solid var(--rule); border-radius:14px; padding:28px 32px; margin-bottom:20px; }
+  .part-label { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.12em; margin-bottom:4px; }
+  .part-label.free { color:var(--teal-dk); }
+  .part-label.paid { color:var(--ochre); }
+
+  /* Side-by-side layout */
+  .two-col { display:grid; grid-template-columns:1fr 1fr; gap:20px; margin:16px 0; }
+
+  /* Quick facts strip */
+  .strip { display:flex; gap:0; border:1px solid var(--rule); border-radius:10px; overflow:hidden; margin:16px 0; }
+  .strip-item { flex:1; padding:12px 16px; border-right:1px solid var(--rule); background:#fff; }
+  .strip-item:last-child { border-right:none; }
+  .strip-label { font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; margin-bottom:3px; }
+  .strip-val { font-size:13.5px; font-weight:600; color:var(--navy); }
+  .strip-val small { display:block; font-size:11px; font-weight:400; color:var(--muted); margin-top:1px; }
+
+  /* Attractions as numbered list */
+  .attract-list { list-style:none; margin:12px 0; }
+  .attract-list li { display:flex; align-items:baseline; gap:12px; padding:8px 0; border-bottom:1px solid #f5f2ec; font-size:14px; }
+  .attract-list li:last-child { border-bottom:none; }
+  .attract-num { font-family:'Nunito',sans-serif; font-weight:900; font-size:12px; color:var(--teal-dk); background:var(--teal-bg); border-radius:50%; width:20px; height:20px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+  .attract-name { font-weight:600; color:var(--navy); flex:1; }
+  .attract-meta { font-size:12px; color:var(--muted); }
+
+  /* Safety section — editorial voice, minimal chrome */
+  .safety-lede { font-size:16px; font-weight:600; color:var(--navy); background:var(--green-bg); border-radius:10px; padding:14px 18px; margin-bottom:18px; line-height:1.5; }
+  .safety-lede span { color:var(--green); font-family:'Nunito',sans-serif; font-weight:900; }
+
+  blockquote { border-left:3px solid var(--teal); padding:10px 18px; margin:16px 0; background:var(--teal-bg); border-radius:0 8px 8px 0; font-size:14.5px; color:var(--text); font-style:normal; }
+  blockquote strong { color:var(--forest); }
+
+  .bar-row { display:grid; grid-template-columns:160px 1fr 80px; align-items:center; gap:10px; margin-bottom:8px; font-size:13px; }
+  .bar-track { background:#f0ece4; border-radius:4px; height:7px; }
+  .bar-fill { height:7px; border-radius:4px; background:var(--teal); }
+  .bar-fill.warn { background:var(--amber); }
+  .bar-count { color:var(--muted); font-size:12px; }
+
+  .city-compare { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:14px 0; }
+  .city-card { border:1px solid var(--rule); border-radius:8px; padding:10px 14px; background:#fff; }
+  .city-flag { font-size:13px; margin-bottom:3px; }
+  .city-name { font-size:12px; font-weight:700; color:var(--navy); }
+  .city-stat { font-size:12px; color:var(--text); margin-top:2px; }
+  .city-note { font-size:11px; color:var(--muted); margin-top:2px; font-style:italic; }
+  .city-card.highlight { background:var(--teal-bg); border-color:var(--teal); }
+
+  .tour-q { border-left:3px solid var(--ochre); padding:12px 16px; margin-top:16px; font-size:14px; background:#fffbf0; border-radius:0 8px 8px 0; }
+  .tour-q strong { color:var(--ochre); display:block; font-size:11px; text-transform:uppercase; letter-spacing:.08em; margin-bottom:4px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="mockup-badge">Report Style C</div>
+  <div class="style-title">Style C — Compact, editorial, minimal chrome</div>
+  <div class="style-desc">Tightest layout. No big containers. Attractions as a clean numbered list. Crime section opens with a direct editorial verdict, uses a blockquote for the UK definition explanation, city comparison grid. Closest to journalism.</div>
+
+  <!-- PART 1 -->
+  <div class="section-card">
+    <div class="part-label free">Part 1 — Free</div>
+    <h3>Location & Getting Here</h3>
+
+    <p>Reed's is in Surrey's commuter belt — 20 miles southwest of central London, green, quiet, and deliberately removed from city distraction. The school's immediate surroundings are prosperous suburbia: the kind of area where you can hear the M25 on a still morning but wouldn't know it from the school grounds.</p>
+
+    <div class="strip">
+      <div class="strip-item">
+        <div class="strip-label">Nearest station</div>
+        <div class="strip-val">Oxshott<small>0.9 km · London Waterloo ~40 min</small></div>
+      </div>
+      <div class="strip-item">
+        <div class="strip-label">Heathrow</div>
+        <div class="strip-val">16 km<small>~31 min drive</small></div>
+      </div>
+      <div class="strip-item">
+        <div class="strip-label">Gatwick</div>
+        <div class="strip-val">24 km<small>~41 min drive</small></div>
+      </div>
+      <div class="strip-item">
+        <div class="strip-label">Nearest town</div>
+        <div class="strip-val">Cobham<small>2.7 km · pop ~9,700</small></div>
+      </div>
+    </div>
+
+    <p>For international families, Heathrow is the obvious gateway. Direct connections from Bangkok, Singapore, and Hong Kong land at T3 and T5; from there, the school is 30 minutes in a taxi. Among UK boarding schools within range of a major international hub, Reed's is genuinely well-placed.</p>
+
+    <p><strong>Six things worth doing on a visiting weekend:</strong></p>
+
+    <ol class="attract-list">
+      <li><span class="attract-num">1</span><span class="attract-name">Chessington World of Adventures</span><span class="attract-meta">8 km · theme park — good if younger siblings are visiting</span></li>
+      <li><span class="attract-num">2</span><span class="attract-name">RHS Wisley Garden</span><span class="attract-meta">7 km · Royal Horticultural Society gardens</span></li>
+      <li><span class="attract-num">3</span><span class="attract-name">Hampton Court Palace</span><span class="attract-meta">12 km · Tudor royal palace, gardens, maze</span></li>
+      <li><span class="attract-num">4</span><span class="attract-name">Windsor Castle</span><span class="attract-meta">14 km · working royal residence, State Rooms open to public</span></li>
+      <li><span class="attract-num">5</span><span class="attract-name">Box Hill</span><span class="attract-meta">11 km · National Trust walking country, views over Surrey Hills</span></li>
+      <li><span class="attract-num">6</span><span class="attract-name">Kew Gardens</span><span class="attract-meta">19 km · UNESCO World Heritage botanical gardens</span></li>
+    </ol>
+  </div>
+
+  <!-- PART 2 -->
+  <div class="section-card">
+    <div class="part-label paid">Part 2 — Premium</div>
+    <h3>Local Safety Context</h3>
+
+    <div class="safety-lede">
+      The area around Reed's is <span>safe</span> — below the Surrey county average and well within normal range for a prosperous commuter suburb of its size.
+    </div>
+
+    <p>Over the 12 months to January 2026, police recorded 208 incidents within one mile of the school. The number that will catch your eye is the 40% violent crime figure. Read this before you react:</p>
+
+    <blockquote>
+      <strong>What "violent crime" means in the UK — and why it's not what you're picturing.</strong> In UK police data, "Violence Against the Person" captures any unwanted physical contact — a push, a shove, verbal threats that escalate. Roughly 70–80% of incidents involve no injury. Thai, Singaporean, and Hong Kong statistics only count this category from serious assault upward. The two definitions are measuring different things. A parent from Bangkok reading "40% violent crime" in a UK report is looking at a statistic that has no equivalent in the crime data they're used to.
+    </blockquote>
+
+    <p>How does 208 incidents compare to what you know?</p>
+
+    <div class="city-compare">
+      <div class="city-card highlight">
+        <div class="city-flag">🇬🇧</div>
+        <div class="city-name">Reed's area, Surrey</div>
+        <div class="city-stat">At or below 55–65 / 1k / year</div>
+        <div class="city-note">Below Surrey county average</div>
+      </div>
+      <div class="city-card">
+        <div class="city-flag">🇹🇭</div>
+        <div class="city-name">Bangkok, Thailand</div>
+        <div class="city-stat">~20–25 official (est. 2–3× higher)</div>
+        <div class="city-note">Underreported; "violent crime" = serious assault only</div>
+      </div>
+      <div class="city-card">
+        <div class="city-flag">🇸🇬</div>
+        <div class="city-name">Singapore</div>
+        <div class="city-stat">~6–8 / 1k / year</div>
+        <div class="city-note">Very low globally; narrow category definitions</div>
+      </div>
+      <div class="city-card">
+        <div class="city-flag">🇺🇸</div>
+        <div class="city-name">United States</div>
+        <div class="city-stat">~40–50 / 1k / year</div>
+        <div class="city-note">Higher threshold than UK for "violent crime"</div>
+      </div>
+    </div>
+
+    <p>The category breakdown:</p>
+
+    <div class="bar-row"><span>Violent crime</span><div class="bar-track"><div class="bar-fill" style="width:40%"></div></div><span class="bar-count">83 incidents (40%)</span></div>
+    <div class="bar-row"><span>Anti-social behaviour</span><div class="bar-track"><div class="bar-fill" style="width:20%"></div></div><span class="bar-count">42 (20%)</span></div>
+    <div class="bar-row"><span>Burglary</span><div class="bar-track"><div class="bar-fill warn" style="width:9%"></div></div><span class="bar-count">19 (9%)</span></div>
+    <div class="bar-row"><span>Public order</span><div class="bar-track"><div class="bar-fill" style="width:7%"></div></div><span class="bar-count">15 (7%)</span></div>
+    <div class="bar-row" style="margin-top:4px"><span>Vehicle crime</span><div class="bar-track"><div class="bar-fill" style="width:5%"></div></div><span class="bar-count">11 (5%)</span></div>
+
+    <p style="margin-top:14px;">Anti-social behaviour (noise, rowdiness) is suburban background noise. Burglary at 9% is the one figure worth noting — affluent Surrey postcodes attract opportunistic property crime — but 19 incidents over a year in this radius is not an outlier. Nothing here is a red flag.</p>
+
+    <div class="tour-q">
+      <strong>Tour question</strong>
+      "Have there been any incidents at or near the school perimeter in the past 12 months, and how are after-hours entry points managed?"
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

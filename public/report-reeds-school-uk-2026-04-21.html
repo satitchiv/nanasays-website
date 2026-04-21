@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Reed's School — Deep Report · nanasays</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy:#1B3252; --navy-d:#0f2238;
+    --teal:#34C3A0; --teal-dk:#239C80; --teal-bg:#E8FAF6;
+    --amber:#D97706; --amber-bg:#FEF3C7;
+    --red:#B91C1C; --red-bg:#FEE2E2;
+    --green:#059669; --green-bg:#D1FAE5;
+    --border:#E5E7EB; --muted:#6B7280; --off:#F6F8FA; --text:#1f2937;
+    --forest:#2E5C4B; --rule:#D8D1C2; --ochre:#B08A3E;
+  }
+  html { scroll-behavior: smooth; }
+  body { font-family:'Nunito Sans',sans-serif; background:var(--off); color:var(--text); line-height:1.7; }
+  a { color:var(--teal-dk); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+
+  /* Nav */
+  .nav { background:#fff; border-bottom:1px solid var(--border); height:60px; display:flex; align-items:center; padding:0 5%; position:sticky; top:0; z-index:20; }
+  .nav-inner { max-width:860px; width:100%; margin:0 auto; display:flex; align-items:center; justify-content:space-between; }
+  .logo { font-family:'Nunito',sans-serif; font-weight:900; font-size:20px; color:var(--navy); letter-spacing:-.02em; }
+  .logo span { color:var(--teal); }
+  .nav-pill { background:var(--teal-bg); color:var(--teal-dk); font-weight:700; padding:4px 12px; border-radius:12px; font-size:11px; letter-spacing:.04em; text-transform:uppercase; }
+
+  /* Page */
+  .page { max-width:860px; margin:0 auto; padding:0 24px 120px; }
+
+  /* Report header */
+  .rpt-header { padding:48px 0 24px; }
+  .rpt-eyebrow { font-size:11px; font-weight:900; color:var(--teal-dk); letter-spacing:.18em; text-transform:uppercase; margin-bottom:14px; display:flex; align-items:center; gap:10px; }
+  .rpt-eyebrow::after { content:''; flex:1; height:1px; background:var(--border); }
+  h1 { font-family:'Nunito',sans-serif; font-weight:900; font-size:clamp(28px,5vw,44px); color:var(--navy); letter-spacing:-.02em; line-height:1.05; margin-bottom:14px; }
+  .rpt-date { font-size:12px; color:var(--muted); margin-bottom:20px; }
+
+  /* Divider */
+  hr { border:none; border-top:1px solid var(--border); margin:40px 0; }
+
+  /* Part heading */
+  h2 { font-family:'Nunito',sans-serif; font-weight:900; font-size:22px; color:var(--navy); margin:48px 0 8px; padding-bottom:12px; border-bottom:2px solid var(--border); }
+  .part-note { font-size:13px; color:var(--muted); font-style:italic; margin-bottom:28px; padding:10px 16px; background:#fff; border-radius:8px; border:1px solid var(--rule); }
+
+  /* Section heading */
+  h3 { font-family:'Nunito',sans-serif; font-weight:800; font-size:17px; color:var(--navy); margin:32px 0 10px; padding-top:8px; }
+
+  /* Body text */
+  p { margin-bottom:14px; font-size:15px; line-height:1.75; }
+  p:last-child { margin-bottom:0; }
+  strong { color:var(--navy); }
+  em { font-style:italic; }
+
+  /* Blockquote */
+  blockquote { border-left:3px solid var(--teal); padding:12px 20px; margin:18px 0; background:var(--teal-bg); border-radius:0 10px 10px 0; font-size:14.5px; color:var(--text); line-height:1.65; }
+
+  /* Tables */
+  table { width:100%; border-collapse:collapse; margin:16px 0; font-size:14px; background:#fff; border-radius:10px; overflow:hidden; border:1px solid var(--rule); }
+  th { background:var(--navy); color:#fff; text-align:left; padding:10px 14px; font-size:12px; font-weight:700; letter-spacing:.04em; }
+  td { padding:10px 14px; border-bottom:1px solid #f5f2ec; vertical-align:top; }
+  tr:last-child td { border-bottom:none; }
+  tr:nth-child(even) td { background:#fafaf8; }
+  td:first-child { font-weight:600; color:var(--navy); }
+
+  /* Lists */
+  ul, ol { margin:10px 0 14px 20px; }
+  li { margin-bottom:6px; font-size:15px; line-height:1.65; }
+  li strong { color:var(--navy); }
+
+  /* Footer */
+  .report-footer { margin-top:48px; padding:20px 24px; background:#fff; border:1px solid var(--rule); border-radius:10px; font-size:12px; color:var(--muted); line-height:1.65; }
+
+  /* Section anchor offset */
+  [id] { scroll-margin-top: 80px; }
+
+  @media (max-width:600px) {
+    h1 { font-size:26px; }
+    table { font-size:12px; }
+  }
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="logo">Nana<span>Says.</span></div>
+    <div class="nav-pill">Deep Report</div>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="rpt-eyebrow">Deep School Report · nanasays</div>
+  <h1>Reed&#39;s School — Deep Report</h1>
+<p><strong>Report date:</strong> 2026-04-21</p>
+<p>Reed&#39;s is a financially solid, sport-rich independent school in prosperous Surrey, with a 200-year charitable foundation at its core and a predominantly day rhythm (90% day, 10% boarding). It is a boys&#39; school from 11 to 16 that becomes co-educational in the Sixth Form — a structure that shapes everything from the timetable to the social dynamic. It is not trying to be a heavily international boarding destination, and it is not chasing Oxbridge volume; it is trying to be the best local-plus school in Surrey, and largely succeeding.</p>
+<hr>
+<h2>Part 1 — The School at a Glance</h2>
+<h3>Key Facts</h3>
+<table>
+<thead>
+<tr>
+<th>Item</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Annual fees (day)</td>
+<td>£29,115 – £34,845 (GBP, inclusive of VAT)</td>
+</tr>
+<tr>
+<td>Annual fees (boarding)</td>
+<td>£39,690 – £46,425 (GBP, inclusive of VAT)</td>
+</tr>
+<tr>
+<td>Curriculum</td>
+<td>GCSE, IGCSE, A Level, Extended Project Qualification (EPQ — a UK post-16 research project worth half an A-Level)</td>
+</tr>
+<tr>
+<td>Age range</td>
+<td>11–18 (boys 11–16, co-ed Sixth Form)</td>
+</tr>
+<tr>
+<td>Boarding / Day</td>
+<td>~10% boarders, ~90% day pupils (~76 boarders in three houses)</td>
+</tr>
+<tr>
+<td>Accreditations / Membership</td>
+<td>ISI-inspected (Independent Schools Inspectorate — the government-approved body that inspects private schools in England); HMC member</td>
+</tr>
+<tr>
+<td>Student count</td>
+<td>~850 pupils</td>
+</tr>
+<tr>
+<td>Location</td>
+<td>Sandy Lane, Cobham, Surrey, KT11 2ES — 40 acres, ~30 minutes from Heathrow</td>
+</tr>
+</tbody></table>
+<h3>Curriculum &amp; Academic Outcomes</h3>
+<p>Reed&#39;s runs a traditional English independent-school curriculum: a broad First and Second Form (Years 7–8) with two languages and specialist teaching, a wide GCSE/IGCSE offer in Years 10–11, and three A Levels in the Sixth Form with an option to add Further Mathematics or a native language as a fourth. The school does not offer the IB (International Baccalaureate — an alternative to A-Levels). A-Level electives include the EPQ, which is valued by UK universities for demonstrating independent research.</p>
+<p>The 2025 A-Level headline (the school&#39;s most recent published cohort) was <strong>51% of all grades at A or A*</strong>, with 97% at A*–C and &quot;over a quarter of the year group&quot; securing a clean sweep of A*/A grades (source: the school&#39;s own results page, <a href="https://www.reeds.surrey.sch.uk/638/academic-results">https://www.reeds.surrey.sch.uk/638/academic-results</a>). That is a strong result for a non-selective-by-top-3%-only intake, and the January 2025 ISI inspection called the school&#39;s personalised feedback process a &quot;significant strength&quot; — a rare plaudit that ISI reserves for genuinely distinctive practice.</p>
+<p>On destinations, the 2025 leavers went heavily into the Russell Group — <strong>130 offers from Russell Group universities</strong> on the school&#39;s published destinations list — with Bath, Birmingham, Newcastle, Nottingham, Exeter and Manchester taking the largest numbers. Oxbridge came in at <strong>4 Cambridge acceptances (and no Oxford listed among destinations for 2025)</strong>. That is a modest Oxbridge footprint for a school of this size and fee level; if very high Oxbridge volume is your goal, Reed&#39;s is not that school. A-star A-level ceiling detail (the A* percentage on its own, and the top end of the cohort) is not published — that is a direct tour question. GCSE headline figures appear in a press release but the structured breakdown (percentage at 9, percentage at 8–9) has not been captured.</p>
+<h3>Admissions</h3>
+<p>Three main entry points: <strong>11+ (First Form), 13+ (Third Form), and 16+ (Lower Sixth)</strong>. Girls enter only at Sixth Form. The entrance assessment is the <strong>ISEB Common Pre-Test</strong> — a standardised online test in English, Maths, Verbal and Non-Verbal Reasoning, used by many UK private schools. Candidates sit it once per academic year, and results are shared across all schools they apply to. Registration is £180, non-refundable. The acceptance deposit is £1,500 at 11+ and £3,000 at 13+.</p>
+<p>Key dates for readers planning ahead: <strong>for 11+ entry in September 2027, applications close Thursday 15 October 2026</strong>; ISEB pre-tests must be completed by 30 November 2026; interviews are 4–5 January 2027; decisions by email in February 2027. Sixth Form applicants for September 2027 must apply by <strong>Friday 2 October 2026</strong>, sit exams on Friday 6 November 2026, and get decisions on Tuesday 1 December 2026.</p>
+<p>What the public admissions page does <em>not</em> publish: specific GCSE grade thresholds for Sixth Form (it says &quot;mainly 6, 7, 8 and 9&quot; — a useful but loose guide), detailed scholarship monetary values, and bursary percentages. That&#39;s worth pinning down with the Admissions Office before you apply.</p>
+<h3>Fees &amp; True Cost of Attendance</h3>
+<p>The published termly figures (September 2026) are clean and exclusive of a few known extras:</p>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Per term</th>
+<th>Per year</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Day (Years 7–8)</td>
+<td>£9,705</td>
+<td>£29,115</td>
+</tr>
+<tr>
+<td>Day (Years 9–13)</td>
+<td>£11,615</td>
+<td>£34,845</td>
+</tr>
+<tr>
+<td>Boarding (Years 7–8)</td>
+<td>£13,230</td>
+<td>£39,690</td>
+</tr>
+<tr>
+<td>Boarding (Years 9–13)</td>
+<td>£15,475</td>
+<td>£46,425</td>
+</tr>
+</tbody></table>
+<p>All fees are <strong>inclusive of VAT</strong>. A compulsory lunch charge of <strong>£405/term (£1,215/year, VAT-exempt)</strong> is added. Registration is £180; the acceptance deposit is £1,500 at 11+ and £3,000 at 13+. GCSE and A-Level examination charges are not included. Uniform is purchased separately via the school shop, and there are bus-route fees through Vectare. A personal accident insurance premium is included; the optional AXA Healthcare Scheme and the Fees Refund Scheme are additional if taken up.</p>
+<p>So the honest day-pupil &quot;all-in&quot; figure for Years 9–13 is closer to <strong>~£36,000–£37,000 a year</strong> once compulsory lunch, exam fees, uniform and transport are layered in. The school is upfront about this on its fees page, which is good practice.</p>
+<h3>Student Community Profile</h3>
+<p>The structured figures we have are: <strong>~850 pupils, 90% day, 10% boarding</strong>. The percentage of pupils with English as an Additional Language (EAL — pupils whose first language isn&#39;t English), the share of international pupils, and the nationality mix are <strong>not published by the school</strong> and were not captured in our extraction. The ISI report mentions 19 pupils with EAL status at the time of inspection — roughly 2% of the roll, which is low and consistent with a predominantly local day school rather than a heavily international one.</p>
+<p>If you are an international family, this matters: Reed&#39;s will feel like a local English independent school with a small handful of international peers, not like a global boarding community. A great fit for families already living within driving distance of Cobham, or relocating to Surrey; a harder fit for parents in Bangkok, Singapore or Hong Kong hoping their child will land in a large Asian or Western-expat boarding cohort. Ask the admissions team directly for the current nationality mix and EAL percentage.</p>
+<h3>Pastoral Care &amp; Facilities</h3>
+<p>Reed&#39;s sits in a 40-acre site with genuinely good infrastructure: the Jarrett Indoor Cricket Centre (5 nets with PitchVision analytics), two floodlit astroturf pitches, a 25-metre indoor pool, squash courts, an indoor tennis centre, a multi-fitness gym, a well-designed Sixth Form Centre with a student café, and the repurposed Nissen Library focused on &quot;how to learn&quot; skills. The FutureTech building — a dedicated STEM space — is a point of genuine distinctiveness.</p>
+<p>Pastoral structure is layered: Heads of Section (Close, Middle School, Sixth Form), Heads of House (Blathwayt, Bristowe, Capel, Mullens), Year Heads, tutors, Matrons in every boarding house, a Chaplain, and a Medical Centre with three school nurses and two counsellors. SEND (Special Educational Needs and Disabilities — pupils needing extra learning support) provision is substantial: the January 2025 ISI report records <strong>295 pupils identified as having SEND</strong> (~35% of the roll, a high figure that reflects the school&#39;s explicit mild-dyslexia / ADHD / dyspraxia focus in the Academic Support department) and <strong>2 pupils with EHC plans</strong> (Education, Health and Care plan — a legal document for children with significant additional needs). The inspectors called out one weak point here: <em>&quot;the support pupils who have SEND receive is not always integrated between SEND specialist staff and classroom teachers&quot;</em> — worth asking about.</p>
+<h3>Sports &amp; Co-curricular</h3>
+<p>Sport is a major pillar of Reed&#39;s identity, not a nice-to-have. With ~850 pupils it fields roughly <strong>57 teams</strong> and runs an estimated <strong>~500 fixtures a year</strong> — meaning most pupils on a major-sport pathway will play twice a week in season. If your child is sporty, this is a genuinely deep programme. If your child is not, read the balanced note at the end of this section carefully.</p>
+<p>The three <strong>major team sports are Rugby Union, Hockey, and Cricket</strong>, with the senior 1st XVs/XIs regularly playing elite schools like Charterhouse, Epsom College, Whitgift, Dulwich and King&#39;s College School Wimbledon. On top of this sit four <strong>Academy sports</strong> with dedicated specialist coaching:</p>
+<ul>
+<li><strong>Tennis Academy</strong>: Reed&#39;s Performance Development Centre (RPDC), producing Jack Draper — the professional tennis player currently in the ATP top tier of men&#39;s tennis — and Tim Henman OBE before him.</li>
+<li><strong>Ski Racing Academy</strong>: trains at Sandown and Aldershot in term, on snow in competition. Two Olympians among recent alumni: Jack Gower and Luke Steyn.</li>
+<li><strong>Golf Academy</strong>: partnership with nearby Burhill Golf Club.</li>
+<li><strong>Swimming Academy</strong>: headed by a named professional coach, feeding U12–U18 national competition.</li>
+</ul>
+<p><strong>Coaching staff include professional practitioners, not just teachers.</strong> Danny Care is a professional rugby coach (Care is a well-known England international scrum-half — adding a name like this to a school staff is unusual); Keith Medlycott was a first-class cricketer for Surrey and is now Head Coach at the Jarrett Cricket Centre; Mike Williamson is a professional hockey coach. Taryn Archbold leads skiing; Craig Gibbons leads swimming; Nick Jones runs the Tennis Academy. For international parents: these are people who played their sport at the professional or international level, not ordinary PE teachers.</p>
+<p><strong>National-level competitions the school regularly enters</strong> include the Daily Mail Trophy (rugby), the Howden Rosslyn Park National Schools Sevens (rugby sevens), the National Schools Hockey Championships, and the Continental Tyres Schools Cup (rugby). Surrey Schools&#39; Cricket Association competitions are routine.</p>
+<p><strong>Alumni in sport</strong> extend well beyond Draper and Henman: Tom Hardy CBE is an Old Reedonian (actor, not sport — but worth flagging for a culture read), along with Connor Williamson (England hockey, Olympian), Catherine De Ledesma (England hockey), Alex Corbisiero (England rugby), and several professional cricketers.</p>
+<p><strong>Scholarships</strong> are available in Sport and in the four Academy disciplines at 11+, 13+ and Sixth Form. The standard required is explicit and demanding: <strong>county or national-level standard</strong> at 13+ and Sixth Form; A-team representation at school/club level at 11+. Monetary value is not published — ask directly.</p>
+<p><strong>The honest balanced note:</strong> Reed&#39;s is a school where sport is central to the social texture. That is a tremendous environment for a sporty child — and a real thing to think about for a child who is not. Non-sporty pupils can thrive in Drama (the school has won Best Youth Production at the Woking Drama Festival and regularly stages ambitious productions), in Music (160 in the choir, strings scheme in Year 7, trombone scheme in Year 8 for every pupil), and in the strong Academic Scholars programme. But if your child is strongly non-athletic, ask on tour how the school makes Saturday fixture weekends feel inclusive rather than sidelining.</p>
+<h3>Location &amp; Getting Here</h3>
+<p>Reed&#39;s sits in prosperous Surrey commuter country — green, quiet, and a textbook example of the &quot;stockbroker belt&quot; south-west of London. The nearest town is Cobham (population ~9,700, 2.7 km away); the nearest train station is <strong>Oxshott, just 0.9 km from the main gate</strong> — close enough to walk in ten minutes through Oxshott Heath, on the Waterloo-Guildford line.</p>
+<p>For international families flying in:</p>
+<table>
+<thead>
+<tr>
+<th>Airport</th>
+<th>Distance</th>
+<th>Drive time</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Heathrow</td>
+<td>16 km</td>
+<td>~31 minutes</td>
+</tr>
+<tr>
+<td>Gatwick</td>
+<td>24 km</td>
+<td>~41 minutes</td>
+</tr>
+<tr>
+<td>London City</td>
+<td>35 km</td>
+<td>~56 minutes</td>
+</tr>
+</tbody></table>
+<p>If you&#39;re flying in from Bangkok, Singapore or Hong Kong, <strong>Heathrow at 16 km is your practical gateway</strong> — half an hour door-to-door by car. Central London is roughly 30 minutes by train from Oxshott.</p>
+<p>Nearby attractions for a visiting family weekend: Kingston Museum (9.5 km), Dorking Museum (12 km), Guildford Museum (18 km), Watts Gallery (22 km), and the London Aquarium (25.6 km). Windsor and Hampton Court are both easy half-day visits. The location is genuinely pleasant — you are not choosing between a beautiful school and a practical one here.</p>
+<hr>
+<h2>Part 2 — The Deep Report</h2>
+<blockquote>
+<p>This section surfaces facts from public records that the school&#39;s own marketing does not highlight.</p>
+</blockquote>
+<h3>Regulatory Status at a Glance</h3>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Status</th>
+<th>Plain English</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Charity Commission</td>
+<td>Up to date, filed on time</td>
+<td>→ Financial reporting is compliant and current.</td>
+</tr>
+<tr>
+<td>Latest ISI inspection</td>
+<td>January 2025 — all standards met, &quot;significant strength&quot; awarded</td>
+<td>→ Regulator&#39;s verdict is positive; inspection is 15 months old.</td>
+</tr>
+<tr>
+<td>Safeguarding</td>
+<td>Met — &quot;embedded culture of safeguarding&quot; (ISI)</td>
+<td>→ No open regulatory flags.</td>
+</tr>
+<tr>
+<td>TRA (Teacher misconduct)</td>
+<td>Zero confirmed hits</td>
+<td>→ No banned teachers linked to this school in our check.</td>
+</tr>
+</tbody></table>
+<h3>Financial Health</h3>
+<p><strong>First, who is this charity?</strong> The Charity Commission record you can look up is registered as <strong>&quot;THE LONDON ORPHAN ASYLUM (REED&#39;S SCHOOL)&quot;</strong> — that archaic-sounding legal name reflects the 1813 founding of the school as the London Orphan Asylum. Its working name on the register is simply REEDS SCHOOL. Importantly, <strong>this is the operating entity for the school itself</strong> — the numbers below are Reed&#39;s, not a separate Foundation or a combined group. Charity number 312008, registered 7 May 1964 (Charity Commission — <a href="https://register-of-charities.charitycommission.gov.uk/en/charity-search/-/charity-details/312008">https://register-of-charities.charitycommission.gov.uk/en/charity-search/-/charity-details/312008</a>).</p>
+<p><strong>Before the table, in plain language:</strong> <em>Total assets</em> is everything the school owns (buildings, playing fields, cash). <em>Total liabilities</em> is everything it owes (loans, long-term rental commitments, future obligations). <em>Net position</em> is assets minus liabilities — the higher, the healthier.</p>
+<table>
+<thead>
+<tr>
+<th>Year ending</th>
+<th>Gross income</th>
+<th>Total expenditure</th>
+<th>Total assets</th>
+<th>Total liabilities</th>
+<th>Net position</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>31/08/2020</td>
+<td>£23.95M</td>
+<td>£18.49M</td>
+<td>£45.70M</td>
+<td>£14.11M</td>
+<td>£31.58M</td>
+</tr>
+<tr>
+<td>31/08/2021</td>
+<td>£20.77M</td>
+<td>£19.82M</td>
+<td>£47.68M</td>
+<td>£14.33M</td>
+<td>£33.34M</td>
+</tr>
+<tr>
+<td>31/08/2022</td>
+<td>£22.40M</td>
+<td>£21.79M</td>
+<td>£44.91M</td>
+<td>£11.25M</td>
+<td>£33.66M</td>
+</tr>
+<tr>
+<td>31/08/2023</td>
+<td>£24.95M</td>
+<td>£24.13M</td>
+<td>£46.31M</td>
+<td>£12.35M</td>
+<td>£33.96M</td>
+</tr>
+<tr>
+<td>31/08/2024</td>
+<td>£26.97M</td>
+<td>£26.16M</td>
+<td>£65.61M</td>
+<td>£30.23M</td>
+<td>£35.39M</td>
+</tr>
+</tbody></table>
+<p><strong>The headline is good news.</strong> Over five years, net position has grown from £31.6M to £35.4M, income is up from £24M to £27M, and the school ran a small operating surplus (~£0.8M) in 2024. No red lights.</p>
+<p><strong>The anomaly worth understanding:</strong> in a single year (2023 → 2024), <strong>total assets leapt from £46.3M to £65.6M (+£19.3M), and total liabilities more than doubled from £12.3M to £30.2M (+£17.9M).</strong> That sounds alarming and isn&#39;t automatically bad. In UK accounting, the most common explanation for a jump like this — assets and liabilities growing in parallel — is that a new asset has been brought onto the balance sheet alongside the debt that funded it, or that a long-term lease commitment (for example, for a sports facility or land) has been &quot;capitalised&quot; (recognised on the balance sheet for the first time under accounting rules that have changed for charities in recent years). <strong>The key fact a parent needs:</strong> net position still grew, so the school&#39;s overall financial health improved even through this change. But the nature of the jump is a sensible tour question — ask the Bursar directly: &quot;Was that a building project, a long-term lease brought on-balance-sheet, or borrowing for a specific development?&quot;</p>
+<p><strong>The other note:</strong> the charity&#39;s pension position is reported as £0 across all five years, which usually means the school is not carrying a defined-benefit pension deficit — unusual and positive for a school of this age.</p>
+<h3>Leadership Structure</h3>
+<p><strong>Headmaster: Mark Hoskins</strong> (BA, MA, MSc). Hoskins has been in post since 2014 — <strong>twelve years</strong>, a long and stable tenure by UK independent-school standards. He previously held senior roles at the Royal Grammar School, Guildford, and Whitgift School. A long-tenured head is a strong continuity signal and tends to correlate with consistent ethos and slow, managed change rather than constant strategic re-set.</p>
+<p><strong>Chair of Governors: Marcus Baker.</strong> The full published senior leadership team is substantial: Bursar Lucy Hurford (Bursar and Secretary to the Governors, since 2013), Senior Deputy Head David Atkins, Deputy Head (Staff) Alex Balls, Deputy Head (Curriculum) Jon Ross, Deputy Head (Pupils) Luke Michael, Deputy Head (Teaching and Learning) Caroline St-Gallay, Director of Studies Des Thompson, Head of Sixth Form Andy Davey, Assistant Head (Middle School) and Designated Safeguarding Lead Lukas Pytel, and Director of Development Kathryn Bartram.</p>
+<p>Appointment dates for most deputies are not captured in the public record; no senior departures in the last 24 months appear in our data. If a parent wants continuity signals, the combination of a 12-year head and a Bursar in post since 2013 is unusually strong.</p>
+<h3>Inspection Record</h3>
+<p>The most recent ISI inspection took place <strong>21–23 January 2025</strong> and is <strong>15 months old as of this report&#39;s date</strong> — comfortably within ISI&#39;s typical 3–5-year cycle and therefore fresh enough to rely on.</p>
+<p>The headline: <strong>all five ISI standards are met</strong> — leadership and management; quality of education; physical and mental health and emotional wellbeing; social and economic education; and safeguarding. The school was awarded a <strong>&quot;significant strength&quot;</strong> — a designation ISI uses sparingly — for its academic feedback process:</p>
+<blockquote>
+<p>&quot;Teachers deliver engaging lessons and provide consistent high-quality feedback to pupils. Pupils are encouraged to self-reflect and develop targets for improvement. This highly effective personalised feedback process for sixth-form pupils has led to sustained improved examination results and outcomes for all groups of pupils including Foundation pupils. This is a significant strength of the school.&quot;</p>
+</blockquote>
+<p>On pastoral and boarding:</p>
+<blockquote>
+<p>&quot;Boarding houses are well led and maintained. Pupils benefit from a robust life skills programme and pupils feel well supported. Pupils are confident to offer their views or suggestions about improvement to school provision.&quot;</p>
+</blockquote>
+<p>On safeguarding:</p>
+<blockquote>
+<p>&quot;There is an embedded culture of safeguarding at the school. All staff and governors complete statutory safeguarding training and receive regular updates to maintain their awareness and understanding.&quot;</p>
+</blockquote>
+<p><strong>One recommendation for improvement</strong> — the only &quot;next step&quot; flagged by inspectors:</p>
+<blockquote>
+<p>&quot;Leaders should develop the consistency of the school&#39;s processes for communication between subject teachers and the SEND department so the provision to meet the needs of pupils who have SEND is effective.&quot;</p>
+</blockquote>
+<p>This is a specific, narrow point, not a broad concern — but if your child has SEND, it&#39;s worth a direct question on tour about how the school has responded since January 2025.</p>
+<p>The inspection also approved a <strong>material change request</strong>: the school applied to add 25 pupils to its registered roll, and inspectors found its staffing and facilities plans adequate to absorb the increase.</p>
+<h3>Accreditation &amp; Association Status</h3>
+<p>Reed&#39;s is an <strong>HMC (Headmasters&#39; and Headmistresses&#39; Conference)</strong> member and inspected by <strong>ISI</strong> under DfE regulation. No international accreditations (COBIS, CIS, IB World School) are claimed or needed — Reed&#39;s is a UK-curriculum school. The Good Schools Guide publishes a review of the school (<a href="https://www.reeds.surrey.sch.uk/2533/good-schools-guide">https://www.reeds.surrey.sch.uk/2533/good-schools-guide</a>).</p>
+<h3>Wellbeing &amp; Mental Health Staffing</h3>
+<p>From the school&#39;s published staff list, the dedicated wellbeing team comprises: <strong>2 counsellors (Ali Merrett and James Clatworthy), 3 school nurses, and 1 Chaplain (Rev Andrew Winter)</strong> — a total of 6 named wellbeing staff for ~850 pupils. The Medical Centre is manager-led by Kate Dunn. Each boarding house also has its own live-in Matron.</p>
+<p><strong>On counsellor ratio specifically: 2 counsellors for ~850 pupils is roughly 1 counsellor per 425 pupils.</strong> For context, the UK NHS CAMHS (Child and Adolescent Mental Health Services — NHS mental health care for young people) target is a 4-week wait from referral. Independent boarding schools typically aim for <strong>1 counsellor per 150–300 pupils</strong>. A ratio worse than 1:300 at a heavy-boarding school would be worth a conversation; at Reed&#39;s, where only ~10% board, the day-school context softens this slightly, but the ratio still sits outside the typical independent-boarding band.</p>
+<p><strong>Ask directly on tour:</strong> what is the actual waiting time for a pupil to see a counsellor after referral? And what is the onward referral pathway if a pupil needs more than in-school support?</p>
+<h3>School Policies</h3>
+<p>The school publishes a comprehensive policies page (<a href="https://www.reeds.surrey.sch.uk/618/school-policies">https://www.reeds.surrey.sch.uk/618/school-policies</a>) with downloadable PDFs for Anti-Bullying, Countering Cyberbullying, Online Safety, Social Media, Behaviour Rewards and Sanctions, Safeguarding and Child Protection, and more. Bullying and online-safety policies are online and public — good practice.</p>
+<p><strong>Phone and device rules are not explicitly published</strong> on the public site. Most top UK boarding schools now operate phone-free dorms after lights-out and have tightened daytime device rules meaningfully since 2023. Ask on tour where Reed&#39;s sits on phone use during the school day, in boarding houses overnight, and in the Sixth Form (where approaches are typically looser).</p>
+<h3>Safeguarding &amp; Governance Signals</h3>
+<p><strong>No Charity Commission serious incident reports</strong> appear on file for this school. The Commission filing record is &quot;up to date (on time)&quot; — compliant.</p>
+<p><strong>On the Teacher Regulation Agency (TRA — the government body that bans teachers found guilty of misconduct):</strong> we ran the TRA publications search using the school&#39;s name and verified every hit against the school profile. After verification, <strong>no TRA misconduct records relate to staff at Reed&#39;s School</strong>. Four raw search results appeared but were confirmed to be unrelated — keyword matches on the surname &quot;Reed&quot; for teachers employed at schools in Lincolnshire, Peterborough, and West Sussex, none of which have any link to Reed&#39;s School in Cobham. Parents who want to run the check themselves can do so at the TRA publications feed (<a href="https://www.gov.uk/search/all?keywords=Reed's%20School&organisations%5B%5D=teaching-regulation-agency">https://www.gov.uk/search/all?keywords=Reed&#39;s%20School&amp;organisations%5B%5D=teaching-regulation-agency</a>).</p>
+<p><strong>Trustee count on the Charity Commission register: 2</strong>, named as Dr John Chinegwundoh and Dr Alison McLean. <strong>On the face of it, 2 trustees for a £27M-income charity is low.</strong> In context, this is almost certainly a reporting quirk rather than a governance weakness: the school&#39;s own website lists a full <strong>Board of Governors of 17 people</strong> under Marcus Baker as Chair, but the Charity Commission register only reflects those formally registered in the trustee role. Many historic UK schools report this way — the full governing Council can be 15–20 members, but only a subset are recorded at the Commission. Worth asking the Chair on tour how the 2 registered trustees relate to the full 17-member Council, who actually meets and with what frequency, and what the committee structure looks like.</p>
+<h3>Local Safety Context</h3>
+<p><strong>The headline: the area around Reed&#39;s is safe by UK and international standards.</strong></p>
+<p>Police recorded <strong>208 incidents in the 1-mile radius around the school over 12 months (Feb 2025–Jan 2026)</strong>. The top category is &quot;violent crime&quot; at 83 incidents (40%), followed by anti-social behaviour (20%), burglary (9%), public order (7%), vehicle crime (5%), and criminal damage (4%).</p>
+<p><strong>The international framing that matters:</strong> UK police &quot;violent crime&quot; is a very broad category. It includes any unwanted physical contact — from a minor push or harassment through to serious assault. <strong>Roughly 70–80% of UK &quot;violent crime&quot; incidents involve no injury, or minor injury only.</strong> This is a fundamentally different definition from what Thai police or Singaporean police record as crime.</p>
+<table>
+<thead>
+<tr>
+<th>Location</th>
+<th>Incidents per 1,000 residents per year (approx)</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>England &amp; Wales average</td>
+<td>~85</td>
+</tr>
+<tr>
+<td>Surrey county</td>
+<td>~55–65</td>
+</tr>
+<tr>
+<td><strong>Area around Reed&#39;s (Elmbridge)</strong></td>
+<td><strong>~55–60</strong></td>
+</tr>
+<tr>
+<td>Bangkok (official; estimated 2–3× higher due to underreporting)</td>
+<td>~20–25</td>
+</tr>
+<tr>
+<td>Hong Kong</td>
+<td>~10–15</td>
+</tr>
+<tr>
+<td>Singapore</td>
+<td>~6–8</td>
+</tr>
+</tbody></table>
+<p>A parent from Bangkok reading &quot;40% violent crime&quot; would naturally be alarmed. They shouldn&#39;t be. The UK definition captures incidents that Thai, Singaporean or Hong Kong police would often not record as crimes at all, and the area&#39;s total is below the Surrey average. &quot;Anti-social behaviour&quot; at 20% similarly refers to noise complaints, public rowdiness and littering — not physical threat. Burglary at 9% is unremarkable for an affluent commuter-town area (expensive houses attract opportunists).</p>
+<p><strong>Tour question:</strong> ask specifically about site security, the walking route from Oxshott station (which passes through Oxshott Heath woodland — is this route supervised during school entry and exit times?), and after-hours campus security given the boarding population.</p>
+<h3>Parent Fit</h3>
+<p><strong>Reed&#39;s is a likely thriving match for:</strong></p>
+<ul>
+<li>A family within day-commuting distance of Cobham (or relocating to Surrey). The rhythm of the school is built around day life, not full-week boarding.</li>
+<li>A child who is sporty — the facilities, fixture volume and coaching depth are unusually strong for a school of 850.</li>
+<li>An academically solid child who will sit comfortably in a cohort where half of A-Level grades are A or A*, without needing the hothouse environment of a pure top-20% academic school.</li>
+<li>A family who values tradition, a Christian-foundation ethos (the school was founded to support orphaned children and the Foundation bursary programme is still central), and a stable, long-tenured leadership team.</li>
+<li>A family who wants a broad Russell Group destination pipeline rather than a laser focus on Oxbridge.</li>
+<li>A child considering languages (French, Spanish, German, Latin all offered at A Level) or the Extended Project Qualification route into university.</li>
+</ul>
+<p><strong>Reed&#39;s may be a harder fit for:</strong></p>
+<ul>
+<li>Families seeking a heavily international, full-boarding community. 10% boarding and a local-majority intake means weekends can be quieter than at a 60%+ boarding school.</li>
+<li>Families prioritising very high Oxbridge volume. Four Cambridge acceptances and no Oxford in 2025 is modest for the fee level.</li>
+<li>International families who want published EAL provision, international pupil numbers, and nationality mix up front — none of that is publicly available and would need to be asked for.</li>
+<li>Parents who want highly transparent scholarship and bursary detail on the website before applying — monetary values, thresholds and award percentages are not published.</li>
+<li>A child who is strongly non-sporty and might feel the weight of a sport-central culture on Saturdays.</li>
+</ul>
+<h3>5 Questions to Ask on a Tour</h3>
+<ol>
+<li><strong>On the 2024 balance-sheet jump:</strong> &quot;Between August 2023 and August 2024, total assets rose from £46.3M to £65.6M and total liabilities from £12.3M to £30.2M. What was the underlying event — a capital project, a long-term lease recognised on the balance sheet, or borrowing for a specific build?&quot;</li>
+<li><strong>On governance:</strong> &quot;The Charity Commission register shows only 2 trustees, but your website lists 17 governors. How does that map? How often does the full governing Council meet, and what is its committee structure?&quot;</li>
+<li><strong>On the inspection recommendation:</strong> &quot;The January 2025 ISI report recommended better communication between subject teachers and the SEND department. What has changed since then, and how would my child&#39;s classroom teachers know about their learning needs?&quot;</li>
+<li><strong>On wellbeing ratios:</strong> &quot;With 2 counsellors for ~850 pupils, what is the actual waiting time for a pupil to see a counsellor after referral? And how does that compare to the NHS CAMHS 4-week target?&quot;</li>
+<li><strong>On academic ceiling and Oxbridge:</strong> &quot;51% of 2025 A-Level grades were A/A*. What was the A* figure on its own? And is the modest Oxbridge footprint in 2025 a one-year dip, or does it reflect where your pupils are genuinely applying?&quot;</li>
+</ol>
+<h3>Sources &amp; Data Freshness</h3>
+<ul>
+<li><strong>Charity Commission register</strong> (charity 312008) — <a href="https://register-of-charities.charitycommission.gov.uk/en/charity-search/-/charity-details/312008">https://register-of-charities.charitycommission.gov.uk/en/charity-search/-/charity-details/312008</a> — retrieved 2026-04-20; figures to year ending 31/08/2024.</li>
+<li><strong>ISI inspection report, January 2025</strong> — <a href="https://reports.isi.net/DownloadReport.aspx?t=c&r=ROU6830_20250121.pdf&s=6830">https://reports.isi.net/DownloadReport.aspx?t=c&amp;r=ROU6830_20250121.pdf&amp;s=6830</a> — inspection dated 21–23 January 2025.</li>
+<li><strong>Reed&#39;s School website</strong> (fees, curriculum, staff list, results, admissions) — <a href="https://www.reeds.surrey.sch.uk">https://www.reeds.surrey.sch.uk</a> — retrieved 2026-04-20.</li>
+<li><strong>TRA publications feed</strong> — <a href="https://www.gov.uk/search/all?keywords=Reed's%20School&organisations%5B%5D=teaching-regulation-agency">https://www.gov.uk/search/all?keywords=Reed&#39;s%20School&amp;organisations%5B%5D=teaching-regulation-agency</a> — checked 2026-04-20; zero confirmed hits.</li>
+<li><strong>Location and crime data</strong> — UK police open data, 1-mile radius, Feb 2025–Jan 2026; retrieved 2026-04-21.</li>
+</ul>
+<p>All sources were current as of April 2026. The school&#39;s published student community data (nationality mix, EAL percentage, scholarship monetary values) was not available at retrieval and is flagged in-text as a gap for parents to close with the Admissions Office directly.</p>
+<hr>
+<p><em>This report was compiled from public records and the school&#39;s own published materials. Severity judgments are nanasays&#39; editorial interpretation. Information may have changed since the source data was collected. To report an error, email <a href="mailto:info@nanasays.school">info@nanasays.school</a>.</em></p>
+
+</div>
+
+</body>
+</html>

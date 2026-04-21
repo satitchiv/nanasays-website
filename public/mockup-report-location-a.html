@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Report Location Sections — Style A · Reed's School</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy:#1B3252; --teal:#34C3A0; --teal-dk:#239C80; --teal-bg:#E8FAF6;
+    --amber:#D97706; --amber-bg:#FEF3C7; --green:#059669; --green-bg:#D1FAE5;
+    --border:#E5E7EB; --muted:#6B7280; --off:#F6F8FA; --text:#1f2937;
+    --forest:#2E5C4B; --rule:#D8D1C2; --ochre:#B08A3E;
+  }
+  body { font-family:'Nunito Sans',sans-serif; background:var(--off); color:var(--text); line-height:1.7; padding:40px 24px 80px; }
+  .page { max-width:860px; margin:0 auto; }
+  h2 { font-family:'Nunito',sans-serif; font-weight:900; font-size:22px; color:var(--navy); margin:40px 0 6px; padding-bottom:10px; border-bottom:2px solid var(--border); }
+  h3 { font-family:'Nunito',sans-serif; font-weight:800; font-size:17px; color:var(--navy); margin:28px 0 10px; }
+  p { margin-bottom:14px; font-size:15px; line-height:1.72; }
+  p:last-child { margin-bottom:0; }
+  strong { color:var(--navy); }
+  blockquote { border-left:3px solid var(--teal); padding:8px 18px; margin:16px 0; background:var(--teal-bg); border-radius:0 8px 8px 0; font-size:14.5px; font-style:italic; color:var(--text); }
+
+  .mockup-badge { display:inline-block; background:#fef3c7; border:1px solid #f59e0b; color:#92400e; font-size:10px; font-weight:800; padding:4px 12px; border-radius:20px; margin-bottom:8px; letter-spacing:.06em; text-transform:uppercase; }
+  .style-title { font-size:20px; font-family:'Nunito',sans-serif; font-weight:900; color:var(--navy); margin-bottom:4px; }
+  .style-desc { font-size:13px; color:var(--muted); margin-bottom:32px; }
+
+  .section-card { background:#fff; border:1px solid var(--rule); border-radius:14px; padding:28px 32px; margin-bottom:20px; }
+  .part-label { font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.12em; margin-bottom:4px; }
+  .part-label.free { color:var(--teal-dk); }
+  .part-label.paid { color:var(--ochre); }
+
+  /* Airport table */
+  .ap-table { width:100%; border-collapse:collapse; margin:14px 0; font-size:14px; }
+  .ap-table th { text-align:left; font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; padding:6px 10px; border-bottom:2px solid var(--rule); }
+  .ap-table td { padding:8px 10px; border-bottom:1px solid #f5f2ec; vertical-align:top; }
+  .ap-table tr:last-child td { border-bottom:none; }
+
+  /* Crime bars */
+  .crime-bar-row { display:grid; grid-template-columns:160px 1fr 40px; align-items:center; gap:10px; margin-bottom:8px; font-size:13px; }
+  .bar-track { background:#f0ece4; border-radius:4px; height:7px; }
+  .bar-fill { height:7px; border-radius:4px; background:var(--teal); }
+  .bar-fill.warn { background:var(--amber); }
+
+  /* Intl comparison */
+  .intl-row { display:flex; gap:12px; flex-wrap:wrap; margin:14px 0; }
+  .intl-chip { background:var(--off); border:1px solid var(--rule); border-radius:8px; padding:10px 14px; flex:1; min-width:160px; }
+  .intl-chip .country { font-size:12px; font-weight:700; color:var(--navy); margin-bottom:3px; }
+  .intl-chip .rate { font-size:13px; color:var(--text); }
+  .intl-chip .note { font-size:11px; color:var(--muted); margin-top:3px; font-style:italic; }
+
+  .tour-q { background:var(--teal-bg); border-left:3px solid var(--teal-dk); padding:12px 16px; border-radius:0 8px 8px 0; margin-top:16px; font-size:14px; }
+  .tour-q strong { color:var(--forest); display:block; font-size:11px; text-transform:uppercase; letter-spacing:.08em; margin-bottom:4px; }
+
+  .verdict-chip { display:inline-block; background:var(--green-bg); color:var(--green); font-weight:800; font-size:12px; padding:4px 12px; border-radius:20px; margin-bottom:12px; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="mockup-badge">Report Style A</div>
+  <div class="style-title">Style A — Narrative-led, warm and conversational</div>
+  <div class="style-desc">Reads like a trusted friend talking you through it. Paragraphs flow naturally. Tables used sparingly — only airports. International comparisons woven into the prose.</div>
+
+  <!-- PART 1: Location & Getting Here -->
+  <div class="section-card">
+    <div class="part-label free">Part 1 — Free</div>
+    <h3>Location & Getting Here</h3>
+
+    <p>Reed's sits in what estate agents call "affluent Surrey commuter country" — green, leafy, and quiet, about 20 miles southwest of central London. The nearest town is Cobham, a well-heeled commuter village of around 9,700 people, 2.7 km from the school gates. Think good coffee, a Waitrose, and not much else. For families who want their son somewhere calm and focused rather than caught up in city noise, this works well. For a child who craves urban energy on weekends, it's a significant trade-off.</p>
+
+    <p>The nearest train station is <strong>Oxshott</strong>, a 10-minute walk (0.9 km). From Oxshott you can reach London Waterloo in around 40 minutes — quick enough for a weekend exeat, slow enough that your son isn't slipping into London on a Tuesday evening.</p>
+
+    <p>For international families flying in, the airport picture is genuinely good:</p>
+
+    <table class="ap-table">
+      <thead><tr><th>Airport</th><th>Distance</th><th>Drive time (est.)</th><th>Note</th></tr></thead>
+      <tbody>
+        <tr><td><strong>Heathrow</strong></td><td>16 km</td><td>~31 min</td><td>Your primary gateway. Direct connections from Bangkok, Singapore, Hong Kong.</td></tr>
+        <tr><td>Gatwick</td><td>24 km</td><td>~41 min</td><td>Good if flying from Europe or budget long-haul.</td></tr>
+        <tr><td>London City</td><td>35 km</td><td>~56 min</td><td>Useful for business travellers; limited long-haul.</td></tr>
+      </tbody>
+    </table>
+
+    <p>If you're flying in from Bangkok or Singapore — both common origins for Reed's families — Heathrow is the obvious choice, and the drive to school is under 30 minutes with normal traffic. It's one of the easier UK boarding schools to reach internationally.</p>
+
+    <p><strong>When you visit:</strong> Windsor Castle is 14 km away — an easy half-day out for a family on an exeat weekend. Chessington World of Adventures is just 8 km if you have younger siblings in tow. Hampton Court Palace (12 km) and RHS Wisley Garden (7 km) round out a genuinely good weekend. The Surrey Hills are on the doorstep for walking families.</p>
+  </div>
+
+  <!-- PART 2: Local Safety Context -->
+  <div class="section-card">
+    <div class="part-label paid">Part 2 — Premium</div>
+    <h3>Local Safety Context</h3>
+
+    <p><span class="verdict-chip">Below Surrey average</span></p>
+
+    <p>The area around Reed's is safe by UK and international standards. Over the 12 months to January 2026, police recorded <strong>208 incidents</strong> within one mile of the school — a figure that sits at or below the Surrey county average of roughly 55–65 incidents per 1,000 residents per year.</p>
+
+    <p>If you're coming to this report from Bangkok, Singapore, or Hong Kong, the headline "40% violent crime" will likely jump out at you. Here's the context you need: in UK police data, <strong>"violent crime" includes any unwanted physical contact</strong> — a push, a raised hand, a verbal threat that turns physical. Roughly 70–80% of incidents in this category involve no injury whatsoever. It is not comparable to "violent crime" in Thai, Singaporean, or Hong Kong police statistics, where the equivalent category captures serious assault and above only. The gap between the definitions is substantial. If this school were in Bangkok, a significant portion of these 83 "violent crime" incidents would not appear in any crime statistic at all.</p>
+
+    <div class="intl-row">
+      <div class="intl-chip">
+        <div class="country">🇬🇧 Surrey, England</div>
+        <div class="rate">~55–65 / 1k / year</div>
+        <div class="note">Reed's area is within range</div>
+      </div>
+      <div class="intl-chip">
+        <div class="country">🇹🇭 Bangkok, Thailand</div>
+        <div class="rate">~20–25 official / 1k</div>
+        <div class="note">Est. 2–3× higher; "violent crime" = serious assault only</div>
+      </div>
+      <div class="intl-chip">
+        <div class="country">🇸🇬 Singapore</div>
+        <div class="rate">~6–8 / 1k / year</div>
+        <div class="note">Very low; narrow definitions</div>
+      </div>
+      <div class="intl-chip">
+        <div class="country">🇺🇸 United States</div>
+        <div class="rate">~40–50 / 1k / year</div>
+        <div class="note">Higher threshold than UK</div>
+      </div>
+    </div>
+
+    <p>Breaking down the 208 incidents: <strong>anti-social behaviour</strong> (noise complaints, public rowdiness — 20%, 42 incidents) is routine suburban background noise. <strong>Burglary</strong> at 9% (19 incidents) is worth noting — Surrey's relative affluence does attract opportunistic property crime. Vehicle crime (5%) follows a similar pattern. Nothing in this distribution is unusual for a prosperous commuter area of this size.</p>
+
+    <div class="crime-bar-row"><span>Violent crime</span><div class="bar-track"><div class="bar-fill" style="width:40%"></div></div><span>40%</span></div>
+    <div class="crime-bar-row"><span>Anti-social behaviour</span><div class="bar-track"><div class="bar-fill" style="width:20%"></div></div><span>20%</span></div>
+    <div class="crime-bar-row"><span>Burglary</span><div class="bar-track"><div class="bar-fill warn" style="width:9%"></div></div><span>9%</span></div>
+    <div class="crime-bar-row"><span>Public order</span><div class="bar-track"><div class="bar-fill" style="width:7%"></div></div><span>7%</span></div>
+    <div class="crime-bar-row" style="margin-top:4px"><span>Vehicle crime</span><div class="bar-track"><div class="bar-fill" style="width:5%"></div></div><span>5%</span></div>
+
+    <div class="tour-q">
+      <strong>Tour question</strong>
+      Ask the Bursar or Head of Security: "Have there been any incidents at or near the school perimeter in the past 12 months, and how are after-dark entry points managed?"
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

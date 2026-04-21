@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V2 — Compact List</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito Sans', sans-serif; background: #f8f9fa; color: #374151; }
+  .nav { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 0 5%; display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .nav-logo { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px; color: #0f2b4c; }
+  .nav-logo span { color: #34c3a0; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 40px 5%; }
+  .page-label { font-size: 11px; font-weight: 800; color: #34c3a0; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px; }
+  h1 { font-family: 'Nunito', sans-serif; font-size: 32px; font-weight: 900; color: #0f2b4c; margin-bottom: 6px; }
+  .sub { font-size: 15px; color: #6b7280; margin-bottom: 24px; }
+  .pills { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 28px; }
+  .pill { padding: 5px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; cursor: pointer; border: none; font-family: inherit; }
+  .pill.active { background: #0f2b4c; color: #fff; }
+  .pill.off { background: #fff; color: #6b7280; border: 1px solid #e5e7eb; }
+  .layout { display: grid; grid-template-columns: minmax(0,1.5fr) minmax(0,1fr); gap: 32px; align-items: start; }
+
+  /* List row */
+  .list-row { display: flex; align-items: stretch; gap: 0; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; margin-bottom: 8px; overflow: hidden; cursor: pointer; transition: box-shadow .15s; }
+  .list-row:hover { box-shadow: 0 3px 12px rgba(0,0,0,.07); }
+  .list-color { width: 4px; flex-shrink: 0; }
+  .list-body { flex: 1; padding: 14px 16px; display: flex; flex-direction: column; justify-content: center; gap: 5px; }
+  .list-cat { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; }
+  .list-title { font-family: 'Nunito', sans-serif; font-size: 16px; font-weight: 800; color: #0f2b4c; line-height: 1.3; }
+  .list-meta { font-size: 12px; color: #6b7280; display: flex; align-items: center; gap: 8px; }
+  .list-right { padding: 14px 16px; display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 6px; flex-shrink: 0; }
+  .urgent { background: #fee2e2; color: #b91c1c; font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 10px; white-space: nowrap; }
+  .dot { width: 3px; height: 3px; border-radius: 50%; background: #d1d5db; }
+
+  /* Divider label */
+  .divider { font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: .08em; margin: 20px 0 10px; padding-bottom: 8px; border-bottom: 1px solid #e5e7eb; }
+
+  /* Sidebar */
+  .sidebar-box { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+  .sidebar-title { font-size: 13px; font-weight: 700; color: #0f2b4c; margin-bottom: 12px; }
+  .trend-row { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+  .trend-num { font-size: 16px; font-weight: 800; color: #e5e7eb; min-width: 20px; }
+  .school-tag { display: flex; justify-content: space-between; align-items: center; background: #f8f9fa; border-radius: 8px; padding: 7px 10px; margin-bottom: 6px; }
+  .badge { font-size: 11px; color: #2563eb; font-weight: 600; }
+  .version-tag { position: fixed; top: 70px; right: 20px; background: #0f2b4c; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; font-family: 'Nunito', sans-serif; }
+  .deadline-card { background: #fffbeb; border: 1px solid #fcd34d; border-radius: 12px; padding: 14px 16px; margin-bottom: 8px; display: flex; gap: 12px; align-items: flex-start; }
+  .deadline-icon { width: 32px; height: 32px; background: #f59e0b; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<div class="version-tag">V2 — Compact List</div>
+
+<nav class="nav">
+  <div class="nav-logo">Nana<span>Says</span></div>
+  <div style="display:flex;gap:24px;font-size:14px;font-weight:600;color:#6b7280;">
+    <span>Schools</span><span style="color:#0f2b4c;">News</span><span>Compare</span>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="page-label">Education Intelligence</div>
+  <h1>International Education News</h1>
+  <p class="sub">Schools, scholarships, visas and policy — curated for international families</p>
+
+  <div class="pills">
+    <button class="pill active">All 59</button>
+    <button class="pill off">Admissions 13</button>
+    <button class="pill off">Fees 11</button>
+    <button class="pill off">Visa 9</button>
+    <button class="pill off">Policy 9</button>
+    <button class="pill off">Scholarships 5</button>
+    <button class="pill off">Rankings 5</button>
+  </div>
+
+  <div class="layout">
+    <!-- Left: compact list -->
+    <div>
+      <div class="divider">Today</div>
+
+      <div class="list-row">
+        <div class="list-color" style="background:#2563eb;"></div>
+        <div class="list-body">
+          <div class="list-cat" style="color:#2563eb;">Visa</div>
+          <div class="list-title">Australia student visa refusal rates reach record high — 32.5% rejected in February 2026</div>
+          <div class="list-meta"><span>ICEF Monitor</span><span class="dot"></span><span>1 day ago</span><span class="dot"></span><span>Thailand affected</span></div>
+        </div>
+        <div class="list-right">
+          <span class="urgent">Urgent</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </div>
+      </div>
+
+      <div class="list-row">
+        <div class="list-color" style="background:#059669;"></div>
+        <div class="list-body">
+          <div class="list-cat" style="color:#059669;">Admissions</div>
+          <div class="list-title">IB Diploma hits 220,000 candidates — Thailand leads mainland Southeast Asia with 52 IB schools</div>
+          <div class="list-meta"><span>ICEF Monitor</span><span class="dot"></span><span>2 days ago</span><span class="dot"></span><span>IB curriculum</span></div>
+        </div>
+        <div class="list-right">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </div>
+      </div>
+
+      <div class="list-row">
+        <div class="list-color" style="background:#059669;"></div>
+        <div class="list-body">
+          <div class="list-cat" style="color:#059669;">Scholarships</div>
+          <div class="list-title">UK universities commit £180M to international scholarships — Thailand named as target market</div>
+          <div class="list-meta"><span>Study International</span><span class="dot"></span><span>2 days ago</span><span class="dot"></span><span>UK · Thailand</span></div>
+        </div>
+        <div class="list-right">
+          <span class="urgent">Urgent</span>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </div>
+      </div>
+
+      <div class="deadline-card">
+        <div class="deadline-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#b45309;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;">Upcoming deadline</div>
+          <div style="font-size:13px;font-weight:700;color:#0f2b4c;">Canada co-op work permit — effective April 1, 2026</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px;">No separate work permit needed for co-op placements after this date</div>
+        </div>
+      </div>
+
+      <div class="divider">This week</div>
+
+      <div class="list-row">
+        <div class="list-color" style="background:#dc2626;"></div>
+        <div class="list-body">
+          <div class="list-cat" style="color:#dc2626;">Fees</div>
+          <div class="list-title">Russell Group universities considering raising international student fees above £50,000 per year</div>
+          <div class="list-meta"><span>The Guardian</span><span class="dot"></span><span>3 days ago</span><span class="dot"></span><span>UK</span></div>
+        </div>
+        <div class="list-right">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </div>
+      </div>
+
+      <div class="list-row">
+        <div class="list-color" style="background:#059669;"></div>
+        <div class="list-body">
+          <div class="list-cat" style="color:#059669;">Admissions</div>
+          <div class="list-title">Oxford and Cambridge break international application records — Thai applications more than double</div>
+          <div class="list-meta"><span>ICEF Monitor</span><span class="dot"></span><span>2 days ago</span><span class="dot"></span><span>UK · Thailand</span></div>
+        </div>
+        <div class="list-right">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </div>
+      </div>
+
+      <div class="list-row">
+        <div class="list-color" style="background:#dc2626;"></div>
+        <div class="list-body">
+          <div class="list-cat" style="color:#dc2626;">Fees</div>
+          <div class="list-title">Germany's tuition-free universities attract record 25% surge — Thai applications jumped 52%</div>
+          <div class="list-meta"><span>Study International</span><span class="dot"></span><span>2 days ago</span><span class="dot"></span><span>Germany · Thailand</span></div>
+        </div>
+        <div class="list-right">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </div>
+      </div>
+
+      <div class="list-row">
+        <div class="list-color" style="background:#dc2626;"></div>
+        <div class="list-body">
+          <div class="list-cat" style="color:#dc2626;">Fees</div>
+          <div class="list-title">Swiss boarding schools raise fees by average 8% — Le Rosey and top institutions leading increases</div>
+          <div class="list-meta"><span>ICEF Monitor</span><span class="dot"></span><span>2 days ago</span><span class="dot"></span><span>Switzerland · Thailand</span></div>
+        </div>
+        <div class="list-right">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </div>
+      </div>
+
+      <div class="list-row">
+        <div class="list-color" style="background:#ea580c;"></div>
+        <div class="list-body">
+          <div class="list-cat" style="color:#ea580c;">Policy</div>
+          <div class="list-title">Thai families spending record $7.8 billion annually on international education as school numbers boom</div>
+          <div class="list-meta"><span>TIER Research</span><span class="dot"></span><span>2 days ago</span><span class="dot"></span><span>Thailand</span></div>
+        </div>
+        <div class="list-right">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#d1d5db" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </div>
+      </div>
+
+      <button style="width:100%;padding:12px;background:none;border:1px solid #e5e7eb;border-radius:8px;font-size:13px;font-weight:600;color:#0f2b4c;cursor:pointer;font-family:inherit;margin-top:8px;">Load more</button>
+    </div>
+
+    <!-- Sidebar -->
+    <div style="position:sticky;top:20px;">
+      <div class="sidebar-box">
+        <div class="sidebar-title">Trending this week</div>
+        <div class="trend-row"><span class="trend-num">1</span><span><span style="font-size:13px;font-weight:600;color:#374151;">Admissions</span><br><span style="font-size:11px;color:#6b7280;">13 articles</span></span></div>
+        <div class="trend-row"><span class="trend-num">2</span><span><span style="font-size:13px;font-weight:600;color:#374151;">Fees</span><br><span style="font-size:11px;color:#6b7280;">11 articles</span></span></div>
+        <div class="trend-row"><span class="trend-num">3</span><span><span style="font-size:13px;font-weight:600;color:#374151;">Visa</span><br><span style="font-size:11px;color:#6b7280;">9 articles</span></span></div>
+        <div class="trend-row"><span class="trend-num">4</span><span><span style="font-size:13px;font-weight:600;color:#374151;">Policy</span><br><span style="font-size:11px;color:#6b7280;">9 articles</span></span></div>
+      </div>
+      <div class="sidebar-box">
+        <div class="sidebar-title">Schools in the news</div>
+        <div class="school-tag"><span style="font-size:12px;font-weight:700;color:#0f2b4c;">Ruamrudee International</span><span class="badge">3 mentions</span></div>
+        <div class="school-tag"><span style="font-size:12px;font-weight:700;color:#0f2b4c;">Bangkok Patana School</span><span class="badge">2 mentions</span></div>
+        <div class="school-tag"><span style="font-size:12px;font-weight:700;color:#0f2b4c;">Concordian International</span><span class="badge">2 mentions</span></div>
+      </div>
+      <div class="sidebar-box" style="background:#f0fdf9;border-color:rgba(52,195,160,.25);">
+        <div class="sidebar-title">Weekly briefing</div>
+        <p style="font-size:12px;color:#6b7280;margin-bottom:10px;line-height:1.5;">Top education news for international families, every week.</p>
+        <input type="email" placeholder="your@email.com" style="width:100%;padding:8px 12px;border-radius:20px;border:1px solid rgba(52,195,160,.4);font-size:12px;margin-bottom:8px;font-family:inherit;">
+        <button style="width:100%;padding:8px;border-radius:20px;background:#0f2b4c;color:#fff;border:none;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;">Subscribe</button>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

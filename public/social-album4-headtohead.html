@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Album 4 — 4 Bangkok IB Schools Compared</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #cbd5e1; display: flex; flex-direction: column; align-items: center;
+    padding: 48px 24px; gap: 10px; font-family: 'Nunito Sans', sans-serif; }
+  .caption { font-size: 12px; font-weight: 700; color: #475569; letter-spacing: .5px;
+    text-transform: uppercase; margin-bottom: 4px; }
+  .sub-caption { font-size: 11px; color: #94a3b8; margin-bottom: 20px; }
+
+  .slide { width: 540px; height: 540px; display: flex; flex-direction: column;
+    overflow: hidden; position: relative;
+    box-shadow: 0 12px 48px rgba(0,0,0,.28); margin-bottom: 32px; }
+
+  .wordmark { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 20px; letter-spacing: -.5px; }
+
+  .dots { display: flex; gap: 6px; align-items: center; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .dot.on { width: 18px; border-radius: 100px; }
+  .dot-navy { background: rgba(255,255,255,.28); }
+  .dot-navy.on { background: #34C3A0; }
+  .dot-light { background: rgba(27,50,82,.2); }
+  .dot-light.on { background: #1B3252; }
+  .dot-teal { background: rgba(255,255,255,.3); }
+  .dot-teal.on { background: #1B3252; }
+
+  /* ══════════ SLIDE 1 — Cover (photo + navy overlay) ══════════ */
+  .s1 { background: url('https://images.unsplash.com/photo-1580582932707-520aed937b7b?w=1080&q=80') center/cover no-repeat; }
+  .s1-overlay { position: absolute; inset: 0;
+    background: linear-gradient(155deg, rgba(27,50,82,.94) 0%, rgba(27,50,82,.78) 100%); }
+  .s1-inner { position: relative; z-index: 1; flex: 1; display: flex;
+    flex-direction: column; padding: 26px 30px; }
+  .s1-top { display: flex; align-items: center; justify-content: space-between; }
+  .s1-chip { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+    background: rgba(52,195,160,.18); color: #34C3A0; border: 1px solid rgba(52,195,160,.4);
+    padding: 5px 12px; border-radius: 100px; }
+  .s1-hero { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 16px; }
+  .s1-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: #34C3A0; }
+  .s1-title { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 40px; color: #fff; line-height: 1.05; letter-spacing: -1.5px; }
+  .s1-schools { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .s1-school-pill { background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.2);
+    border-radius: 8px; padding: 8px 12px; }
+  .s1-school-name { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 13px; color: #fff; letter-spacing: -.3px; }
+  .s1-school-tag { font-size: 10px; color: #34C3A0; font-weight: 600; margin-top: 2px; }
+  .s1-bottom { display: flex; align-items: center; justify-content: space-between; }
+  .s1-note { font-size: 10px; color: rgba(255,255,255,.4); }
+
+  /* ══════════ SLIDE 2 — Fees (White) ══════════ */
+  .s2 { background: #fff; }
+  .s2-inner { flex: 1; display: flex; flex-direction: column; padding: 22px 26px 20px; }
+  .s2-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+  .s2-chip { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+    background: rgba(27,50,82,.06); color: #1B3252; border: 1px solid rgba(27,50,82,.12);
+    padding: 5px 12px; border-radius: 100px; }
+  .s2-title { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 26px; color: #1B3252; letter-spacing: -.7px; margin-bottom: 3px; }
+  .s2-sub { font-size: 11px; color: #9CA3AF; margin-bottom: 18px; }
+  .s2-fees { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+  .fee-row { display: flex; flex-direction: column; gap: 5px; }
+  .fee-header { display: flex; align-items: baseline; justify-content: space-between; }
+  .fee-school { font-size: 13px; font-weight: 700; color: #374151; }
+  .fee-amt { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 20px; color: #1B3252; letter-spacing: -.5px; }
+  .fee-track { height: 9px; background: #F3F4F6; border-radius: 100px; overflow: hidden; }
+  .fee-fill { height: 100%; border-radius: 100px; background: #1B3252; }
+  .fee-fill.wells   { width: 60%; background: #34C3A0; }
+  .fee-fill.nist    { width: 78%; background: #6B9DC2; }
+  .fee-fill.patana  { width: 83%; background: #1B3252; }
+  .fee-fill.shrew   { width: 93%; background: #94a3b8; }
+  .s2-note { font-size: 10px; color: #9CA3AF; font-style: italic; }
+  .s2-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+
+  /* ══════════ Shared: featured-school slides (3–6) ══════════ */
+  /* Featured card */
+  .featured-card { border-radius: 14px; padding: 16px 18px;
+    border-left: 4px solid #34C3A0; display: flex; flex-direction: column; gap: 6px; }
+  .featured-card.on-light { background: #fff; box-shadow: 0 4px 20px rgba(27,50,82,.08); }
+  .featured-card.on-dark  { background: rgba(52,195,160,.12); border-color: #34C3A0; }
+  .fc-label { font-size: 10px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 1.3px; color: #34C3A0; }
+  .fc-name { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 22px; letter-spacing: -.5px; }
+  .fc-name.light { color: #1B3252; }
+  .fc-name.dark  { color: #fff; }
+  .fc-stat { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 32px; letter-spacing: -1px; color: #34C3A0; line-height: 1; }
+  .fc-stat-lbl { font-size: 12px; color: #6B7280; }
+  .fc-stat-lbl.dark { color: rgba(255,255,255,.55); }
+  .fc-desc { font-size: 13px; line-height: 1.4; }
+  .fc-desc.light { color: #6B7280; }
+  .fc-desc.dark  { color: rgba(255,255,255,.6); }
+
+  /* Others list */
+  .others { display: flex; flex-direction: column; gap: 8px; }
+  .other-row { display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 14px; border-radius: 10px; }
+  .other-row.on-light { background: #F6F8FA; }
+  .other-row.on-dark  { background: rgba(255,255,255,.06); }
+  .other-name { font-size: 14px; font-weight: 700; }
+  .other-name.light { color: #374151; }
+  .other-name.dark  { color: rgba(255,255,255,.7); }
+  .other-val  { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 16px; letter-spacing: -.4px; }
+  .other-val.light { color: #1B3252; }
+  .other-val.dark  { color: rgba(255,255,255,.6); }
+
+  /* ══════════ SLIDE 3 — If budget matters (Light) ══════════ */
+  .s3 { background: #F6F8FA; }
+  .s3-inner { flex: 1; display: flex; flex-direction: column; padding: 22px 26px 20px; }
+  .s3-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .s3-chip { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+    background: rgba(27,50,82,.08); color: #1B3252; border: 1px solid rgba(27,50,82,.15);
+    padding: 5px 12px; border-radius: 100px; }
+  .s3-if { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 22px; color: #1B3252; letter-spacing: -.5px; margin-bottom: 14px; }
+  .s3-if span { color: #239C80; }
+  .s3-body { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+  .s3-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+
+  /* ══════════ SLIDE 4 — If location matters (Navy) ══════════ */
+  .s4 { background: #1B3252; }
+  .s4-inner { flex: 1; display: flex; flex-direction: column; padding: 22px 26px 20px; }
+  .s4-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .s4-chip { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+    background: rgba(52,195,160,.15); color: #34C3A0; border: 1px solid rgba(52,195,160,.35);
+    padding: 5px 12px; border-radius: 100px; }
+  .s4-if { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 22px; color: #fff; letter-spacing: -.5px; margin-bottom: 14px; }
+  .s4-if span { color: #34C3A0; }
+  .s4-body { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+  .s4-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+
+  /* ══════════ SLIDE 5 — If track record matters (Light) ══════════ */
+  .s5 { background: #F6F8FA; }
+  .s5-inner { flex: 1; display: flex; flex-direction: column; padding: 22px 26px 20px; }
+  .s5-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .s5-chip { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+    background: rgba(27,50,82,.08); color: #1B3252; border: 1px solid rgba(27,50,82,.15);
+    padding: 5px 12px; border-radius: 100px; }
+  .s5-if { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 22px; color: #1B3252; letter-spacing: -.5px; margin-bottom: 14px; }
+  .s5-if span { color: #239C80; }
+  .s5-body { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+  .s5-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+
+  /* ══════════ SLIDE 6 — If British curriculum matters (Navy) ══════════ */
+  .s6 { background: #1B3252; }
+  .s6-inner { flex: 1; display: flex; flex-direction: column; padding: 22px 26px 20px; }
+  .s6-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .s6-chip { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+    background: rgba(52,195,160,.15); color: #34C3A0; border: 1px solid rgba(52,195,160,.35);
+    padding: 5px 12px; border-radius: 100px; }
+  .s6-if { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 22px; color: #fff; letter-spacing: -.5px; margin-bottom: 14px; }
+  .s6-if span { color: #34C3A0; }
+  .s6-body { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 12px; }
+  .s6-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+
+  /* ══════════ SLIDE 7 — Match Guide (Teal) ══════════ */
+  .s7 { background: #239C80; }
+  .s7::before { content: ''; position: absolute; top: -80px; right: -80px;
+    width: 280px; height: 280px; border-radius: 50%;
+    background: rgba(0,0,0,.07); pointer-events: none; }
+  .s7-inner { position: relative; z-index: 1; flex: 1; display: flex;
+    flex-direction: column; padding: 24px 28px 22px; }
+  .s7-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+  .s7-title { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 24px; color: #fff; letter-spacing: -.6px; margin-bottom: 14px; }
+  .s7-matches { flex: 1; display: flex; flex-direction: column;
+    justify-content: center; gap: 10px; }
+  .match-row { background: #1B3252; border-radius: 12px; padding: 12px 16px;
+    display: flex; align-items: center; gap: 14px; }
+  .match-school { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 14px; color: #34C3A0; width: 96px; flex-shrink: 0;
+    letter-spacing: -.3px; line-height: 1.2; }
+  .match-desc { font-size: 13px; color: rgba(255,255,255,.8); line-height: 1.35; }
+  .s7-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+  .s7-url { font-size: 11px; color: rgba(255,255,255,.6); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="caption">Album 4 — 4 Bangkok International Schools Compared</div>
+<div class="sub-caption">7 slides · No rankings · Each school leads on one dimension · With Unsplash cover</div>
+
+<!-- ══════════ SLIDE 1 — Cover ══════════ -->
+<!-- Dark overlay → Nana=white, Says=teal -->
+<div class="slide s1">
+  <div class="s1-overlay"></div>
+  <div class="s1-inner">
+    <div class="s1-top">
+      <div class="wordmark"><span style="color:#fff">Nana</span><span style="color:#34C3A0">Says</span></div>
+      <div class="s1-chip">Bangkok · 2024–25</div>
+    </div>
+    <div class="s1-hero">
+      <div class="s1-eyebrow">School Comparison</div>
+      <div class="s1-title">4 International<br>Schools — Which<br>Fits Your Family?</div>
+      <div class="s1-schools">
+        <div class="s1-school-pill">
+          <div class="s1-school-name">Bangkok Patana</div>
+          <div class="s1-school-tag">IB · Since 1957</div>
+        </div>
+        <div class="s1-school-pill">
+          <div class="s1-school-name">NIST International</div>
+          <div class="s1-school-tag">IB · Central BKK</div>
+        </div>
+        <div class="s1-school-pill">
+          <div class="s1-school-name">Wells International</div>
+          <div class="s1-school-tag">IB · Most affordable</div>
+        </div>
+        <div class="s1-school-pill">
+          <div class="s1-school-name">Shrewsbury Int'l</div>
+          <div class="s1-school-tag">IGCSE + A-Level</div>
+        </div>
+      </div>
+    </div>
+    <div class="s1-bottom">
+      <div class="dots">
+        <div class="dot dot-navy on"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+      </div>
+      <div class="s1-note">Not a ranking · Fees verified 2024–25 · 1 / 7</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 2 — Fees at a Glance (White) ══════════ -->
+<!-- Background: white → Nana=navy, Says=teal -->
+<div class="slide s2">
+  <div class="s2-inner">
+    <div class="s2-top">
+      <div class="wordmark"><span style="color:#1B3252">Nana</span><span style="color:#34C3A0">Says</span></div>
+      <div class="s2-chip">Annual Tuition · Fees Only</div>
+    </div>
+    <div class="s2-title">Fees at a Glance</div>
+    <div class="s2-sub">Tuition only · Not including activity fees, uniform, or trips · Verified 2024–25</div>
+    <div class="s2-fees">
+      <div class="fee-row">
+        <div class="fee-header">
+          <div class="fee-school">Wells International</div>
+          <div class="fee-amt">฿420,000</div>
+        </div>
+        <div class="fee-track"><div class="fee-fill wells"></div></div>
+      </div>
+      <div class="fee-row">
+        <div class="fee-header">
+          <div class="fee-school">NIST International</div>
+          <div class="fee-amt">฿545,000</div>
+        </div>
+        <div class="fee-track"><div class="fee-fill nist"></div></div>
+      </div>
+      <div class="fee-row">
+        <div class="fee-header">
+          <div class="fee-school">Bangkok Patana</div>
+          <div class="fee-amt">฿580,000</div>
+        </div>
+        <div class="fee-track"><div class="fee-fill patana"></div></div>
+      </div>
+      <div class="fee-row">
+        <div class="fee-header">
+          <div class="fee-school">Shrewsbury International</div>
+          <div class="fee-amt">฿650,000+</div>
+        </div>
+        <div class="fee-track"><div class="fee-fill shrew"></div></div>
+      </div>
+    </div>
+    <div class="s2-note">Range reflects different year groups — check each school's full fee schedule</div>
+    <div class="s2-bottom">
+      <div class="dots">
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light on"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+      </div>
+      <div style="font-size:12px;color:#9CA3AF;font-weight:600;">2 / 7</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 3 — If budget matters (Light) ══════════ -->
+<!-- Background: #F6F8FA → Nana=navy, Says=teal -->
+<div class="slide s3">
+  <div class="s3-inner">
+    <div class="s3-top">
+      <div class="wordmark"><span style="color:#1B3252">Nana</span><span style="color:#34C3A0">Says</span></div>
+      <div class="s3-chip">Fees</div>
+    </div>
+    <div class="s3-if">If <span>budget matters</span> to your family…</div>
+    <div class="s3-body">
+      <div class="featured-card on-light">
+        <div class="fc-label">Most affordable IB in Bangkok</div>
+        <div class="fc-name light">Wells International School</div>
+        <div class="fc-stat">฿420,000</div>
+        <div class="fc-stat-lbl">per year · IB PYP + MYP · Thonglor</div>
+        <div class="fc-desc light">฿125,000–฿230,000 cheaper per year than the others. Over 6 years in secondary, that gap funds a full year of university.</div>
+      </div>
+      <div class="others">
+        <div class="other-row on-light">
+          <div class="other-name light">NIST International</div>
+          <div class="other-val light">฿545,000</div>
+        </div>
+        <div class="other-row on-light">
+          <div class="other-name light">Bangkok Patana</div>
+          <div class="other-val light">฿580,000</div>
+        </div>
+        <div class="other-row on-light">
+          <div class="other-name light">Shrewsbury Int'l</div>
+          <div class="other-val light">฿650,000+</div>
+        </div>
+      </div>
+    </div>
+    <div class="s3-bottom">
+      <div class="dots">
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light on"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+      </div>
+      <div style="font-size:12px;color:#9CA3AF;font-weight:600;">3 / 7</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 4 — If location matters (Navy) ══════════ -->
+<!-- Background: navy #1B3252 → Nana=white, Says=teal -->
+<div class="slide s4">
+  <div class="s4-inner">
+    <div class="s4-top">
+      <div class="wordmark"><span style="color:#fff">Nana</span><span style="color:#34C3A0">Says</span></div>
+      <div class="s4-chip">Location</div>
+    </div>
+    <div class="s4-if">If <span>location matters</span> to your family…</div>
+    <div class="s4-body">
+      <div class="featured-card on-dark">
+        <div class="fc-label">Most central · Asok BTS</div>
+        <div class="fc-name dark">NIST International School</div>
+        <div class="fc-stat">Asok</div>
+        <div class="fc-stat-lbl dark">Central Bangkok · BTS + MRT interchange</div>
+        <div class="fc-desc dark">Right on the Sukhumvit / Silom BTS crossover — the easiest school commute from most expat neighbourhoods in Bangkok.</div>
+      </div>
+      <div class="others">
+        <div class="other-row on-dark">
+          <div class="other-name dark">Bangkok Patana</div>
+          <div class="other-val dark">On Nut (Sukhumvit south)</div>
+        </div>
+        <div class="other-row on-dark">
+          <div class="other-name dark">Wells International</div>
+          <div class="other-val dark">Thonglor</div>
+        </div>
+        <div class="other-row on-dark">
+          <div class="other-name dark">Shrewsbury Int'l</div>
+          <div class="other-val dark">Riverside · Charoenkrung</div>
+        </div>
+      </div>
+    </div>
+    <div class="s4-bottom">
+      <div class="dots">
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy on"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+      </div>
+      <div style="font-size:12px;color:rgba(255,255,255,.4);font-weight:600;">4 / 7</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 5 — If track record matters (Light) ══════════ -->
+<!-- Background: #F6F8FA → Nana=navy, Says=teal -->
+<div class="slide s5">
+  <div class="s5-inner">
+    <div class="s5-top">
+      <div class="wordmark"><span style="color:#1B3252">Nana</span><span style="color:#34C3A0">Says</span></div>
+      <div class="s5-chip">Heritage</div>
+    </div>
+    <div class="s5-if">If <span>track record matters</span> to your family…</div>
+    <div class="s5-body">
+      <div class="featured-card on-light">
+        <div class="fc-label">British Heritage · BSO Excellent</div>
+        <div class="fc-name light">Bangkok Patana School</div>
+        <div class="fc-stat">Since 1957</div>
+        <div class="fc-stat-lbl">2,400 students · Large campus · On Nut</div>
+        <div class="fc-desc light">A long-running British-heritage school with a large campus, extensive sports facilities, and a BSO Excellent inspection rating. One of Bangkok's best-known IB schools.</div>
+      </div>
+      <div class="others">
+        <div class="other-row on-light">
+          <div class="other-name light">Shrewsbury International</div>
+          <div class="other-val light">Since 2003</div>
+        </div>
+        <div class="other-row on-light">
+          <div class="other-name light">Wells International</div>
+          <div class="other-val light">Since 1997</div>
+        </div>
+        <div class="other-row on-light">
+          <div class="other-name light">NIST International</div>
+          <div class="other-val light">Since 1992</div>
+        </div>
+      </div>
+    </div>
+    <div class="s5-bottom">
+      <div class="dots">
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light on"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+      </div>
+      <div style="font-size:12px;color:#9CA3AF;font-weight:600;">5 / 7</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 6 — If British curriculum matters (Navy) ══════════ -->
+<!-- Background: navy #1B3252 → Nana=white, Says=teal -->
+<div class="slide s6">
+  <div class="s6-inner">
+    <div class="s6-top">
+      <div class="wordmark"><span style="color:#fff">Nana</span><span style="color:#34C3A0">Says</span></div>
+      <div class="s6-chip">Curriculum</div>
+    </div>
+    <div class="s6-if">If <span>British IGCSE / A-Level</span> is what you need…</div>
+    <div class="s6-body">
+      <div class="featured-card on-dark">
+        <div class="fc-label">IGCSE + A-Level · Riverside campus</div>
+        <div class="fc-name dark">Shrewsbury International School</div>
+        <div class="fc-stat">A-Level</div>
+        <div class="fc-stat-lbl dark">Direct UK university pathway · Since 2003</div>
+        <div class="fc-desc dark">The only school in this group offering the full British pathway — IGCSE then A-Level. The clearest route to UK university admissions for families returning home.</div>
+      </div>
+      <div class="others">
+        <div class="other-row on-dark">
+          <div class="other-name dark">Bangkok Patana</div>
+          <div class="other-val dark">IB PYP · MYP · DP</div>
+        </div>
+        <div class="other-row on-dark">
+          <div class="other-name dark">NIST International</div>
+          <div class="other-val dark">IB PYP · MYP · DP</div>
+        </div>
+        <div class="other-row on-dark">
+          <div class="other-name dark">Wells International</div>
+          <div class="other-val dark">IB PYP · MYP</div>
+        </div>
+      </div>
+    </div>
+    <div class="s6-bottom">
+      <div class="dots">
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy on"></div>
+        <div class="dot dot-navy"></div>
+      </div>
+      <div style="font-size:12px;color:rgba(255,255,255,.4);font-weight:600;">6 / 7</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 7 — Match Guide (Teal) ══════════ -->
+<!-- Background: teal #239C80 → Nana=white, Says=navy -->
+<div class="slide s7">
+  <div class="s7-inner">
+    <div class="s7-top">
+      <div class="wordmark"><span style="color:#fff">Nana</span><span style="color:#1B3252">Says</span></div>
+      <div class="dots">
+        <div class="dot dot-teal"></div>
+        <div class="dot dot-teal"></div>
+        <div class="dot dot-teal"></div>
+        <div class="dot dot-teal"></div>
+        <div class="dot dot-teal"></div>
+        <div class="dot dot-teal"></div>
+        <div class="dot dot-teal on"></div>
+      </div>
+    </div>
+    <div class="s7-title">A starting point — not a verdict</div>
+    <div class="s7-matches">
+      <div class="match-row">
+        <div class="match-school">Wells<br>International</div>
+        <div class="match-desc">Worth exploring if annual budget is a key factor in your school search</div>
+      </div>
+      <div class="match-row">
+        <div class="match-school">NIST<br>International</div>
+        <div class="match-desc">Worth exploring if your family lives or works in central Bangkok</div>
+      </div>
+      <div class="match-row">
+        <div class="match-school">Bangkok<br>Patana</div>
+        <div class="match-desc">Worth exploring if you value a large campus with broad sports and arts facilities</div>
+      </div>
+      <div class="match-row">
+        <div class="match-school">Shrewsbury<br>Int'l</div>
+        <div class="match-desc">Worth exploring if a riverside campus and a close-knit British school community appeals to your family</div>
+      </div>
+    </div>
+    <div class="s7-bottom">
+      <div style="font-size:11px;color:rgba(255,255,255,.5);">Visit each school · Fees verified 2024–25 · nanasays.com</div>
+      <div class="s7-url">nanasays.com →</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

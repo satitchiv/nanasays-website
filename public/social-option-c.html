@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Social Option C — Hero Fact</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #e5e7eb; display: flex; flex-direction: column; align-items: center; padding: 40px 24px; gap: 16px; font-family: 'Nunito Sans', sans-serif; }
+  .label { font-size: 13px; font-weight: 700; color: #6B7280; margin-bottom: 8px; }
+
+  .canvas {
+    width: 540px; height: 540px;
+    background: #F6F8FA;
+    position: relative;
+    overflow: hidden;
+    box-shadow: 0 8px 40px rgba(0,0,0,.18);
+    display: flex; flex-direction: column;
+  }
+
+  /* Teal top stripe */
+  .stripe { height: 5px; background: linear-gradient(90deg, #1B3252 0%, #34C3A0 100%); flex-shrink: 0; }
+
+  .inner { padding: 26px 28px 24px; display: flex; flex-direction: column; flex: 1; }
+
+  .topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+  .wordmark { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 15px; }
+  .wordmark .n { color: #1B3252; }
+  .wordmark .s { color: #34C3A0; }
+  .chip { font-size: 8px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+    background: #E8FAF6; color: #239C80; border: 1px solid rgba(52,195,160,.25);
+    padding: 4px 10px; border-radius: 100px; }
+
+  /* School name */
+  .school-name { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px;
+    color: #1B3252; line-height: 1.1; letter-spacing: -0.5px; margin-bottom: 4px; }
+  .school-city { font-size: 10px; color: #6B7280; font-weight: 500; margin-bottom: 16px; }
+
+  /* Hero stat — the ONE big number that stops the scroll */
+  .hero-stat-block { background: #1B3252; border-radius: 12px; padding: 20px 22px; margin-bottom: 14px; }
+  .hero-label { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: rgba(255,255,255,.5); margin-bottom: 4px; }
+  .hero-num { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 52px;
+    color: #34C3A0; line-height: 1; letter-spacing: -2px; font-variant-numeric: tabular-nums; }
+  .hero-unit { font-family: 'Nunito', sans-serif; font-size: 16px; font-weight: 700; color: rgba(255,255,255,.6); margin-top: 2px; }
+
+  /* Supporting facts row */
+  .facts-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 14px; }
+  .fact { background: #fff; border: 1px solid #E5E7EB; border-radius: 8px; padding: 10px 10px 8px; text-align: center; }
+  .fact-val { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 16px; color: #1B3252; letter-spacing: -0.4px; }
+  .fact-key { font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #9CA3AF; margin-top: 2px; }
+
+  /* Curriculum chips */
+  .curr-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: auto; }
+  .curr-chip { font-size: 10px; font-weight: 700; color: #239C80;
+    background: #E8FAF6; border: 1px solid rgba(52,195,160,.2);
+    padding: 4px 10px; border-radius: 100px; }
+
+  /* Footer */
+  .footer { display: flex; align-items: center; justify-content: space-between;
+    padding-top: 12px; border-top: 1px solid #E5E7EB; margin-top: 14px; }
+  .verified { display: flex; align-items: center; gap: 5px; font-size: 9px; font-weight: 700; color: #239C80; }
+  .dot { width: 5px; height: 5px; border-radius: 50%; background: #34C3A0; flex-shrink: 0; }
+  .footer-url { font-size: 9px; color: #9CA3AF; font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="label">Option C — "Hero Fact" (one big number, supporting chips)</div>
+
+<div class="canvas">
+  <div class="stripe"></div>
+  <div class="inner">
+    <div class="topbar">
+      <div class="wordmark"><span class="n">Nana</span><span class="s">Says</span></div>
+      <div class="chip">School Spotlight</div>
+    </div>
+
+    <div class="school-name">Bangkok Patana School</div>
+    <div class="school-city">Bangkok, Thailand · Est. 1957</div>
+
+    <div class="hero-stat-block">
+      <div class="hero-label">Students enrolled</div>
+      <div class="hero-num">2,300</div>
+      <div class="hero-unit">Early Years → Sixth Form</div>
+    </div>
+
+    <div class="facts-row">
+      <div class="fact">
+        <div class="fact-val">3–18</div>
+        <div class="fact-key">Age range</div>
+      </div>
+      <div class="fact">
+        <div class="fact-val">67 yrs</div>
+        <div class="fact-key">Operating</div>
+      </div>
+      <div class="fact">
+        <div class="fact-val">CIS · BSO</div>
+        <div class="fact-key">Accredited</div>
+      </div>
+    </div>
+
+    <div class="curr-row">
+      <span class="curr-chip">IB Diploma</span>
+      <span class="curr-chip">IGCSE</span>
+      <span class="curr-chip">A-Level</span>
+      <span class="curr-chip">Day school</span>
+    </div>
+
+    <div class="footer">
+      <div class="verified"><div class="dot"></div>Verified Apr 2026</div>
+      <div class="footer-url">nanasays.com</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

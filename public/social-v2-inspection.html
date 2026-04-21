@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>V2 — Inspection Snapshot · Circle Badge Hero</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #cbd5e1; display: flex; flex-direction: column; align-items: center;
+    padding: 48px 24px; gap: 10px; font-family: 'Nunito Sans', sans-serif; }
+  .caption { font-size: 12px; font-weight: 700; color: #475569; letter-spacing: .5px; text-transform: uppercase; margin-bottom: 4px; }
+  .sub-caption { font-size: 11px; color: #94a3b8; margin-bottom: 16px; }
+
+  .post {
+    width: 540px; height: 540px;
+    background: #F6F8FA;
+    display: flex; flex-direction: column;
+    box-shadow: 0 12px 48px rgba(0,0,0,.22);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .teal-bar { height: 4px; background: #34C3A0; flex-shrink: 0; }
+
+  .body { flex: 1; display: flex; flex-direction: column; padding: 20px 28px 18px; }
+
+  .toprow { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .wordmark { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px; letter-spacing: -.5px; }
+  .wn { color: #1B3252; } .ws { color: #34C3A0; }
+  .chip { font-size: 8.5px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+    background: #E8FAF6; color: #239C80; border: 1px solid rgba(52,195,160,.3);
+    padding: 5px 11px; border-radius: 100px; }
+
+  .school-name { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 22px;
+    color: #1B3252; letter-spacing: -.5px; margin-bottom: 2px; }
+  .school-sub { font-size: 11px; color: #6B7280; font-weight: 500; margin-bottom: 14px; }
+
+  hr { border: none; border-top: 1px solid #E5E7EB; margin-bottom: 16px; }
+
+  /* Circle badge — the hero */
+  .circle-wrap { display: flex; justify-content: center; margin-bottom: 18px; }
+  .circle {
+    width: 196px; height: 196px; border-radius: 50%;
+    background: #1B3252;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    box-shadow: 0 8px 32px rgba(27,50,82,.35);
+    position: relative;
+  }
+  /* outer ring */
+  .circle::before {
+    content: ''; position: absolute;
+    inset: -6px; border-radius: 50%;
+    border: 2px solid rgba(52,195,160,.25);
+  }
+  /* animated dash ring */
+  .circle::after {
+    content: ''; position: absolute;
+    inset: -12px; border-radius: 50%;
+    border: 1px dashed rgba(52,195,160,.12);
+  }
+  .circle-body { font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.2px; color: rgba(255,255,255,.4); margin-bottom: 4px; }
+  .circle-rating { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 30px;
+    color: #34C3A0; letter-spacing: -.8px; line-height: 1; margin-bottom: 6px; }
+  .circle-org { font-size: 12px; font-weight: 700; color: rgba(255,255,255,.65); }
+  .circle-year { font-size: 10px; color: rgba(255,255,255,.35); margin-top: 2px; }
+
+  /* Horizontal signals strip */
+  .signals { display: flex; gap: 0; margin-bottom: 14px;
+    background: #fff; border: 1px solid #E5E7EB; border-radius: 10px; overflow: hidden; }
+  .signal { flex: 1; padding: 11px 12px; border-right: 1px solid #E5E7EB; }
+  .signal:last-child { border-right: none; }
+  .sig-key { font-size: 8.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+    color: #9CA3AF; margin-bottom: 5px; }
+  .sig-val { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 15px;
+    color: #1B3252; letter-spacing: -.3px; }
+  .sig-val.good { color: #239C80; }
+
+  /* Accred chips */
+  .chips-row { display: flex; gap: 7px; margin-bottom: 14px; }
+  .accred-chip { font-size: 11px; font-weight: 700; color: #239C80;
+    background: #E8FAF6; border: 1px solid rgba(52,195,160,.25);
+    padding: 5px 13px; border-radius: 100px; }
+
+  .footer { margin-top: auto; padding-top: 12px; border-top: 1px solid #E5E7EB;
+    display: flex; align-items: center; justify-content: space-between; }
+  .verified { display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 700; color: #239C80; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: #34C3A0; }
+  .url { font-size: 10px; color: #9CA3AF; font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="caption">V2 — Inspection Snapshot · Circle Rating Hero</div>
+<div class="sub-caption">196px navy circle · Signals strip · Accred chips</div>
+
+<div class="post">
+  <div class="teal-bar"></div>
+  <div class="body">
+
+    <div class="toprow">
+      <div class="wordmark"><span class="wn">Nana</span><span class="ws">Says</span></div>
+      <div class="chip">Quality Signals</div>
+    </div>
+
+    <div class="school-name">Bangkok Patana School</div>
+    <div class="school-sub">Bangkok, Thailand · Est. 1957</div>
+
+    <hr>
+
+    <div class="circle-wrap">
+      <div class="circle">
+        <div class="circle-body">Inspection</div>
+        <div class="circle-rating">Excellent</div>
+        <div class="circle-org">BSO</div>
+        <div class="circle-year">2023</div>
+      </div>
+    </div>
+
+    <div class="signals">
+      <div class="signal">
+        <div class="sig-key">Student : Teacher</div>
+        <div class="sig-val good">8 : 1</div>
+      </div>
+      <div class="signal">
+        <div class="sig-key">Boarding</div>
+        <div class="sig-val good">Excellent</div>
+      </div>
+      <div class="signal">
+        <div class="sig-key">Scholarships</div>
+        <div class="sig-val good">Available</div>
+      </div>
+      <div class="signal">
+        <div class="sig-key">Curriculum</div>
+        <div class="sig-val">IB · IGCSE</div>
+      </div>
+    </div>
+
+    <div class="chips-row">
+      <span class="accred-chip">CIS</span>
+      <span class="accred-chip">IAPS</span>
+      <span class="accred-chip">BSO</span>
+    </div>
+
+    <div class="footer">
+      <div class="verified"><div class="dot"></div>Verified Apr 2026</div>
+      <div class="url">nanasays.com</div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

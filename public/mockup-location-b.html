@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Location Mockup B — Full-width map + cards below · Reed's School</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy:#1B3252; --teal:#34C3A0; --teal-dk:#239C80; --teal-bg:#E8FAF6;
+    --amber:#D97706; --amber-bg:#FEF3C7; --red:#B91C1C;
+    --green:#059669; --green-bg:#D1FAE5;
+    --border:#E5E7EB; --muted:#6B7280; --off:#F6F8FA; --text:#1f2937;
+    --forest:#2E5C4B; --paper:#F5F1EA; --ink:#1C1C1C; --rule:#D8D1C2; --ochre:#B08A3E;
+  }
+  body { font-family:'Nunito Sans',sans-serif; background:#f8f6f2; color:var(--ink); line-height:1.65; padding:40px 24px 80px; }
+  .page { max-width:860px; margin:0 auto; }
+  .label { font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; margin-bottom:14px; display:flex; align-items:center; gap:10px; }
+  .label::after { content:''; flex:1; height:1px; background:var(--rule); }
+  .mockup-badge { display:inline-block; background:#fef3c7; border:1px solid #f59e0b; color:#92400e; font-size:10px; font-weight:800; padding:4px 12px; border-radius:20px; margin-bottom:24px; letter-spacing:.06em; text-transform:uppercase; }
+  .design-label { font-size:20px; font-family:'Nunito',sans-serif; font-weight:900; color:var(--navy); margin-bottom:6px; }
+  .design-desc { font-size:13px; color:var(--muted); margin-bottom:28px; }
+
+  /* ── Full-width map ── */
+  .map-block { border-radius:14px; overflow:hidden; border:1px solid var(--rule); margin-bottom:16px; background:#fff; }
+  .map-block iframe { display:block; width:100%; height:300px; border:0; }
+  .map-footer { padding:12px 20px; display:flex; justify-content:space-between; align-items:center; border-top:1px solid var(--rule); background:#fafaf8; }
+  .map-footer-left { font-size:13px; color:var(--ink); font-weight:600; }
+  .map-footer-left small { display:block; font-size:11px; font-weight:400; color:var(--muted); margin-top:1px; }
+  .map-footer-right a { font-size:12px; color:var(--teal-dk); font-weight:700; text-decoration:none; border:1px solid var(--teal-dk); padding:5px 12px; border-radius:6px; }
+
+  /* ── 3-column card row ── */
+  .cards-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:16px; }
+  .info-card { background:#fff; border:1px solid var(--rule); border-radius:12px; padding:16px 18px; }
+  .info-card-title { font-size:10px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; margin-bottom:10px; display:flex; align-items:center; gap:6px; }
+  .info-card-title .icon { font-size:14px; }
+  .info-line { font-size:13px; color:var(--ink); margin-bottom:5px; display:flex; justify-content:space-between; gap:6px; }
+  .info-line .key { color:var(--muted); font-size:12px; }
+  .info-line .val { font-weight:600; text-align:right; }
+
+  /* ── Attractions table ── */
+  .attract-card { background:#fff; border:1px solid var(--rule); border-radius:12px; overflow:hidden; margin-bottom:16px; }
+  .attract-header { padding:14px 20px; border-bottom:1px solid var(--rule); background:#fafaf8; display:flex; justify-content:space-between; align-items:center; }
+  .attract-header-title { font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; }
+  .attract-row { display:grid; grid-template-columns:1fr auto auto; gap:12px; padding:11px 20px; border-bottom:1px solid #f5f2ec; align-items:center; }
+  .attract-row:last-child { border-bottom:none; }
+  .attract-name { font-size:13.5px; font-weight:600; color:var(--ink); }
+  .attract-type { font-size:10px; background:var(--teal-bg); color:var(--teal-dk); border-radius:10px; padding:2px 8px; font-weight:700; text-transform:capitalize; }
+  .attract-dist { font-size:12px; color:var(--muted); text-align:right; }
+
+  /* ── Setting banner ── */
+  .setting-banner { background: linear-gradient(135deg, #2E5C4B 0%, #1B3252 100%); color:#fff; border-radius:12px; padding:16px 20px; margin-bottom:16px; display:flex; align-items:flex-start; gap:14px; }
+  .setting-banner .sb-icon { font-size:24px; flex-shrink:0; margin-top:2px; }
+  .setting-banner .sb-text { font-size:13px; line-height:1.6; opacity:.92; }
+  .setting-banner .sb-tag { font-size:10px; font-weight:800; background:rgba(255,255,255,.2); border-radius:10px; padding:2px 9px; letter-spacing:.06em; text-transform:uppercase; margin-bottom:6px; display:inline-block; }
+
+  /* ── Crime ── */
+  .crime-locked { background:#fff; border:1px solid var(--rule); border-radius:12px; overflow:hidden; }
+  .crime-top { padding:16px 20px; background:var(--navy); display:flex; justify-content:space-between; align-items:center; }
+  .crime-top-title { color:#fff; font-family:'Nunito',sans-serif; font-weight:800; font-size:14px; }
+  .paid-badge { background:var(--ochre); color:#fff; font-size:10px; font-weight:800; padding:3px 9px; border-radius:10px; letter-spacing:.06em; text-transform:uppercase; }
+  .crime-body { padding:20px; }
+  .crime-summary-row { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:18px; }
+  .crime-stat { text-align:center; padding:14px 10px; background:var(--off); border-radius:10px; border:1px solid var(--rule); }
+  .crime-stat-val { font-family:'Nunito',sans-serif; font-weight:900; font-size:18px; color:var(--navy); }
+  .crime-stat-val.good { color:var(--green); }
+  .crime-stat-label { font-size:10px; color:var(--muted); margin-top:3px; text-transform:uppercase; letter-spacing:.07em; }
+  .crime-interp { font-size:13px; color:var(--text); line-height:1.65; margin-bottom:14px; }
+  .crime-interp strong { color:var(--navy); }
+  .crime-bars { display:flex; flex-direction:column; gap:8px; margin-bottom:14px; }
+  .bar-row { display:grid; grid-template-columns:140px 1fr 36px; align-items:center; gap:8px; }
+  .bar-label { font-size:11.5px; color:var(--text); }
+  .bar-track { background:#f0ece4; border-radius:4px; height:6px; }
+  .bar-fill { height:6px; border-radius:4px; background:var(--teal); }
+  .bar-fill.mid { background:var(--amber); }
+  .bar-pct { font-size:11px; color:var(--muted); text-align:right; }
+  .context-box { background:var(--teal-bg); border-radius:8px; padding:12px 16px; font-size:12px; color:var(--teal-dk); line-height:1.55; }
+  .context-box strong { color:var(--forest); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="mockup-badge">Mockup B — Layout Option</div>
+  <div class="design-label">Design B: Full-width map + info cards below</div>
+  <div class="design-desc">Map spans full width at top. Three equal info cards below (Location, Getting Here, Setting). Attractions as a clean table. Better on mobile.</div>
+
+  <div class="label">Location <span style="color:var(--teal-dk);font-size:11px;font-weight:700;background:var(--teal-bg);padding:2px 10px;border-radius:10px;letter-spacing:0;text-transform:none;">Free</span></div>
+
+  <!-- Setting banner -->
+  <div class="setting-banner">
+    <div class="sb-icon">📍</div>
+    <div class="sb-text">
+      <div class="sb-tag">Suburban · Surrey</div>
+      Prosperous commuter town on the edge of open countryside, roughly 20 miles southwest of London. Excellent Heathrow access — ideal for international families flying in.
+    </div>
+  </div>
+
+  <!-- Full-width map -->
+  <div class="map-block">
+    <iframe src="https://maps.google.com/maps?q=Reed%27s+School+Cobham+Surrey&output=embed&z=15" title="Reed's School"></iframe>
+    <div class="map-footer">
+      <div class="map-footer-left">
+        Reed's School
+        <small>KT11 2PU · Sandy Lane, Cobham, Surrey</small>
+      </div>
+      <div class="map-footer-right">
+        <a href="https://www.google.com/maps/@51.3375,-0.3746,3a,90y,0h,90t/data=!3m4!1e1" target="_blank">Street View ↗</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3 info cards -->
+  <div class="cards-row">
+    <div class="info-card">
+      <div class="info-card-title"><span class="icon">🏘</span> Location</div>
+      <div class="info-line"><span class="key">Postcode</span><span class="val">KT11 2PU</span></div>
+      <div class="info-line"><span class="key">Authority</span><span class="val">Elmbridge</span></div>
+      <div class="info-line"><span class="key">Region</span><span class="val">South East</span></div>
+      <div class="info-line"><span class="key">Constituency</span><span class="val">Runnymede &amp; Weybridge</span></div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-title"><span class="icon">🚆</span> Getting here</div>
+      <div class="info-line"><span class="key">Nearest station</span><span class="val">Oxshott 0.9 km</span></div>
+      <div class="info-line"><span class="key">Nearest town</span><span class="val">Cobham 2.7 km</span></div>
+      <div class="info-line"><span class="key">Heathrow</span><span class="val">16 km · ~31 min</span></div>
+      <div class="info-line"><span class="key">Gatwick</span><span class="val">24 km · ~41 min</span></div>
+      <div class="info-line"><span class="key">London City</span><span class="val">35 km · ~56 min</span></div>
+    </div>
+    <div class="info-card">
+      <div class="info-card-title"><span class="icon">🌳</span> Setting</div>
+      <div class="info-line"><span class="key">Type</span><span class="val">Suburban</span></div>
+      <div class="info-line"><span class="key">Town pop.</span><span class="val">~9,700</span></div>
+      <div class="info-line"><span class="key">Green belt</span><span class="val">Yes</span></div>
+      <div class="info-line"><span class="key">London access</span><span class="val">~40 min train</span></div>
+    </div>
+  </div>
+
+  <!-- Attractions table -->
+  <div class="attract-card">
+    <div class="attract-header">
+      <div class="attract-header-title">Nearby for visiting families</div>
+    </div>
+    <div class="attract-row">
+      <span class="attract-name">Windsor Castle</span>
+      <span class="attract-type">castle</span>
+      <span class="attract-dist">14.2 km</span>
+    </div>
+    <div class="attract-row">
+      <span class="attract-name">Chessington World of Adventures</span>
+      <span class="attract-type">theme park</span>
+      <span class="attract-dist">8.1 km</span>
+    </div>
+    <div class="attract-row">
+      <span class="attract-name">Hampton Court Palace</span>
+      <span class="attract-type">palace</span>
+      <span class="attract-dist">12.3 km</span>
+    </div>
+    <div class="attract-row">
+      <span class="attract-name">Kew Gardens</span>
+      <span class="attract-type">attraction</span>
+      <span class="attract-dist">18.5 km</span>
+    </div>
+    <div class="attract-row">
+      <span class="attract-name">RHS Wisley Garden</span>
+      <span class="attract-type">attraction</span>
+      <span class="attract-dist">6.8 km</span>
+    </div>
+    <div class="attract-row">
+      <span class="attract-name">Box Hill National Trust</span>
+      <span class="attract-type">nature reserve</span>
+      <span class="attract-dist">11.2 km</span>
+    </div>
+  </div>
+
+  <!-- PAID: Crime -->
+  <div class="label" style="margin-top:28px;">Safety Data <span style="color:var(--ochre);font-size:11px;font-weight:700;background:#fef3c7;padding:2px 10px;border-radius:10px;letter-spacing:0;text-transform:none;">Premium report</span></div>
+
+  <div class="crime-locked">
+    <div class="crime-top">
+      <div class="crime-top-title">🔒 Local Crime Profile</div>
+      <div class="paid-badge">Deep Report only</div>
+    </div>
+    <div class="crime-body">
+      <div class="crime-summary-row">
+        <div class="crime-stat"><div class="crime-stat-val good">Below avg</div><div class="crime-stat-label">vs Surrey county</div></div>
+        <div class="crime-stat"><div class="crime-stat-val">208</div><div class="crime-stat-label">incidents / year</div></div>
+        <div class="crime-stat"><div class="crime-stat-val">1 mi</div><div class="crime-stat-label">radius measured</div></div>
+      </div>
+      <p class="crime-interp">
+        208 reported incidents within a mile over 12 months is <strong>at or below the Surrey average</strong> for a commuter suburb. The headline "40% violent crime" is misleading without UK context — in police data, <strong>"violent crime" includes any unwanted physical contact</strong>, from a minor push to serious assault. Roughly 70–80% involve no injury. For families from Bangkok or Singapore, this is not comparable to "violent crime" in those countries and should not alarm.
+      </p>
+      <div class="crime-bars">
+        <div class="bar-row"><span class="bar-label">Violent crime</span><div class="bar-track"><div class="bar-fill" style="width:40%"></div></div><span class="bar-pct">40%</span></div>
+        <div class="bar-row"><span class="bar-label">Anti-social behaviour</span><div class="bar-track"><div class="bar-fill" style="width:20%"></div></div><span class="bar-pct">20%</span></div>
+        <div class="bar-row"><span class="bar-label">Burglary</span><div class="bar-track"><div class="bar-fill mid" style="width:9%"></div></div><span class="bar-pct">9%</span></div>
+        <div class="bar-row"><span class="bar-label">Public order</span><div class="bar-track"><div class="bar-fill" style="width:7%"></div></div><span class="bar-pct">7%</span></div>
+        <div class="bar-row"><span class="bar-label">Vehicle crime</span><div class="bar-track"><div class="bar-fill" style="width:5%"></div></div><span class="bar-pct">5%</span></div>
+      </div>
+      <div class="context-box">
+        <strong>International context:</strong> England average ~85 incidents/1k/year · Surrey ~55–65 · Bangkok official ~20–25 (estimated 2–3× higher, different definitions) · Singapore ~6–8 · Hong Kong ~10–15. UK "violent crime" captures minor incidents that other countries don't record — direct comparison overstates UK risk.<br><br>
+        <strong>Tour question:</strong> Ask about security gate arrangements and any perimeter incidents in the past year.
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

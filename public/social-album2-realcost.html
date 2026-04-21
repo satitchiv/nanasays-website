@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Album 2 — Real Cost · With Unsplash Photos · Large text</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #94a3b8; display: flex; flex-direction: column; align-items: center;
+    padding: 48px 24px; gap: 6px; font-family: 'Nunito Sans', sans-serif; }
+  .album-label { font-size: 12px; font-weight: 700; color: #334155; letter-spacing: 1px;
+    text-transform: uppercase; margin-bottom: 4px; }
+  .album-sub { font-size: 11px; color: #64748b; margin-bottom: 20px; }
+  .slide-label { font-size: 10px; font-weight: 700; color: #475569; letter-spacing: .5px;
+    text-transform: uppercase; margin-bottom: 6px; margin-top: 18px; align-self: flex-start; }
+
+  .post { width: 540px; height: 540px; overflow: hidden; position: relative;
+    box-shadow: 0 8px 40px rgba(0,0,0,.3); flex-shrink: 0; display: flex; flex-direction: column; }
+
+  .slide-num { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 5px; z-index: 10; }
+  .pip { width: 7px; height: 7px; border-radius: 50%; background: rgba(255,255,255,.35); }
+  .pip.active { background: #34C3A0; width: 20px; border-radius: 4px; }
+  .pip.dk { background: rgba(27,50,82,.2); }
+  .pip.dk.active { background: #34C3A0; }
+
+  .wm { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px; letter-spacing: -.4px; }
+  .wn-w { color: #fff; } .ws-t { color: #34C3A0; }
+  .wn-n { color: #1B3252; } .ws-t2 { color: #34C3A0; }
+
+  /* ─── SLIDE 1: Cover — full photo ─── */
+  .s1 {
+    background: #1B3252;
+    background-image: url('https://images.unsplash.com/photo-1562774053-701939374585?auto=format&fit=crop&w=1080&q=80');
+    background-size: cover; background-position: center 30%;
+  }
+  .s1::before {
+    content: ''; position: absolute; inset: 0; z-index: 1;
+    background: linear-gradient(
+      to bottom,
+      rgba(27,50,82,.2) 0%,
+      rgba(27,50,82,.5) 40%,
+      rgba(27,50,82,.92) 68%,
+      rgba(27,50,82,1) 100%
+    );
+  }
+  .s1-content { position: relative; z-index: 2; display: flex; flex-direction: column;
+    flex: 1; padding: 28px 32px 42px; }
+  .s1-wm { margin-bottom: auto; }
+  .s1-eyebrow { font-size: 13px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase;
+    color: #34C3A0; margin-bottom: 14px; }
+  .s1-title { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 46px;
+    color: #fff; line-height: 1.0; letter-spacing: -1.5px; margin-bottom: 14px; }
+  .s1-title span { color: #34C3A0; }
+  .s1-sub { font-size: 17px; color: rgba(255,255,255,.6); font-weight: 400; line-height: 1.5; }
+  .swipe { position: absolute; bottom: 36px; right: 32px; z-index: 2;
+    font-size: 11px; color: rgba(255,255,255,.4); font-weight: 700; letter-spacing: 1.5px;
+    display: flex; align-items: center; gap: 6px; }
+  .arr { color: #34C3A0; font-size: 16px; }
+  .photo-credit { position: absolute; bottom: 36px; left: 32px; z-index: 2;
+    font-size: 10px; color: rgba(255,255,255,.2); }
+
+  /* ─── SLIDE 2: Tuition — photo strip top ─── */
+  .s2-photo {
+    height: 170px; flex-shrink: 0; position: relative;
+    background-image: url('https://images.unsplash.com/photo-1580582932707-520aed937b7b?auto=format&fit=crop&w=1080&q=80');
+    background-size: cover; background-position: center;
+  }
+  .s2-photo::after {
+    content: ''; position: absolute; inset: 0;
+    background: linear-gradient(to bottom, rgba(27,50,82,.1) 0%, rgba(27,50,82,.6) 100%);
+  }
+  .s2-photo-label { position: absolute; bottom: 14px; left: 20px; z-index: 2;
+    font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 24px;
+    color: #fff; letter-spacing: -.5px; }
+  .s2-photo-sub { position: absolute; bottom: 17px; right: 20px; z-index: 2;
+    font-size: 13px; color: rgba(255,255,255,.75); font-weight: 600; }
+  .s2-body { flex: 1; display: flex; flex-direction: column; padding: 16px 26px 38px; background: #fff; }
+  .s2-lbl { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.8px;
+    color: #9CA3AF; margin-bottom: 14px; }
+  .s2-chart { flex: 1; display: flex; flex-direction: column; justify-content: space-between; }
+  .bar-row { display: flex; align-items: center; gap: 12px; }
+  .bar-lvl { font-size: 16px; font-weight: 600; color: #6B7280; width: 100px; flex-shrink: 0; }
+  .bar-track { flex: 1; height: 36px; background: rgba(52,195,160,.08);
+    border-radius: 6px; overflow: hidden; border: 1px solid rgba(52,195,160,.14); }
+  .bar-fill { height: 100%; background: #1B3252; border-radius: 5px;
+    display: flex; align-items: center; justify-content: flex-end; padding-right: 12px; }
+  .bar-amt { font-family: 'Nunito', sans-serif; font-size: 15px; font-weight: 800;
+    color: #34C3A0; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  /* ─── SLIDE 3: Hidden costs ─── */
+  .s3 { background: #1B3252; padding: 26px 28px 38px; position: relative; overflow: hidden; }
+  .s3::before {
+    content: ''; position: absolute; top: -60px; right: -60px;
+    width: 240px; height: 240px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(52,195,160,.1) 0%, transparent 65%);
+    pointer-events: none;
+  }
+  .s3-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; position: relative; }
+  .s3-chip { font-size: 11px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+    background: rgba(52,195,160,.15); color: #34C3A0; border: 1px solid rgba(52,195,160,.3);
+    padding: 6px 14px; border-radius: 100px; }
+  .s3-title { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 34px;
+    color: #fff; letter-spacing: -.9px; margin-bottom: 6px; position: relative; line-height: 1.05; }
+  .s3-title span { color: #34C3A0; }
+  .s3-sub { font-size: 14px; color: rgba(255,255,255,.42); margin-bottom: 16px; position: relative; }
+  .s3-costs { flex: 1; display: flex; flex-direction: column; justify-content: space-between; position: relative; }
+  .cost-row { display: flex; align-items: center; justify-content: space-between;
+    background: rgba(255,255,255,.07); border-radius: 10px; padding: 14px 18px;
+    border: 1px solid rgba(255,255,255,.09); }
+  .cost-left { display: flex; align-items: center; gap: 14px; }
+  .cost-icon { font-size: 24px; width: 32px; text-align: center; }
+  .cost-name { font-size: 17px; font-weight: 600; color: rgba(255,255,255,.85); }
+  .cost-note { font-size: 12px; color: rgba(255,255,255,.38); margin-top: 2px; }
+  .cost-amt { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 22px;
+    color: #34C3A0; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+
+  /* ─── SLIDE 4: Total — photo top, giant number ─── */
+  .s4 {
+    background: #fff;
+    background-image: url('https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=1080&q=80');
+    background-size: cover; background-position: center 20%;
+  }
+  .s4::before {
+    content: ''; position: absolute; inset: 0; z-index: 1;
+    background: linear-gradient(
+      to bottom,
+      rgba(255,255,255,.0) 0%,
+      rgba(255,255,255,.1) 28%,
+      rgba(255,255,255,.94) 52%,
+      rgba(255,255,255,1) 68%
+    );
+  }
+  .s4-content { position: relative; z-index: 2; display: flex; flex-direction: column;
+    flex: 1; padding: 26px 32px 38px; justify-content: flex-end; }
+  .s4-total-lbl { font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px;
+    color: #9CA3AF; margin-bottom: 4px; }
+  .s4-total { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 84px;
+    color: #1B3252; line-height: 1; letter-spacing: -3px;
+    font-variant-numeric: tabular-nums; margin-bottom: 10px; }
+  .s4-total sup { font-size: 40px; vertical-align: top; margin-top: 12px; display: inline-block; }
+  .s4-context { font-size: 16px; color: #6B7280; margin-bottom: 18px; }
+  .s4-context strong { color: #34C3A0; font-weight: 700; }
+  .s4-vs { display: flex; gap: 10px; }
+  .s4-tag { background: #F6F8FA; border: 1.5px solid #E5E7EB;
+    border-radius: 10px; padding: 12px 16px; flex: 1; }
+  .s4-tag-lbl { font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; color: #9CA3AF; margin-bottom: 5px; }
+  .s4-tag-val { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px;
+    color: #1B3252; font-variant-numeric: tabular-nums; }
+  .s4-tag.highlight { border-color: #34C3A0; background: #E8FAF6; }
+  .s4-tag.highlight .s4-tag-val { color: #239C80; }
+
+  /* ─── SLIDE 5: vs Average ─── */
+  .s5 { background: #239C80; padding: 28px 30px 38px; position: relative; overflow: hidden; }
+  .s5::before {
+    content: ''; position: absolute; bottom: -80px; right: -80px;
+    width: 300px; height: 300px; border-radius: 50%; background: rgba(0,0,0,.08);
+    pointer-events: none;
+  }
+  .s5-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; position: relative; }
+  .s5-title { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 34px;
+    color: #fff; letter-spacing: -.9px; margin-bottom: 6px; position: relative; }
+  .s5-title span { color: #1B3252; }
+  .s5-sub { font-size: 14px; color: rgba(255,255,255,.65); margin-bottom: 18px; position: relative; }
+  .s5-compare { flex: 1; display: flex; flex-direction: column; justify-content: space-between; position: relative; }
+  .compare-row { background: rgba(0,0,0,.12); border-radius: 12px; padding: 16px 20px;
+    display: flex; align-items: center; justify-content: space-between; }
+  .comp-left .comp-name { font-size: 17px; font-weight: 700; color: rgba(255,255,255,.92); margin-bottom: 4px; }
+  .comp-left .comp-note { font-size: 12px; color: rgba(255,255,255,.5); }
+  .comp-fee { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 26px;
+    color: #fff; font-variant-numeric: tabular-nums; letter-spacing: -.6px; text-align: right; }
+  .comp-fee.highlight { color: #1B3252; }
+  .compare-row.featured { background: rgba(27,50,82,.25); border: 2px solid rgba(27,50,82,.3); }
+  .savings-badge { background: #1B3252; border-radius: 10px; padding: 14px 20px;
+    display: flex; align-items: center; justify-content: space-between; position: relative; }
+  .savings-lbl { font-size: 14px; color: rgba(255,255,255,.6); }
+  .savings-val { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 30px;
+    color: #34C3A0; letter-spacing: -.8px; }
+  .s5-cta { font-size: 13px; color: rgba(255,255,255,.55); text-align: center; margin-top: 6px; position: relative; }
+  .s5-cta strong { color: #fff; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<div class="album-label">Album 2 — Real Cost of School · With Unsplash Photos · Large text</div>
+<div class="album-sub">5 slides · Bangkok Patana School · Photos via Unsplash (free commercial licence)</div>
+
+<!-- ── SLIDE 1 ── -->
+<div class="slide-label">Slide 1 of 5 — Cover · Full photo + gradient</div>
+<div class="post s1">
+  <div class="s1-content">
+    <div class="s1-wm wm"><span class="wn-w">Nana</span><span class="ws-t">Says</span></div>
+    <div>
+      <div class="s1-eyebrow">Real Cost Series · Bangkok</div>
+      <div class="s1-title">Bangkok Patana School<br>— what parents <span>actually</span> pay</div>
+      <div class="s1-sub">Tuition is just the start. We broke down every cost for the 2024–25 academic year.</div>
+    </div>
+  </div>
+  <div class="swipe"><span class="arr">→</span> SWIPE TO SEE THE NUMBERS</div>
+  <div class="photo-credit">Photo: Unsplash</div>
+  <div class="slide-num">
+    <div class="pip active"></div><div class="pip"></div><div class="pip"></div>
+    <div class="pip"></div><div class="pip"></div>
+  </div>
+</div>
+
+<!-- ── SLIDE 2 ── -->
+<div class="slide-label">Slide 2 of 5 — Tuition by year group · Photo strip header</div>
+<div class="post" style="background:#fff">
+  <div class="s2-photo">
+    <div class="s2-photo-label">Annual Tuition</div>
+    <div class="s2-photo-sub">by year group · THB · 2024–25</div>
+  </div>
+  <div class="s2-body">
+    <div class="s2-lbl">Annual fee by year group — tuition only</div>
+    <div class="s2-chart">
+      <div class="bar-row">
+        <div class="bar-lvl">Early Years</div>
+        <div class="bar-track"><div class="bar-fill" style="width:55%"><span class="bar-amt">฿580,000</span></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-lvl">Primary</div>
+        <div class="bar-track"><div class="bar-fill" style="width:68%"><span class="bar-amt">฿720,000</span></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-lvl">Secondary</div>
+        <div class="bar-track"><div class="bar-fill" style="width:85%"><span class="bar-amt">฿890,000</span></div></div>
+      </div>
+      <div class="bar-row">
+        <div class="bar-lvl">Sixth Form</div>
+        <div class="bar-track"><div class="bar-fill" style="width:100%"><span class="bar-amt">฿1,050,000</span></div></div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">
+    <div class="pip dk"></div><div class="pip dk active"></div><div class="pip dk"></div>
+    <div class="pip dk"></div><div class="pip dk"></div>
+  </div>
+</div>
+
+<!-- ── SLIDE 3 ── -->
+<div class="slide-label">Slide 3 of 5 — Hidden costs</div>
+<div class="post s3">
+  <div class="s3-top">
+    <div class="wm"><span class="wn-w">Nana</span><span class="ws-t">Says</span></div>
+    <div class="s3-chip">Hidden Costs</div>
+  </div>
+  <div class="s3-title">What the brochure<br><span>doesn't tell you</span></div>
+  <div class="s3-sub">Extras on top of tuition · Sixth Form year · estimated</div>
+  <div class="s3-costs">
+    <div class="cost-row">
+      <div class="cost-left">
+        <div class="cost-icon">📋</div>
+        <div>
+          <div class="cost-name">Registration fee</div>
+          <div class="cost-note">One-time, non-refundable</div>
+        </div>
+      </div>
+      <div class="cost-amt">฿80,000</div>
+    </div>
+    <div class="cost-row">
+      <div class="cost-left">
+        <div class="cost-icon">🍱</div>
+        <div>
+          <div class="cost-name">School meals</div>
+          <div class="cost-note">Lunch + snacks · full year</div>
+        </div>
+      </div>
+      <div class="cost-amt">฿36,000</div>
+    </div>
+    <div class="cost-row">
+      <div class="cost-left">
+        <div class="cost-icon">👕</div>
+        <div>
+          <div class="cost-name">Uniform + kit</div>
+          <div class="cost-note">First year purchase</div>
+        </div>
+      </div>
+      <div class="cost-amt">฿18,000</div>
+    </div>
+    <div class="cost-row">
+      <div class="cost-left">
+        <div class="cost-icon">⚽</div>
+        <div>
+          <div class="cost-name">Activities + trips</div>
+          <div class="cost-note">Sports, arts, field trips</div>
+        </div>
+      </div>
+      <div class="cost-amt">฿45,000</div>
+    </div>
+  </div>
+  <div class="slide-num">
+    <div class="pip"></div><div class="pip"></div><div class="pip active"></div>
+    <div class="pip"></div><div class="pip"></div>
+  </div>
+</div>
+
+<!-- ── SLIDE 4 ── -->
+<div class="slide-label">Slide 4 of 5 — Total cost · Photo top · Giant number</div>
+<div class="post s4">
+  <div class="s4-content">
+    <div class="s4-total-lbl">Total all-in · Sixth Form year</div>
+    <div class="s4-total"><sup>฿</sup>1,229,000</div>
+    <div class="s4-context">Not ฿1,050,000 — <strong>฿179,000 more</strong> once all extras included</div>
+    <div class="s4-vs">
+      <div class="s4-tag">
+        <div class="s4-tag-lbl">Tuition only</div>
+        <div class="s4-tag-val">฿1,050,000</div>
+      </div>
+      <div class="s4-tag highlight">
+        <div class="s4-tag-lbl">True all-in cost</div>
+        <div class="s4-tag-val">฿1,229,000</div>
+      </div>
+    </div>
+  </div>
+  <div class="slide-num">
+    <div class="pip dk"></div><div class="pip dk"></div><div class="pip dk"></div>
+    <div class="pip dk active"></div><div class="pip dk"></div>
+  </div>
+</div>
+
+<!-- ── SLIDE 5 ── -->
+<div class="slide-label">Slide 5 of 5 — vs Bangkok average · CTA</div>
+<div class="post s5">
+  <div class="s5-top">
+    <div class="wm"><span class="wn-w">Nana</span><span class="ws-t" style="color:#1B3252">Says</span></div>
+  </div>
+  <div class="s5-title">How does it <span>compare?</span></div>
+  <div class="s5-sub">Bangkok international school Sixth Form fees · 2024–25 · all-in</div>
+  <div class="s5-compare">
+    <div class="compare-row">
+      <div class="comp-left">
+        <div class="comp-name">Bangkok average</div>
+        <div class="comp-note">Across 30+ schools · tuition only</div>
+      </div>
+      <div class="comp-fee">฿780,000</div>
+    </div>
+    <div class="compare-row">
+      <div class="comp-left">
+        <div class="comp-name">NIST International</div>
+        <div class="comp-note">IB · CIS accredited</div>
+      </div>
+      <div class="comp-fee">฿940,000</div>
+    </div>
+    <div class="compare-row featured">
+      <div class="comp-left">
+        <div class="comp-name" style="color:#fff;font-weight:800">Bangkok Patana (all-in)</div>
+        <div class="comp-note">BSO Excellent · A-Level · IB</div>
+      </div>
+      <div class="comp-fee highlight">฿1,229,000</div>
+    </div>
+    <div class="savings-badge">
+      <div class="savings-lbl">Above Bangkok average by</div>
+      <div class="savings-val">+฿449,000</div>
+    </div>
+  </div>
+  <div class="s5-cta">Full breakdown at <strong>nanasays.com/schools/bangkok-patana</strong></div>
+  <div class="slide-num">
+    <div class="pip"></div><div class="pip"></div><div class="pip"></div>
+    <div class="pip"></div><div class="pip active"></div>
+  </div>
+</div>
+
+</body>
+</html>

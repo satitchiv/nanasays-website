@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>V2 — Curriculum Decoder · Diagonal Split</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #cbd5e1; display: flex; flex-direction: column; align-items: center;
+    padding: 48px 24px; gap: 10px; font-family: 'Nunito Sans', sans-serif; }
+  .caption { font-size: 12px; font-weight: 700; color: #475569; letter-spacing: .5px; text-transform: uppercase; margin-bottom: 4px; }
+  .sub-caption { font-size: 11px; color: #94a3b8; margin-bottom: 16px; }
+
+  .post {
+    width: 540px; height: 540px;
+    background: #fff;
+    display: flex; flex-direction: column;
+    box-shadow: 0 12px 48px rgba(0,0,0,.22);
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Wordmark bar — spans full width above the split */
+  .top-bar {
+    background: #1B3252;
+    padding: 16px 28px;
+    display: flex; align-items: center; justify-content: space-between;
+    flex-shrink: 0;
+    position: relative; z-index: 2;
+  }
+  .wordmark { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px; letter-spacing: -.5px; }
+  .wn { color: #fff; } .ws { color: #34C3A0; }
+  .chip { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+    background: rgba(52,195,160,.15); color: #34C3A0; border: 1px solid rgba(52,195,160,.35);
+    padding: 5px 12px; border-radius: 100px; }
+
+  /* Split content area */
+  .split { flex: 1; display: flex; flex-direction: row; position: relative; }
+
+  /* Navy left panel with diagonal clip */
+  .left {
+    width: 52%;
+    background: #1B3252;
+    clip-path: polygon(0 0, 100% 0, 82% 100%, 0 100%);
+    padding: 30px 48px 32px 28px;
+    display: flex; flex-direction: column; justify-content: center;
+    position: relative; z-index: 1;
+  }
+
+  /* Subtle glow */
+  .left::after {
+    content: ''; position: absolute; bottom: -40px; left: -40px;
+    width: 180px; height: 180px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(52,195,160,.1) 0%, transparent 65%);
+    pointer-events: none;
+  }
+
+  .curr-abbr {
+    font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 68px; color: #34C3A0; line-height: 1;
+    letter-spacing: -3px; margin-bottom: 6px;
+  }
+  .curr-full-name {
+    font-size: 11px; color: rgba(255,255,255,.45); font-weight: 600;
+    line-height: 1.4; letter-spacing: .1px; margin-bottom: 18px;
+  }
+  .uni-bubble {
+    background: rgba(52,195,160,.15); border: 1px solid rgba(52,195,160,.3);
+    border-radius: 8px; padding: 10px 12px;
+  }
+  .uni-num { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 28px;
+    color: #34C3A0; letter-spacing: -1px; line-height: 1; }
+  .uni-txt { font-size: 9.5px; color: rgba(255,255,255,.5); margin-top: 3px; line-height: 1.4; }
+
+  /* Right panel: facts */
+  .right {
+    flex: 1;
+    background: #fff;
+    padding: 28px 22px 28px 14px;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+
+  .fact { margin-bottom: 0; }
+  .fact-lbl { font-size: 8.5px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 1.3px; color: #9CA3AF; margin-bottom: 4px; }
+  .fact-val { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 18px;
+    color: #1B3252; letter-spacing: -.4px; line-height: 1.1; }
+  .fact-sub { font-size: 10px; color: #6B7280; margin-top: 3px; line-height: 1.3; }
+
+  .divider { height: 1px; background: #E5E7EB; margin: 4px 0; }
+
+  /* "Best for" tags stacked */
+  .suits-lbl { font-size: 8.5px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 1.3px; color: #9CA3AF; margin-bottom: 6px; }
+  .suits { display: flex; flex-direction: column; gap: 5px; }
+  .suit { font-size: 11px; font-weight: 700; color: #239C80;
+    background: #E8FAF6; border: 1px solid rgba(52,195,160,.25);
+    padding: 5px 10px; border-radius: 6px; }
+
+  .footer-right { padding-top: 8px; border-top: 1px solid #E5E7EB;
+    font-size: 9.5px; color: #9CA3AF; }
+</style>
+</head>
+<body>
+
+<div class="caption">V2 — Curriculum Decoder · Diagonal Split</div>
+<div class="sub-caption">Navy diagonal left · Curriculum name 68px · Facts right</div>
+
+<div class="post">
+
+  <div class="top-bar">
+    <div class="wordmark"><span class="wn">Nana</span><span class="ws">Says</span></div>
+    <div class="chip">Curriculum Decoder</div>
+  </div>
+
+  <div class="split">
+
+    <div class="left">
+      <div class="curr-abbr">IB<br>DP</div>
+      <div class="curr-full-name">International<br>Baccalaureate<br>Diploma Programme</div>
+      <div class="uni-bubble">
+        <div class="uni-num">3,500+</div>
+        <div class="uni-txt">universities worldwide<br>recognise it for direct entry</div>
+      </div>
+    </div>
+
+    <div class="right">
+      <div class="fact">
+        <div class="fact-lbl">Age range</div>
+        <div class="fact-val">16 – 19</div>
+        <div class="fact-sub">Yrs 12–13 equivalent</div>
+      </div>
+      <div class="divider"></div>
+      <div class="fact">
+        <div class="fact-lbl">Assessment</div>
+        <div class="fact-val">70 / 30</div>
+        <div class="fact-sub">Exams / coursework</div>
+      </div>
+      <div class="divider"></div>
+      <div class="fact">
+        <div class="fact-lbl">Max score</div>
+        <div class="fact-val">45 pts</div>
+        <div class="fact-sub">World avg ~30</div>
+      </div>
+      <div class="divider"></div>
+      <div>
+        <div class="suits-lbl">Best for</div>
+        <div class="suits">
+          <span class="suit">Top-university track</span>
+          <span class="suit">Self-motivated learners</span>
+          <span class="suit">Frequent movers</span>
+        </div>
+      </div>
+      <div class="footer-right">nanasays.com</div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

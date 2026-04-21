@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SN4 — Activity Stream</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito Sans', sans-serif; background: #f8f9fa; color: #374151; }
+  .nav { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 0 5%; display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .nav-logo { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px; color: #0f2b4c; }
+  .nav-logo span { color: #34c3a0; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 40px 5%; }
+  .page-label { font-size: 11px; font-weight: 800; color: #34c3a0; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px; }
+  h1 { font-family: 'Nunito', sans-serif; font-size: 32px; font-weight: 900; color: #0f2b4c; margin-bottom: 6px; }
+  .sub { font-size: 15px; color: #6b7280; margin-bottom: 28px; }
+  .version-tag { position: fixed; top: 70px; right: 20px; background: #0f2b4c; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; font-family: 'Nunito', sans-serif; }
+
+  /* Filter bar */
+  .filter-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 28px; flex-wrap: wrap; }
+  .filter-label { font-size: 12px; font-weight: 700; color: #9ca3af; }
+  .pills { display: flex; gap: 5px; flex-wrap: wrap; }
+  .pill { padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid #e5e7eb; background: #fff; color: #6b7280; font-family: inherit; }
+  .pill.active { background: #0f2b4c; color: #fff; border-color: #0f2b4c; }
+  .filter-divider { width: 1px; height: 20px; background: #e5e7eb; }
+
+  /* Main layout */
+  .layout { display: grid; grid-template-columns: minmax(0,1.7fr) minmax(0,1fr); gap: 28px; align-items: start; }
+
+  /* Day group label */
+  .day-label { font-size: 11px; font-weight: 800; color: #9ca3af; text-transform: uppercase; letter-spacing: .08em; margin: 20px 0 10px; }
+  .day-label:first-child { margin-top: 0; }
+
+  /* Stream item */
+  .stream-item { display: flex; gap: 14px; margin-bottom: 12px; cursor: pointer; }
+  .stream-item:hover .si-title { color: #34c3a0; }
+  .si-left { display: flex; flex-direction: column; align-items: center; flex-shrink: 0; }
+  .si-avatar { width: 42px; height: 42px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 900; color: #fff; flex-shrink: 0; }
+  .si-line { width: 1px; background: #e5e7eb; flex: 1; margin-top: 6px; }
+  .si-card { flex: 1; background: #fff; border-radius: 10px; border: 1px solid #e5e7eb; padding: 14px 16px; margin-bottom: 2px; transition: box-shadow .15s; }
+  .si-card:hover { box-shadow: 0 3px 10px rgba(0,0,0,.07); }
+  .si-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px; }
+  .si-school { font-size: 12px; font-weight: 800; color: #0f2b4c; }
+  .si-time { font-size: 11px; color: #9ca3af; }
+  .si-title { font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 800; color: #0f2b4c; line-height: 1.4; margin-bottom: 5px; transition: color .15s; }
+  .si-desc { font-size: 12px; color: #6b7280; line-height: 1.5; margin-bottom: 7px; }
+  .si-foot { display: flex; align-items: center; gap: 7px; }
+  .si-cat { font-size: 11px; font-weight: 700; padding: 2px 9px; border-radius: 8px; }
+  .flag-yellow { font-size: 10px; font-weight: 700; background: #fef3c7; color: #92400e; padding: 2px 7px; border-radius: 7px; }
+  .flag-red { font-size: 10px; font-weight: 700; background: #fee2e2; color: #b91c1c; padding: 2px 7px; border-radius: 7px; }
+
+  /* Sidebar */
+  .sidebar-box { background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin-bottom: 14px; }
+  .sidebar-title { font-size: 13px; font-weight: 700; color: #0f2b4c; margin-bottom: 14px; }
+
+  /* School filter sidebar */
+  .school-filter-item { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer; margin-bottom: 4px; transition: background .1s; }
+  .school-filter-item:hover { background: #f8f9fa; }
+  .school-filter-item.selected { background: #f0fdf9; }
+  .sfi-avatar { width: 30px; height: 30px; border-radius: 7px; display: flex; align-items: center; justify-content: center; font-family: 'Nunito', sans-serif; font-size: 10px; font-weight: 900; color: #fff; flex-shrink: 0; }
+  .sfi-name { font-size: 12px; font-weight: 700; color: #374151; flex: 1; line-height: 1.3; }
+  .sfi-count { font-size: 11px; color: #9ca3af; }
+  .sfi-check { width: 16px; height: 16px; border-radius: 4px; background: #34c3a0; display: flex; align-items: center; justify-content: center; }
+  .sfi-check svg { width: 10px; height: 10px; }
+
+  .upcoming-item { padding: 8px 0; border-bottom: 1px solid #f3f4f6; }
+  .upcoming-item:last-child { border-bottom: none; }
+  .up-school { font-size: 10px; font-weight: 800; color: #34c3a0; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 3px; }
+  .up-title { font-family: 'Nunito', sans-serif; font-size: 12px; font-weight: 700; color: #0f2b4c; line-height: 1.4; margin-bottom: 3px; }
+  .up-date { font-size: 11px; color: #9ca3af; }
+
+  .load-more { width: 100%; margin-top: 4px; padding: 11px; background: none; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 12px; font-weight: 600; color: #0f2b4c; cursor: pointer; font-family: inherit; }
+</style>
+</head>
+<body>
+
+<div class="version-tag">SN4 — Activity Stream</div>
+
+<nav class="nav">
+  <div class="nav-logo">Nana<span>Says</span></div>
+  <div style="display:flex;gap:24px;font-size:14px;font-weight:600;color:#6b7280;">
+    <span>Schools</span><span style="color:#0f2b4c;">School News</span><span>Compare</span>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="page-label">Direct from schools</div>
+  <h1>School Updates</h1>
+  <p class="sub">A live stream of what's happening across Bangkok's international schools</p>
+
+  <!-- Filter bar -->
+  <div class="filter-bar">
+    <span class="filter-label">Show:</span>
+    <div class="pills">
+      <button class="pill active">All</button>
+      <button class="pill">Results</button>
+      <button class="pill">Events</button>
+      <button class="pill">Admissions</button>
+      <button class="pill">Scholarships</button>
+      <button class="pill">Sport</button>
+      <button class="pill">Leadership</button>
+    </div>
+  </div>
+
+  <div class="layout">
+
+    <!-- Activity stream -->
+    <div>
+      <div class="day-label">Today</div>
+
+      <div class="stream-item">
+        <div class="si-left">
+          <div class="si-avatar" style="background:#2563eb;">NI</div>
+          <div class="si-line"></div>
+        </div>
+        <div>
+          <div class="si-card">
+            <div class="si-header"><span class="si-school">NIST International School</span><span class="si-time">2 hours ago</span></div>
+            <div class="si-title">Scholarship applications now open for 2026-27 entry — deadline 30 April</div>
+            <div class="si-desc">Merit-based awards covering up to 50% of tuition. Open to external applicants entering Grades 7-11.</div>
+            <div class="si-foot">
+              <span class="si-cat" style="background:#f0fdf9;color:#1a9478;">Scholarships</span>
+              <span class="flag-red">Deadline 30 April</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stream-item">
+        <div class="si-left">
+          <div class="si-avatar" style="background:#7c3aed;">CI</div>
+          <div class="si-line"></div>
+        </div>
+        <div>
+          <div class="si-card">
+            <div class="si-header"><span class="si-school">Concordian International School</span><span class="si-time">5 hours ago</span></div>
+            <div class="si-title">Annual International Day — Saturday 10 May, all families invited</div>
+            <div class="si-desc">40+ countries represented. Food fair, performances and cultural showcases across the campus.</div>
+            <div class="si-foot">
+              <span class="si-cat" style="background:#fef9c3;color:#854d0e;">Community</span>
+              <span class="flag-yellow">Upcoming</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="day-label">Yesterday</div>
+
+      <div class="stream-item">
+        <div class="si-left">
+          <div class="si-avatar" style="background:#059669;">RI</div>
+          <div class="si-line"></div>
+        </div>
+        <div>
+          <div class="si-card">
+            <div class="si-header"><span class="si-school">Ruamrudee International School</span><span class="si-time">1 day ago</span></div>
+            <div class="si-title">Open house — Saturday 19 April, all Year 7 entry families welcome</div>
+            <div class="si-desc">Tour the campus, meet department heads and current Year 7 students. Arrive any time between 9am and 1pm — no booking required.</div>
+            <div class="si-foot">
+              <span class="si-cat" style="background:#f0fdf4;color:#166534;">Events</span>
+              <span class="flag-yellow">This Saturday</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="day-label">4 days ago</div>
+
+      <div class="stream-item">
+        <div class="si-left">
+          <div class="si-avatar" style="background:#0f2b4c;">BP</div>
+          <div class="si-line"></div>
+        </div>
+        <div>
+          <div class="si-card">
+            <div class="si-header"><span class="si-school">Bangkok Patana School</span><span class="si-time">4 days ago</span></div>
+            <div class="si-title">Year 12 IB results — 43% of students achieve 38 points or above</div>
+            <div class="si-desc">Bangkok Patana's class of 2025 records its strongest IB performance in five years. Average score of 35.4.</div>
+            <div class="si-foot">
+              <span class="si-cat" style="background:#f0fdf9;color:#1a9478;">Results</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stream-item">
+        <div class="si-left">
+          <div class="si-avatar" style="background:#dc2626;">SI</div>
+          <div class="si-line"></div>
+        </div>
+        <div>
+          <div class="si-card">
+            <div class="si-header"><span class="si-school">Shrewsbury International School</span><span class="si-time">4 days ago</span></div>
+            <div class="si-title">Football team wins BISAC championship for second consecutive year</div>
+            <div class="si-desc">The Year 10-11 squad won 3-1 against Wells International in the final at Assumption College.</div>
+            <div class="si-foot">
+              <span class="si-cat" style="background:#fff7ed;color:#9a3412;">Sport</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="day-label">5 days ago</div>
+
+      <div class="stream-item">
+        <div class="si-left">
+          <div class="si-avatar" style="background:#2563eb;">NI</div>
+          <div class="si-line"></div>
+        </div>
+        <div>
+          <div class="si-card">
+            <div class="si-header"><span class="si-school">NIST International School</span><span class="si-time">5 days ago</span></div>
+            <div class="si-title">Swimming team wins gold at BISAC Championships — four individual records broken</div>
+            <div class="si-desc">Year 9-10 team dominated the relay events at the Bangkok regional tournament.</div>
+            <div class="si-foot">
+              <span class="si-cat" style="background:#fff7ed;color:#9a3412;">Sport</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button class="load-more">Load more updates</button>
+    </div>
+
+    <!-- Sidebar -->
+    <div style="position:sticky;top:20px;">
+      <!-- School filter -->
+      <div class="sidebar-box">
+        <div class="sidebar-title">Filter by school</div>
+        <div class="school-filter-item selected">
+          <div class="sfi-avatar" style="background:#0f2b4c;">BP</div>
+          <span class="sfi-name">Bangkok Patana School</span>
+          <span class="sfi-count">8</span>
+          <div class="sfi-check"><svg viewBox="0 0 10 10" fill="none" stroke="#fff" stroke-width="2"><polyline points="2 5 4.5 7.5 8.5 2.5"/></svg></div>
+        </div>
+        <div class="school-filter-item selected">
+          <div class="sfi-avatar" style="background:#059669;">RI</div>
+          <span class="sfi-name">Ruamrudee International</span>
+          <span class="sfi-count">6</span>
+          <div class="sfi-check"><svg viewBox="0 0 10 10" fill="none" stroke="#fff" stroke-width="2"><polyline points="2 5 4.5 7.5 8.5 2.5"/></svg></div>
+        </div>
+        <div class="school-filter-item selected">
+          <div class="sfi-avatar" style="background:#2563eb;">NI</div>
+          <span class="sfi-name">NIST International</span>
+          <span class="sfi-count">5</span>
+          <div class="sfi-check"><svg viewBox="0 0 10 10" fill="none" stroke="#fff" stroke-width="2"><polyline points="2 5 4.5 7.5 8.5 2.5"/></svg></div>
+        </div>
+        <div class="school-filter-item">
+          <div class="sfi-avatar" style="background:#7c3aed;">CI</div>
+          <span class="sfi-name">Concordian International</span>
+          <span class="sfi-count">4</span>
+        </div>
+        <div class="school-filter-item">
+          <div class="sfi-avatar" style="background:#dc2626;">SI</div>
+          <span class="sfi-name">Shrewsbury International</span>
+          <span class="sfi-count">3</span>
+        </div>
+        <div class="school-filter-item">
+          <div class="sfi-avatar" style="background:#ea580c;">GI</div>
+          <span class="sfi-name">Garden International</span>
+          <span class="sfi-count">2</span>
+        </div>
+      </div>
+
+      <!-- Upcoming deadlines -->
+      <div class="sidebar-box">
+        <div class="sidebar-title">Upcoming deadlines</div>
+        <div class="upcoming-item">
+          <div class="up-school">Ruamrudee International</div>
+          <div class="up-title">Open house — Year 7 families</div>
+          <div class="up-date">Saturday 19 April</div>
+        </div>
+        <div class="upcoming-item">
+          <div class="up-school">NIST International</div>
+          <div class="up-title">Scholarship applications close</div>
+          <div class="up-date">Wednesday 30 April</div>
+        </div>
+        <div class="upcoming-item">
+          <div class="up-school">Concordian International</div>
+          <div class="up-title">International Day — families invited</div>
+          <div class="up-date">Saturday 10 May</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

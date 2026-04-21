@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Album 5 — Bangkok Int'l School Admissions Timeline</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #cbd5e1; display: flex; flex-direction: column; align-items: center;
+    padding: 48px 24px; gap: 10px; font-family: 'Nunito Sans', sans-serif; }
+  .caption { font-size: 12px; font-weight: 700; color: #475569; letter-spacing: .5px;
+    text-transform: uppercase; margin-bottom: 4px; }
+  .sub-caption { font-size: 11px; color: #94a3b8; margin-bottom: 20px; }
+
+  .slide { width: 540px; height: 540px; display: flex; flex-direction: column;
+    overflow: hidden; position: relative;
+    box-shadow: 0 12px 48px rgba(0,0,0,.28); margin-bottom: 32px; }
+
+  .wordmark { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 20px; letter-spacing: -.5px; }
+
+  .dots { display: flex; gap: 6px; align-items: center; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .dot.on { width: 18px; border-radius: 100px; }
+  .dot-navy { background: rgba(255,255,255,.28); }
+  .dot-navy.on { background: #34C3A0; }
+  .dot-light { background: rgba(27,50,82,.2); }
+  .dot-light.on { background: #1B3252; }
+  .dot-teal { background: rgba(255,255,255,.3); }
+  .dot-teal.on { background: #1B3252; }
+
+  /* ══════════ SLIDE 1 — Cover (Navy) ══════════ */
+  /* navy → Nana=white, Says=teal */
+  .s1 { background: #1B3252; }
+  .s1::before { content: ''; position: absolute; bottom: -60px; right: -60px;
+    width: 280px; height: 280px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(52,195,160,.12) 0%, transparent 65%);
+    pointer-events: none; }
+  .s1-inner { position: relative; z-index: 1; flex: 1; display: flex;
+    flex-direction: column; padding: 28px 32px; }
+  .s1-top { display: flex; align-items: center; justify-content: space-between; }
+  .s1-chip { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+    background: rgba(52,195,160,.15); color: #34C3A0; border: 1px solid rgba(52,195,160,.35);
+    padding: 5px 12px; border-radius: 100px; }
+  .s1-hero { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+  .s1-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: #34C3A0; margin-bottom: 14px; }
+  .s1-title { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 50px; color: #fff; line-height: 1.0; letter-spacing: -2px;
+    margin-bottom: 18px; }
+  .s1-sub { font-size: 16px; color: rgba(255,255,255,.6); line-height: 1.5; max-width: 380px; }
+  .s1-bottom { display: flex; align-items: center; justify-content: space-between; }
+
+  /* ══════════ SLIDE 2 — Year at a Glance (White) ══════════ */
+  /* white → Nana=navy, Says=teal */
+  .s2 { background: #fff; }
+  .s2-inner { flex: 1; display: flex; flex-direction: column; padding: 22px 26px 20px; }
+  .s2-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .s2-chip { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+    background: rgba(27,50,82,.06); color: #1B3252; border: 1px solid rgba(27,50,82,.12);
+    padding: 5px 12px; border-radius: 100px; }
+  .s2-title { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 24px; color: #1B3252; letter-spacing: -.6px; margin-bottom: 16px; }
+  .timeline { flex: 1; display: flex; flex-direction: column;
+    justify-content: center; gap: 0; }
+  .tl-row { display: flex; align-items: stretch; gap: 14px; }
+  .tl-months { display: flex; flex-direction: column; align-items: center;
+    width: 76px; flex-shrink: 0; }
+  .tl-month-label { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 12px; color: #1B3252; letter-spacing: -.2px; text-align: center;
+    padding: 10px 0 2px; }
+  .tl-line { flex: 1; width: 2px; background: #E5E7EB; margin: 0 auto; }
+  .tl-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; margin: 0 auto; }
+  .tl-right { flex: 1; padding: 8px 0 8px; border-bottom: 1px solid #F3F4F6; }
+  .tl-row:last-child .tl-right { border-bottom: none; }
+  .tl-phase { font-size: 11px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 1px; margin-bottom: 3px; }
+  .tl-action { font-size: 13px; color: #374151; line-height: 1.35; }
+
+  .phase-research { color: #6B9DC2; }
+  .dot-research { background: #6B9DC2; }
+  .phase-apply { color: #239C80; }
+  .dot-apply { background: #34C3A0; }
+  .phase-assess { color: #F59E0B; }
+  .dot-assess { background: #F59E0B; }
+  .phase-decide { color: #1B3252; }
+  .dot-decide { background: #1B3252; }
+
+  .s2-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+
+  /* ══════════ SLIDE 3 — Sep–Oct (Light) ══════════ */
+  /* #F6F8FA → Nana=navy, Says=teal */
+  .s3 { background: #F6F8FA; }
+  .s3-inner { flex: 1; display: flex; flex-direction: column; padding: 22px 26px 20px; }
+  .s3-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .s3-chip { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+    background: rgba(27,50,82,.08); color: #1B3252; border: 1px solid rgba(27,50,82,.15);
+    padding: 5px 12px; border-radius: 100px; }
+  .month-hero { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 56px; color: #1B3252; line-height: 1; letter-spacing: -2px;
+    opacity: .12; position: absolute; top: 60px; right: 20px; pointer-events: none; }
+  .s3-phase { font-size: 11px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 1.3px; color: #6B9DC2; margin-bottom: 6px; }
+  .s3-title { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 30px; color: #1B3252; letter-spacing: -.8px; margin-bottom: 16px; }
+  .s3-content { flex: 1; display: flex; flex-direction: column;
+    justify-content: center; gap: 12px; }
+  .action-card { background: #fff; border-radius: 12px;
+    border: 1px solid rgba(27,50,82,.08); padding: 14px 16px;
+    display: flex; gap: 14px; align-items: flex-start; }
+  .action-icon { font-size: 22px; flex-shrink: 0; margin-top: 2px; }
+  .action-body { flex: 1; }
+  .action-title { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 17px; color: #1B3252; letter-spacing: -.3px; margin-bottom: 4px; }
+  .action-desc { font-size: 13px; color: #6B7280; line-height: 1.4; }
+  .action-desc strong { color: #239C80; font-weight: 700; }
+  .s3-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+
+  /* ══════════ SLIDE 4 — Nov–Dec (Navy) ══════════ */
+  /* navy → Nana=white, Says=teal */
+  .s4 { background: #1B3252; }
+  .s4-inner { flex: 1; display: flex; flex-direction: column; padding: 22px 26px 20px; }
+  .s4-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .s4-chip { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+    background: rgba(52,195,160,.15); color: #34C3A0; border: 1px solid rgba(52,195,160,.35);
+    padding: 5px 12px; border-radius: 100px; }
+  .s4-phase { font-size: 11px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 1.3px; color: #34C3A0; margin-bottom: 6px; }
+  .s4-title { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 30px; color: #fff; letter-spacing: -.8px; margin-bottom: 16px; }
+  .s4-content { flex: 1; display: flex; flex-direction: column;
+    justify-content: center; gap: 12px; }
+  .action-card-dark { background: rgba(255,255,255,.07); border-radius: 12px;
+    border: 1px solid rgba(255,255,255,.11); padding: 14px 16px;
+    display: flex; gap: 14px; align-items: flex-start; }
+  .action-title-dark { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 17px; color: #fff; letter-spacing: -.3px; margin-bottom: 4px; }
+  .action-desc-dark { font-size: 13px; color: rgba(255,255,255,.55); line-height: 1.4; }
+  .action-desc-dark strong { color: #34C3A0; font-weight: 700; }
+  .s4-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+
+  /* ══════════ SLIDE 5 — Jan–Feb (Light) ══════════ */
+  /* #F6F8FA → Nana=navy, Says=teal */
+  .s5 { background: #F6F8FA; }
+  .s5-inner { flex: 1; display: flex; flex-direction: column; padding: 22px 26px 20px; }
+  .s5-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .s5-chip { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+    background: rgba(27,50,82,.08); color: #1B3252; border: 1px solid rgba(27,50,82,.15);
+    padding: 5px 12px; border-radius: 100px; }
+  .s5-phase { font-size: 11px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 1.3px; color: #F59E0B; margin-bottom: 6px; }
+  .s5-title { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 30px; color: #1B3252; letter-spacing: -.8px; margin-bottom: 16px; }
+  .s5-content { flex: 1; display: flex; flex-direction: column;
+    justify-content: center; gap: 12px; }
+  .s5-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+
+  /* ══════════ SLIDE 6 — Mar–Apr (Navy) ══════════ */
+  /* navy → Nana=white, Says=teal */
+  .s6 { background: #1B3252; }
+  .s6-inner { flex: 1; display: flex; flex-direction: column; padding: 22px 26px 20px; }
+  .s6-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .s6-chip { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+    background: rgba(52,195,160,.15); color: #34C3A0; border: 1px solid rgba(52,195,160,.35);
+    padding: 5px 12px; border-radius: 100px; }
+  .s6-phase { font-size: 11px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 1.3px; color: #34C3A0; margin-bottom: 6px; }
+  .s6-title { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 30px; color: #fff; letter-spacing: -.8px; margin-bottom: 16px; }
+  .s6-content { flex: 1; display: flex; flex-direction: column;
+    justify-content: center; gap: 12px; }
+  /* late box */
+  .late-box { background: rgba(52,195,160,.12); border: 1px solid rgba(52,195,160,.3);
+    border-radius: 12px; padding: 14px 16px; }
+  .late-label { font-size: 11px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 1px; color: #34C3A0; margin-bottom: 6px; }
+  .late-text { font-size: 14px; color: rgba(255,255,255,.75); line-height: 1.45; }
+  .late-text strong { color: #34C3A0; }
+  .s6-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 14px; }
+
+  /* ══════════ SLIDE 7 — CTA (Teal) ══════════ */
+  /* teal #239C80 → Nana=white, Says=navy */
+  .s7 { background: #239C80; }
+  .s7::before { content: ''; position: absolute; bottom: -80px; right: -80px;
+    width: 300px; height: 300px; border-radius: 50%;
+    background: rgba(0,0,0,.08); pointer-events: none; }
+  .s7-inner { position: relative; z-index: 1; flex: 1; display: flex;
+    flex-direction: column; padding: 26px 30px 24px; }
+  .s7-top { display: flex; align-items: center; justify-content: space-between; }
+  .s7-hero { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 14px; }
+  .s7-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: 2px;
+    text-transform: uppercase; color: rgba(255,255,255,.65); }
+  .s7-title { font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 38px; color: #fff; line-height: 1.05; letter-spacing: -1.5px; }
+  .s7-tips { display: flex; flex-direction: column; gap: 8px; }
+  .s7-tip { display: flex; gap: 10px; align-items: flex-start; }
+  .s7-tip-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+  .s7-tip-text { font-size: 14px; color: rgba(255,255,255,.8); line-height: 1.4; }
+  .s7-tip-text strong { color: #fff; font-weight: 700; }
+  .s7-url-row { display: flex; align-items: center; justify-content: space-between; }
+  .s7-url { display: inline-flex; align-items: center; gap: 8px;
+    background: #1B3252; color: #fff; font-family: 'Nunito', sans-serif;
+    font-weight: 900; font-size: 15px; padding: 12px 24px;
+    border-radius: 100px; letter-spacing: -.3px; }
+  .s7-count { font-size: 12px; color: rgba(255,255,255,.45); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="caption">Album 5 — Bangkok Int'l School Admissions Timeline</div>
+<div class="sub-caption">7 slides · No photos · Seasonal editorial · Month-by-month action guide</div>
+
+<!-- ══════════ SLIDE 1 — Cover (Navy) ══════════ -->
+<!-- navy → Nana=white, Says=teal -->
+<div class="slide s1">
+  <div class="s1-inner">
+    <div class="s1-top">
+      <div class="wordmark"><span style="color:#fff">Nana</span><span style="color:#34C3A0">Says</span></div>
+      <div class="s1-chip">Admissions Guide</div>
+    </div>
+    <div class="s1-hero">
+      <div class="s1-eyebrow">Bangkok International Schools</div>
+      <div class="s1-title">When to Apply<br>— and What<br>Happens Next</div>
+      <div class="s1-sub">Most parents start too late. Here's the exact timeline, month by month, so you don't miss your window.</div>
+    </div>
+    <div class="s1-bottom">
+      <div class="dots">
+        <div class="dot dot-navy on"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+      </div>
+      <div style="font-size:12px;color:rgba(255,255,255,.4);font-weight:600;">1 / 7</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 2 — Year at a Glance (White) ══════════ -->
+<!-- white → Nana=navy, Says=teal -->
+<div class="slide s2">
+  <div class="s2-inner">
+    <div class="s2-top">
+      <div class="wordmark"><span style="color:#1B3252">Nana</span><span style="color:#34C3A0">Says</span></div>
+      <div class="s2-chip">Full-Year Overview</div>
+    </div>
+    <div class="s2-title">The Admissions Year at a Glance</div>
+    <div class="timeline">
+      <div class="tl-row">
+        <div class="tl-months">
+          <div class="tl-month-label">Sep – Oct</div>
+          <div class="tl-line"></div>
+        </div>
+        <div class="tl-right">
+          <div class="tl-phase phase-research">Research Phase</div>
+          <div class="tl-action">Attend open days · shortlist schools · request prospectuses</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-months">
+          <div class="tl-month-label">Nov – Dec</div>
+          <div class="tl-line"></div>
+        </div>
+        <div class="tl-right">
+          <div class="tl-phase phase-apply">Application Window</div>
+          <div class="tl-action">Most schools open — and some close — applications for the following August intake</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-months">
+          <div class="tl-month-label">Jan – Feb</div>
+          <div class="tl-line"></div>
+        </div>
+        <div class="tl-right">
+          <div class="tl-phase phase-assess">Assessment Season</div>
+          <div class="tl-action">Entrance exams · English assessments · parent interviews</div>
+        </div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-months">
+          <div class="tl-month-label">Mar – Apr</div>
+          <div class="tl-line"></div>
+        </div>
+        <div class="tl-right">
+          <div class="tl-phase phase-decide">Offers & Decisions</div>
+          <div class="tl-action">Offer letters arrive · enrollment deposit due · waiting lists move</div>
+        </div>
+      </div>
+    </div>
+    <div class="s2-bottom">
+      <div class="dots">
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light on"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+      </div>
+      <div style="font-size:12px;color:#9CA3AF;font-weight:600;">2 / 7</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 3 — Sep–Oct (Light) ══════════ -->
+<!-- #F6F8FA → Nana=navy, Says=teal -->
+<div class="slide s3">
+  <div class="s3-inner">
+    <div class="s3-top">
+      <div class="wordmark"><span style="color:#1B3252">Nana</span><span style="color:#34C3A0">Says</span></div>
+      <div class="s3-chip">Sep – Oct</div>
+    </div>
+    <div class="s3-phase">Research Phase</div>
+    <div class="s3-title">Start Here — Earlier<br>Than You Think</div>
+    <div class="s3-content">
+      <div class="action-card">
+        <div class="action-icon">🏫</div>
+        <div class="action-body">
+          <div class="action-title">Book school open days now</div>
+          <div class="action-desc">Popular schools fill open day slots fast. <strong>Bangkok Patana, NIST, and Shrewsbury</strong> all run September open days — register before the wait list kicks in.</div>
+        </div>
+      </div>
+      <div class="action-card">
+        <div class="action-icon">📋</div>
+        <div class="action-body">
+          <div class="action-title">Shortlist to 3 schools maximum</div>
+          <div class="action-desc">Applications cost time and emotional energy. <strong>Shortlist hard</strong> — curriculum fit, commute, and budget — before paying any registration fees.</div>
+        </div>
+      </div>
+      <div class="action-card">
+        <div class="action-icon">📂</div>
+        <div class="action-body">
+          <div class="action-title">Gather documents early</div>
+          <div class="action-desc">Passport copies, school reports (last 2 years), <strong>immunisation records</strong>, and teacher references. These take longer than you expect.</div>
+        </div>
+      </div>
+    </div>
+    <div class="s3-bottom">
+      <div class="dots">
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light on"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+      </div>
+      <div style="font-size:12px;color:#9CA3AF;font-weight:600;">3 / 7</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 4 — Nov–Dec (Navy) ══════════ -->
+<!-- navy → Nana=white, Says=teal -->
+<div class="slide s4">
+  <div class="s4-inner">
+    <div class="s4-top">
+      <div class="wordmark"><span style="color:#fff">Nana</span><span style="color:#34C3A0">Says</span></div>
+      <div class="s4-chip">Nov – Dec</div>
+    </div>
+    <div class="s4-phase">Application Window</div>
+    <div class="s4-title">The Window Opens —<br>Don't Wait Until January</div>
+    <div class="s4-content">
+      <div class="action-card-dark">
+        <div class="action-icon">⚡</div>
+        <div class="action-body">
+          <div class="action-title-dark">Some schools close in November</div>
+          <div class="action-desc-dark">Oversubscribed schools don't wait for you. <strong>Bangkok Patana and NIST</strong> can fill Year 7 places by December — submit before Christmas, not after.</div>
+        </div>
+      </div>
+      <div class="action-card-dark">
+        <div class="action-icon">💳</div>
+        <div class="action-body">
+          <div class="action-title-dark">Pay the registration fee to hold your spot</div>
+          <div class="action-desc-dark">Most Bangkok schools charge <strong>฿3,000–฿15,000</strong> non-refundable registration. It reserves a place in the assessment queue, not a guaranteed seat.</div>
+        </div>
+      </div>
+      <div class="action-card-dark">
+        <div class="action-icon">✉️</div>
+        <div class="action-body">
+          <div class="action-title-dark">Request teacher references early</div>
+          <div class="action-desc-dark">Teachers need <strong>2–3 weeks minimum</strong>. Ask before the end of term — don't chase them over the holiday break.</div>
+        </div>
+      </div>
+    </div>
+    <div class="s4-bottom">
+      <div class="dots">
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy on"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+      </div>
+      <div style="font-size:12px;color:rgba(255,255,255,.4);font-weight:600;">4 / 7</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 5 — Jan–Feb (Light) ══════════ -->
+<!-- #F6F8FA → Nana=navy, Says=teal -->
+<div class="slide s5">
+  <div class="s5-inner">
+    <div class="s5-top">
+      <div class="wordmark"><span style="color:#1B3252">Nana</span><span style="color:#34C3A0">Says</span></div>
+      <div class="s5-chip">Jan – Feb</div>
+    </div>
+    <div class="s5-phase">Assessment Season</div>
+    <div class="s5-title">What Schools Actually<br>Test Your Child On</div>
+    <div class="s5-content">
+      <div class="action-card">
+        <div class="action-icon">✏️</div>
+        <div class="action-body">
+          <div class="action-title">English & Maths placement tests</div>
+          <div class="action-desc">Not a pass/fail — schools use these to place your child in the right set. <strong>Reassure your child</strong>: doing well means appropriate support, not rejection.</div>
+        </div>
+      </div>
+      <div class="action-card">
+        <div class="action-icon">👨‍👩‍👧</div>
+        <div class="action-body">
+          <div class="action-title">Parent interview — prepare honestly</div>
+          <div class="action-desc">Schools ask about your child's <strong>learning style, interests, and any additional needs</strong>. Be open — hiding a learning need delays the right support by months.</div>
+        </div>
+      </div>
+      <div class="action-card">
+        <div class="action-icon">📅</div>
+        <div class="action-body">
+          <div class="action-title">Juggling multiple assessment dates</div>
+          <div class="action-desc">If you applied to 3 schools, assessments may clash. <strong>Contact admissions immediately</strong> — most schools will reschedule once within reason.</div>
+        </div>
+      </div>
+    </div>
+    <div class="s5-bottom">
+      <div class="dots">
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light on"></div>
+        <div class="dot dot-light"></div>
+        <div class="dot dot-light"></div>
+      </div>
+      <div style="font-size:12px;color:#9CA3AF;font-weight:600;">5 / 7</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 6 — Mar–Apr (Navy) ══════════ -->
+<!-- navy → Nana=white, Says=teal -->
+<div class="slide s6">
+  <div class="s6-inner">
+    <div class="s6-top">
+      <div class="wordmark"><span style="color:#fff">Nana</span><span style="color:#34C3A0">Says</span></div>
+      <div class="s6-chip">Mar – Apr</div>
+    </div>
+    <div class="s6-phase">Offers & Decisions</div>
+    <div class="s6-title">Offer in Hand —<br>What to Do Next</div>
+    <div class="s6-content">
+      <div class="action-card-dark">
+        <div class="action-icon">📬</div>
+        <div class="action-body">
+          <div class="action-title-dark">Offer letter arrives — read it carefully</div>
+          <div class="action-desc-dark">Check <strong>which year group</strong>, whether any conditions apply (e.g. English support), and the <strong>enrollment deposit deadline</strong> — usually 14 days.</div>
+        </div>
+      </div>
+      <div class="action-card-dark">
+        <div class="action-icon">⏱️</div>
+        <div class="action-body">
+          <div class="action-title-dark">Deposit deadline is firm</div>
+          <div class="action-desc-dark">Most deposits are <strong>฿30,000–฿80,000</strong> and non-refundable. Confirm before paying — once you pay for one school, withdrawing from another means losing that fee too.</div>
+        </div>
+      </div>
+      <div class="late-box">
+        <div class="late-label">On the waiting list?</div>
+        <div class="late-text">Call — don't email. Ask your <strong>position number</strong> and how fast it typically moves. Lists move significantly between March and June as families make final decisions.</div>
+      </div>
+    </div>
+    <div class="s6-bottom">
+      <div class="dots">
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy"></div>
+        <div class="dot dot-navy on"></div>
+        <div class="dot dot-navy"></div>
+      </div>
+      <div style="font-size:12px;color:rgba(255,255,255,.4);font-weight:600;">6 / 7</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════ SLIDE 7 — CTA (Teal) ══════════ -->
+<!-- teal #239C80 → Nana=white, Says=navy -->
+<div class="slide s7">
+  <div class="s7-inner">
+    <div class="s7-top">
+      <div class="wordmark"><span style="color:#fff">Nana</span><span style="color:#1B3252">Says</span></div>
+      <div class="dots">
+        <div class="dot dot-teal"></div>
+        <div class="dot dot-teal"></div>
+        <div class="dot dot-teal"></div>
+        <div class="dot dot-teal"></div>
+        <div class="dot dot-teal"></div>
+        <div class="dot dot-teal"></div>
+        <div class="dot dot-teal on"></div>
+      </div>
+    </div>
+    <div class="s7-hero">
+      <div class="s7-eyebrow">Save this guide</div>
+      <div class="s7-title">Missed the window?<br>Here's what to do.</div>
+      <div class="s7-tips">
+        <div class="s7-tip">
+          <div class="s7-tip-icon">📞</div>
+          <div class="s7-tip-text"><strong>Call admissions directly</strong> — waiting lists move more than you think between April and July.</div>
+        </div>
+        <div class="s7-tip">
+          <div class="s7-tip-icon">🔎</div>
+          <div class="s7-tip-text"><strong>Look at newer schools</strong> — less established schools often have places and equally strong academics.</div>
+        </div>
+        <div class="s7-tip">
+          <div class="s7-tip-icon">📅</div>
+          <div class="s7-tip-text"><strong>Start the next cycle now</strong> — September is 5 months away. You're not late for 2026.</div>
+        </div>
+      </div>
+    </div>
+    <div class="s7-url-row">
+      <div class="s7-url">nanasays.com →</div>
+      <div class="s7-count">7 / 7</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

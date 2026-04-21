@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V6 — Split Columns</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito Sans', sans-serif; background: #f8f9fa; color: #374151; }
+  .nav { background: #fff; border-bottom: 1px solid #e5e7eb; padding: 0 5%; display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .nav-logo { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px; color: #0f2b4c; }
+  .nav-logo span { color: #34c3a0; }
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 40px 5%; }
+  .page-label { font-size: 11px; font-weight: 800; color: #34c3a0; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 8px; }
+  h1 { font-family: 'Nunito', sans-serif; font-size: 32px; font-weight: 900; color: #0f2b4c; margin-bottom: 6px; }
+  .sub { font-size: 15px; color: #6b7280; margin-bottom: 36px; }
+  .version-tag { position: fixed; top: 70px; right: 20px; background: #0f2b4c; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 13px; font-weight: 700; font-family: 'Nunito', sans-serif; }
+
+  /* Two main columns */
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+
+  /* Column headers */
+  .col-hd { display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 2px solid #0f2b4c; margin-bottom: 4px; }
+  .col-hd-r { border-bottom-color: #34c3a0; }
+  .col-title { font-family: 'Nunito', sans-serif; font-size: 16px; font-weight: 900; color: #0f2b4c; }
+  .col-count { font-size: 12px; color: #9ca3af; font-weight: 500; }
+  .col-pills { display: flex; gap: 5px; flex-wrap: wrap; padding: 10px 0 14px; }
+  .col-pill { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; cursor: pointer; border: 1px solid #e5e7eb; background: #fff; color: #6b7280; font-family: inherit; }
+  .col-pill.active { background: #0f2b4c; color: #fff; border-color: #0f2b4c; }
+  .col-pill-green.active { background: #34c3a0; border-color: #34c3a0; }
+
+  /* World news cards */
+  .wcard { background: #fff; border-radius: 10px; border: 1px solid #e5e7eb; padding: 14px 16px; margin-bottom: 10px; cursor: pointer; transition: box-shadow .15s; }
+  .wcard:hover { box-shadow: 0 3px 12px rgba(0,0,0,.08); }
+  .wcard-top { display: flex; align-items: center; gap: 7px; margin-bottom: 7px; }
+  .wcard-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .wcard-cat { font-size: 11px; font-weight: 700; }
+  .wcard-date { font-size: 11px; color: #9ca3af; margin-left: auto; }
+  .wcard-title { font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 800; color: #0f2b4c; line-height: 1.4; margin-bottom: 5px; }
+  .wcard-sum { font-size: 12px; color: #6b7280; line-height: 1.5; }
+  .urgent-badge { font-size: 10px; font-weight: 700; background: #fee2e2; color: #b91c1c; padding: 1px 7px; border-radius: 8px; }
+
+  /* School update items */
+  .supdate { padding: 13px 0; border-bottom: 1px solid #f3f4f6; cursor: pointer; }
+  .supdate:last-child { border-bottom: none; }
+  .supdate:hover .supdate-title { color: #34c3a0; }
+  .supdate-school { font-size: 11px; font-weight: 800; color: #34c3a0; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; }
+  .supdate-title { font-family: 'Nunito', sans-serif; font-size: 14px; font-weight: 800; color: #0f2b4c; line-height: 1.4; margin-bottom: 5px; transition: color .15s; }
+  .supdate-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .supdate-cat { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: #f0fdf9; color: #1a9478; }
+  .supdate-date { font-size: 11px; color: #9ca3af; }
+  .supdate-urgent { font-size: 10px; font-weight: 700; background: #fee2e2; color: #b91c1c; padding: 1px 7px; border-radius: 8px; }
+  .load-more { width: 100%; margin-top: 6px; padding: 10px; background: none; border: 1px solid #e5e7eb; border-radius: 8px; font-size: 12px; font-weight: 600; color: #0f2b4c; cursor: pointer; font-family: inherit; }
+</style>
+</head>
+<body>
+
+<div class="version-tag">V6 — Split Columns</div>
+
+<nav class="nav">
+  <div class="nav-logo">Nana<span>Says</span></div>
+  <div style="display:flex;gap:24px;font-size:14px;font-weight:600;color:#6b7280;">
+    <span>Schools</span><span style="color:#0f2b4c;">News</span><span>Compare</span>
+  </div>
+</nav>
+
+<div class="wrap">
+  <div class="page-label">Education Intelligence</div>
+  <h1>Education News &amp; School Updates</h1>
+  <p class="sub">World education news alongside direct updates from Bangkok's international schools</p>
+
+  <div class="split">
+
+    <!-- LEFT — World education news -->
+    <div>
+      <div class="col-hd">
+        <span class="col-title">World Education News</span>
+        <span class="col-count">59 articles</span>
+      </div>
+      <div class="col-pills">
+        <button class="col-pill active">All</button>
+        <button class="col-pill">Admissions</button>
+        <button class="col-pill">Fees</button>
+        <button class="col-pill">Visa</button>
+        <button class="col-pill">Scholarships</button>
+      </div>
+
+      <div class="wcard">
+        <div class="wcard-top">
+          <div class="wcard-dot" style="background:#059669;"></div>
+          <span class="wcard-cat" style="color:#059669;">Admissions</span>
+          <span class="wcard-date">2d ago</span>
+        </div>
+        <div class="wcard-title">IB Diploma hits 220,000 candidates as Asia-Pacific expansion accelerates</div>
+        <div class="wcard-sum">Thailand leads mainland Southeast Asia with 52 IB World Schools.</div>
+      </div>
+
+      <div class="wcard">
+        <div class="wcard-top">
+          <div class="wcard-dot" style="background:#2563eb;"></div>
+          <span class="wcard-cat" style="color:#2563eb;">Visa</span>
+          <span class="urgent-badge" style="margin-left:4px;">Urgent</span>
+          <span class="wcard-date">1d ago</span>
+        </div>
+        <div class="wcard-title">Australia visa refusal rates reach record high — 43.5% of Thai ELICOS rejected</div>
+        <div class="wcard-sum">Highest refusal rate in 21 years. September 2026 review pending.</div>
+      </div>
+
+      <div class="wcard">
+        <div class="wcard-top">
+          <div class="wcard-dot" style="background:#dc2626;"></div>
+          <span class="wcard-cat" style="color:#dc2626;">Fees</span>
+          <span class="wcard-date">3d ago</span>
+        </div>
+        <div class="wcard-title">Russell Group universities considering raising international fees above £50,000</div>
+        <div class="wcard-sum">12+ universities reviewing 2027-28 fee structures.</div>
+      </div>
+
+      <div class="wcard">
+        <div class="wcard-top">
+          <div class="wcard-dot" style="background:#34c3a0;"></div>
+          <span class="wcard-cat" style="color:#1a9478;">Scholarships</span>
+          <span class="wcard-date">2d ago</span>
+        </div>
+        <div class="wcard-title">UK universities commit £180M to international scholarships — Thailand named as target</div>
+        <div class="wcard-sum">Edinburgh, Manchester and King's College increasing budgets by 40-60%.</div>
+      </div>
+
+      <div class="wcard">
+        <div class="wcard-top">
+          <div class="wcard-dot" style="background:#2563eb;"></div>
+          <span class="wcard-cat" style="color:#2563eb;">Visa</span>
+          <span class="urgent-badge" style="margin-left:4px;">Urgent</span>
+          <span class="wcard-date">4d ago</span>
+        </div>
+        <div class="wcard-title">Canada extends post-graduation work permit to 3 years for all eligible graduates</div>
+        <div class="wcard-sum">Changes take effect June 1, 2026.</div>
+      </div>
+
+      <button class="load-more">Load more world news</button>
+    </div>
+
+    <!-- RIGHT — School updates -->
+    <div>
+      <div class="col-hd col-hd-r">
+        <span class="col-title" style="color:#1a9478;">School Updates</span>
+        <span class="col-count">24 updates</span>
+      </div>
+      <div class="col-pills">
+        <button class="col-pill col-pill-green active">All schools</button>
+        <button class="col-pill">Ruamrudee</button>
+        <button class="col-pill">Bangkok Patana</button>
+        <button class="col-pill">NIST</button>
+      </div>
+
+      <div class="supdate">
+        <div class="supdate-school">Ruamrudee International</div>
+        <div class="supdate-title">Open house — Saturday 19 April, all Year 7 entry families welcome</div>
+        <div class="supdate-row">
+          <span class="supdate-cat">Events</span>
+          <span class="supdate-date">3d ago</span>
+          <span class="supdate-urgent">Upcoming</span>
+        </div>
+      </div>
+
+      <div class="supdate">
+        <div class="supdate-school">Bangkok Patana School</div>
+        <div class="supdate-title">Year 12 IB results — 43% of students score 38 points or above</div>
+        <div class="supdate-row">
+          <span class="supdate-cat">Results</span>
+          <span class="supdate-date">4d ago</span>
+        </div>
+      </div>
+
+      <div class="supdate">
+        <div class="supdate-school">NIST International</div>
+        <div class="supdate-title">Scholarship applications now open for 2026-27 entry — deadline 30 April</div>
+        <div class="supdate-row">
+          <span class="supdate-cat">Scholarships</span>
+          <span class="supdate-date">2d ago</span>
+          <span class="supdate-urgent">Deadline soon</span>
+        </div>
+      </div>
+
+      <div class="supdate">
+        <div class="supdate-school">Concordian International</div>
+        <div class="supdate-title">New STEAM building opens September 2026 — construction on track</div>
+        <div class="supdate-row">
+          <span class="supdate-cat">Facilities</span>
+          <span class="supdate-date">5d ago</span>
+        </div>
+      </div>
+
+      <div class="supdate">
+        <div class="supdate-school">Shrewsbury International</div>
+        <div class="supdate-title">Football team wins BISAC championship for second year running</div>
+        <div class="supdate-row">
+          <span class="supdate-cat">Sport</span>
+          <span class="supdate-date">6d ago</span>
+        </div>
+      </div>
+
+      <div class="supdate">
+        <div class="supdate-school">Ruamrudee International</div>
+        <div class="supdate-title">New head of secondary appointed — Mr. James Whitfield joins from Harrow Bangkok</div>
+        <div class="supdate-row">
+          <span class="supdate-cat">Leadership</span>
+          <span class="supdate-date">1w ago</span>
+        </div>
+      </div>
+
+      <div class="supdate">
+        <div class="supdate-school">Bangkok Patana School</div>
+        <div class="supdate-title">Extended campus tour dates released for prospective families — book now</div>
+        <div class="supdate-row">
+          <span class="supdate-cat">Admissions</span>
+          <span class="supdate-date">1w ago</span>
+        </div>
+      </div>
+
+      <button class="load-more">Load more school updates</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

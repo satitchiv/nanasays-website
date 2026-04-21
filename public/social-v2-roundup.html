@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>V2 — City Roundup · Teal Canvas</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #cbd5e1; display: flex; flex-direction: column; align-items: center;
+    padding: 48px 24px; gap: 10px; font-family: 'Nunito Sans', sans-serif; }
+  .caption { font-size: 12px; font-weight: 700; color: #475569; letter-spacing: .5px; text-transform: uppercase; margin-bottom: 4px; }
+  .sub-caption { font-size: 11px; color: #94a3b8; margin-bottom: 16px; }
+
+  .post {
+    width: 540px; height: 540px;
+    background: #239C80;
+    display: flex; flex-direction: column;
+    padding: 30px 28px 26px;
+    box-shadow: 0 12px 48px rgba(0,0,0,.32);
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* Decorative large circle watermark */
+  .post::before {
+    content: ''; position: absolute; bottom: -100px; right: -100px;
+    width: 340px; height: 340px; border-radius: 50%;
+    background: rgba(0,0,0,.08);
+    pointer-events: none;
+  }
+  .post::after {
+    content: ''; position: absolute; bottom: -60px; right: -60px;
+    width: 220px; height: 220px; border-radius: 50%;
+    background: rgba(0,0,0,.06);
+    pointer-events: none;
+  }
+
+  .toprow { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; position: relative; }
+  .wordmark { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 22px; letter-spacing: -.5px; }
+  .wn { color: #fff; } .ws { color: #1B3252; }
+  .chip { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+    background: rgba(27,50,82,.2); color: #fff; border: 1px solid rgba(255,255,255,.3);
+    padding: 5px 12px; border-radius: 100px; }
+
+  .title { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 28px;
+    color: #fff; line-height: 1.1; letter-spacing: -.8px; margin-bottom: 5px; position: relative; }
+  .title span { color: #1B3252; }
+  .sub { font-size: 11px; color: rgba(255,255,255,.65); margin-bottom: 20px; position: relative; }
+
+  /* School cards — navy on teal */
+  .cards { flex: 1; display: flex; flex-direction: column; justify-content: space-between; position: relative; }
+
+  .card {
+    background: #1B3252;
+    border-radius: 12px;
+    padding: 16px 18px;
+    display: flex; align-items: center; gap: 14px;
+  }
+
+  /* Rank number */
+  .rank { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 32px;
+    color: #34C3A0; line-height: 1; width: 32px; flex-shrink: 0;
+    opacity: 1; }
+  .card:nth-child(2) .rank { opacity: .7; }
+  .card:nth-child(3) .rank { opacity: .45; }
+
+  .card-info { flex: 1; }
+  .card-name { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 18px;
+    color: #fff; letter-spacing: -.4px; margin-bottom: 5px; }
+  .card-tags { display: flex; gap: 5px; flex-wrap: wrap; }
+  .tag { font-size: 10px; font-weight: 600; color: rgba(255,255,255,.55);
+    background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.12);
+    padding: 3px 8px; border-radius: 100px; }
+  .tag.teal { color: #34C3A0; background: rgba(52,195,160,.12); border-color: rgba(52,195,160,.25); }
+
+  .card-fee { text-align: right; flex-shrink: 0; }
+  .fee-from { font-size: 8.5px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1px; color: rgba(255,255,255,.4); margin-bottom: 3px; }
+  .fee-val { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px;
+    color: #fff; font-variant-numeric: tabular-nums; letter-spacing: -.5px; white-space: nowrap; }
+
+  .footer { padding-top: 16px;
+    display: flex; align-items: center; justify-content: space-between; position: relative; }
+  .note { font-size: 10px; color: rgba(255,255,255,.5); font-style: italic; }
+  .url { font-size: 10px; color: rgba(255,255,255,.6); font-weight: 600; }
+</style>
+</head>
+<body>
+
+<div class="caption">V2 — City Roundup · Teal Canvas</div>
+<div class="sub-caption">Dark teal background · Navy school cards · White fees</div>
+
+<div class="post">
+
+  <div class="toprow">
+    <div class="wordmark"><span class="wn">Nana</span><span class="ws">Says</span></div>
+    <div class="chip">Bangkok Roundup</div>
+  </div>
+
+  <div class="title"><span>3 IB schools</span> in Bangkok<br>under ฿600,000 / year</div>
+  <div class="sub">Verified fees · Academic Year 2024–25 · Tuition only</div>
+
+  <div class="cards">
+
+    <div class="card">
+      <div class="rank">1</div>
+      <div class="card-info">
+        <div class="card-name">Bangkok Patana School</div>
+        <div class="card-tags">
+          <span class="tag teal">IB PYP · MYP · DP</span>
+          <span class="tag">BSO Excellent</span>
+        </div>
+      </div>
+      <div class="card-fee">
+        <div class="fee-from">From</div>
+        <div class="fee-val">฿580,000</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="rank">2</div>
+      <div class="card-info">
+        <div class="card-name">NIST International School</div>
+        <div class="card-tags">
+          <span class="tag teal">IB World School</span>
+          <span class="tag">CIS Accredited</span>
+        </div>
+      </div>
+      <div class="card-fee">
+        <div class="fee-from">From</div>
+        <div class="fee-val">฿545,000</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="rank">3</div>
+      <div class="card-info">
+        <div class="card-name">Wells International School</div>
+        <div class="card-tags">
+          <span class="tag teal">IB PYP · MYP</span>
+          <span class="tag">Central BKK</span>
+        </div>
+      </div>
+      <div class="card-fee">
+        <div class="fee-from">From</div>
+        <div class="fee-val">฿420,000</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <div class="note">Full profiles at nanasays.com</div>
+    <div class="url">nanasays.com</div>
+  </div>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tuition — Layout 2: Clean Data Table</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #cbd5e1; display: flex; flex-direction: column; align-items: center; padding: 48px 24px; gap: 8px; font-family: 'Nunito Sans', sans-serif; }
+  .caption { font-size: 12px; font-weight: 700; color: #475569; letter-spacing: 1px; text-transform: uppercase; }
+  .sub { font-size: 11px; color: #94a3b8; margin-bottom: 16px; }
+
+  .post {
+    width: 540px; height: 540px;
+    background: #fff;
+    display: flex; flex-direction: column;
+    box-shadow: 0 12px 48px rgba(0,0,0,.2);
+    overflow: hidden;
+  }
+
+  .stripe { height: 5px; background: #34C3A0; flex-shrink: 0; }
+
+  .header { padding: 24px 30px 20px; border-bottom: 1px solid #E5E7EB; flex-shrink: 0; }
+  .toprow { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .wordmark { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 22px; letter-spacing: -.5px; }
+  .wn { color: #1B3252; } .ws { color: #34C3A0; }
+  .chip { font-size: 10px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+    background: #E8FAF6; color: #239C80; border: 1px solid rgba(52,195,160,.3);
+    padding: 6px 14px; border-radius: 100px; }
+
+  .school-name { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 30px;
+    color: #1B3252; line-height: 1.02; letter-spacing: -.9px; margin-bottom: 5px; }
+  .school-sub { font-size: 11px; color: #9CA3AF; font-weight: 400; }
+
+  /* Table */
+  .table-body { flex: 1; display: flex; flex-direction: column; padding: 0 30px; }
+
+  .col-header { display: flex; justify-content: space-between;
+    padding: 14px 0 11px; border-bottom: 2px solid #1B3252; flex-shrink: 0; }
+  .col-h { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.4px; color: #1B3252; }
+
+  .fee-row { display: flex; align-items: center; justify-content: space-between;
+    flex: 1; border-bottom: 1px solid #F3F4F6; }
+  .fee-level { font-size: 15px; font-weight: 600; color: #374151; }
+  .fee-right { display: flex; align-items: center; gap: 14px; }
+  .fee-bar-mini { width: 64px; height: 7px; background: #E5E7EB; border-radius: 4px; overflow: hidden; }
+  .fee-bar-fill { height: 100%; background: #34C3A0; border-radius: 4px; }
+  .fee-amount { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px;
+    color: #1B3252; font-variant-numeric: tabular-nums; letter-spacing: -.5px;
+    min-width: 100px; text-align: right; }
+
+  /* Summary */
+  .summary-row {
+    margin: 0 30px 14px;
+    background: #F6F8FA; border: 1.5px solid #E5E7EB;
+    border-left: 4px solid #34C3A0; border-radius: 0 8px 8px 0;
+    padding: 12px 16px;
+    display: flex; justify-content: space-between; align-items: center;
+    flex-shrink: 0;
+  }
+  .sum-lbl { font-size: 10px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 1.2px; color: #9CA3AF; margin-bottom: 4px; }
+  .sum-val { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 15px;
+    color: #1B3252; font-variant-numeric: tabular-nums; }
+
+  .footer { padding: 13px 30px; border-top: 1px solid #E5E7EB;
+    display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+  .verified { display: flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 700; color: #239C80; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: #34C3A0; }
+  .url { font-size: 11px; color: #9CA3AF; }
+</style>
+</head>
+<body>
+<div class="caption">Layout 2 — Clean Data Table</div>
+<div class="sub">White · Large amounts right-aligned · Bloomberg-style rows</div>
+
+<div class="post">
+  <div class="stripe"></div>
+
+  <div class="header">
+    <div class="toprow">
+      <div class="wordmark"><span class="wn">Nana</span><span class="ws">Says</span></div>
+      <div class="chip">Tuition Snapshot</div>
+    </div>
+    <div class="school-name">Bangkok Patana School</div>
+    <div class="school-sub">Bangkok · Academic Year 2024–25 · Annual fees in Thai Baht · Tuition only</div>
+  </div>
+
+  <div class="table-body">
+    <div class="col-header">
+      <span class="col-h">Year Group</span>
+      <span class="col-h">Annual Tuition (THB)</span>
+    </div>
+    <div class="fee-row">
+      <span class="fee-level">Early Years</span>
+      <div class="fee-right">
+        <div class="fee-bar-mini"><div class="fee-bar-fill" style="width:55%"></div></div>
+        <span class="fee-amount">฿580,000</span>
+      </div>
+    </div>
+    <div class="fee-row">
+      <span class="fee-level">Primary</span>
+      <div class="fee-right">
+        <div class="fee-bar-mini"><div class="fee-bar-fill" style="width:68%"></div></div>
+        <span class="fee-amount">฿720,000</span>
+      </div>
+    </div>
+    <div class="fee-row">
+      <span class="fee-level">Secondary</span>
+      <div class="fee-right">
+        <div class="fee-bar-mini"><div class="fee-bar-fill" style="width:85%"></div></div>
+        <span class="fee-amount">฿890,000</span>
+      </div>
+    </div>
+    <div class="fee-row">
+      <span class="fee-level">Sixth Form</span>
+      <div class="fee-right">
+        <div class="fee-bar-mini"><div class="fee-bar-fill" style="width:100%"></div></div>
+        <span class="fee-amount">฿1,050,000</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="summary-row">
+    <div>
+      <div class="sum-lbl">Full range per year</div>
+      <div class="sum-val">฿580,000 – ฿1,050,000</div>
+    </div>
+    <div style="text-align:right">
+      <div class="sum-lbl">Curriculum</div>
+      <div class="sum-val">IB · IGCSE · A-Level</div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="verified"><div class="dot"></div>Tuition verified Mar 2026</div>
+    <div class="url">nanasays.com</div>
+  </div>
+</div>
+</body>
+</html>

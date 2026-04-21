@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ArticleCard — Design Mockup</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Nunito Sans', system-ui, sans-serif;
+    background: #f5f5f0;
+    padding: 40px 24px;
+    color: #1a2340;
+  }
+  h2 { font-size: 13px; font-weight: 600; color: #888; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 20px; }
+  .page-wrap { max-width: 780px; margin: 0 auto; }
+
+  /* ── CARD ── */
+  .card {
+    background: #fff;
+    border-radius: 14px;
+    border: 0.5px solid #e2e2da;
+    margin-bottom: 24px;
+    overflow: hidden;
+  }
+
+  /* Top strip — colored left border accent */
+  .card-inner {
+    display: grid;
+    grid-template-columns: 1fr 220px;
+    min-height: 0;
+  }
+
+  /* LEFT PANE */
+  .card-left {
+    padding: 18px 20px;
+    border-right: 0.5px solid #e2e2da;
+  }
+
+  .source-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: #f0f0ea;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: #888;
+    border: 0.5px solid #ddd;
+    flex-shrink: 0;
+  }
+  .source-name { font-size: 13px; font-weight: 600; color: #1a2340; }
+  .source-time { font-size: 11px; color: #999; margin-top: 1px; }
+  .cat-pill {
+    margin-left: auto;
+    font-size: 11px;
+    padding: 3px 10px;
+    border-radius: 10px;
+    font-weight: 500;
+  }
+
+  .headline {
+    font-size: 17px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: #1a2340;
+    margin-bottom: 14px;
+  }
+
+  /* Key points section */
+  .keypoints-label {
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    color: #999;
+    margin-bottom: 8px;
+  }
+
+  /* Fixed height preview — shows ~2 bullets, fades out */
+  .keypoints-preview {
+    position: relative;
+    max-height: 90px;
+    overflow: hidden;
+  }
+  .keypoints-preview::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 40px;
+    background: linear-gradient(transparent, #fff);
+    pointer-events: none;
+  }
+  .keypoints-expanded .keypoints-preview {
+    max-height: none;
+    overflow: visible;
+  }
+  .keypoints-expanded .keypoints-preview::after {
+    display: none;
+  }
+
+  .bullet-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    align-items: flex-start;
+  }
+  .bullet-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 7px;
+  }
+  .bullet-text {
+    font-size: 13px;
+    color: #4a4a3a;
+    line-height: 1.55;
+  }
+
+  .expand-btn {
+    margin-top: 10px;
+    background: none;
+    border: none;
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    color: #2563eb;
+    cursor: pointer;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  /* Card footer */
+  .card-footer {
+    border-top: 0.5px solid #e2e2da;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .btn-primary {
+    font-size: 12px; padding: 7px 16px;
+    background: #1a2340; color: #fff;
+    border-radius: 20px; border: none;
+    font-weight: 700; cursor: pointer;
+    font-family: inherit;
+    text-decoration: none;
+    display: inline-block;
+  }
+  .credit-source {
+    font-size: 12px; color: #aaa;
+  }
+  .credit-source a {
+    color: #aaa;
+    text-decoration: none;
+  }
+
+  /* RIGHT PANE — two boxes stacked */
+  .card-right {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .right-box {
+    flex: 1;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .right-box + .right-box {
+    border-top: 0.5px solid #e2e2da;
+  }
+
+  .box-label {
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .box-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-top: 2px;
+  }
+  .tag {
+    font-size: 11px;
+    padding: 3px 9px;
+    border-radius: 8px;
+    font-weight: 500;
+    line-height: 1.3;
+  }
+
+  .box-text {
+    font-size: 12px;
+    line-height: 1.55;
+    margin-top: 2px;
+  }
+
+  /* Variants */
+  .box-affected .box-label { color: #0891b2; }
+  .box-affected { background: #f0f9ff; }
+  .box-affected .tag { background: #e0f2fe; color: #0369a1; }
+
+  .box-action-real .box-label { color: #b91c1c; }
+  .box-action-real { background: #fef2f2; }
+  .box-action-real .box-text { color: #7f1d1d; }
+
+  .box-action-date .box-label { color: #b45309; }
+  .box-action-date { background: #fffbeb; }
+  .box-action-date .box-text { color: #78350f; }
+  .date-badge {
+    font-size: 11px; font-weight: 800;
+    background: #fef3c7; color: #b45309;
+    padding: 3px 10px; border-radius: 8px;
+    display: inline-block; margin-bottom: 4px;
+  }
+
+  .box-no-action .box-label { color: #999; }
+  .box-no-action { background: #f8f8f4; }
+  .box-no-action .box-text { color: #999; font-style: italic; }
+
+  /* Urgent badge */
+  .urgent-badge {
+    font-size: 11px; background: #fee2e2; color: #b91c1c;
+    padding: 2px 8px; border-radius: 8px; font-weight: 700;
+  }
+
+  /* Colored left border on card */
+  .card-border { height: 4px; width: 100%; }
+
+  hr.section-sep { border: none; border-top: 1px dashed #ddd; margin: 32px 0; }
+  .section-title { font-size: 14px; font-weight: 700; color: #555; margin-bottom: 6px; margin-top: 32px; }
+  .section-note { font-size: 12px; color: #999; margin-bottom: 18px; }
+</style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <h2>ArticleCard — Proposed Layout</h2>
+  <p style="font-size:13px;color:#888;margin-bottom:28px;line-height:1.6;">
+    Left 2/3 = headline + key points (collapsed with fade, expandable).<br>
+    Right 1/3 = top box: Affected · bottom box: Action.
+  </p>
+
+  <!-- ═══════════════════════════════════════
+       CARD 1 — With date deadline + real action
+  ════════════════════════════════════════ -->
+  <p class="section-title">Variant A — Real deadline date + Affected tags</p>
+  <p class="section-note">When action_needed contains a date (e.g. "by Sep 2025"), right pane bottom shows orange date warning.</p>
+
+  <div class="card">
+    <div class="card-border" style="background:#059669;"></div>
+    <div class="card-inner">
+
+      <!-- LEFT -->
+      <div class="card-left">
+        <div class="source-row">
+          <div class="avatar">IB</div>
+          <div>
+            <div class="source-name">IB Organization</div>
+            <div class="source-time">2 days ago</div>
+          </div>
+          <span class="cat-pill" style="background:#05966918;color:#0F6E56;">Admissions</span>
+        </div>
+
+        <div class="headline">
+          IB Diploma Programme hits 220,000 candidates as Asia-Pacific expansion accelerates
+        </div>
+
+        <div class="keypoints-label">Key points</div>
+        <div class="keypoints-preview" id="kp1">
+          <div class="bullet-row">
+            <span class="bullet-dot" style="background:#059669;"></span>
+            <span class="bullet-text">IB Diploma candidates reached 220,000 globally, up 8% from last year, with Asia-Pacific driving the majority of growth.</span>
+          </div>
+          <div class="bullet-row">
+            <span class="bullet-dot" style="background:#059669;"></span>
+            <span class="bullet-text">Ruamrudee International School is among 14 Thai schools newly accredited for the full IB continuum in 2024.</span>
+          </div>
+          <div class="bullet-row">
+            <span class="bullet-dot" style="background:#059669;"></span>
+            <span class="bullet-text">The IBO plans to open 3 new regional offices in Southeast Asia to support curriculum delivery and examiner training.</span>
+          </div>
+        </div>
+        <button class="expand-btn" onclick="toggleExpand('kp1', this)">
+          ▾ Show all key points
+        </button>
+      </div>
+
+      <!-- RIGHT -->
+      <div class="card-right">
+        <div class="right-box box-affected">
+          <div class="box-label">Affected</div>
+          <div class="box-tags">
+            <span class="tag">IB students</span>
+            <span class="tag">Grade 11–12</span>
+            <span class="tag">Parents applying</span>
+          </div>
+        </div>
+        <div class="right-box box-action-date">
+          <div class="box-label">Action needed</div>
+          <span class="date-badge">Sep 2025</span>
+          <div class="box-text">New IB registration opens Sep 2025 — confirm subject selections with your school coordinator before the deadline.</div>
+        </div>
+      </div>
+
+    </div>
+    <div class="card-footer">
+      <a href="#" class="btn-primary">Read more →</a>
+      <span class="credit-source">Credit source: <a href="#">IB Organization</a></span>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════
+       CARD 2 — Urgent action, no date
+  ════════════════════════════════════════ -->
+  <p class="section-title">Variant B — Urgent action, no specific date</p>
+  <p class="section-note">Right pane bottom shows red Action box when action is real but no date is detected.</p>
+
+  <div class="card">
+    <div class="card-border" style="background:#2563eb;"></div>
+    <div class="card-inner">
+
+      <!-- LEFT -->
+      <div class="card-left">
+        <div class="source-row">
+          <div class="avatar">TH</div>
+          <div>
+            <div class="source-name">Bangkok Post</div>
+            <div class="source-time">Today</div>
+          </div>
+          <span class="cat-pill" style="background:#2563eb18;color:#185FA5;">Visa</span>
+          <span class="urgent-badge" style="margin-left:4px;">Urgent</span>
+        </div>
+
+        <div class="headline">
+          Thailand extends student visa grace period for international school graduates amid university application delays
+        </div>
+
+        <div class="keypoints-label">Key points</div>
+        <div class="keypoints-preview" id="kp2">
+          <div class="bullet-row">
+            <span class="bullet-dot" style="background:#2563eb;"></span>
+            <span class="bullet-text">Thai immigration extended the post-graduation visa grace period from 30 to 90 days for international school graduates.</span>
+          </div>
+          <div class="bullet-row">
+            <span class="bullet-dot" style="background:#2563eb;"></span>
+            <span class="bullet-text">The extension applies to students holding ED (Education) visas at accredited international schools including those in Bangkok.</span>
+          </div>
+          <div class="bullet-row">
+            <span class="bullet-dot" style="background:#2563eb;"></span>
+            <span class="bullet-text">Students must notify their school registrar to file for the extension — it is not automatic.</span>
+          </div>
+        </div>
+        <button class="expand-btn" onclick="toggleExpand('kp2', this)">
+          ▾ Show all key points
+        </button>
+      </div>
+
+      <!-- RIGHT -->
+      <div class="card-right">
+        <div class="right-box box-affected">
+          <div class="box-label">Affected</div>
+          <div class="box-tags">
+            <span class="tag">International students</span>
+            <span class="tag">ED visa holders</span>
+            <span class="tag">Grade 12 graduates</span>
+          </div>
+        </div>
+        <div class="right-box box-action-real">
+          <div class="box-label">Action needed</div>
+          <div class="box-text">Contact your school registrar immediately to file for the 90-day visa extension before the original visa expires.</div>
+        </div>
+      </div>
+
+    </div>
+    <div class="card-footer">
+      <a href="#" class="btn-primary">Read more →</a>
+      <span class="credit-source">Credit source: <a href="#">Bangkok Post</a></span>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════
+       CARD 3 — No action (informational)
+  ════════════════════════════════════════ -->
+  <p class="section-title">Variant C — Informational, no action needed</p>
+  <p class="section-note">Right pane bottom shows gray "No action" when article is purely informational.</p>
+
+  <div class="card">
+    <div class="card-border" style="background:#7c3aed;"></div>
+    <div class="card-inner">
+
+      <!-- LEFT -->
+      <div class="card-left">
+        <div class="source-row">
+          <div class="avatar">QS</div>
+          <div>
+            <div class="source-name">QS Rankings</div>
+            <div class="source-time">5 days ago</div>
+          </div>
+          <span class="cat-pill" style="background:#7c3aed18;color:#534AB7;">Rankings</span>
+        </div>
+
+        <div class="headline">
+          Asia-Pacific universities surge in global rankings as IB graduate acceptance rates rise to 94%
+        </div>
+
+        <div class="keypoints-label">Key points</div>
+        <div class="keypoints-preview" id="kp3">
+          <div class="bullet-row">
+            <span class="bullet-dot" style="background:#7c3aed;"></span>
+            <span class="bullet-text">Nine out of ten Asia-Pacific universities in the QS top 100 saw IB acceptance rates climb above 90% for the first time.</span>
+          </div>
+          <div class="bullet-row">
+            <span class="bullet-dot" style="background:#7c3aed;"></span>
+            <span class="bullet-text">National University of Singapore and Chulalongkorn University jointly topped the Southeast Asia sub-ranking.</span>
+          </div>
+          <div class="bullet-row">
+            <span class="bullet-dot" style="background:#7c3aed;"></span>
+            <span class="bullet-text">IB students applying to Asia-Pacific universities reported shorter decision timelines compared to UK and US applications.</span>
+          </div>
+        </div>
+        <button class="expand-btn" onclick="toggleExpand('kp3', this)">
+          ▾ Show all key points
+        </button>
+      </div>
+
+      <!-- RIGHT -->
+      <div class="card-right">
+        <div class="right-box box-affected">
+          <div class="box-label">Affected</div>
+          <div class="box-tags">
+            <span class="tag">IB students</span>
+            <span class="tag">University applicants</span>
+          </div>
+        </div>
+        <div class="right-box box-no-action">
+          <div class="box-label">Action needed</div>
+          <div class="box-text">Informational — no action required.</div>
+        </div>
+      </div>
+
+    </div>
+    <div class="card-footer">
+      <a href="#" class="btn-primary">Read more →</a>
+      <span class="credit-source">Credit source: <a href="#">QS Rankings</a></span>
+    </div>
+  </div>
+
+
+  <!-- ═══════════════════════════════════════
+       CARD 4 — No affected tags, no action (minimal)
+  ════════════════════════════════════════ -->
+  <p class="section-title">Variant D — No Affected data, no action (minimal state)</p>
+  <p class="section-note">Right pane gracefully shows empty states when who_affected or action_needed is missing from the data.</p>
+
+  <div class="card">
+    <div class="card-border" style="background:#0891b2;"></div>
+    <div class="card-inner">
+
+      <!-- LEFT -->
+      <div class="card-left">
+        <div class="source-row">
+          <div class="avatar">SN</div>
+          <div>
+            <div class="source-name">School News Asia</div>
+            <div class="source-time">1 week ago</div>
+          </div>
+          <span class="cat-pill" style="background:#0891b218;color:#0A6B82;">School News</span>
+        </div>
+
+        <div class="headline">
+          Bangkok international schools report record enrollment for 2025–26 academic year
+        </div>
+
+        <div class="keypoints-label">Key points</div>
+        <div class="keypoints-preview" id="kp4">
+          <div class="bullet-row">
+            <span class="bullet-dot" style="background:#0891b2;"></span>
+            <span class="bullet-text">Total enrollment across Bangkok's 38 accredited international schools rose 12% year-on-year.</span>
+          </div>
+          <div class="bullet-row">
+            <span class="bullet-dot" style="background:#0891b2;"></span>
+            <span class="bullet-text">Waiting lists at IB-accredited schools now average 18 months, up from 11 months in 2023.</span>
+          </div>
+        </div>
+        <button class="expand-btn" onclick="toggleExpand('kp4', this)">
+          ▾ Show all key points
+        </button>
+      </div>
+
+      <!-- RIGHT -->
+      <div class="card-right">
+        <div class="right-box box-affected" style="background:#f8f8f4;">
+          <div class="box-label" style="color:#bbb;">Affected</div>
+          <div class="box-text" style="font-size:12px;color:#bbb;font-style:italic;">Not specified</div>
+        </div>
+        <div class="right-box box-no-action">
+          <div class="box-label">Action needed</div>
+          <div class="box-text">Informational — no action required.</div>
+        </div>
+      </div>
+
+    </div>
+    <div class="card-footer">
+      <a href="#" class="btn-primary">Read more →</a>
+      <span class="credit-source">Credit source: <a href="#">School News Asia</a></span>
+    </div>
+  </div>
+
+  <p style="font-size:12px;color:#bbb;text-align:center;margin-top:40px;">
+    Mockup only — not connected to live data. Open http://localhost:3000/card-mockup.html to view.
+  </p>
+
+</div>
+
+<script>
+  function toggleExpand(id, btn) {
+    const container = document.getElementById(id)
+    const parent = container.parentElement
+    if (parent.classList.contains('keypoints-expanded')) {
+      parent.classList.remove('keypoints-expanded')
+      btn.textContent = '▾ Show all key points'
+    } else {
+      parent.classList.add('keypoints-expanded')
+      btn.textContent = '▴ Hide key points'
+    }
+  }
+</script>
+</body>
+</html>

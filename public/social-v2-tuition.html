@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>V2 — Tuition Snapshot · Giant Fee Hero</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #cbd5e1; display: flex; flex-direction: column; align-items: center;
+    padding: 48px 24px; gap: 10px; font-family: 'Nunito Sans', sans-serif; }
+  .caption { font-size: 12px; font-weight: 700; color: #475569; letter-spacing: .5px; text-transform: uppercase; margin-bottom: 4px; }
+  .sub-caption { font-size: 11px; color: #94a3b8; margin-bottom: 16px; }
+
+  .post {
+    width: 540px; height: 540px;
+    background: #fff;
+    display: flex; flex-direction: column;
+    box-shadow: 0 12px 48px rgba(0,0,0,.2);
+    overflow: hidden;
+  }
+
+  .stripe { height: 5px; background: #34C3A0; flex-shrink: 0; }
+
+  /* Compact header */
+  .header { padding: 20px 32px 18px; border-bottom: 1px solid #E5E7EB; flex-shrink: 0; }
+  .toprow { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .wordmark { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px; letter-spacing: -.5px; }
+  .wn { color: #1B3252; } .ws { color: #34C3A0; }
+  .chip { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+    background: #E8FAF6; color: #239C80; border: 1px solid rgba(52,195,160,.3);
+    padding: 5px 12px; border-radius: 100px; }
+  .school-name { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 22px;
+    color: #1B3252; letter-spacing: -.6px; }
+  .school-sub { font-size: 11px; color: #9CA3AF; margin-top: 3px; }
+
+  /* Giant fee hero */
+  .hero { padding: 22px 32px 18px; border-bottom: 1px solid #E5E7EB; flex-shrink: 0; }
+  .hero-lbl { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.8px;
+    color: #9CA3AF; margin-bottom: 6px; }
+  .hero-fee { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 76px;
+    color: #1B3252; line-height: 1; letter-spacing: -3px; font-variant-numeric: tabular-nums; }
+  .hero-fee sup { font-size: 36px; vertical-align: top; margin-top: 10px; display: inline-block; letter-spacing: -1px; }
+  .hero-context { font-size: 12px; color: #9CA3AF; margin-top: 8px; }
+  .hero-context strong { color: #34C3A0; font-weight: 700; }
+
+  /* Other fees compact */
+  .other-fees { flex: 1; display: flex; flex-direction: column; padding: 0 32px; justify-content: space-evenly; }
+  .other-lbl { font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.6px;
+    color: #9CA3AF; padding-top: 14px; padding-bottom: 10px; }
+  .fee-row { display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 0; border-bottom: 1px solid #F3F4F6; }
+  .fee-row:last-child { border-bottom: none; }
+  .fee-level { font-size: 14px; font-weight: 600; color: #6B7280; }
+  .fee-right { display: flex; align-items: center; gap: 12px; }
+  .fee-bar { width: 56px; height: 5px; background: #E5E7EB; border-radius: 3px; overflow: hidden; }
+  .fee-bar-fill { height: 100%; background: #34C3A0; border-radius: 3px; }
+  .fee-amt { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 16px;
+    color: #1B3252; font-variant-numeric: tabular-nums; min-width: 90px; text-align: right; }
+
+  .footer { padding: 12px 32px; border-top: 1px solid #E5E7EB; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: space-between; }
+  .verified { display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 700; color: #239C80; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: #34C3A0; }
+  .url { font-size: 10px; color: #9CA3AF; }
+</style>
+</head>
+<body>
+
+<div class="caption">V2 — Tuition Snapshot · Giant Fee Hero</div>
+<div class="sub-caption">76px headline fee · Compact supporting rows below</div>
+
+<div class="post">
+  <div class="stripe"></div>
+
+  <div class="header">
+    <div class="toprow">
+      <div class="wordmark"><span class="wn">Nana</span><span class="ws">Says</span></div>
+      <div class="chip">Tuition Snapshot</div>
+    </div>
+    <div class="school-name">Bangkok Patana School</div>
+    <div class="school-sub">Bangkok · Academic Year 2024–25 · Annual tuition in Thai Baht</div>
+  </div>
+
+  <div class="hero">
+    <div class="hero-lbl">Sixth Form · Highest year group</div>
+    <div class="hero-fee"><sup>฿</sup>1,050,000</div>
+    <div class="hero-context">per year · Tuition only · <strong>Verified Mar 2026</strong></div>
+  </div>
+
+  <div class="other-fees">
+    <div class="other-lbl">Full fee schedule</div>
+    <div class="fee-row">
+      <span class="fee-level">Early Years</span>
+      <div class="fee-right">
+        <div class="fee-bar"><div class="fee-bar-fill" style="width:55%"></div></div>
+        <span class="fee-amt">฿580,000</span>
+      </div>
+    </div>
+    <div class="fee-row">
+      <span class="fee-level">Primary</span>
+      <div class="fee-right">
+        <div class="fee-bar"><div class="fee-bar-fill" style="width:68%"></div></div>
+        <span class="fee-amt">฿720,000</span>
+      </div>
+    </div>
+    <div class="fee-row">
+      <span class="fee-level">Secondary</span>
+      <div class="fee-right">
+        <div class="fee-bar"><div class="fee-bar-fill" style="width:85%"></div></div>
+        <span class="fee-amt">฿890,000</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="verified"><div class="dot"></div>Tuition verified Mar 2026</div>
+    <div class="url">nanasays.com</div>
+  </div>
+</div>
+
+</body>
+</html>

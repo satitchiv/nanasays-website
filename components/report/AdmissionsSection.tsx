@@ -42,7 +42,9 @@ export default function AdmissionsSection({ admissionsFormat, registrationDeadli
   const openEvents   = admissionsFormat?.open_events || []
 
   const hasAnything = rows.length > 0 || registrationDeadline || entryExamType ||
-    processSteps.length > 0 || openEvents.length > 0
+    processSteps.length > 0 || openEvents.length > 0 ||
+    !!admissionsFormat?.notes || !!admissionsFormat?.scholarships_noted ||
+    whatToSubmit.length > 0 || !!admissionsFormat?.contact
 
   if (!hasAnything) return null
 

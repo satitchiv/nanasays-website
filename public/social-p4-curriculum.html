@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pillar 4 — Curriculum Decoder</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #cbd5e1; display: flex; flex-direction: column; align-items: center;
+    padding: 48px 24px; gap: 10px; font-family: 'Nunito Sans', sans-serif; }
+  .caption { font-size: 12px; font-weight: 700; color: #475569; letter-spacing: .5px; text-transform: uppercase; margin-bottom: 4px; }
+  .sub-caption { font-size: 11px; color: #94a3b8; margin-bottom: 16px; }
+
+  .post {
+    width: 540px; height: 540px;
+    background: #fff;
+    display: flex; flex-direction: column;
+    box-shadow: 0 12px 48px rgba(0,0,0,.2);
+    overflow: hidden;
+  }
+
+  /* Navy header */
+  .header {
+    background: #1B3252;
+    padding: 24px 30px 22px;
+    flex-shrink: 0;
+  }
+  .toprow { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .wordmark { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 20px; letter-spacing: -.5px; }
+  .wn { color: #fff; } .ws { color: #34C3A0; }
+  .chip { font-size: 9px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+    background: rgba(52,195,160,.15); color: #34C3A0; border: 1px solid rgba(52,195,160,.35);
+    padding: 5px 12px; border-radius: 100px; }
+
+  .curr-name { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 34px;
+    color: #fff; line-height: 1.0; letter-spacing: -1px; margin-bottom: 5px; }
+  .curr-full { font-size: 12px; color: rgba(255,255,255,.45); font-weight: 400; }
+
+  /* Body */
+  .body { flex: 1; display: flex; flex-direction: column; padding: 20px 30px 18px; }
+
+  /* 2×2 fact grid */
+  .fact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px; }
+  .fact { background: #F6F8FA; border: 1px solid #E5E7EB;
+    border-radius: 8px; padding: 13px 14px; }
+  .fact-lbl { font-size: 9px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 1.2px; color: #9CA3AF; margin-bottom: 6px; }
+  .fact-val { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 17px;
+    color: #1B3252; line-height: 1.1; letter-spacing: -.4px; }
+  .fact-val.teal { color: #239C80; }
+  .fact-sub { font-size: 10px; color: #6B7280; margin-top: 4px; line-height: 1.3; }
+
+  /* Who it suits */
+  .suits-lbl { font-size: 9.5px; font-weight: 800; text-transform: uppercase;
+    letter-spacing: 1.5px; color: #9CA3AF; margin-bottom: 9px;
+    display: flex; align-items: center; gap: 8px; }
+  .suits-lbl::after { content: ''; flex: 1; height: 1px; background: #E5E7EB; }
+
+  .suits-row { display: flex; gap: 7px; flex-wrap: wrap; margin-bottom: 16px; }
+  .suit-tag { font-size: 12px; font-weight: 600; color: #1B3252;
+    background: #F6F8FA; border: 1px solid #E5E7EB;
+    padding: 6px 13px; border-radius: 100px; }
+  .suit-tag.highlight { background: #E8FAF6; border-color: rgba(52,195,160,.3); color: #239C80; font-weight: 700; }
+
+  /* Uni note */
+  .uni-note { background: #1B3252; border-radius: 8px; padding: 11px 16px;
+    display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .uni-stat { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 28px;
+    color: #34C3A0; letter-spacing: -1px; flex-shrink: 0; }
+  .uni-text { font-size: 11px; color: rgba(255,255,255,.7); line-height: 1.4; }
+  .uni-text strong { color: #fff; }
+
+  .footer { margin-top: auto; padding-top: 12px; border-top: 1px solid #E5E7EB;
+    display: flex; align-items: center; justify-content: space-between; }
+  .verified { display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 700; color: #239C80; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: #34C3A0; }
+  .url { font-size: 10px; color: #9CA3AF; font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="caption">Pillar 4 — Curriculum Decoder</div>
+<div class="sub-caption">1080 × 1080 · White body · Navy header · Fact grid</div>
+
+<div class="post">
+
+  <div class="header">
+    <div class="toprow">
+      <div class="wordmark"><span class="wn">Nana</span><span class="ws">Says</span></div>
+      <div class="chip">Curriculum Decoder</div>
+    </div>
+    <div class="curr-name">IB Diploma</div>
+    <div class="curr-full">International Baccalaureate Diploma Programme (IBDP)</div>
+  </div>
+
+  <div class="body">
+
+    <div class="fact-grid">
+      <div class="fact">
+        <div class="fact-lbl">Age range</div>
+        <div class="fact-val">16 – 19</div>
+        <div class="fact-sub">Years 12 – 13 equivalent</div>
+      </div>
+      <div class="fact">
+        <div class="fact-lbl">Assessment split</div>
+        <div class="fact-val teal">70 / 30</div>
+        <div class="fact-sub">External exams / internal coursework</div>
+      </div>
+      <div class="fact">
+        <div class="fact-lbl">Subjects</div>
+        <div class="fact-val">6</div>
+        <div class="fact-sub">Across 6 groups + TOK + Extended Essay</div>
+      </div>
+      <div class="fact">
+        <div class="fact-lbl">Max score</div>
+        <div class="fact-val">45</div>
+        <div class="fact-sub">Points — world average ~30</div>
+      </div>
+    </div>
+
+    <div class="suits-lbl">Best suited for</div>
+    <div class="suits-row">
+      <span class="suit-tag highlight">Top-university track</span>
+      <span class="suit-tag highlight">Self-motivated learners</span>
+      <span class="suit-tag">Frequent movers</span>
+      <span class="suit-tag">Broad subject interest</span>
+    </div>
+
+    <div class="uni-note">
+      <div class="uni-stat">90+</div>
+      <div class="uni-text">countries accept the IB Diploma.<br><strong>3,500+ universities</strong> worldwide recognise it for direct entry.</div>
+    </div>
+
+    <div class="footer">
+      <div class="verified"><div class="dot"></div>NanaSays Guide · 2026</div>
+      <div class="url">nanasays.com</div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

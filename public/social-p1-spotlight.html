@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Pillar 1 — School Spotlight</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #cbd5e1; display: flex; flex-direction: column; align-items: center;
+    padding: 48px 24px; gap: 10px; font-family: 'Nunito Sans', sans-serif; }
+  .caption { font-size: 12px; font-weight: 700; color: #475569; letter-spacing: .5px; text-transform: uppercase; margin-bottom: 4px; }
+  .sub-caption { font-size: 11px; color: #94a3b8; margin-bottom: 16px; }
+
+  .post {
+    width: 540px; height: 540px;
+    background: #1B3252;
+    display: flex; flex-direction: column;
+    padding: 32px 36px 28px;
+    box-shadow: 0 12px 48px rgba(0,0,0,.38);
+    overflow: hidden;
+    position: relative;
+  }
+
+  .post::before {
+    content: ''; position: absolute; top: -90px; right: -90px;
+    width: 300px; height: 300px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(52,195,160,.09) 0%, transparent 65%);
+    pointer-events: none;
+  }
+
+  .toprow { display: flex; align-items: center; justify-content: space-between; margin-bottom: 26px; }
+  .wordmark { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 22px; letter-spacing: -.5px; }
+  .wn { color: #fff; } .ws { color: #34C3A0; }
+  .chip { font-size: 10px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase;
+    background: rgba(52,195,160,.15); color: #34C3A0; border: 1px solid rgba(52,195,160,.35);
+    padding: 6px 14px; border-radius: 100px; }
+
+  .school-name { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 38px;
+    color: #fff; line-height: 1.0; letter-spacing: -1.3px; margin-bottom: 7px; }
+  .location { font-size: 13px; color: rgba(255,255,255,.45); font-weight: 500; margin-bottom: 22px; }
+
+  .rule { height: 1px; background: rgba(255,255,255,.1); margin-bottom: 22px; }
+
+  /* 3-column stat tiles */
+  .stats-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 1px; background: rgba(255,255,255,.1);
+    border-radius: 10px; overflow: hidden; margin-bottom: 22px;
+  }
+  .stat-cell { background: rgba(255,255,255,.05); padding: 15px 14px; }
+  .stat-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.2px; color: rgba(255,255,255,.32); margin-bottom: 7px; }
+  .stat-val { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 22px;
+    color: #fff; letter-spacing: -.5px; line-height: 1; }
+  .stat-val.teal { color: #34C3A0; }
+  .stat-sub { font-size: 10px; color: rgba(255,255,255,.28); margin-top: 4px; }
+
+  /* Curriculum + accred chips */
+  .section-lbl { font-size: 9.5px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 1.3px; color: rgba(255,255,255,.3); margin-bottom: 10px; }
+  .chips-row { display: flex; gap: 7px; flex-wrap: wrap; }
+  .curr-chip { font-size: 12px; font-weight: 700; color: #34C3A0;
+    background: rgba(52,195,160,.12); border: 1px solid rgba(52,195,160,.3);
+    padding: 6px 14px; border-radius: 100px; }
+
+  .footer { margin-top: auto; padding-top: 16px; border-top: 1px solid rgba(255,255,255,.1);
+    display: flex; align-items: center; justify-content: space-between; }
+  .verified { display: flex; align-items: center; gap: 6px;
+    font-size: 10px; font-weight: 600; color: rgba(255,255,255,.3); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: #34C3A0; }
+  .url { font-size: 10px; color: rgba(255,255,255,.22); font-weight: 500; }
+</style>
+</head>
+<body>
+
+<div class="caption">Pillar 1 — School Spotlight</div>
+<div class="sub-caption">1080 × 1080 · Dark full-bleed · Stats grid</div>
+
+<div class="post">
+  <div class="toprow">
+    <div class="wordmark"><span class="wn">Nana</span><span class="ws">Says</span></div>
+    <div class="chip">School Spotlight</div>
+  </div>
+
+  <div class="school-name">Bangkok Patana<br>School</div>
+  <div class="location">Bangkok, Thailand · Est. 1957</div>
+
+  <div class="rule"></div>
+
+  <div class="stats-grid">
+    <div class="stat-cell">
+      <div class="stat-lbl">Founded</div>
+      <div class="stat-val">1957</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-lbl">Enrolment</div>
+      <div class="stat-val">2,400</div>
+      <div class="stat-sub">students</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-lbl">Student : Teacher</div>
+      <div class="stat-val teal">8 : 1</div>
+    </div>
+  </div>
+
+  <div class="section-lbl">Programmes offered</div>
+  <div class="chips-row">
+    <span class="curr-chip">IB PYP</span>
+    <span class="curr-chip">IB MYP</span>
+    <span class="curr-chip">IGCSE</span>
+    <span class="curr-chip">A-Level</span>
+  </div>
+
+  <div class="footer">
+    <div class="verified"><div class="dot"></div>Verified Apr 2026</div>
+    <div class="url">nanasays.com</div>
+  </div>
+</div>
+
+</body>
+</html>
