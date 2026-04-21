@@ -89,6 +89,53 @@ const SPORT_EMOJI: Record<string, string> = {
   polo: '🐎',
 }
 
+const COMP_DESCRIPTIONS: Record<string, string> = {
+  // Football
+  'ISFA Cup': 'Independent Schools FA Cup — the main knockout cup for independent school football, equivalent to a national FA Cup for schools',
+  'HMC Football': 'Headmasters\' Conference — top tier of independent school fixtures, playing against the strongest schools in the country',
+  'National Schools Cup': 'Open national knockout competition for all school types — winning this puts a school among the best in England',
+  // Rugby
+  'National Schools Rugby': 'RFU-backed national schools knockout — top-tier competition played at Allianz Stadium (Twickenham)',
+  'HMC Rugby': 'Headmasters\' Conference league — fixtures against elite independent school rugby programs',
+  'Daily Mail Cup': 'National rugby knockout for schools — one of the most prestigious school rugby trophies in England',
+  'Daily Mail RWC Schools': 'National Rugby World Cup Schools festival — high-profile national competition',
+  'Surrey Schools Cup': 'Surrey county rugby knockout — county-level competition, step below national',
+  'Surrey County Cup': 'County-level knockout cup — strong regional competition',
+  // Cricket
+  'HMC Cricket': 'Headmasters\' Conference cricket — playing against top independent school teams nationally',
+  'National Schools T20': 'ECB-backed national T20 schools competition — national level',
+  'Surrey Schools Cricket': 'Surrey county cricket for schools — county competition',
+  // Hockey
+  'ISHC Cup': 'Independent Schools Hockey Council national cup — top national competition for school hockey',
+  'HMC Hockey': 'Headmasters\' Conference hockey — elite tier fixtures against the strongest school teams',
+  'National Schools Hockey': 'National Schools Hockey Championship — played at national level',
+  // Tennis
+  'LTA Schools Tennis': 'LTA-backed national schools tennis — organised by the Lawn Tennis Association, national level',
+  'National Schools Tennis': 'National Schools Tennis Championships — top schools compete nationally',
+  // Athletics & Cross Country
+  'National Schools Athletics': 'National Schools Athletics Championships — top athletes from across England compete',
+  'National Schools Cross Country': 'National Schools Cross Country Championships — national level competition',
+  'Surrey Schools Athletics': 'Surrey county athletics championships',
+  // Swimming
+  'National Schools Swimming': 'National Schools Swimming Championships — elite school swimming competition',
+  // Ski
+  'British Schools Ski Championships': 'Main national competitive skiing event for UK school pupils',
+  'BSSS Cup': 'British Schools Ski and Snowboard Championships — the national school skiing competition',
+  // Golf
+  'ISGA': 'Independent Schools Golf Association — national school golf competition',
+}
+
+function compDescription(name?: string): string | null {
+  if (!name) return null
+  const exact = COMP_DESCRIPTIONS[name]
+  if (exact) return exact
+  const lower = name.toLowerCase()
+  for (const [key, desc] of Object.entries(COMP_DESCRIPTIONS)) {
+    if (lower.includes(key.toLowerCase()) || key.toLowerCase().includes(lower)) return desc
+  }
+  return null
+}
+
 function emojiFor(sport?: string | null): string {
   if (!sport) return '🏆'
   return SPORT_EMOJI[sport.toLowerCase()] || '🏆'
@@ -137,6 +184,22 @@ function levelPill(level?: string | null): React.CSSProperties {
   }
 }
 
+function extractHonoursForSport(sport: string, rep?: string | null): string[] {
+  if (!rep) return []
+  const target = sport.toLowerCase()
+  const entries = rep.split(/\),\s*/).map((e, i, arr) => i < arr.length - 1 ? e + ')' : e)
+  return entries.filter(entry => {
+    const e = entry.toLowerCase()
+    return e.includes(target) ||
+      (target.includes('rugby') && e.includes('rugby')) ||
+      (target.includes('hockey') && e.includes('hockey')) ||
+      (target.includes('tennis') && e.includes('tennis')) ||
+      (target.includes('cricket') && e.includes('cricket')) ||
+      (target.includes('ski') && e.includes('ski')) ||
+      (target === 'golf' && e.includes('golf'))
+  })
+}
+
 /* Aggregate per-sport data: teams + competitions + coach + alumni for one sport.
  * Handles related sport aliases (e.g. "Rugby" matches "Rugby Union" + "Rugby Sevens"). */
 function aggregateBySport(sport: string, p: SportsProfile) {
@@ -177,11 +240,13 @@ function aggregateBySport(sport: string, p: SportsProfile) {
 
   const venue = (p.external_venues || []).find(v => related(v.sport))
 
-  return { teamEntries, totalTeamLevels, competitions, nationalCompCount, coach, alumni, facility, venue }
+  const honoursAlumni = extractHonoursForSport(sport, p.representative_honours)
+
+  return { teamEntries, totalTeamLevels, competitions, nationalCompCount, coach, alumni, facility, venue, honoursAlumni }
 }
 
 function SportCard({ sport, tier, profile }: { sport: string; tier: 'major' | 'academy'; profile: SportsProfile }) {
-  const { teamEntries, totalTeamLevels, competitions, nationalCompCount, coach, alumni, facility, venue } = aggregateBySport(sport, profile)
+  const { teamEntries, totalTeamLevels, competitions, nationalCompCount, coach, alumni, facility, venue, honoursAlumni } = aggregateBySport(sport, profile)
   return (
     <div className={`sport-card ${tier}`}>
       <span className="sport-emoji">{emojiFor(sport)}</span>
@@ -241,11 +306,23 @@ function SportCard({ sport, tier, profile }: { sport: string; tier: 'major' | 'a
         </div>
       )}
 
-      {alumni.length > 0 && (
+      {(honoursAlumni.length > 0 || alumni.length > 0) && (
         <div className="sport-block">
           <div className="label">Notable alumni</div>
           <div className="value">
-            {alumni.map((a, i) => <span key={i}>{i > 0 ? ' · ' : ''}<strong>{(a.title || '').split(' — ')[0].split(' - ')[0]}</strong></span>)}
+            {honoursAlumni.length > 0
+              ? honoursAlumni.map((h, i) => {
+                  const m = h.match(/^(.+?)\s*\((.+)\)$/)
+                  return (
+                    <span key={i}>
+                      {i > 0 ? ' · ' : ''}
+                      <strong>{m ? m[1].trim() : h}</strong>
+                      {m && <span style={{ color: 'var(--muted)', fontSize: 12 }}> ({m[2].trim()})</span>}
+                    </span>
+                  )
+                })
+              : alumni.map((a, i) => <span key={i}>{i > 0 ? ' · ' : ''}<strong>{(a.title || '').split(' — ')[0].split(' - ')[0]}</strong></span>)
+            }
           </div>
         </div>
       )}
@@ -390,14 +467,6 @@ export default function SportsSection({ sports, compact = false }: Props) {
         </>
       )}
 
-      {/* ─── Competitive tier benchmark callout ─── */}
-      {sports.competitive_tier && (
-        <div className="translate">
-          <p><strong>Competitive standard:</strong> {sports.competitive_tier}</p>
-          {sports.fixture_volume && <p>{sports.fixture_volume}</p>}
-        </div>
-      )}
-
       {/* ─── V1 Featured national competitions (trophy cards) ─── */}
       {featuredCompetitions.length > 0 && (
         <>
@@ -414,6 +483,9 @@ export default function SportsSection({ sports, compact = false }: Props) {
                     {c.featured && ' · Featured'}
                     {c.hosted_by_school && ' · Hosted'}
                   </span>
+                  {compDescription(c.name) && (
+                    <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5, lineHeight: 1.4 }}>{compDescription(c.name)}</div>
+                  )}
                 </div>
               </div>
             ))}
@@ -441,27 +513,46 @@ export default function SportsSection({ sports, compact = false }: Props) {
         </>
       )}
 
-      {/* ─── Remaining competitions table (those not in featured cards) ─── */}
-      {!compact && sortedRemainingComps.length > 0 && (
+      {/* ─── All competitions table ─── */}
+      {!compact && competitions.length > 0 && (
         <>
-          <h3 className="block-sub">Other competitions & tournaments</h3>
+          <h3 className="block-sub">All competitions entered</h3>
+          <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 8 }}>
+            Scope tells you the level: National = top-tier for that sport in the UK; Regional = county/area level; County = local county competition.
+            Not sure if a competition is prestigious? Check the &ldquo;What is it?&rdquo; column.
+          </p>
           <table className="fin-table">
             <thead>
               <tr>
                 <th>Sport</th>
                 <th>Competition</th>
                 <th>Scope</th>
+                <th>What is it?</th>
               </tr>
             </thead>
             <tbody>
-              {sortedRemainingComps.map((c, i) => (
+              {[...competitions]
+                .sort((a, b) => {
+                  const rank = (s?: string | null) => s === 'national' ? 0 : s === 'regional' ? 1 : s === 'county' ? 2 : 3
+                  return rank(a.scope) - rank(b.scope)
+                })
+                .map((c, i) => (
                 <tr key={i}>
                   <td style={{ fontWeight: 700, color: 'var(--navy)' }}>{c.sport || '—'}</td>
                   <td>
                     {c.name || '—'}
                     {c.hosted_by_school && <span style={{ color: 'var(--amber)', fontWeight: 700, marginLeft: 6, fontSize: 11 }}>★ hosted</span>}
+                    {(c.featured || c.scope === 'national') && <span style={{ color: 'var(--teal-dk)', fontWeight: 700, marginLeft: 6, fontSize: 11 }}>★ featured</span>}
                   </td>
-                  <td>{c.scope && <span style={levelPill(c.scope)}>{c.scope}</span>}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{c.scope && <span style={levelPill(c.scope)}>{c.scope}</span>}</td>
+                  <td style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.4 }}>
+                    {compDescription(c.name) || (
+                      c.scope === 'national' ? 'National-level competition' :
+                      c.scope === 'regional' ? 'Regional competition covering multiple counties' :
+                      c.scope === 'county' ? 'County-level competition' :
+                      '—'
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -539,6 +630,19 @@ export default function SportsSection({ sports, compact = false }: Props) {
         </>
       )}
 
+      {/* ─── Competitive tier benchmark callout (after opponents so context is clear) ─── */}
+      {sports.competitive_tier && (
+        <div className="translate" style={{ marginTop: 16 }}>
+          <p><strong>Competitive standard:</strong> {sports.competitive_tier}</p>
+          {sports.fixture_volume && (
+            <p>
+              <strong>Fixture volume (all sports combined):</strong>{' '}
+              {sports.fixture_volume.replace(/^Estimated\s+/i, '')}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* ─── V1 Coaching staff avatar grid ─── */}
       {!compact && coaches.length > 0 && (
         <>
@@ -589,7 +693,7 @@ export default function SportsSection({ sports, compact = false }: Props) {
       )}
 
       {/* ─── Notable athletes / alumni ─── */}
-      {achievements.length > 0 && (
+      {(achievements.length > 0 || sports.representative_honours) && (
         <>
           <h3 className="block-sub">
             Notable athletes & alumni
@@ -599,15 +703,31 @@ export default function SportsSection({ sports, compact = false }: Props) {
               </small>
             )}
           </h3>
-          <ul>
-            {shownAchievements.map((a, i) => (
-              <li key={i}>
-                <strong>{a.title || '—'}</strong>
-                {a.year && <span style={{ color: 'var(--muted)', marginLeft: 6 }}>{a.year}</span>}
-                {a.level && <span style={levelPill(a.level)}>{a.level}</span>}
-              </li>
-            ))}
-          </ul>
+          {sports.representative_honours && (
+            <div className="sport-alumni-named">
+              {sports.representative_honours.split(/\),\s*/).map((entry, i, arr) => {
+                const full = i < arr.length - 1 ? entry + ')' : entry
+                const m = full.match(/^(.+?)\s*\((.+)\)$/)
+                return (
+                  <div key={i} className="sport-alumni-item">
+                    <strong>{m ? m[1].trim() : full}</strong>
+                    {m && <span style={{ color: 'var(--muted)', fontSize: 13 }}> — {m[2].trim()}</span>}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+          {!sports.representative_honours && achievements.length > 0 && (
+            <ul>
+              {shownAchievements.map((a, i) => (
+                <li key={i}>
+                  <strong>{a.title || '—'}</strong>
+                  {a.year && <span style={{ color: 'var(--muted)', marginLeft: 6 }}>{a.year}</span>}
+                  {a.level && <span style={levelPill(a.level)}>{a.level}</span>}
+                </li>
+              ))}
+            </ul>
+          )}
           {compact && achievements.length > shownAchievements.length && (
             <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: -4 }}>
               + {achievements.length - shownAchievements.length} more in the full report
@@ -623,7 +743,6 @@ export default function SportsSection({ sports, compact = false }: Props) {
           <div className="facility-grid">
             {facilities.map((f, i) => (
               <div key={i} className="facility-item">
-                <span className="icon">{facilityEmoji(f)}</span>
                 <div className="facility-label">{f}</div>
               </div>
             ))}
@@ -701,13 +820,6 @@ export default function SportsSection({ sports, compact = false }: Props) {
             {sixthRules.map((r, i) => <li key={i}>{r}</li>)}
           </ul>
         </>
-      )}
-
-      {/* ─── Representative honours (full mode) ─── */}
-      {!compact && sports.representative_honours && (
-        <p>
-          <strong>Representative honours:</strong> {sports.representative_honours}
-        </p>
       )}
 
       {/* ─── Director of Sport (full mode) ─── */}

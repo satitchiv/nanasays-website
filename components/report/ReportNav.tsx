@@ -1,47 +1,90 @@
-/**
- * <ReportNav> — Side TOC (desktop, sticky) + Mobile TOC (collapsible).
- *
- * Mirrors the mockup. The section ids the links point to must match the component
- * section ids: key-facts, curriculum, destinations, admissions, fees, pastoral,
- * community, daily-life, recent, reg-status, financial, inspection, safeguarding,
- * fit, questions, glossary, sources.
- */
+'use client'
 
-type TocItem = { href: string; label: string }
+import { useEffect, useState } from 'react'
+
+type TocItem  = { href: string; label: string }
 type TocGroup = { label: string; items: TocItem[] }
 
 const DEFAULT_GROUPS: TocGroup[] = [
   {
-    label: 'Part 1 — At a glance',
+    label: 'Quick verdict',
     items: [
+      { href: '#fit',           label: 'Is this school right for us?' },
       { href: '#key-facts',     label: 'Key facts' },
-      { href: '#curriculum',    label: 'Curriculum & results' },
-      { href: '#destinations',  label: 'Destinations' },
-      { href: '#admissions',    label: 'Admissions' },
-      { href: '#fees',          label: 'Fees & true cost' },
-      { href: '#pastoral',      label: 'Pastoral & facilities' },
-      { href: '#sports',        label: 'Sport & athletics' },
-      { href: '#community',     label: 'Student community' },
-      { href: '#daily-life',    label: 'Daily life' },
       { href: '#recent',        label: 'Last 12 months' },
     ],
   },
   {
-    label: 'Part 2 — Deep',
+    label: 'Academics & outcomes',
+    items: [
+      { href: '#curriculum',    label: 'Curriculum & results' },
+      { href: '#destinations',  label: 'University destinations' },
+      { href: '#admissions',    label: 'Admissions' },
+    ],
+  },
+  {
+    label: 'Life at school',
+    items: [
+      { href: '#school-life',   label: "What's it like here?" },
+      { href: '#pastoral',      label: 'Pastoral & wellbeing' },
+      { href: '#sports',        label: 'Sport & athletics' },
+      { href: '#community',     label: 'Student community' },
+      { href: '#daily-life',    label: 'Daily life' },
+    ],
+  },
+  {
+    label: 'Costs & access',
+    items: [
+      { href: '#fees',          label: 'Fees & true cost' },
+      { href: '#scholarships',  label: 'Scholarships & aid' },
+      { href: '#location',      label: 'Location & getting here' },
+    ],
+  },
+  {
+    label: 'Due diligence',
     items: [
       { href: '#reg-status',    label: 'Regulatory status' },
       { href: '#financial',     label: 'Financial health' },
       { href: '#inspection',    label: 'Inspection record' },
       { href: '#safeguarding',  label: 'Safeguarding' },
-      { href: '#fit',           label: 'Parent fit' },
-      { href: '#questions',     label: '5 tour questions' },
+      { href: '#crime',         label: 'Local safety' },
+      { href: '#questions',     label: '5 questions to ask on tour' },
       { href: '#glossary',      label: 'Glossary' },
       { href: '#sources',       label: 'Sources' },
     ],
   },
 ]
 
+const ALL_ITEMS = DEFAULT_GROUPS.flatMap(g => g.items)
+
+function useActiveSection() {
+  const [active, setActive] = useState<string>('')
+
+  useEffect(() => {
+    const ids = ALL_ITEMS.map(i => i.href.slice(1))
+    const els = ids.map(id => document.getElementById(id)).filter(Boolean) as HTMLElement[]
+    if (!els.length) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const visible = entries
+          .filter(e => e.isIntersecting)
+          .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)
+        if (visible.length > 0) setActive(visible[0].target.id)
+      },
+      { rootMargin: '-10% 0px -70% 0px', threshold: 0 }
+    )
+
+    els.forEach(el => observer.observe(el))
+    return () => observer.disconnect()
+  }, [])
+
+  return active
+}
+
 export function SideTOC() {
+  const active = useActiveSection()
+
   return (
     <nav className="side-toc" aria-label="On this page">
       <div className="side-toc-title">On this page</div>
@@ -50,7 +93,16 @@ export function SideTOC() {
         {DEFAULT_GROUPS.map((g) => (
           <div key={g.label}>
             <li className="toc-part">{g.label}</li>
-            {g.items.map((i) => <li key={i.href}><a href={i.href}>{i.label}</a></li>)}
+            {g.items.map((i) => (
+              <li key={i.href}>
+                <a
+                  href={i.href}
+                  className={active === i.href.slice(1) ? 'toc-active' : ''}
+                >
+                  {i.label}
+                </a>
+              </li>
+            ))}
           </div>
         ))}
       </ul>

@@ -122,10 +122,13 @@
 .verdict-qs li { margin-bottom: 4px; color: var(--body); font-size: 13.5px; }
 
 /* ── Section ─────────────────────── */
-.report-page .block { margin-top: 36px; }
+.report-page .block { margin-top: 44px; }
 .report-page h2.block-title {
-  font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 22px;
-  color: var(--navy); letter-spacing: -.01em; margin-bottom: 12px;
+  font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 26px;
+  color: var(--navy); letter-spacing: -.02em;
+  margin-bottom: 16px; padding-bottom: 12px;
+  border-bottom: 3px solid var(--teal);
+  display: inline-block;
 }
 .report-page h3.block-sub {
   font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 17px;
@@ -204,6 +207,62 @@
 }
 .report-page table.fin-table tr:last-child td { border-bottom: 0; }
 .report-page table.fin-table tr:nth-child(even) td { background: var(--off); }
+
+/* ── Exam results two-row block ─────────────────────── */
+.exam-results-block {
+  background: #fff; border: 1px solid var(--border); border-radius: 14px;
+  overflow: hidden; margin: 12px 0 16px;
+}
+.exam-row {
+  display: flex; align-items: flex-start; gap: 16px; padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.exam-row:last-child { border-bottom: 0; }
+.exam-row-label {
+  font-size: 10px; font-weight: 900; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .12em;
+  width: 54px; flex-shrink: 0; padding-top: 6px;
+}
+.exam-stats { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-start; }
+.exam-stat-num {
+  font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 26px;
+  color: var(--navy); line-height: 1.0;
+}
+.exam-stat-num small { font-size: 14px; color: var(--muted); font-weight: 600; margin-left: 1px; }
+.exam-stat-lbl { font-size: 11px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .05em; margin-top: 2px; }
+.exam-notes-inline { font-size: 13.5px; color: var(--body); line-height: 1.6; padding-top: 4px; }
+
+/* ── Scholarship cards ─────────────────────── */
+.schol-section {
+  background: linear-gradient(135deg, var(--teal-bg) 0%, #fff 60%);
+  border: 1.5px solid var(--teal); border-radius: 14px;
+  padding: 20px 22px; margin: 20px 0;
+}
+.schol-section-title {
+  font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 13px;
+  color: var(--teal-dk); text-transform: uppercase; letter-spacing: .1em;
+  margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+}
+.schol-section-title::before { content: '🎓'; font-size: 15px; }
+.schol-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.schol-item {
+  background: #fff; border: 1px solid var(--border); border-radius: 10px;
+  padding: 10px 14px; font-size: 14px; line-height: 1.55;
+  border-left: 3px solid var(--teal);
+}
+.bursary-callout {
+  background: #fff; border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px 16px; margin-top: 4px;
+  display: flex; gap: 12px; align-items: flex-start;
+}
+.bursary-icon { font-size: 20px; flex-shrink: 0; }
+.bursary-text { font-size: 13.5px; color: var(--body); line-height: 1.6; }
+.bursary-text strong { color: var(--navy); }
+.schol-pct {
+  display: inline-block; margin-left: 8px; padding: 1px 8px;
+  background: var(--teal-bg); color: var(--teal-dk); border-radius: 8px;
+  font-size: 12px; font-weight: 800; letter-spacing: .03em;
+}
 
 /* ── Parent fit grid ─────────────────────── */
 .fit-grid {
@@ -565,7 +624,7 @@
   margin: 14px 0 18px; padding: 18px 22px;
   background: #fff; border: 1px solid var(--border);
   border-left: 4px solid var(--teal); border-radius: 8px;
-  font-family: 'Nunito', sans-serif; font-weight: 600; font-size: 16px;
+  font-family: 'Nunito', sans-serif; font-weight: 400; font-size: 16px;
   color: var(--navy); line-height: 1.55; font-style: italic;
 }
 .report-page blockquote cite {
@@ -573,6 +632,40 @@
   font-style: normal; font-weight: 500; font-family: 'Nunito Sans', sans-serif;
 }
 .report-page blockquote.flag { border-left-color: #D97706; }
+
+/* ── Inspection record ─────────────── */
+.report-page .insp-meta-strip {
+  display: flex; flex-wrap: wrap; gap: 10px 20px;
+  background: #F8FAFC; border: 1px solid var(--border);
+  border-radius: 10px; padding: 18px 20px; margin-bottom: 20px;
+}
+.report-page .insp-meta-item { display: flex; flex-direction: column; gap: 2px; min-width: 120px; }
+.report-page .insp-meta-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+.report-page .insp-meta-value { font-size: 14px; color: var(--navy); font-weight: 500; }
+.report-page .insp-outcome.pass { color: #16A34A; font-weight: 700; }
+.report-page .insp-outcome.fail { color: #DC2626; font-weight: 700; }
+.report-page .insp-age.ok { color: #16A34A; }
+.report-page .insp-age.flag { color: #D97706; font-weight: 600; }
+.report-page .insp-type-note {
+  font-size: 14px; color: var(--muted); background: #FFFBEB;
+  border-left: 3px solid #F59E0B; padding: 12px 16px; border-radius: 6px;
+  margin-bottom: 18px; line-height: 1.55;
+}
+.report-page .insp-summary-box {
+  background: #F0FDF4; border: 1px solid #BBF7D0; border-radius: 10px;
+  padding: 18px 20px; margin-bottom: 20px;
+}
+.report-page .insp-summary-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #16A34A; font-weight: 700; margin-bottom: 8px; }
+.report-page .insp-summary-text { font-size: 15px; color: var(--navy); line-height: 1.6; margin: 0; }
+.report-page .insp-send-box {
+  background: #FFF7ED; border: 1px solid #FED7AA; border-radius: 10px;
+  padding: 18px 20px; margin: 20px 0;
+}
+.report-page .insp-send-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #EA580C; font-weight: 700; margin-bottom: 8px; }
+.report-page .insp-send-box p { font-size: 15px; color: var(--navy); line-height: 1.6; margin: 0; }
+.report-page .insp-rec-intro { font-size: 14px; color: var(--muted); margin-bottom: 8px; }
+.report-page .insp-report-link { margin-top: 20px; font-size: 14px; }
+.report-page .insp-report-link a { color: var(--teal); font-weight: 600; }
 
 /* ── Daily life cards ─────────────── */
 .report-page .daily-grid {
@@ -734,9 +827,15 @@
 .report-page .side-toc li { margin-bottom: 4px; }
 .report-page .side-toc a {
   color: var(--body); text-decoration: none;
-  padding: 3px 0; display: block;
+  padding: 3px 6px; display: block; border-radius: 5px;
+  border-left: 2px solid transparent;
+  transition: color .15s, border-color .15s, background .15s;
 }
 .report-page .side-toc a:hover { color: var(--teal-dk); }
+.report-page .side-toc a.toc-active {
+  color: var(--teal-dk); font-weight: 700;
+  border-left-color: var(--teal); background: var(--teal-bg);
+}
 .report-page .side-toc .toc-part {
   font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 10px;
   color: var(--teal-dk); text-transform: uppercase; letter-spacing: .12em;
@@ -851,3 +950,181 @@
   .report-page h2.block-title { font-size: 15pt; }
   .report-page h3.block-sub { font-size: 12pt; }
 }
+
+/* ── Location section ─────────────────────────────────────── */
+.report-page .loc-strip {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0; border: 1px solid var(--border); border-radius: 12px;
+  overflow: hidden; background: #fff; margin: 14px 0 18px;
+}
+.report-page .loc-cell {
+  padding: 14px 16px; border-right: 1px solid var(--border);
+}
+.report-page .loc-cell:last-child { border-right: 0; }
+@media (max-width: 640px) {
+  .report-page .loc-strip { grid-template-columns: 1fr 1fr; }
+  .report-page .loc-cell:nth-child(even) { border-right: 0; }
+  .report-page .loc-cell:nth-last-child(-n+2) { border-bottom: 0; }
+  .report-page .loc-cell { border-bottom: 1px solid var(--border); }
+}
+.report-page .loc-label {
+  font-size: 10px; font-weight: 800; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px;
+}
+.report-page .loc-val {
+  font-size: 15px; font-weight: 700; color: var(--navy); line-height: 1.3;
+}
+.report-page .loc-val small {
+  display: block; font-size: 12px; font-weight: 400; color: var(--muted); margin-top: 2px;
+}
+.report-page .loc-setting-note {
+  font-size: 14px; color: var(--muted); font-style: italic;
+  margin: -4px 0 18px; line-height: 1.5;
+}
+.report-page .loc-map-wrap {
+  border-radius: 14px; overflow: hidden; margin: 14px 0 24px;
+  border: 1px solid var(--border); height: 340px;
+}
+.report-page .loc-map-wrap iframe {
+  width: 100%; height: 100%; border: 0; display: block;
+}
+.report-page .loc-attract-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px; margin: 12px 0 20px;
+}
+.report-page .loc-attract-card {
+  background: #fff; border: 1px solid var(--border);
+  border-radius: 12px; padding: 14px 16px;
+}
+.report-page .loc-attract-name {
+  font-family: 'Nunito', sans-serif; font-weight: 800;
+  color: var(--navy); font-size: 15px; margin-bottom: 4px;
+}
+.report-page .loc-attract-type {
+  display: inline-block; font-size: 10px; font-weight: 800;
+  background: var(--teal-bg); color: var(--teal-dk);
+  padding: 2px 8px; border-radius: 8px;
+  text-transform: uppercase; letter-spacing: .06em; margin-bottom: 6px;
+}
+.report-page .loc-attract-dist {
+  font-size: 12px; color: var(--muted); margin-bottom: 4px;
+}
+.report-page .loc-attract-desc {
+  font-size: 13px; color: var(--body); line-height: 1.45;
+}
+
+/* ── Crime / safety section ─────────────────────────────────── */
+.report-page .crime-verdict {
+  border-radius: 12px; padding: 16px 20px; margin: 14px 0 20px;
+}
+.report-page .crime-verdict-label {
+  font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 16px;
+  margin-bottom: 4px;
+}
+.report-page .crime-verdict-meta {
+  font-size: 13px; color: var(--muted); margin-bottom: 4px;
+}
+.report-page .crime-verdict-note {
+  font-size: 14px; color: var(--body); line-height: 1.5; margin-top: 6px;
+}
+.report-page .crime-bars {
+  margin: 12px 0 20px; display: flex; flex-direction: column; gap: 10px;
+}
+.report-page .crime-bar-row {
+  display: grid; grid-template-columns: 190px 1fr 90px;
+  align-items: center; gap: 10px; font-size: 13px;
+}
+.report-page .crime-bar-label {
+  font-weight: 600; color: var(--navy);
+}
+.report-page .crime-bar-track {
+  background: #f0ece4; border-radius: 4px; height: 8px;
+}
+.report-page .crime-bar-fill {
+  height: 8px; border-radius: 4px; transition: width .3s;
+}
+.report-page .crime-bar-count {
+  color: var(--muted); font-size: 12px; text-align: right;
+}
+.report-page .crime-bar-note {
+  grid-column: 1 / -1; font-size: 12px; color: var(--muted);
+  padding: 4px 6px; background: var(--off); border-radius: 6px;
+  margin-top: -4px; line-height: 1.4;
+}
+@media (max-width: 600px) {
+  .report-page .crime-bar-row { grid-template-columns: 1fr 80px; }
+  .report-page .crime-bar-track { display: none; }
+}
+
+/* ── List defaults inside report blocks ─────────────────── */
+.report-page .block ul { list-style: disc; padding-left: 20px; margin: 8px 0 12px; }
+.report-page .block ol { list-style: decimal; padding-left: 20px; margin: 8px 0 12px; }
+.report-page .block li { font-size: 14px; line-height: 1.65; margin-bottom: 4px; }
+
+/* ── Curriculum subject chips ────────────────────────────── */
+.report-page .curriculum-chips {
+  display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 16px;
+}
+.report-page .curriculum-chip {
+  background: var(--off); color: var(--navy);
+  font-size: 12px; font-weight: 600;
+  padding: 3px 10px; border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+/* ── Sport alumni named list ──────────────────────────────── */
+.report-page .sport-alumni-named {
+  display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px;
+}
+.report-page .sport-alumni-item {
+  font-size: 14px; line-height: 1.4;
+}
+
+/* ── School Life section ──────────────────────── */
+.sl-ethos {
+  display: flex; gap: 14px; align-items: flex-start;
+  background: linear-gradient(135deg, var(--teal-bg) 0%, #fff 70%);
+  border: 1.5px solid var(--teal); border-radius: 14px;
+  padding: 20px 22px; margin: 12px 0 20px;
+}
+.sl-ethos-icon { font-size: 22px; flex-shrink: 0; margin-top: 2px; }
+.sl-ethos-text { margin: 0; font-size: 15.5px; line-height: 1.75; color: var(--body); font-style: italic; }
+
+.sl-diff-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 10px 0 20px;
+}
+@media (max-width: 600px) { .sl-diff-grid { grid-template-columns: 1fr; } }
+.sl-diff-card {
+  background: #fff; border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px 16px; border-left: 3px solid var(--navy);
+}
+.sl-diff-title { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 14px; color: var(--navy); margin-bottom: 4px; }
+.sl-diff-body { font-size: 13px; color: var(--muted); line-height: 1.5; }
+
+.sl-programme-list { display: flex; flex-direction: column; gap: 10px; margin: 0 0 20px; }
+.sl-programme-card {
+  background: #fff; border: 1px solid var(--border); border-radius: 12px;
+  padding: 14px 16px; border-left: 3px solid var(--teal);
+}
+.sl-programme-name { font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 14px; color: var(--navy); margin-bottom: 4px; }
+.sl-programme-desc { font-size: 13.5px; color: var(--body); line-height: 1.55; }
+
+.sl-clubs-grid { display: flex; flex-wrap: wrap; gap: 7px; margin: 8px 0 16px; }
+.sl-club-chip {
+  background: var(--off); border: 1px solid var(--border); border-radius: 20px;
+  font-size: 12.5px; font-weight: 600; padding: 4px 12px; color: var(--navy);
+}
+
+.sl-community {
+  display: flex; gap: 14px; align-items: flex-start;
+  background: #fff; border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px 18px; margin: 8px 0 16px;
+}
+.sl-community-icon { font-size: 20px; flex-shrink: 0; margin-top: 2px; }
+
+.sl-alumni-grid { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 16px; }
+.sl-alumni-item {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  font-size: 14px;
+}
+.sl-alumni-role { color: var(--muted); font-size: 13px; }

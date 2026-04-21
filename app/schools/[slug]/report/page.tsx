@@ -22,6 +22,7 @@ import UniversityDestinations from '@/components/report/UniversityDestinations'
 import AdmissionsSection      from '@/components/report/AdmissionsSection'
 import FeesSection            from '@/components/report/FeesSection'
 import PastoralSection        from '@/components/report/PastoralSection'
+import SchoolLifeSection      from '@/components/report/SchoolLifeSection'
 import SportsSection          from '@/components/report/SportsSection'
 import CommunityProfile       from '@/components/report/CommunityProfile'
 import DailyLifeGrid          from '@/components/report/DailyLifeGrid'
@@ -36,6 +37,8 @@ import TourQuestions, { TourQuestion } from '@/components/report/TourQuestions'
 import Glossary               from '@/components/report/Glossary'
 import Sources, { Source }    from '@/components/report/Sources'
 import { SideTOC, MobileTOC } from '@/components/report/ReportNav'
+import LocationSection        from '@/components/report/LocationSection'
+import CrimeSafetySection, { CrimeSummary } from '@/components/report/CrimeSafetySection'
 
 import './report.css'
 
@@ -115,6 +118,11 @@ function extractISIRow(rows: any[]) {
   return rows.find(r => r.source === 'isi' || r.data_type === 'inspection_report')
 }
 
+function toQuotes(arr: any, flag = false) {
+  if (!Array.isArray(arr)) return []
+  return arr.map((q: any) => typeof q === 'string' ? { text: q, flag } : q)
+}
+
 function extractISIDetails(rows: any[]) {
   const row = extractISIRow(rows)
   if (!row) return null
@@ -132,9 +140,13 @@ function extractISIDetails(rows: any[]) {
     durationDays: d.duration_days || null,
     previousInspectionDate: d.previous_inspection_date || null,
     reportUrl: row.source_url || null,
-    signatureQuotes: d.signature_quotes || d.quotes?.signature || [],
-    academicQuotes: d.academic_quotes || d.quotes?.academic || [],
-    recommendations: d.recommendations || [],
+    signatureQuotes: toQuotes(d.signature_quotes || d.quotes?.signature),
+    wellbeingQuotes: toQuotes(d.wellbeing_quotes),
+    academicQuotes: toQuotes(d.academic_quotes || d.quotes?.academic),
+    sendNotes: d.send_notes || null,
+    inspectionType: d.inspection_type || null,
+    overallSummary: d.overall_summary || null,
+    recommendations: toQuotes(d.recommendations, true),
   }
 }
 
@@ -229,6 +241,24 @@ function buildSources(rows: any[], structured: any, school: any): Source[] {
     })
   }
 
+  if (structured?.location_profile) {
+    const locDate = structured.extracted_at
+      ? new Date(structured.extracted_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+      : undefined
+    sources.push({
+      name: 'UK Police open data API',
+      detail: 'Crime statistics within 1-mile radius of school postcode',
+      url: 'https://data.police.uk/docs/',
+      retrievedDate: locDate,
+    })
+    sources.push({
+      name: 'OpenStreetMap / Overpass API',
+      detail: 'Location data, nearby attractions, transport links',
+      url: 'https://www.openstreetmap.org/',
+      retrievedDate: locDate,
+    })
+  }
+
   return sources
 }
 
@@ -267,6 +297,19 @@ export default async function SchoolReportPage({ params }: Props) {
   const sourcesList = buildSources(sensitive, structured, school)
   const recentItems = buildRecentNewsItems(sensitive, structured)
 
+  // Short sixth form label for Key Facts grid (not the full paragraph)
+  const sixthFormShort = (() => {
+    const curr = structured?.curriculum
+    if (Array.isArray(curr) && curr.length > 0) {
+      const postGCSE = curr.filter((p: string) => !['GCSE', 'IGCSE', 'O Level'].includes(p))
+      if (postGCSE.length > 0) return postGCSE.slice(0, 4).join(' · ')
+    }
+    const sf = structured?.sixth_form_curriculum
+    if (!sf) return null
+    const first = sf.split('.')[0]
+    return first.length <= 80 ? first : sf.slice(0, 70) + '…'
+  })()
+
   // Derive isi age months for InspectionRecord component
   return (
     <main className="report-page" id="top">
@@ -287,15 +330,17 @@ export default async function SchoolReportPage({ params }: Props) {
 
         <VerdictBox verdict={verdict} />
 
+        <ParentFit fit={parentFit} />
+
         <MobileTOC />
 
-        {/* ═══ Part 1 ═══ */}
+        {/* ═══ Quick verdict ═══ */}
         <div className="part">
-          <div className="part-label">Part 1</div>
+          <div className="part-label">Quick verdict</div>
           <h2 className="part-title">The school at a glance</h2>
           <p className="part-intro">
-            What the school publishes about itself, in plain English. Every acronym (GCSE, IB, ISI, UCAS, PSHE, etc.)
-            is defined inline at first use — and again in the <a href="#glossary">glossary at the bottom</a>.
+            Key facts and what makes this school worth considering — or not. Every acronym (GCSE, IB, ISI, UCAS, PSHE, etc.)
+            is defined inline at first use — and again in the <a href="#glossary">glossary</a>.
           </p>
         </div>
 
@@ -311,12 +356,23 @@ export default async function SchoolReportPage({ params }: Props) {
           feesMin={structured?.fees_local_min || structured?.fees_min}
           feesMax={structured?.fees_local_max || structured?.fees_max}
           feesCurrency={structured?.fees_local_currency || structured?.fees_currency}
-          sixthFormOffer={structured?.sixth_form_curriculum}
+          sixthFormOffer={sixthFormShort}
           inspectorate={school.country === 'United Kingdom' ? 'ISI' : null}
           inspectionDate={isi?.shortDate}
           charityNumber={charity?.number}
           charityLegalName={charity?.legalName}
         />
+
+        {recentItems.length > 0 && <RecentSection items={recentItems} />}
+
+        {/* ═══ Academics & outcomes ═══ */}
+        <div className="part">
+          <div className="part-label">Academics & outcomes</div>
+          <h2 className="part-title">What pupils achieve</h2>
+          <p className="part-intro">
+            Curriculum, published exam results, and where leavers go next — universities, apprenticeships, and beyond.
+          </p>
+        </div>
 
         <CurriculumSection
           curriculum={structured?.curriculum}
@@ -332,16 +388,16 @@ export default async function SchoolReportPage({ params }: Props) {
           entryExamType={structured?.entry_exam_type}
         />
 
-        <FeesSection
-          feesMin={structured?.fees_local_min || structured?.fees_min}
-          feesMax={structured?.fees_local_max || structured?.fees_max}
-          currency={structured?.fees_local_currency || structured?.fees_currency}
-          feesByGrade={structured?.fees_by_grade}
-          includesBoarding={structured?.fees_includes_boarding}
-          applicationFee={structured?.application_fee_usd}
-          scholarships={structured?.scholarships_available}
-          bursariesNote={structured?.bursary_note}
-        />
+        {/* ═══ Life at school ═══ */}
+        <div className="part">
+          <div className="part-label">Life at school</div>
+          <h2 className="part-title">What it's actually like here</h2>
+          <p className="part-intro">
+            Culture, pastoral care, sport, day-to-day routines, and the things that make this school feel different from the brochure.
+          </p>
+        </div>
+
+        <SchoolLifeSection schoolLife={structured?.school_life ?? null} />
 
         <PastoralSection
           description={structured?.pastoral_care}
@@ -363,11 +419,34 @@ export default async function SchoolReportPage({ params }: Props) {
           totalPupils={structured?.student_count || school.student_count}
         />
 
-        {recentItems.length > 0 && <RecentSection items={recentItems} />}
+        {/* ═══ Costs & access ═══ */}
+        <div className="part">
+          <div className="part-label">Costs & access</div>
+          <h2 className="part-title">Fees, scholarships & getting there</h2>
+          <p className="part-intro">
+            The true cost of attending, what financial help is available, and how easy the school is to reach.
+          </p>
+        </div>
 
-        {/* ═══ Part 2 — Premium ═══ */}
+        <FeesSection
+          feesMin={structured?.fees_local_min || structured?.fees_min}
+          feesMax={structured?.fees_local_max || structured?.fees_max}
+          currency={structured?.fees_local_currency || structured?.fees_currency}
+          feesByGrade={structured?.fees_by_grade}
+          includesBoarding={structured?.fees_includes_boarding}
+          applicationFee={structured?.application_fee_usd}
+          scholarships={structured?.scholarships_available}
+          bursariesNote={structured?.bursary_note}
+        />
+
+        <LocationSection
+          location={structured?.location_profile ?? null}
+          schoolName={school.name}
+        />
+
+        {/* ═══ Due diligence ═══ */}
         <div className="part part-premium">
-          <div className="part-label">Part 2 — Premium</div>
+          <div className="part-label">Due diligence</div>
           <h2 className="part-title">The deep report</h2>
           <p className="part-intro">
             Facts from public records that the school&apos;s marketing does not highlight — Charity Commission, Companies
@@ -439,7 +518,11 @@ export default async function SchoolReportPage({ params }: Props) {
             previousInspectionDate={isi.previousInspectionDate}
             reportUrl={isi.reportUrl}
             signatureQuotes={isi.signatureQuotes}
+            wellbeingQuotes={isi.wellbeingQuotes}
             academicQuotes={isi.academicQuotes}
+            sendNotes={isi.sendNotes}
+            inspectionType={isi.inspectionType}
+            overallSummary={isi.overallSummary}
             recommendations={isi.recommendations}
           />
         )}
@@ -455,7 +538,9 @@ export default async function SchoolReportPage({ params }: Props) {
           seniorTeam={seniorTeam.map((s: any) => ({ name: s.name, role: s.role, tenure_start: s.tenure_start }))}
         />
 
-        <ParentFit fit={parentFit} />
+        <CrimeSafetySection
+          crime={(structured?.location_profile as any)?.crime_summary ?? null}
+        />
 
         <TourQuestions questions={tourQs} />
 

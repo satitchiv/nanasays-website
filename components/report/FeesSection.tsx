@@ -174,24 +174,59 @@ export default function FeesSection({
       </div>
 
       {(scholarships?.length || bursariesNote) && (
-        <>
-          <h3 className="block-sub">Scholarships & bursaries</h3>
+        <div className="schol-section" id="scholarships">
+          <div className="schol-section-title">Scholarships & financial assistance</div>
+
           {scholarships && scholarships.length > 0 && (
-            <ul>
-              {scholarships.map((s, i) => <li key={i}>{s}</li>)}
-            </ul>
+            <>
+              <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--teal-dk)', textTransform: 'uppercase', letterSpacing: '.08em', margin: '0 0 10px' }}>
+                Merit-based scholarships ({scholarships.length} types)
+              </p>
+              <div className="schol-list">
+                {scholarships.map((s, i) => {
+                  // Try to highlight any percentage remission mentioned in the text
+                  const pctMatch = s.match(/(\d+)%/)
+                  return (
+                    <div key={i} className="schol-item">
+                      {pctMatch ? (
+                        <>
+                          {s.replace(pctMatch[0], '')}
+                          <span className="schol-pct">{pctMatch[0]} fee remission</span>
+                        </>
+                      ) : s}
+                    </div>
+                  )
+                })}
+              </div>
+              <p style={{ fontSize: 12, color: 'var(--muted)', margin: '8px 0 14px', fontStyle: 'italic' }}>
+                ℹ️ This school has not published the exact % fee remission for each award.
+                Ask the admissions team directly — typical independent school scholarships range from 5% to 50% of fees.
+              </p>
+            </>
           )}
+
           {bursariesNote && (
-            <p>
-              <em>
-                &quot;Means-tested&quot; just means the school looks at your family&apos;s income and assets to decide how much help you get —
-                like applying for a student loan. If your household earns below a certain threshold, you could receive a much
-                bigger discount than any scholarship offers.
-              </em>
-              {' '}{bursariesNote}
-            </p>
+            <div className="bursary-callout">
+              <div className="bursary-icon">💰</div>
+              <div className="bursary-text">
+                <strong>Means-tested bursaries</strong> — the school looks at your family income and can offer a much larger discount than any scholarship.
+                {' '}{bursariesNote}
+                {' '}<em style={{ color: 'var(--muted)', fontSize: 13 }}>Ask the Bursar directly — these are rarely advertised prominently.</em>
+              </div>
+            </div>
           )}
-        </>
+
+          {!bursariesNote && (
+            <div className="bursary-callout" style={{ marginTop: 8 }}>
+              <div className="bursary-icon">💰</div>
+              <div className="bursary-text">
+                <strong>Bursaries (means-tested aid)</strong> — separate from scholarships and based on family income, not merit.
+                Many schools offer bursaries covering 50–100% of fees for families who qualify but don&apos;t advertise this widely.
+                Ask the Bursar whether a bursary programme exists, even if it&apos;s not on the website.
+              </div>
+            </div>
+          )}
+        </div>
       )}
     </section>
   )
