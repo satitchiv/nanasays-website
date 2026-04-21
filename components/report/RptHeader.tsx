@@ -19,6 +19,10 @@ type Props = {
   reportDate?: string
 }
 
+function isWikimarkup(text: string): boolean {
+  return /^thumb\|/i.test(text.trim()) || /^\[\[/.test(text.trim()) || text.includes('|upright=')
+}
+
 function genderText(g?: string | null) {
   if (!g) return 'Co-ed'
   if (/girl/i.test(g)) return 'Girls'
@@ -45,7 +49,7 @@ export default function RptHeader({
         )}
       </div>
       <h1 className="rpt-title">{schoolName}</h1>
-      {subtitle && <p className="rpt-sub">{subtitle}</p>}
+      {subtitle && !isWikimarkup(subtitle) && <p className="rpt-sub">{subtitle}</p>}
 
       <div className="rpt-meta">
         <div className="rpt-meta-item"><strong>Report date:</strong> {displayDate}</div>
