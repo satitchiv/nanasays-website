@@ -1187,29 +1187,46 @@
   flex-shrink: 0; letter-spacing: .02em; width: 20px;
 }
 
-/* Tier dividers */
-.report-page .tier-divider {
-  display: flex; align-items: flex-start; gap: 16px;
-  padding: 20px 24px; margin: 32px 0 20px;
-  background: #fff; border: 1px solid var(--border);
-  border-radius: 12px;
+/* Tier part headers — hero-sized section intros with a tier badge.
+   Mirrors the prior .part-* header rhythm so sections feel substantial. */
+.report-page .tier-part {
+  margin-top: 56px;
+  padding-top: 8px;
 }
-.report-page .tier-divider-badge {
-  width: 40px; height: 40px; border-radius: 50%;
+.report-page .tier-part-row {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 8px;
+}
+.report-page .tier-part-badge {
+  width: 28px; height: 28px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 17px;
+  font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 13px;
   flex-shrink: 0;
 }
-.report-page .tier-divider-A .tier-divider-badge { background: #F3F4F6; color: var(--muted); }
-.report-page .tier-divider-B .tier-divider-badge { background: var(--teal-bg); color: var(--teal-dk); }
-.report-page .tier-divider-C .tier-divider-badge { background: var(--navy); color: #fff; }
-.report-page .tier-divider-title {
-  font-family: 'Nunito', sans-serif;
-  font-size: 17px; font-weight: 800; color: var(--navy);
-  line-height: 1.25; margin-bottom: 4px;
+.report-page .tier-part-A .tier-part-badge { background: #F3F4F6; color: var(--muted); }
+.report-page .tier-part-B .tier-part-badge { background: var(--teal-bg); color: var(--teal-dk); }
+.report-page .tier-part-C .tier-part-badge { background: var(--navy); color: #fff; }
+.report-page .tier-part-label {
+  font-size: 12px; font-weight: 900; color: var(--navy);
+  letter-spacing: .2em; text-transform: uppercase;
 }
-.report-page .tier-divider-sub {
-  font-size: 13px; color: var(--muted); line-height: 1.5;
+.report-page .tier-part-C .tier-part-label { color: var(--teal-dk); }
+.report-page .tier-part-title {
+  font-family: 'Nunito', sans-serif;
+  font-size: 26px; font-weight: 900; color: var(--navy);
+  letter-spacing: -.02em; margin: 0 0 6px;
+}
+.report-page .tier-part-intro {
+  font-size: 15px; color: var(--muted);
+  line-height: 1.6; max-width: 640px; margin: 0;
+}
+/* Tier C wraps in a teal-tinted premium container, signalling paid content */
+.report-page .tier-part-C {
+  background: linear-gradient(180deg, #fff 0%, var(--teal-bg) 100%);
+  margin: 64px -24px 0;
+  padding: 40px 24px 24px;
+  border-top: 3px solid var(--teal);
+  border-radius: 18px 18px 0 0;
 }
 
 /* Paywall placeholder (shown for Tier C in ?preview=free mode) */

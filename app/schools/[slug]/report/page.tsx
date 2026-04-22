@@ -327,6 +327,11 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
           charityNumber={charity?.number}
         />
 
+        {/* Verdict + parent-fit up top — the editorial take paid users opened
+            the report for. Hidden in free preview since Tier C is paywalled. */}
+        {isPaid && <VerdictBox verdict={verdict} />}
+        {isPaid && <ParentFit fit={parentFit} />}
+
         <DossierOverview schoolName={school.name} stats={stats} />
 
         <MobileTOC />
@@ -334,8 +339,9 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
         {/* ═══ TIER A — verified overview ═══ */}
         <TierDivider
           tier="A"
-          title="What the school says — verified"
-          subtitle="Facts and figures as published by the school, cross-checked against primary sources."
+          label="Tier A · Verified overview"
+          title="The school at a glance — cross-checked"
+          subtitle="Key facts as published by the school, verified against primary sources. Every acronym (GCSE, IB, ISI, UCAS) is defined inline at first use and again in the glossary."
         />
 
         <KeyFactsGrid
@@ -362,8 +368,9 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
         {/* ═══ TIER B — what the public data shows ═══ */}
         <TierDivider
           tier="B"
-          title="What the public data shows"
-          subtitle="Our analysis of published exam results, destinations, sports, community, and fees."
+          label="Tier B · Analysis of public data"
+          title="What the data actually shows"
+          subtitle="Published exam results, university destinations, admissions process, sports, pastoral care, fees, and the community profile — all pulled from primary sources and structured for comparison."
         />
 
         <CurriculumSection
@@ -421,8 +428,9 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
         {/* ═══ TIER C — independently verified & regulated ═══ */}
         <TierDivider
           tier="C"
-          title="Independently verified &amp; regulated"
-          subtitle="Charity Commission, Companies House, ISI inspection quotes, safeguarding, parent-fit verdict, and tour questions."
+          label="Tier C · Verified &amp; regulated"
+          title="The due-diligence pack"
+          subtitle="Facts from public records the school's marketing does not highlight — Charity Commission, Companies House, ISI inspection quotes, and the Department for Education. Each comes with a plain-English translation."
         />
 
         {!isPaid ? (
@@ -438,10 +446,6 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
           ]} />
         ) : (
           <>
-            <VerdictBox verdict={verdict} />
-
-            <ParentFit fit={parentFit} />
-
             <RegulatoryStatus
               charity={charity ? {
                 number: charity.number,
