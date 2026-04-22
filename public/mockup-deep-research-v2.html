@@ -53,6 +53,24 @@ h1, h2, h3, h4 { font-family: 'Nunito', sans-serif; color: var(--navy); margin: 
   gap: 20px;
   box-shadow: 0 2px 8px rgba(0,0,0,.1);
 }
+.state-toggle-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255,255,255,.75);
+  text-decoration: none;
+  padding: 7px 12px;
+  border: 1px solid rgba(255,255,255,.15);
+  border-radius: 100px;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.state-toggle-back:hover {
+  background: rgba(255,255,255,.1);
+  border-color: rgba(255,255,255,.3);
+  color: #fff;
+}
 .state-toggle-label {
   font-size: 13px;
   font-weight: 700;
@@ -750,6 +768,7 @@ body[data-state="paid"] .glimpse-hidden::after { opacity: 0; }
 
 <!-- STATE TOGGLE -->
 <div class="state-toggle">
+  <a href="/mockup-schools-index.html" class="state-toggle-back" title="Browse all schools with Deep Research data">← Schools index</a>
   <span class="state-toggle-label">Paywall state:</span>
   <div class="state-toggle-btns">
     <button class="state-toggle-btn active" data-state="free">Free (not paid)</button>

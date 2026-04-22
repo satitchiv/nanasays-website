@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deep Research · schools index</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #1B3252;
+  --teal: #34C3A0;
+  --teal-dk: #239C80;
+  --teal-bg: #E8FAF6;
+  --body: #374151;
+  --muted: #6B7280;
+  --border: #E5E7EB;
+  --off: #F9FAFB;
+  --off2: #F3F4F6;
+  --amber: #F59E0B;
+  --amber-bg: #FEF3C7;
+  --red: #DC2626;
+  --red-bg: #FEE2E2;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: 'Nunito Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--body);
+  background: var(--off);
+  line-height: 1.55;
+}
+h1, h2, h3 { font-family: 'Nunito', sans-serif; color: var(--navy); margin: 0; }
+a { color: var(--navy); }
+
+.hero {
+  background: linear-gradient(135deg, var(--navy) 0%, #1e3f6b 100%);
+  color: #fff;
+  padding: 44px 5%;
+}
+.hero-inner { max-width: 1100px; margin: 0 auto; }
+.hero-kicker {
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--teal);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.hero-title {
+  font-family: 'Nunito', sans-serif;
+  font-size: 32px;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1.2;
+  margin-bottom: 10px;
+  letter-spacing: -.01em;
+}
+.hero-sub {
+  font-size: 15px;
+  color: rgba(255,255,255,.75);
+  max-width: 640px;
+  line-height: 1.6;
+}
+
+.hero-stats {
+  display: flex;
+  gap: 32px;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(255,255,255,.1);
+}
+.hero-stat-val {
+  font-family: 'Nunito', sans-serif;
+  font-size: 32px;
+  font-weight: 900;
+  color: var(--teal);
+  line-height: 1;
+}
+.hero-stat-label {
+  font-size: 12px;
+  color: rgba(255,255,255,.6);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-top: 6px;
+}
+
+.container { max-width: 1100px; margin: 0 auto; padding: 32px 5%; }
+
+.filter-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.filter-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-right: 6px;
+}
+.filter-btn {
+  background: #fff;
+  border: 1.5px solid var(--border);
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 14px;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.filter-btn:hover { border-color: var(--navy); color: var(--navy); }
+.filter-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+.search-input {
+  padding: 8px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 100px;
+  font-family: inherit;
+  font-size: 13px;
+  width: 220px;
+  background: #fff;
+  margin-left: auto;
+}
+.search-input:focus { outline: none; border-color: var(--teal); }
+
+.schools-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 14px;
+}
+
+.school-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color .15s, box-shadow .15s, transform .15s;
+}
+.school-card:hover {
+  border-color: var(--teal);
+  box-shadow: 0 4px 16px rgba(27,50,82,.08);
+  transform: translateY(-1px);
+}
+.school-card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.school-name {
+  font-family: 'Nunito', sans-serif;
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--navy);
+  letter-spacing: -.01em;
+  line-height: 1.25;
+}
+.school-slug { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: monospace; }
+
+.badge {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 100px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.badge-full { background: #D1FAE5; color: #065F46; }
+.badge-mostly { background: #DBEAFE; color: #1E40AF; }
+.badge-partial { background: var(--amber-bg); color: #92400E; }
+
+.score-dots { display: flex; gap: 3px; margin-top: 8px; }
+.score-dot {
+  width: 22px;
+  height: 6px;
+  border-radius: 2px;
+  background: var(--border);
+}
+.score-dot.filled { background: var(--teal); }
+
+.score-labels {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 3px;
+  font-size: 9px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .02em;
+  margin-top: 4px;
+}
+.score-label-item { text-align: center; opacity: .7; line-height: 1.1; }
+
+.school-actions { display: flex; gap: 8px; margin-top: auto; padding-top: 10px; border-top: 1px dashed var(--border); }
+.school-btn {
+  flex: 1;
+  text-align: center;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: all .15s;
+}
+.school-btn-primary { background: var(--navy); color: #fff; }
+.school-btn-primary:hover { background: #0d2040; }
+.school-btn-secondary { background: var(--off2); color: var(--navy); }
+.school-btn-secondary:hover { background: var(--border); }
+.school-btn-disabled { background: var(--off2); color: var(--muted); cursor: not-allowed; }
+
+.mockup-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--teal-dk);
+  background: var(--teal-bg);
+  padding: 3px 8px;
+  border-radius: 100px;
+  margin-top: 4px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  .hero-title { font-size: 24px; }
+  .hero-stats { gap: 20px; flex-wrap: wrap; }
+  .schools-grid { grid-template-columns: 1fr; }
+  .search-input { margin-left: 0; width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-inner">
+    <div class="hero-kicker">Deep Research · internal schools index · live</div>
+    <h1 class="hero-title">Schools with Deep Research data</h1>
+    <p class="hero-sub">
+      Browse every school that currently has enough structured data to render a Deep Research report. The new three-tier paywall design is only wired into Wycombe Abbey's mockup for now — the others still render the old design at their <code>/report</code> URL.
+    </p>
+    <div class="hero-stats">
+      <div>
+        <div class="hero-stat-val" id="total-count">—</div>
+        <div class="hero-stat-label">schools with data</div>
+      </div>
+      <div>
+        <div class="hero-stat-val" id="full-count">—</div>
+        <div class="hero-stat-label">fully complete (6/6 fields)</div>
+      </div>
+      <div>
+        <div class="hero-stat-val">1</div>
+        <div class="hero-stat-label">mockup design done</div>
+      </div>
+      <div>
+        <div class="hero-stat-val" id="updated-val" style="font-size: 14px; color: rgba(255,255,255,.7); font-weight: 700;">—</div>
+        <div class="hero-stat-label">live from Supabase</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="filter-row">
+    <span class="filter-label">Filter:</span>
+    <button class="filter-btn active" data-filter="all">All (<span data-count="all">—</span>)</button>
+    <button class="filter-btn" data-filter="full">Fully complete (<span data-count="full">—</span>)</button>
+    <button class="filter-btn" data-filter="mostly">Mostly (<span data-count="mostly">—</span>)</button>
+    <button class="filter-btn" data-filter="partial">Partial (<span data-count="partial">—</span>)</button>
+    <button class="filter-btn" id="refresh-btn" title="Refetch from Supabase" style="margin-left: 8px;">⟳ Refresh</button>
+    <input type="search" class="search-input" placeholder="Search…" id="search">
+  </div>
+
+  <div class="schools-grid" id="grid">
+    <div class="empty-state" id="loading">Loading live data from Supabase…</div>
+  </div>
+
+  <div class="empty-state" id="empty" style="display: none;">No schools match your filter.</div>
+</div>
+
+<script>
+// Which slugs have a visual mockup built. Everything else has only
+// the live page at /schools/{slug}/report (old design).
+const MOCKUPS = new Set(['wycombe-abbey']);
+
+function tier(score) {
+  if (score === 6) return 'full';
+  if (score === 5) return 'mostly';
+  return 'partial';
+}
+function badgeClass(score) {
+  if (score === 6) return 'badge-full';
+  if (score === 5) return 'badge-mostly';
+  return 'badge-partial';
+}
+function badgeText(score) {
+  if (score === 6) return '✓ Complete';
+  if (score === 5) return '5/6 fields';
+  return score + '/6 fields';
+}
+function fmtUpdated(iso) {
+  const d = new Date(iso);
+  return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function renderCard(s) {
+  const hasMockup = MOCKUPS.has(s.slug);
+  const dots = Array.from({length: 6}, (_, i) =>
+    `<div class="score-dot ${i < s.score ? 'filled' : ''}"></div>`
+  ).join('');
+
+  const mockupBtn = hasMockup
+    ? `<a href="/mockup-deep-research-v2.html" class="school-btn school-btn-primary">View mockup</a>`
+    : `<span class="school-btn school-btn-disabled">Mockup pending</span>`;
+
+  const mockupChip = hasMockup
+    ? `<div class="mockup-chip">★ Mockup available</div>`
+    : '';
+
+  return `
+    <div class="school-card" data-tier="${tier(s.score)}" data-search="${s.name.toLowerCase()} ${s.slug}">
+      <div class="school-card-top">
+        <div>
+          <div class="school-name">${s.name}</div>
+          <div class="school-slug">${s.slug}</div>
+          ${mockupChip}
+        </div>
+        <span class="badge ${badgeClass(s.score)}">${badgeText(s.score)}</span>
+      </div>
+      <div>
+        <div class="score-dots">${dots}</div>
+        <div class="score-labels">
+          <div class="score-label-item" style="${s.fields.exam ? '' : 'opacity:.3'}">exam</div>
+          <div class="score-label-item" style="${s.fields.uni ? '' : 'opacity:.3'}">uni</div>
+          <div class="score-label-item" style="${s.fields.sport ? '' : 'opacity:.3'}">sport</div>
+          <div class="score-label-item" style="${s.fields.community ? '' : 'opacity:.3'}">community</div>
+          <div class="score-label-item" style="${s.fields.wellbeing ? '' : 'opacity:.3'}">wellbeing</div>
+          <div class="score-label-item" style="${s.fields.verdict ? '' : 'opacity:.3'}">verdict</div>
+        </div>
+      </div>
+      <div class="school-actions">
+        ${mockupBtn}
+        <a href="/schools/${s.slug}/report" class="school-btn school-btn-secondary">Current live page</a>
+      </div>
+    </div>
+  `;
+}
+
+const grid = document.getElementById('grid');
+const empty = document.getElementById('empty');
+let currentFilter = 'all';
+let currentSearch = '';
+
+function apply() {
+  const cards = document.querySelectorAll('.school-card');
+  let visible = 0;
+  cards.forEach(c => {
+    const matchesFilter = currentFilter === 'all' || c.dataset.tier === currentFilter;
+    const matchesSearch = !currentSearch || c.dataset.search.includes(currentSearch);
+    const show = matchesFilter && matchesSearch;
+    c.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  empty.style.display = visible === 0 ? 'block' : 'none';
+}
+
+async function loadLive() {
+  grid.innerHTML = '<div class="empty-state">Loading live data from Supabase…</div>';
+  try {
+    const res = await fetch('/api/mockup-schools-status', { cache: 'no-store' });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+
+    document.getElementById('total-count').textContent = data.total;
+    document.getElementById('full-count').textContent = data.byTier.full;
+    document.getElementById('updated-val').textContent = fmtUpdated(data.updatedAt);
+    document.querySelector('[data-count="all"]').textContent = data.total;
+    document.querySelector('[data-count="full"]').textContent = data.byTier.full;
+    document.querySelector('[data-count="mostly"]').textContent = data.byTier.mostly;
+    document.querySelector('[data-count="partial"]').textContent = data.byTier.partial;
+
+    grid.innerHTML = data.schools.map(renderCard).join('');
+    apply();
+  } catch (err) {
+    grid.innerHTML = '<div class="empty-state" style="color:#DC2626">Failed to load: ' + err.message + '</div>';
+  }
+}
+
+document.querySelectorAll('.filter-btn[data-filter]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filter-btn[data-filter]').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    apply();
+  });
+});
+
+document.getElementById('search').addEventListener('input', e => {
+  currentSearch = e.target.value.toLowerCase().trim();
+  apply();
+});
+
+document.getElementById('refresh-btn').addEventListener('click', loadLive);
+
+loadLive();
+</script>
+
+</body>
+</html>
