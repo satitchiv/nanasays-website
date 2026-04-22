@@ -1,16 +1,3 @@
-/**
- * /schools/[slug]/report
- *
- * Deep School Report — full dynamic render from Supabase (Milestone 2).
- *
- * Composes ~20 components from components/report/* into the full mockup layout.
- * Every fact comes from Supabase; narrative sections (verdict, parent fit, tour
- * questions) come from school_structured_data.report_* JSONB columns populated
- * by scripts/generate-narrative.js.
- *
- * Style lives in ./report.css.
- */
-
 import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
 
@@ -38,7 +25,11 @@ import Glossary               from '@/components/report/Glossary'
 import Sources, { Source }    from '@/components/report/Sources'
 import { SideTOC, MobileTOC } from '@/components/report/ReportNav'
 import LocationSection        from '@/components/report/LocationSection'
-import CrimeSafetySection, { CrimeSummary } from '@/components/report/CrimeSafetySection'
+import CrimeSafetySection     from '@/components/report/CrimeSafetySection'
+import DossierOverview        from '@/components/report/DossierOverview'
+import TierDivider            from '@/components/report/TierDivider'
+import PaywallPlaceholder     from '@/components/report/PaywallPlaceholder'
+import { computeDossierStats } from '@/lib/dossier-stats'
 
 import './report.css'
 
@@ -53,7 +44,10 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-type Props = { params: Promise<{ slug: string }> }
+type Props = {
+  params: Promise<{ slug: string }>
+  searchParams?: Promise<{ preview?: string }>
+}
 
 async function loadAll(slug: string) {
   const [{ data: school }, { data: structured }, { data: sensitive }] = await Promise.all([
@@ -262,10 +256,16 @@ function buildSources(rows: any[], structured: any, school: any): Source[] {
   return sources
 }
 
-export default async function SchoolReportPage({ params }: Props) {
+export default async function SchoolReportPage({ params, searchParams }: Props) {
   const { slug } = await params
+  const sp = (await searchParams) ?? {}
+  // Paywall is hardcoded open during the transitional rollout. ?preview=free
+  // flips to the locked view so we can design-review the paywalled experience.
+  const isPaid = sp.preview !== 'free'
   const { school, structured, sensitive } = await loadAll(slug)
   if (!school) notFound()
+
+  const stats = computeDossierStats(structured, sensitive)
 
   const charity   = extractCharityMeta(sensitive)
   const ch        = extractCompaniesHouse(sensitive)
@@ -310,7 +310,6 @@ export default async function SchoolReportPage({ params }: Props) {
     return first.length <= 80 ? first : sf.slice(0, 70) + '…'
   })()
 
-  // Derive isi age months for InspectionRecord component
   return (
     <main className="report-page" id="top">
       <SideTOC />
@@ -328,21 +327,16 @@ export default async function SchoolReportPage({ params }: Props) {
           charityNumber={charity?.number}
         />
 
-        <VerdictBox verdict={verdict} />
-
-        <ParentFit fit={parentFit} />
+        <DossierOverview schoolName={school.name} stats={stats} />
 
         <MobileTOC />
 
-        {/* ═══ Quick verdict ═══ */}
-        <div className="part">
-          <div className="part-label">Quick verdict</div>
-          <h2 className="part-title">The school at a glance</h2>
-          <p className="part-intro">
-            Key facts and what makes this school worth considering — or not. Every acronym (GCSE, IB, ISI, UCAS, PSHE, etc.)
-            is defined inline at first use — and again in the <a href="#glossary">glossary</a>.
-          </p>
-        </div>
+        {/* ═══ TIER A — verified overview ═══ */}
+        <TierDivider
+          tier="A"
+          title="What the school says — verified"
+          subtitle="Facts and figures as published by the school, cross-checked against primary sources."
+        />
 
         <KeyFactsGrid
           founded={school.founded_year || lead.founded}
@@ -365,14 +359,12 @@ export default async function SchoolReportPage({ params }: Props) {
 
         {recentItems.length > 0 && <RecentSection items={recentItems} />}
 
-        {/* ═══ Academics & outcomes ═══ */}
-        <div className="part">
-          <div className="part-label">Academics & outcomes</div>
-          <h2 className="part-title">What pupils achieve</h2>
-          <p className="part-intro">
-            Curriculum, published exam results, and where leavers go next — universities, apprenticeships, and beyond.
-          </p>
-        </div>
+        {/* ═══ TIER B — what the public data shows ═══ */}
+        <TierDivider
+          tier="B"
+          title="What the public data shows"
+          subtitle="Our analysis of published exam results, destinations, sports, community, and fees."
+        />
 
         <CurriculumSection
           curriculum={structured?.curriculum}
@@ -387,15 +379,6 @@ export default async function SchoolReportPage({ params }: Props) {
           registrationDeadline={structured?.registration_deadline}
           entryExamType={structured?.entry_exam_type}
         />
-
-        {/* ═══ Life at school ═══ */}
-        <div className="part">
-          <div className="part-label">Life at school</div>
-          <h2 className="part-title">What it's actually like here</h2>
-          <p className="part-intro">
-            Culture, pastoral care, sport, day-to-day routines, and the things that make this school feel different from the brochure.
-          </p>
-        </div>
 
         <SchoolLifeSection schoolLife={structured?.school_life ?? null} />
 
@@ -419,15 +402,6 @@ export default async function SchoolReportPage({ params }: Props) {
           totalPupils={structured?.student_count || school.student_count}
         />
 
-        {/* ═══ Costs & access ═══ */}
-        <div className="part">
-          <div className="part-label">Costs & access</div>
-          <h2 className="part-title">Fees, scholarships & getting there</h2>
-          <p className="part-intro">
-            The true cost of attending, what financial help is available, and how easy the school is to reach.
-          </p>
-        </div>
-
         <FeesSection
           feesMin={structured?.fees_local_min || structured?.fees_min}
           feesMax={structured?.fees_local_max || structured?.fees_max}
@@ -444,105 +418,121 @@ export default async function SchoolReportPage({ params }: Props) {
           schoolName={school.name}
         />
 
-        {/* ═══ Due diligence ═══ */}
-        <div className="part part-premium">
-          <div className="part-label">Due diligence</div>
-          <h2 className="part-title">The deep report</h2>
-          <p className="part-intro">
-            Facts from public records that the school&apos;s marketing does not highlight — Charity Commission, Companies
-            House, ISI, and the Department for Education. Each section includes a plain-English translation.
-          </p>
-        </div>
-
-        <RegulatoryStatus
-          charity={charity ? {
-            number: charity.number,
-            legalName: charity.legalName,
-            registeredDate: charity.registeredDate,
-            filingsUpToDate: charity.filingsUpToDate,
-          } : undefined}
-          companiesHouse={ch ? {
-            companyNumber: ch.companyNumber,
-            multipleEntities: ch.companyName !== charity?.legalName && !!charity?.legalName,
-            foundationEntity: ch.companyName && ch.companyName !== charity?.legalName ? ch.companyName : null,
-            foundationNumber: ch.companyName && ch.companyName !== charity?.legalName ? ch.companyNumber : null,
-          } : undefined}
-          isi={isi ? {
-            lastInspectionDate: isi.formattedDate,
-            standardsMet: isi.standardsMet,
-            minorItems: isi.recommendations?.length ?? null,
-            inspectorate: 'ISI Inspection',
-          } : undefined}
-          safeguarding={{
-            incidentReports5yr: 0, // TODO: pull from SIR records once wired
-            inspectorConfirmedEffective: isi?.standardsMet,
-          }}
+        {/* ═══ TIER C — independently verified & regulated ═══ */}
+        <TierDivider
+          tier="C"
+          title="Independently verified &amp; regulated"
+          subtitle="Charity Commission, Companies House, ISI inspection quotes, safeguarding, parent-fit verdict, and tour questions."
         />
 
-        {charity?.number && (
-          <section className="block" id="financial">
-            <h2 className="block-title">Financial health</h2>
-            <EntityMapping
-              schoolName={school.name}
-              charityLegalName={charity.legalName}
-              charityWorkingName={charity.workingName}
-              charityNumber={charity.number}
-              charityRegisteredDate={charity.registeredDate}
-              foundationName={ch?.companyName && ch.companyName !== charity.legalName ? ch.companyName : null}
-              foundationNumber={ch?.companyName && ch.companyName !== charity.legalName ? ch.companyNumber : null}
-              charityUrl={charity.url}
-              foundationUrl={ch?.url}
+        {!isPaid ? (
+          <PaywallPlaceholder hiddenSections={[
+            'Editorial verdict',
+            'Parent-fit scorecard',
+            'Regulatory status',
+            'Financial health',
+            'ISI inspection quotes',
+            'Safeguarding record',
+            'Crime & safety',
+            '5 pointed tour questions',
+          ]} />
+        ) : (
+          <>
+            <VerdictBox verdict={verdict} />
+
+            <ParentFit fit={parentFit} />
+
+            <RegulatoryStatus
+              charity={charity ? {
+                number: charity.number,
+                legalName: charity.legalName,
+                registeredDate: charity.registeredDate,
+                filingsUpToDate: charity.filingsUpToDate,
+              } : undefined}
+              companiesHouse={ch ? {
+                companyNumber: ch.companyNumber,
+                multipleEntities: ch.companyName !== charity?.legalName && !!charity?.legalName,
+                foundationEntity: ch.companyName && ch.companyName !== charity?.legalName ? ch.companyName : null,
+                foundationNumber: ch.companyName && ch.companyName !== charity?.legalName ? ch.companyNumber : null,
+              } : undefined}
+              isi={isi ? {
+                lastInspectionDate: isi.formattedDate,
+                standardsMet: isi.standardsMet,
+                minorItems: isi.recommendations?.length ?? null,
+                inspectorate: 'ISI Inspection',
+              } : undefined}
+              safeguarding={{
+                incidentReports5yr: 0,
+                inspectorConfirmedEffective: isi?.standardsMet,
+              }}
             />
-            <FinancialTable years={years} />
-            {financialRed && (
-              <div className="translate">
-                <p>
-                  <strong>The one flag to probe:</strong> Liabilities more than doubled in one year. This sounds
-                  alarming but isn&apos;t automatically a bad thing — it often just means the school took out a loan to
-                  build something new, or started counting a long-term rental as a debt. The key fact: total assets
-                  also grew in the same year, so the school&apos;s overall health improved. But ask the Bursar directly:
-                  &quot;What caused liabilities to grow sharply in the latest accounts?&quot;
-                </p>
-              </div>
+
+            {charity?.number && (
+              <section className="block" id="financial">
+                <h2 className="block-title">Financial health</h2>
+                <EntityMapping
+                  schoolName={school.name}
+                  charityLegalName={charity.legalName}
+                  charityWorkingName={charity.workingName}
+                  charityNumber={charity.number}
+                  charityRegisteredDate={charity.registeredDate}
+                  foundationName={ch?.companyName && ch.companyName !== charity.legalName ? ch.companyName : null}
+                  foundationNumber={ch?.companyName && ch.companyName !== charity.legalName ? ch.companyNumber : null}
+                  charityUrl={charity.url}
+                  foundationUrl={ch?.url}
+                />
+                <FinancialTable years={years} />
+                {financialRed && (
+                  <div className="translate">
+                    <p>
+                      <strong>The one flag to probe:</strong> Liabilities more than doubled in one year. This sounds
+                      alarming but isn&apos;t automatically a bad thing — it often just means the school took out a loan to
+                      build something new, or started counting a long-term rental as a debt. The key fact: total assets
+                      also grew in the same year, so the school&apos;s overall health improved. But ask the Bursar directly:
+                      &quot;What caused liabilities to grow sharply in the latest accounts?&quot;
+                    </p>
+                  </div>
+                )}
+              </section>
             )}
-          </section>
+
+            {isi && (
+              <InspectionRecord
+                inspectionDate={isi.formattedDate}
+                inspectionAgeMonths={isi.monthsAgo}
+                standardsMet={isi.standardsMet}
+                numberOfInspectors={isi.numberOfInspectors}
+                durationDays={isi.durationDays}
+                previousInspectionDate={isi.previousInspectionDate}
+                reportUrl={isi.reportUrl}
+                signatureQuotes={isi.signatureQuotes}
+                wellbeingQuotes={isi.wellbeingQuotes}
+                academicQuotes={isi.academicQuotes}
+                sendNotes={isi.sendNotes}
+                inspectionType={isi.inspectionType}
+                overallSummary={isi.overallSummary}
+                recommendations={isi.recommendations}
+              />
+            )}
+
+            <SafeguardingSection
+              verifiedTRA={tra.verified}
+              uncertainTRACount={tra.uncertain}
+              droppedTRACount={tra.dropped}
+              sirCount5yr={0}
+              isiSafeguardingEffective={isi?.standardsMet}
+              head={headObj ? { name: headObj.name, role: headObj.title, tenureStart: headObj.tenure_start } : null}
+              chair={chairName}
+              seniorTeam={seniorTeam.map((s: any) => ({ name: s.name, role: s.role, tenure_start: s.tenure_start }))}
+            />
+
+            <CrimeSafetySection
+              crime={(structured?.location_profile as any)?.crime_summary ?? null}
+            />
+
+            <TourQuestions questions={tourQs} />
+          </>
         )}
-
-        {isi && (
-          <InspectionRecord
-            inspectionDate={isi.formattedDate}
-            inspectionAgeMonths={isi.monthsAgo}
-            standardsMet={isi.standardsMet}
-            numberOfInspectors={isi.numberOfInspectors}
-            durationDays={isi.durationDays}
-            previousInspectionDate={isi.previousInspectionDate}
-            reportUrl={isi.reportUrl}
-            signatureQuotes={isi.signatureQuotes}
-            wellbeingQuotes={isi.wellbeingQuotes}
-            academicQuotes={isi.academicQuotes}
-            sendNotes={isi.sendNotes}
-            inspectionType={isi.inspectionType}
-            overallSummary={isi.overallSummary}
-            recommendations={isi.recommendations}
-          />
-        )}
-
-        <SafeguardingSection
-          verifiedTRA={tra.verified}
-          uncertainTRACount={tra.uncertain}
-          droppedTRACount={tra.dropped}
-          sirCount5yr={0}
-          isiSafeguardingEffective={isi?.standardsMet}
-          head={headObj ? { name: headObj.name, role: headObj.title, tenureStart: headObj.tenure_start } : null}
-          chair={chairName}
-          seniorTeam={seniorTeam.map((s: any) => ({ name: s.name, role: s.role, tenure_start: s.tenure_start }))}
-        />
-
-        <CrimeSafetySection
-          crime={(structured?.location_profile as any)?.crime_summary ?? null}
-        />
-
-        <TourQuestions questions={tourQs} />
 
         <Glossary />
 
