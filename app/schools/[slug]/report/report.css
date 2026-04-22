@@ -1280,3 +1280,188 @@
   .report-page .dossier-toc { grid-template-columns: 1fr; }
   .report-page .unlock-banner { flex-direction: column; align-items: flex-start; }
 }
+
+/* ──────────────  Glimpse cards (preview mode — mockup-style) ────────────── */
+
+.report-page .glimpse-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  position: relative;
+}
+.report-page .glimpse-card-title {
+  font-size: 13px; font-weight: 800; color: var(--navy);
+  text-transform: uppercase; letter-spacing: .05em;
+  margin-bottom: 10px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; flex-wrap: wrap;
+}
+.report-page .glimpse-lock-chip {
+  font-size: 10px; font-weight: 800;
+  letter-spacing: .06em; text-transform: uppercase;
+  background: var(--off2); color: var(--muted);
+  padding: 3px 8px; border-radius: 100px;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.report-page .glimpse-body {
+  font-size: 14px; color: var(--body);
+  line-height: 1.6; margin: 0;
+}
+.report-page .glimpse-hidden {
+  filter: blur(5px);
+  user-select: none;
+  pointer-events: none;
+  opacity: .7;
+  margin-top: 12px;
+  position: relative;
+}
+.report-page .glimpse-hidden::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(255,255,255,.6) 80%, #fff 100%);
+  pointer-events: none;
+}
+.report-page .glimpse-blur-copy {
+  font-size: 13px; color: var(--body); margin: 8px 0 0;
+}
+.report-page .glimpse-inline-unlock {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 12px; font-weight: 700;
+  color: var(--teal-dk);
+}
+.report-page .glimpse-inline-unlock:hover { color: var(--navy); }
+
+/* Stat cards inside glimpses */
+.report-page .glimpse-stats {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.report-page .stat-card {
+  background: var(--off); border: 1px solid var(--border);
+  border-radius: 10px; padding: 12px 14px;
+}
+.report-page .stat-label {
+  font-size: 11px; font-weight: 700; color: var(--muted);
+  text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px;
+}
+.report-page .stat-value {
+  font-family: 'Nunito', sans-serif;
+  font-size: 22px; font-weight: 900; color: var(--navy); line-height: 1;
+}
+.report-page .stat-sub {
+  font-size: 11px; color: var(--muted); margin-top: 4px;
+}
+
+/* University list */
+.report-page .glimpse-uni-list {
+  list-style: none; padding: 0; margin: 0;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.report-page .glimpse-uni-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 13px; padding: 9px 12px;
+  background: #fff; border: 1px solid var(--border); border-radius: 8px;
+}
+.report-page .glimpse-uni-name { font-weight: 700; color: var(--navy); }
+.report-page .glimpse-uni-count {
+  font-family: 'Nunito', sans-serif;
+  font-weight: 800; color: var(--teal-dk); font-size: 14px;
+}
+
+/* Sports tiers */
+.report-page .glimpse-sports-tiers {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+}
+.report-page .sport-tier {
+  padding: 10px 12px; border-radius: 6px;
+  border-left-width: 3px; border-left-style: solid;
+}
+.report-page .sport-tier-amber { background: #FEF3C7; border-left-color: #F59E0B; }
+.report-page .sport-tier-amber .sport-tier-label { color: #92400E; }
+.report-page .sport-tier-blue { background: #DBEAFE; border-left-color: #3B82F6; }
+.report-page .sport-tier-blue .sport-tier-label { color: #1E40AF; }
+.report-page .sport-tier-muted { background: var(--off2); border-left-color: var(--muted); }
+.report-page .sport-tier-muted .sport-tier-label { color: var(--muted); }
+.report-page .sport-tier-label {
+  font-size: 11px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: .05em;
+}
+.report-page .sport-tier-items {
+  font-size: 14px; font-weight: 700; color: var(--navy); margin-top: 4px;
+}
+
+/* Community bars */
+.report-page .community-bar {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12px; margin-bottom: 8px;
+}
+.report-page .community-label {
+  flex-shrink: 0; width: 130px; color: var(--body); font-weight: 600;
+}
+.report-page .community-track {
+  flex: 1; height: 8px; background: var(--border);
+  border-radius: 4px; overflow: hidden;
+}
+.report-page .community-fill { height: 100%; background: var(--teal); }
+.report-page .community-value {
+  font-size: 12px; font-weight: 800; color: var(--navy);
+  flex-shrink: 0; width: 40px; text-align: right;
+  font-family: 'Nunito', sans-serif;
+}
+
+/* Glimpse quote, KV, question list */
+.report-page .glimpse-quote {
+  margin: 0 0 8px; padding-left: 14px;
+  border-left: 3px solid var(--teal);
+  font-size: 14px; font-style: italic; color: var(--body); line-height: 1.7;
+}
+.report-page .glimpse-kv {
+  display: grid; grid-template-columns: 1fr auto;
+  gap: 6px 12px; font-size: 13px; margin: 0;
+}
+.report-page .glimpse-kv dt { color: var(--muted); }
+.report-page .glimpse-kv dd { margin: 0; color: var(--body); font-weight: 600; }
+.report-page .glimpse-questions {
+  margin: 0; padding-left: 20px;
+  font-size: 14px; color: var(--body); line-height: 1.8;
+}
+
+/* Final navy unlock banner at bottom of preview */
+.report-page .preview-final-banner {
+  background: linear-gradient(135deg, var(--navy) 0%, #1e3f6b 100%);
+  color: #fff;
+  border-radius: 14px;
+  padding: 32px;
+  text-align: center;
+  margin: 28px 0 20px;
+}
+.report-page .preview-final-kicker {
+  font-size: 11px; font-weight: 900; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--teal);
+  margin-bottom: 8px;
+}
+.report-page .preview-final-title {
+  font-family: 'Nunito', sans-serif;
+  font-size: 22px; font-weight: 900; color: #fff;
+  margin: 0 0 10px; line-height: 1.2;
+}
+.report-page .preview-final-sub {
+  font-size: 14px; color: rgba(255,255,255,.75);
+  max-width: 540px; margin: 0 auto 20px; line-height: 1.6;
+}
+.report-page .preview-final-btn {
+  display: inline-block;
+  background: var(--teal); color: #fff;
+  font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 14px;
+  letter-spacing: .06em; text-transform: uppercase;
+  padding: 14px 26px; border-radius: 100px;
+  text-decoration: none; transition: background .15s;
+}
+.report-page .preview-final-btn:hover { background: var(--teal-dk); color: #fff; }
+
+@media (max-width: 640px) {
+  .report-page .glimpse-stats,
+  .report-page .glimpse-sports-tiers { grid-template-columns: 1fr; }
+}

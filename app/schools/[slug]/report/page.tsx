@@ -28,7 +28,7 @@ import LocationSection        from '@/components/report/LocationSection'
 import CrimeSafetySection     from '@/components/report/CrimeSafetySection'
 import DossierOverview        from '@/components/report/DossierOverview'
 import TierDivider            from '@/components/report/TierDivider'
-import PreviewWrapper         from '@/components/report/PreviewWrapper'
+import PreviewSections        from '@/components/report/PreviewSections'
 import UnlockBanner           from '@/components/report/UnlockBanner'
 import { computeDossierStats } from '@/lib/dossier-stats'
 import { isUnlocked }         from '@/lib/paid-status'
@@ -346,132 +346,107 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
           subtitle="Facts and figures as published by the school, cross-checked against primary sources."
         />
 
-        <KeyFactsGrid
-          founded={school.founded_year || lead.founded}
-          head={headObj?.name || null}
-          chair={chairName}
-          gender={school.gender_split}
-          ageMin={school.age_min}
-          ageMax={school.age_max}
-          studentCount={structured?.student_count || school.student_count}
-          boarderCount={structured?.boarder_count}
-          feesMin={structured?.fees_local_min || structured?.fees_min}
-          feesMax={structured?.fees_local_max || structured?.fees_max}
-          feesCurrency={structured?.fees_local_currency || structured?.fees_currency}
-          sixthFormOffer={sixthFormShort}
-          inspectorate={school.country === 'United Kingdom' ? 'ISI' : null}
-          inspectionDate={isi?.shortDate}
-          charityNumber={charity?.number}
-          charityLegalName={charity?.legalName}
-        />
-
-        {recentItems.length > 0 && <RecentSection items={recentItems} />}
-
-        {/* ═══ TIER B — what the public data shows ═══ */}
-        <TierDivider
-          tier="B"
-          title="What the public data shows"
-          subtitle="Our analysis of published exam results, destinations, sports, community, and fees."
-        />
-
-        {(() => {
-          const unlockHref = `/unlock?from=${encodeURIComponent(`/schools/${slug}/report`)}`
-          return (
-            <>
-              <PreviewWrapper isPaid={isPaid} unlockHref={unlockHref} chipText="+ 27-subject breakdown & 3-year trend">
-                <CurriculumSection
-                  curriculum={structured?.curriculum}
-                  sixthForm={structured?.sixth_form_curriculum}
-                  examResults={structured?.exam_results}
-                />
-              </PreviewWrapper>
-
-              <PreviewWrapper isPaid={isPaid} unlockHref={unlockHref} chipText="+ Oxbridge analysis, US placements, 5-yr trend">
-                <UniversityDestinations destinations={structured?.university_destinations} />
-              </PreviewWrapper>
-
-              <PreviewWrapper isPaid={isPaid} unlockHref={unlockHref} chipText="+ deadlines, exam prep, scholarship routes">
-                <AdmissionsSection
-                  admissionsFormat={structured?.admissions_format}
-                  registrationDeadline={structured?.registration_deadline}
-                  entryExamType={structured?.entry_exam_type}
-                />
-              </PreviewWrapper>
-
-              <PreviewWrapper isPaid={isPaid} unlockHref={unlockHref} chipText="+ culture read, day-to-day rhythm">
-                <SchoolLifeSection schoolLife={structured?.school_life ?? null} />
-              </PreviewWrapper>
-
-              <PreviewWrapper isPaid={isPaid} unlockHref={unlockHref} chipText="+ pastoral model, facility inventory">
-                <PastoralSection
-                  description={structured?.pastoral_care}
-                  facilities={structured?.facilities}
-                  pastoralModel={structured?.pastoral_model}
-                />
-              </PreviewWrapper>
-
-              <PreviewWrapper isPaid={isPaid} unlockHref={unlockHref} chipText="+ coach profiles, team records, facilities audit">
-                <SportsSection sports={structured?.sports_profile} />
-              </PreviewWrapper>
-
-              <PreviewWrapper isPaid={isPaid} unlockHref={unlockHref} chipText="+ boarding houses, year-group split, languages">
-                <CommunityProfile
-                  community={structured?.student_community}
-                  totalPupilsFallback={structured?.student_count || school.student_count}
-                />
-              </PreviewWrapper>
-
-              <PreviewWrapper isPaid={isPaid} unlockHref={unlockHref} chipText="+ staff table, ratios, sector comparison">
-                <DailyLifeGrid
-                  wellbeing={structured?.wellbeing_staffing}
-                  policies={structured?.policies_summary}
-                  boarding={school.boarding}
-                  totalPupils={structured?.student_count || school.student_count}
-                />
-              </PreviewWrapper>
-
-              <PreviewWrapper isPaid={isPaid} unlockHref={unlockHref} chipText="+ per-grade table, hidden extras, 5-yr inflation">
-                <FeesSection
-                  feesMin={structured?.fees_local_min || structured?.fees_min}
-                  feesMax={structured?.fees_local_max || structured?.fees_max}
-                  currency={structured?.fees_local_currency || structured?.fees_currency}
-                  feesByGrade={structured?.fees_by_grade}
-                  includesBoarding={structured?.fees_includes_boarding}
-                  applicationFee={structured?.application_fee_usd}
-                  scholarships={structured?.scholarships_available}
-                  bursariesNote={structured?.bursary_note}
-                />
-              </PreviewWrapper>
-
-              <PreviewWrapper isPaid={isPaid} unlockHref={unlockHref} chipText="+ transit times, crime read, nearby amenities">
-                <LocationSection
-                  location={structured?.location_profile ?? null}
-                  schoolName={school.name}
-                />
-              </PreviewWrapper>
-            </>
-          )
-        })()}
-
-        {/* ═══ TIER C — independently verified & regulated ═══ */}
-        <TierDivider
-          tier="C"
-          title="Independently verified &amp; regulated"
-          subtitle="Charity Commission, Companies House, ISI inspection quotes, safeguarding, parent-fit verdict, and tour questions."
-        />
-
-        {(() => {
-          const unlockHref = `/unlock?from=${encodeURIComponent(`/schools/${slug}/report`)}`
-          return (
+        {!isPaid ? (
+          <PreviewSections
+            schoolName={school.name}
+            unlockHref={`/unlock?from=${encodeURIComponent(`/schools/${slug}/report`)}`}
+            structured={structured}
+            charity={charity}
+            isi={isi}
+            financialYearCount={years.length}
+          />
+        ) : (
           <>
-            <PreviewWrapper isPaid={isPaid} unlockHref={unlockHref} chipText="+ 8-dimension fit scorecard, success predictors">
-              <VerdictBox verdict={verdict} />
+            <KeyFactsGrid
+              founded={school.founded_year || lead.founded}
+              head={headObj?.name || null}
+              chair={chairName}
+              gender={school.gender_split}
+              ageMin={school.age_min}
+              ageMax={school.age_max}
+              studentCount={structured?.student_count || school.student_count}
+              boarderCount={structured?.boarder_count}
+              feesMin={structured?.fees_local_min || structured?.fees_min}
+              feesMax={structured?.fees_local_max || structured?.fees_max}
+              feesCurrency={structured?.fees_local_currency || structured?.fees_currency}
+              sixthFormOffer={sixthFormShort}
+              inspectorate={school.country === 'United Kingdom' ? 'ISI' : null}
+              inspectionDate={isi?.shortDate}
+              charityNumber={charity?.number}
+              charityLegalName={charity?.legalName}
+            />
 
-              <ParentFit fit={parentFit} />
-            </PreviewWrapper>
+            {recentItems.length > 0 && <RecentSection items={recentItems} />}
 
-            <PreviewWrapper isPaid={isPaid} unlockHref={unlockHref} chipText="+ 8-year trustee history, filings, TRA detail">
-              <RegulatoryStatus
+            <TierDivider
+              tier="B"
+              title="What the public data shows"
+              subtitle="Our analysis of published exam results, destinations, sports, community, and fees."
+            />
+
+            <CurriculumSection
+              curriculum={structured?.curriculum}
+              sixthForm={structured?.sixth_form_curriculum}
+              examResults={structured?.exam_results}
+            />
+
+            <UniversityDestinations destinations={structured?.university_destinations} />
+
+            <AdmissionsSection
+              admissionsFormat={structured?.admissions_format}
+              registrationDeadline={structured?.registration_deadline}
+              entryExamType={structured?.entry_exam_type}
+            />
+
+            <SchoolLifeSection schoolLife={structured?.school_life ?? null} />
+
+            <PastoralSection
+              description={structured?.pastoral_care}
+              facilities={structured?.facilities}
+              pastoralModel={structured?.pastoral_model}
+            />
+
+            <SportsSection sports={structured?.sports_profile} />
+
+            <CommunityProfile
+              community={structured?.student_community}
+              totalPupilsFallback={structured?.student_count || school.student_count}
+            />
+
+            <DailyLifeGrid
+              wellbeing={structured?.wellbeing_staffing}
+              policies={structured?.policies_summary}
+              boarding={school.boarding}
+              totalPupils={structured?.student_count || school.student_count}
+            />
+
+            <FeesSection
+              feesMin={structured?.fees_local_min || structured?.fees_min}
+              feesMax={structured?.fees_local_max || structured?.fees_max}
+              currency={structured?.fees_local_currency || structured?.fees_currency}
+              feesByGrade={structured?.fees_by_grade}
+              includesBoarding={structured?.fees_includes_boarding}
+              applicationFee={structured?.application_fee_usd}
+              scholarships={structured?.scholarships_available}
+              bursariesNote={structured?.bursary_note}
+            />
+
+            <LocationSection
+              location={structured?.location_profile ?? null}
+              schoolName={school.name}
+            />
+
+            <TierDivider
+              tier="C"
+              title="Independently verified &amp; regulated"
+              subtitle="Charity Commission, Companies House, ISI inspection quotes, safeguarding, parent-fit verdict, and tour questions."
+            />
+
+            <VerdictBox verdict={verdict} />
+
+            <ParentFit fit={parentFit} />
+
+            <RegulatoryStatus
               charity={charity ? {
                 number: charity.number,
                 legalName: charity.legalName,
@@ -495,10 +470,8 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
                 inspectorConfirmedEffective: isi?.standardsMet,
               }}
             />
-            </PreviewWrapper>
 
             {charity?.number && (
-              <PreviewWrapper isPaid={isPaid} unlockHref={unlockHref} chipText="+ 3-yr P&L, cash flow, sector benchmarks">
               <section className="block" id="financial">
                 <h2 className="block-title">Financial health</h2>
                 <EntityMapping
@@ -525,11 +498,9 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
                   </div>
                 )}
               </section>
-              </PreviewWrapper>
             )}
 
             {isi && (
-              <PreviewWrapper isPaid={isPaid} unlockHref={unlockHref} chipText="+ 3 more quotes, inspector profile, scores">
               <InspectionRecord
                 inspectionDate={isi.formattedDate}
                 inspectionAgeMonths={isi.monthsAgo}
@@ -546,10 +517,8 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
                 overallSummary={isi.overallSummary}
                 recommendations={isi.recommendations}
               />
-              </PreviewWrapper>
             )}
 
-            <PreviewWrapper isPaid={isPaid} unlockHref={unlockHref} chipText="+ TRA audit trail, head/chair tenure">
             <SafeguardingSection
               verifiedTRA={tra.verified}
               uncertainTRACount={tra.uncertain}
@@ -560,20 +529,14 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
               chair={chairName}
               seniorTeam={seniorTeam.map((s: any) => ({ name: s.name, role: s.role, tenure_start: s.tenure_start }))}
             />
-            </PreviewWrapper>
 
-            <PreviewWrapper isPaid={isPaid} unlockHref={unlockHref} chipText="+ crime rate, nearest stations, safety tips">
-              <CrimeSafetySection
-                crime={(structured?.location_profile as any)?.crime_summary ?? null}
-              />
-            </PreviewWrapper>
+            <CrimeSafetySection
+              crime={(structured?.location_profile as any)?.crime_summary ?? null}
+            />
 
-            <PreviewWrapper isPaid={isPaid} unlockHref={unlockHref} chipText="+ per-question follow-ups & red flags to watch">
-              <TourQuestions questions={tourQs} />
-            </PreviewWrapper>
+            <TourQuestions questions={tourQs} />
           </>
-          )
-        })()}
+        )}
 
         <Glossary />
 
