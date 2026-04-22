@@ -16,7 +16,7 @@ import FeeTableClient from '@/components/school/FeeTableClient'
 import FeesRangeClient from '@/components/school/FeesRangeClient'
 import { getSchoolFeed, getSchoolNews, getSchoolsWithFeeds, getSchoolPulse, getFollowerCount, getStatBarConfig, getDeadlines, getMostMentionedSchools } from '@/lib/eduworld'
 import { createClient } from '@supabase/supabase-js'
-import ListingReportPreview from '@/components/school/ListingReportPreview'
+import DeepResearchTeaser from '@/components/school/DeepResearchTeaser'
 import type { StatBarConfig } from '@/lib/eduworld'
 import SchoolPulseFeed from '@/components/SchoolPulseFeed'
 import SchoolPulseStatBar from '@/components/SchoolPulseStatBar'
@@ -1429,13 +1429,12 @@ export default async function SchoolPage({ params, searchParams }: Props) {
             </Section>
           )}
 
-          {/* EXTENDED RESEARCH (structured_data preview + link to paid report) */}
+          {/* DEEP RESEARCH TEASER — compact card linking to /schools/{slug}/report */}
           {structuredForListing && (
-            <ListingReportPreview
+            <DeepResearchTeaser
               slug={params.slug}
               schoolName={school.name}
               structured={structuredForListing}
-              studentCountFallback={school.student_count}
             />
           )}
 
