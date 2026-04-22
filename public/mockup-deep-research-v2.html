@@ -1,0 +1,1295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deep Research — Mockup v2 (Wycombe Abbey)</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --navy: #1B3252;
+  --navy-dk: #0d2040;
+  --teal: #34C3A0;
+  --teal-dk: #239C80;
+  --teal-bg: #E8FAF6;
+  --body: #374151;
+  --muted: #6B7280;
+  --border: #E5E7EB;
+  --off: #F9FAFB;
+  --off2: #F3F4F6;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: 'Nunito Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--body);
+  background: #fff;
+  line-height: 1.55;
+}
+h1, h2, h3, h4 { font-family: 'Nunito', sans-serif; color: var(--navy); margin: 0; }
+.mockup-label {
+  background: #FEF3C7;
+  border-left: 4px solid #F59E0B;
+  padding: 14px 20px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #92400E;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  margin: 0;
+}
+.page-wrap { max-width: 1100px; margin: 0 auto; padding: 40px 5%; }
+
+/* ────────────────  STATE TOGGLE  ──────────────── */
+.state-toggle {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  background: var(--navy);
+  color: #fff;
+  padding: 12px 5%;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.1);
+}
+.state-toggle-label {
+  font-size: 13px;
+  font-weight: 700;
+  opacity: .7;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.state-toggle-btns { display: flex; gap: 6px; background: rgba(255,255,255,.08); padding: 4px; border-radius: 100px; }
+.state-toggle-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,.6);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 18px;
+  border-radius: 100px;
+  cursor: pointer;
+  transition: all .2s;
+}
+.state-toggle-btn.active {
+  background: var(--teal);
+  color: #fff;
+}
+.state-toggle-btn:hover:not(.active) { color: #fff; }
+.state-toggle-note {
+  margin-left: auto;
+  font-size: 12px;
+  opacity: .6;
+  font-style: italic;
+}
+
+/* ────────────────  PART 1: TEASER CARD  ──────────────── */
+.section-divider {
+  margin: 0;
+  padding: 32px 5%;
+  background: var(--off2);
+  text-align: center;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.section-divider h2 {
+  font-size: 14px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 800;
+}
+.section-divider p {
+  margin: 8px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  max-width: 600px;
+  margin: 8px auto 0;
+}
+
+.teaser-card {
+  background: linear-gradient(180deg, #fff 0%, var(--teal-bg) 100%);
+  border: 2px solid var(--teal);
+  border-radius: 16px;
+  padding: 28px 32px;
+  margin-bottom: 24px;
+  position: relative;
+  overflow: hidden;
+}
+.teaser-card::before {
+  content: '';
+  position: absolute;
+  top: -20px;
+  right: -20px;
+  width: 160px;
+  height: 160px;
+  background: radial-gradient(circle, rgba(52,195,160,.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+.teaser-label {
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--teal-dk);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.teaser-label::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  background: var(--teal);
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(52,195,160,.25);
+}
+.teaser-title {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--navy);
+  margin-bottom: 10px;
+  letter-spacing: -.01em;
+  line-height: 1.2;
+}
+.teaser-desc {
+  font-size: 14px;
+  color: var(--body);
+  margin-bottom: 18px;
+  line-height: 1.6;
+  max-width: 640px;
+}
+.teaser-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-bottom: 20px;
+}
+.teaser-list-title {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--muted);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.teaser-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 6px; }
+.teaser-list li {
+  font-size: 13px;
+  color: var(--body);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.teaser-list li.free::before {
+  content: '✓';
+  color: var(--teal-dk);
+  font-weight: 900;
+  font-size: 14px;
+}
+.teaser-list li.locked { color: var(--muted); }
+.teaser-list li.locked::before {
+  content: '🔒';
+  font-size: 12px;
+}
+.teaser-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--navy);
+  color: #fff;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: 14px 24px;
+  border-radius: 100px;
+  text-decoration: none;
+  transition: transform .15s, box-shadow .15s;
+}
+.teaser-cta:hover { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(27,50,82,.25); }
+
+.teaser-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-bottom: 14px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(52,195,160,.25);
+}
+.teaser-price-kicker {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--teal-dk);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.teaser-price-value {
+  font-family: 'Nunito', sans-serif;
+  font-weight: 900;
+  color: var(--navy);
+  line-height: 1;
+  height: 30px;
+  overflow: hidden;
+}
+.teaser-price-value .price-track { animation: priceRotate30 10s infinite; }
+.teaser-price-value .price-track span { height: 30px; line-height: 30px; font-size: 28px; flex-shrink: 0; }
+.price-rotate { display: block; }
+.price-track { display: flex; flex-direction: column; }
+
+/* Pixel-based keyframes per size so we don't depend on % of wrong element */
+@keyframes priceRotate30 {
+  0%, 18%   { transform: translateY(0); }
+  25%, 43%  { transform: translateY(-30px); }
+  50%, 68%  { transform: translateY(-60px); }
+  75%, 100% { transform: translateY(-90px); }
+}
+@keyframes priceRotate48 {
+  0%, 18%   { transform: translateY(0); }
+  25%, 43%  { transform: translateY(-48px); }
+  50%, 68%  { transform: translateY(-96px); }
+  75%, 100% { transform: translateY(-144px); }
+}
+
+/* simulated main-page wrapper around teaser */
+.mainpage-demo {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 40px 5%;
+}
+.mainpage-demo .section-ghost {
+  background: var(--off);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 20px 24px;
+  color: var(--muted);
+  font-size: 13px;
+  font-style: italic;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* ────────────────  PART 2: DEEP RESEARCH PAGE  ──────────────── */
+.dr-page { background: var(--off); min-height: 100vh; padding: 40px 0 80px; }
+.dr-container { max-width: 900px; margin: 0 auto; padding: 0 5%; }
+.dr-header {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 32px;
+  margin-bottom: 24px;
+}
+.dr-header-kicker {
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--teal-dk);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.dr-header-title { font-size: 28px; font-weight: 900; color: var(--navy); margin-bottom: 8px; line-height: 1.2; }
+.dr-header-sub { font-size: 14px; color: var(--muted); }
+
+.dr-summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  padding: 20px 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+
+.dr-pricing-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  background: linear-gradient(135deg, var(--navy) 0%, #1e3f6b 100%);
+  border-radius: 14px;
+  padding: 28px 32px;
+  margin-bottom: 24px;
+  color: #fff;
+}
+.dr-pricing-left { min-width: 0; }
+.dr-pricing-kicker {
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--teal);
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.dr-pricing-value {
+  font-family: 'Nunito', sans-serif;
+  font-weight: 900;
+  color: #fff;
+  line-height: 1;
+  height: 48px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+.dr-pricing-value .price-track { animation: priceRotate48 10s infinite; }
+.dr-pricing-value .price-track span { height: 48px; line-height: 48px; font-size: 46px; flex-shrink: 0; }
+.dr-pricing-note { font-size: 13px; color: rgba(255,255,255,.7); }
+.dr-pricing-cta { flex-shrink: 0; font-size: 14px; padding: 16px 28px; background: var(--teal); }
+.dr-pricing-cta:hover { background: var(--teal-dk); }
+
+/* ── Dossier overview (stats + TOC) ── */
+.dossier-overview {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 32px;
+  margin-bottom: 24px;
+}
+.dossier-kicker {
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--teal-dk);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+.dossier-heading {
+  font-family: 'Nunito', sans-serif;
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--navy);
+  line-height: 1.25;
+  margin-bottom: 12px;
+  letter-spacing: -.01em;
+}
+.dossier-intro {
+  font-size: 14px;
+  color: var(--body);
+  line-height: 1.6;
+  margin: 0 0 24px;
+  max-width: 640px;
+}
+.dossier-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 28px;
+  padding: 20px;
+  background: linear-gradient(135deg, var(--teal-bg) 0%, #fff 100%);
+  border: 1px solid rgba(52,195,160,.25);
+  border-radius: 12px;
+}
+.dossier-stat { text-align: center; }
+.dossier-stat-value {
+  font-family: 'Nunito', sans-serif;
+  font-size: 32px;
+  font-weight: 900;
+  color: var(--navy);
+  line-height: 1;
+  margin-bottom: 6px;
+  letter-spacing: -.01em;
+}
+.dossier-stat-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  line-height: 1.3;
+}
+.dossier-toc-title {
+  font-size: 12px;
+  font-weight: 900;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  margin-bottom: 14px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+  padding-top: 20px;
+}
+.dossier-toc {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px 24px;
+  margin-bottom: 20px;
+}
+.dossier-toc-item {
+  font-size: 13px;
+  color: var(--body);
+  padding: 6px 0;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  line-height: 1.4;
+}
+.dossier-toc-num {
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--teal-dk);
+  flex-shrink: 0;
+  letter-spacing: .02em;
+  width: 20px;
+}
+.dossier-preview-lead {
+  padding: 14px 18px;
+  background: var(--off);
+  border-left: 3px solid var(--teal);
+  border-radius: 0 8px 8px 0;
+  font-size: 13px;
+  color: var(--body);
+  line-height: 1.6;
+}
+.dossier-preview-kicker {
+  font-size: 11px;
+  font-weight: 900;
+  color: var(--teal-dk);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  margin-right: 8px;
+}
+
+/* TIER WRAPPER */
+.tier {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+.tier-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22px 28px;
+  cursor: pointer;
+  user-select: none;
+  gap: 20px;
+}
+.tier-header.is-static { cursor: default; }
+.tier-header-left { display: flex; align-items: center; gap: 16px; flex: 1; min-width: 0; }
+.tier-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 900;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+.tier-A .tier-badge { background: #F3F4F6; color: var(--muted); }
+.tier-B .tier-badge { background: var(--teal-bg); color: var(--teal-dk); }
+.tier-C .tier-badge { background: var(--navy); color: #fff; }
+.tier-title-wrap { min-width: 0; }
+.tier-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--navy);
+  line-height: 1.2;
+  margin-bottom: 2px;
+}
+.tier-sub { font-size: 12px; color: var(--muted); }
+.tier-meta {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-shrink: 0;
+}
+.tier-pill {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 100px;
+}
+.tier-pill.free { background: #D1FAE5; color: #065F46; }
+.tier-pill.paid { background: var(--navy); color: #fff; }
+.tier-pill.locked { background: #FEF3C7; color: #92400E; }
+.tier-chevron {
+  width: 20px;
+  height: 20px;
+  transition: transform .2s;
+  color: var(--muted);
+}
+.tier-collapsed .tier-chevron { transform: rotate(-90deg); }
+.tier-body {
+  padding: 0 28px 28px;
+  border-top: 1px solid var(--border);
+  padding-top: 22px;
+}
+.tier-collapsed .tier-body { display: none; }
+
+/* CONTENT CARDS INSIDE TIERS */
+.dr-card {
+  background: var(--off);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+}
+.dr-card:last-child { margin-bottom: 0; }
+.dr-card-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--navy);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: 10px;
+}
+.dr-kv { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; font-size: 13px; }
+.dr-kv dt { color: var(--muted); }
+.dr-kv dd { margin: 0; color: var(--body); font-weight: 600; }
+
+/* STAT GRID (for exam results) */
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.stat-card { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+.stat-label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 4px; }
+.stat-value { font-size: 24px; font-weight: 900; color: var(--navy); font-family: 'Nunito', sans-serif; line-height: 1; }
+.stat-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+/* UNI DESTINATIONS */
+.uni-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; }
+.uni-row { display: flex; justify-content: space-between; align-items: center; font-size: 13px; padding: 10px 14px; background: #fff; border: 1px solid var(--border); border-radius: 8px; }
+.uni-row-name { font-weight: 700; color: var(--navy); }
+.uni-row-count { font-weight: 800; color: var(--teal-dk); font-family: 'Nunito', sans-serif; font-size: 14px; }
+
+/* BLUR OVERLAY for free Tier B */
+.blur-wrap { position: relative; }
+.blur-wrap.is-blurred > .blur-content { filter: blur(6px); pointer-events: none; user-select: none; opacity: .7; }
+.blur-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(255,255,255,0) 0%, rgba(255,255,255,.4) 30%, rgba(255,255,255,.9) 60%, #fff 100%);
+  padding: 32px;
+  z-index: 5;
+}
+.blur-wrap:not(.is-blurred) .blur-overlay { display: none; }
+.blur-overlay-kicker { font-size: 11px; font-weight: 900; color: var(--teal-dk); letter-spacing: .14em; text-transform: uppercase; margin-bottom: 10px; }
+.blur-overlay-title { font-size: 18px; font-weight: 900; color: var(--navy); margin-bottom: 8px; }
+.blur-overlay-sub { font-size: 13px; color: var(--muted); max-width: 400px; margin-bottom: 16px; }
+
+.unlock-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--navy);
+  color: #fff;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 800;
+  font-size: 13px;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: 12px 22px;
+  border-radius: 100px;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: transform .15s;
+}
+.unlock-btn:hover { transform: translateY(-1px); }
+.unlock-price {
+  padding: 3px 10px;
+  background: var(--teal);
+  border-radius: 100px;
+  font-size: 11px;
+  min-width: 52px;
+  height: 20px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* GLIMPSE CARDS (Tier C for free users) */
+.glimpse-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 20px;
+  margin-bottom: 14px;
+  position: relative;
+}
+.glimpse-card-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--navy);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.glimpse-lock-chip {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  background: var(--off2);
+  color: var(--muted);
+  padding: 3px 8px;
+  border-radius: 100px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.glimpse-visible {
+  font-size: 14px;
+  color: var(--body);
+  line-height: 1.6;
+}
+.glimpse-hidden {
+  filter: blur(5px);
+  user-select: none;
+  pointer-events: none;
+  opacity: .7;
+  margin-top: 10px;
+  position: relative;
+  transition: filter .3s, opacity .3s;
+}
+.glimpse-hidden::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 0%, rgba(255,255,255,.6) 80%, #fff 100%);
+  pointer-events: none;
+  transition: opacity .3s;
+}
+/* Unblur when paid */
+body[data-state="paid"] .glimpse-hidden {
+  filter: none;
+  opacity: 1;
+  pointer-events: auto;
+  user-select: auto;
+}
+body[data-state="paid"] .glimpse-hidden::after { opacity: 0; }
+.glimpse-inline-unlock {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--teal-dk);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  border: none;
+  background: none;
+  padding: 0;
+  font-family: inherit;
+}
+.glimpse-inline-unlock:hover { text-decoration: underline; }
+
+/* FINAL UNLOCK BANNER below glimpse cards */
+.unlock-banner {
+  background: linear-gradient(135deg, var(--navy) 0%, #1e3f6b 100%);
+  color: #fff;
+  border-radius: 14px;
+  padding: 32px;
+  text-align: center;
+  margin-top: 20px;
+}
+.unlock-banner-kicker {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--teal);
+  margin-bottom: 8px;
+}
+.unlock-banner-title {
+  font-size: 22px;
+  font-weight: 900;
+  color: #fff;
+  margin-bottom: 8px;
+  font-family: 'Nunito', sans-serif;
+  line-height: 1.2;
+}
+.unlock-banner-sub {
+  font-size: 14px;
+  color: rgba(255,255,255,.7);
+  max-width: 500px;
+  margin: 0 auto 20px;
+  line-height: 1.6;
+}
+.unlock-banner .unlock-btn {
+  background: var(--teal);
+}
+.unlock-banner .unlock-btn:hover { background: var(--teal-dk); }
+
+/* COMMUNITY BARS */
+.community-bar { display: flex; align-items: center; gap: 10px; font-size: 12px; margin-bottom: 8px; }
+.community-label { flex-shrink: 0; width: 130px; color: var(--body); font-weight: 600; }
+.community-track { flex: 1; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; }
+.community-fill { height: 100%; background: var(--teal); }
+.community-value { font-size: 12px; font-weight: 800; color: var(--navy); flex-shrink: 0; width: 40px; text-align: right; font-family: 'Nunito', sans-serif; }
+
+/* RESPONSIVE */
+@media (max-width: 700px) {
+  .teaser-grid { grid-template-columns: 1fr; }
+  .stat-grid { grid-template-columns: 1fr 1fr; }
+  .state-toggle { flex-direction: column; align-items: flex-start; gap: 10px; padding: 10px 5%; }
+  .state-toggle-note { margin-left: 0; }
+  .tier-header { padding: 16px 20px; }
+  .tier-body { padding: 16px 20px 20px; }
+  .dr-header { padding: 22px; }
+}
+</style>
+</head>
+<body>
+
+<!-- STATE TOGGLE -->
+<div class="state-toggle">
+  <span class="state-toggle-label">Paywall state:</span>
+  <div class="state-toggle-btns">
+    <button class="state-toggle-btn active" data-state="free">Free (not paid)</button>
+    <button class="state-toggle-btn" data-state="paid">Paid (unlocked)</button>
+  </div>
+  <span class="state-toggle-note">Toggle to compare what free vs paid visitors see on the Deep Research page</span>
+</div>
+
+<!-- PART 1 DIVIDER -->
+<div class="section-divider">
+  <h2>Part 1 — New teaser card on main school page</h2>
+  <p>Replaces the current big "Extended Research" block (~2000px tall) with a compact ~280px card that links to the Deep Research page.</p>
+</div>
+
+<!-- MAIN-PAGE DEMO CONTEXT -->
+<div class="mainpage-demo">
+  <div class="section-ghost">[ Academic Performance section above ]</div>
+
+  <div class="teaser-card">
+    <div class="teaser-label">Deep Research · free preview</div>
+    <h2 class="teaser-title">Beyond the marketing: what Wycombe Abbey's data says</h2>
+    <p class="teaser-desc">We analysed this school's published materials, exam results, university destinations, and inspection history. The full Deep Research report unlocks regulatory and financial verification.</p>
+
+    <div class="teaser-grid">
+      <div>
+        <div class="teaser-list-title">Free preview includes</div>
+        <ul class="teaser-list">
+          <li class="free">Named university destinations (Oxford ×11, UCL ×11…)</li>
+          <li class="free">GCSE &amp; A-Level grade distribution</li>
+          <li class="free">Sports tier breakdown &amp; competitions</li>
+          <li class="free">Wellbeing staff ratio</li>
+        </ul>
+      </div>
+      <div>
+        <div class="teaser-list-title">Locked in full report</div>
+        <ul class="teaser-list">
+          <li class="locked">Charity Commission filings</li>
+          <li class="locked">ISI inspection quotes</li>
+          <li class="locked">Safeguarding record</li>
+          <li class="locked">Parent-fit verdict + 5 tour questions</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="teaser-price-row">
+      <div class="teaser-price-kicker">Unlocks all 192 school reports</div>
+      <div class="teaser-price-value">
+        <div class="price-track">
+          <span>£29</span>
+          <span>$37</span>
+          <span>฿1,300</span>
+          <span>£29</span>
+        </div>
+      </div>
+    </div>
+    <a href="#deepresearch" class="teaser-cta">Open Deep Research →</a>
+  </div>
+
+  <div class="section-ghost">[ About section below ]</div>
+</div>
+
+<!-- PART 2 DIVIDER -->
+<div class="section-divider" id="deepresearch">
+  <h2>Part 2 — Deep Research page (three-tier structure)</h2>
+  <p>Tier A collapsed by default. Tier B blurred for free visitors / visible for paid. Tier C hidden for free / visible for paid.</p>
+</div>
+
+<!-- DEEP RESEARCH PAGE -->
+<div class="dr-page">
+  <div class="dr-container">
+
+    <!-- HEADER -->
+    <div class="dr-header">
+      <div class="dr-header-kicker">Deep Research · free preview</div>
+      <h1 class="dr-header-title">Beyond the marketing: what Wycombe Abbey's data says</h1>
+      <p class="dr-header-sub" style="margin-bottom: 18px;">High Wycombe, UK · Girls' boarding · Ages 11–18 · Last updated April 2026</p>
+
+      <p style="font-size: 14px; color: var(--body); line-height: 1.6; margin: 0 0 24px; max-width: 640px;">
+        We analysed this school's published materials, exam results, university destinations, and inspection history. The full Deep Research report unlocks regulatory and financial verification.
+      </p>
+
+      <div class="dr-pricing-row">
+        <div class="dr-pricing-left">
+          <div class="dr-pricing-kicker">One payment unlocks every school report</div>
+          <div class="dr-pricing-value">
+            <div class="price-track">
+              <span>£29</span>
+              <span>$37</span>
+              <span>฿1,300</span>
+              <span>£29</span>
+            </div>
+          </div>
+          <div class="dr-pricing-note">Lifetime access · downloadable PDFs · all 192 schools</div>
+        </div>
+        <button class="unlock-btn dr-pricing-cta" onclick="setState('paid')">Unlock Deep Research</button>
+      </div>
+
+      <div class="dr-summary-grid">
+        <div>
+          <div class="teaser-list-title">Free preview includes</div>
+          <ul class="teaser-list">
+            <li class="free">Named university destinations (Oxford ×11, UCL ×11…)</li>
+            <li class="free">GCSE &amp; A-Level grade distribution</li>
+            <li class="free">Sports tier breakdown &amp; competitions</li>
+            <li class="free">Wellbeing staff ratio</li>
+          </ul>
+        </div>
+        <div>
+          <div class="teaser-list-title">Locked in full report</div>
+          <ul class="teaser-list">
+            <li class="locked">Charity Commission filings</li>
+            <li class="locked">ISI inspection quotes</li>
+            <li class="locked">Safeguarding record</li>
+            <li class="locked">Parent-fit verdict + 5 tour questions</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── DOSSIER OVERVIEW (volume + TOC) ─── -->
+    <div class="dossier-overview">
+      <div class="dossier-kicker">Your Deep Research dossier for Wycombe Abbey</div>
+      <h2 class="dossier-heading">A 40-page independent analysis, not a repackaged brochure.</h2>
+      <p class="dossier-intro">
+        Every dimension of the school — from academic outcomes to safeguarding and financial health — verified against primary sources, regulatory filings, and inspection records. What you see below is an extract.
+      </p>
+
+      <div class="dossier-stats">
+        <div class="dossier-stat">
+          <div class="dossier-stat-value">42</div>
+          <div class="dossier-stat-label">pages of analysis</div>
+        </div>
+        <div class="dossier-stat">
+          <div class="dossier-stat-value">18</div>
+          <div class="dossier-stat-label">data tables</div>
+        </div>
+        <div class="dossier-stat">
+          <div class="dossier-stat-value">2,800+</div>
+          <div class="dossier-stat-label">words of original research</div>
+        </div>
+        <div class="dossier-stat">
+          <div class="dossier-stat-value">7</div>
+          <div class="dossier-stat-label">primary sources cross-checked</div>
+        </div>
+      </div>
+
+      <div class="dossier-toc-title">Inside your dossier</div>
+      <div class="dossier-toc">
+        <div class="dossier-toc-item"><span class="dossier-toc-num">01</span> Verified school overview</div>
+        <div class="dossier-toc-item"><span class="dossier-toc-num">02</span> Academic profile &amp; outcomes</div>
+        <div class="dossier-toc-item"><span class="dossier-toc-num">03</span> GCSE results · grade distribution</div>
+        <div class="dossier-toc-item"><span class="dossier-toc-num">04</span> A-Level results · subject-by-subject</div>
+        <div class="dossier-toc-item"><span class="dossier-toc-num">05</span> University destinations (UK + int'l)</div>
+        <div class="dossier-toc-item"><span class="dossier-toc-num">06</span> Oxbridge &amp; Russell Group analysis</div>
+        <div class="dossier-toc-item"><span class="dossier-toc-num">07</span> Sports profile &amp; competitive tier</div>
+        <div class="dossier-toc-item"><span class="dossier-toc-num">08</span> Coaching staff &amp; alumni athletes</div>
+        <div class="dossier-toc-item"><span class="dossier-toc-num">09</span> Facilities audit</div>
+        <div class="dossier-toc-item"><span class="dossier-toc-num">10</span> Pastoral care model</div>
+        <div class="dossier-toc-item"><span class="dossier-toc-num">11</span> Wellbeing team &amp; ratios</div>
+        <div class="dossier-toc-item"><span class="dossier-toc-num">12</span> Safeguarding record</div>
+        <div class="dossier-toc-item"><span class="dossier-toc-num">13</span> Student community &amp; nationalities</div>
+        <div class="dossier-toc-item"><span class="dossier-toc-num">14</span> Fees &amp; hidden extras</div>
+        <div class="dossier-toc-item"><span class="dossier-toc-num">15</span> Scholarships &amp; bursaries</div>
+        <div class="dossier-toc-item"><span class="dossier-toc-num">16</span> Admissions &amp; entry requirements</div>
+        <div class="dossier-toc-item"><span class="dossier-toc-num">17</span> Regulatory status &amp; filings</div>
+        <div class="dossier-toc-item"><span class="dossier-toc-num">18</span> Financial health (3-year trend)</div>
+        <div class="dossier-toc-item"><span class="dossier-toc-num">19</span> ISI inspection record</div>
+        <div class="dossier-toc-item"><span class="dossier-toc-num">20</span> Parent-fit verdict (8 dimensions)</div>
+        <div class="dossier-toc-item"><span class="dossier-toc-num">21</span> 5 pointed tour questions · with scripts</div>
+        <div class="dossier-toc-item"><span class="dossier-toc-num">22</span> Methodology &amp; sources</div>
+      </div>
+
+      <div class="dossier-preview-lead">
+        <span class="dossier-preview-kicker">Preview below →</span>
+        Extracts from sections <strong>3–13</strong> (what the public data shows) and <strong>17–21</strong> (what we verified independently).
+      </div>
+    </div>
+
+    <!-- ─── TIER B ─── -->
+    <div class="tier tier-B" data-tier="B">
+      <div class="tier-header is-static">
+        <div class="tier-header-left">
+          <div class="tier-badge">B</div>
+          <div class="tier-title-wrap">
+            <div class="tier-title">What the public data shows</div>
+            <div class="tier-sub">Our analysis of published exam results, destinations, sports, and community</div>
+          </div>
+        </div>
+        <div class="tier-meta">
+          <span class="tier-pill paid" data-show="paid" style="display: none;">Unlocked</span>
+          <span class="tier-pill locked" data-show="free">Glimpse</span>
+        </div>
+      </div>
+      <div class="tier-body">
+
+        <!-- B-GLIMPSE 1: Exam results (2 visible, rest blurred) -->
+        <div class="glimpse-card">
+          <div class="glimpse-card-title">
+            <span>GCSE &amp; A-Level grade distribution (2025)</span>
+            <span class="glimpse-lock-chip" data-show="free">+ 27-subject breakdown &amp; 3-year trend</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+            <div class="stat-card">
+              <div class="stat-label">GCSE grade 9</div>
+              <div class="stat-value">63%</div>
+              <div class="stat-sub">of all grades awarded</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">A-Level A*</div>
+              <div class="stat-value">41%</div>
+              <div class="stat-sub">of all entries</div>
+            </div>
+          </div>
+          <div class="glimpse-hidden" style="margin-top: 14px;">
+            <div class="stat-grid">
+              <div class="stat-card"><div class="stat-label">GCSE 7–9</div><div class="stat-value">97%</div><div class="stat-sub">of all grades awarded</div></div>
+              <div class="stat-card"><div class="stat-label">A-Level A*/A</div><div class="stat-value">76.2%</div><div class="stat-sub">of all entries</div></div>
+              <div class="stat-card"><div class="stat-label">Grade 9 count</div><div class="stat-value">14</div><div class="stat-sub">top pupil achieved</div></div>
+            </div>
+            <p style="font-size: 13px; color: var(--body); margin: 12px 0 0;"><strong>Subject-by-subject (A*/A rates):</strong> Maths 82%, Further Maths 91%, English Lit 74%, Chemistry 68%, History 79% + 14 more subjects.</p>
+          </div>
+        </div>
+
+        <!-- B-GLIMPSE 2: University destinations (2 visible) -->
+        <div class="glimpse-card">
+          <div class="glimpse-card-title">
+            <span>Top UK university destinations (2025 leavers)</span>
+            <span class="glimpse-lock-chip" data-show="free">+ Oxbridge analysis, US placements, 5-yr trend</span>
+          </div>
+          <ul class="uni-list">
+            <li class="uni-row"><span class="uni-row-name">University of Oxford</span><span class="uni-row-count">11</span></li>
+            <li class="uni-row"><span class="uni-row-name">University College London (UCL)</span><span class="uni-row-count">11</span></li>
+          </ul>
+          <div class="glimpse-hidden" style="margin-top: 10px;">
+            <ul class="uni-list">
+              <li class="uni-row"><span class="uni-row-name">Imperial College London</span><span class="uni-row-count">7</span></li>
+              <li class="uni-row"><span class="uni-row-name">University of Cambridge</span><span class="uni-row-count">6</span></li>
+              <li class="uni-row"><span class="uni-row-name">Durham University</span><span class="uni-row-count">5</span></li>
+              <li class="uni-row"><span class="uni-row-name">University of Edinburgh</span><span class="uni-row-count">5</span></li>
+              <li class="uni-row"><span class="uni-row-name">+ 14 more UK destinations</span><span class="uni-row-count">–</span></li>
+            </ul>
+          </div>
+          <div data-show="paid" style="display: none; margin-top: 10px;">
+            <p style="font-size: 12px; color: var(--muted); margin: 0; font-style: italic;">International destinations: Duke, NYU, Chicago, UC, IE Madrid (specific counts not published).</p>
+          </div>
+        </div>
+
+        <!-- B-GLIMPSE 3: Sports (2 tiers visible) -->
+        <div class="glimpse-card">
+          <div class="glimpse-card-title">
+            <span>Sports tier breakdown</span>
+            <span class="glimpse-lock-chip" data-show="free">+ coach profiles, team records, facilities audit</span>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div style="background: #FEF3C7; border-left: 3px solid #F59E0B; padding: 10px 12px; border-radius: 6px;">
+              <div style="font-size: 11px; font-weight: 800; color: #92400E; text-transform: uppercase; letter-spacing: .05em;">Major sports</div>
+              <div style="font-size: 14px; font-weight: 700; color: var(--navy); margin-top: 4px;">Hockey, Lacrosse, Netball</div>
+            </div>
+            <div style="background: #DBEAFE; border-left: 3px solid #3B82F6; padding: 10px 12px; border-radius: 6px;">
+              <div style="font-size: 11px; font-weight: 800; color: #1E40AF; text-transform: uppercase; letter-spacing: .05em;">Academy</div>
+              <div style="font-size: 14px; font-weight: 700; color: var(--navy); margin-top: 4px;">Tennis, Rowing, Cricket</div>
+            </div>
+          </div>
+          <div class="glimpse-hidden" style="margin-top: 14px;">
+            <div style="background: var(--off2); border-left: 3px solid var(--muted); padding: 10px 12px; border-radius: 6px; margin-bottom: 14px;">
+              <div style="font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .05em;">Optional</div>
+              <div style="font-size: 14px; font-weight: 700; color: var(--navy); margin-top: 4px;">Fencing, Golf, Squash, Badminton, Equestrian + 8 more</div>
+            </div>
+
+            <p style="font-size: 13px; color: var(--body); margin: 0 0 8px;"><strong>Competitions entered (2023–2025):</strong></p>
+            <dl class="dr-kv" style="margin-bottom: 14px;">
+              <dt>National Schools Hockey Championships</dt><dd>Finalist 2024</dd>
+              <dt>ISGA Lacrosse Cup</dt><dd>Winner 2023, 2024</dd>
+              <dt>National Netball Finals</dt><dd>Semi 2024</dd>
+              <dt>Henley Royal Regatta</dt><dd>U18 fours</dd>
+              <dt>LTA Independent Schools Tennis</dt><dd>Winner 2025</dd>
+            </dl>
+
+            <p style="font-size: 13px; color: var(--body); margin: 0 0 8px;"><strong>Coaching staff:</strong> Director of Sport + 14 specialist coaches, 3 with national-team backgrounds. Full staff directory with credentials inside the dossier.</p>
+
+            <p style="font-size: 13px; color: var(--body); margin: 0 0 8px;"><strong>Notable alumni athletes:</strong> 4 Olympic representatives (rowing, hockey), 11 national-squad appearances across sports since 2015…</p>
+
+            <p style="font-size: 13px; color: var(--body); margin: 0;"><strong>Facilities audit:</strong> 2 astro pitches, 6 lacrosse fields, 4 tennis courts, indoor swimming pool (25m), strength &amp; conditioning suite (2,400 sq ft), sports hall + climbing wall + rowing tank…</p>
+          </div>
+        </div>
+
+        <!-- B-GLIMPSE 4: Community -->
+        <div class="glimpse-card">
+          <div class="glimpse-card-title">
+            <span>Student community</span>
+            <span class="glimpse-lock-chip" data-show="free">+ boarding houses, year-group split, languages</span>
+          </div>
+          <div class="community-bar">
+            <span class="community-label">UK domiciled</span>
+            <div class="community-track"><div class="community-fill" style="width: 62%;"></div></div>
+            <span class="community-value">62%</span>
+          </div>
+          <div class="community-bar">
+            <span class="community-label">Hong Kong</span>
+            <div class="community-track"><div class="community-fill" style="width: 11%;"></div></div>
+            <span class="community-value">11%</span>
+          </div>
+          <div class="glimpse-hidden" style="margin-top: 4px;">
+            <div class="community-bar">
+              <span class="community-label">Mainland China</span>
+              <div class="community-track"><div class="community-fill" style="width: 8%;"></div></div>
+              <span class="community-value">8%</span>
+            </div>
+            <div class="community-bar">
+              <span class="community-label">Other (15 nations)</span>
+              <div class="community-track"><div class="community-fill" style="width: 19%;"></div></div>
+              <span class="community-value">19%</span>
+            </div>
+            <p style="font-size: 13px; color: var(--body); margin: 10px 0 0;"><strong>Boarding split:</strong> 94% full boarding, 6% flexi…</p>
+          </div>
+        </div>
+
+        <!-- B-GLIMPSE 5: Wellbeing -->
+        <div class="glimpse-card">
+          <div class="glimpse-card-title">
+            <span>Wellbeing team</span>
+            <span class="glimpse-lock-chip" data-show="free">+ staff table, ratios, sector comparison</span>
+          </div>
+          <p style="font-size: 14px; margin: 0; color: var(--body);">
+            Dedicated pastoral and counselling team across 11 boarding houses. Housemistress per house plus a central wellbeing centre with medical staff.
+          </p>
+          <div class="glimpse-hidden" style="margin-top: 10px;">
+            <p style="font-size: 13px; color: var(--body); margin: 0 0 8px;"><strong>Team size:</strong> 18 wellbeing staff across pastoral, counselling, and medical roles.</p>
+            <p style="font-size: 13px; color: var(--body); margin: 0;"><strong>Ratio:</strong> 1 wellbeing staff member per 36 pupils — above the sector average of 1 per 45.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ─── TIER C ─── -->
+    <div class="tier tier-C" data-tier="C">
+      <div class="tier-header is-static">
+        <div class="tier-header-left">
+          <div class="tier-badge">C</div>
+          <div class="tier-title-wrap">
+            <div class="tier-title">Independently verified &amp; regulated</div>
+            <div class="tier-sub">Regulatory filings, inspection quotes, safeguarding, parent-fit verdict</div>
+          </div>
+        </div>
+        <div class="tier-meta">
+          <span class="tier-pill paid">£29 unlocks</span>
+        </div>
+      </div>
+      <div class="tier-body" data-show="free">
+
+        <!-- GLIMPSE 1: Regulatory status -->
+        <div class="glimpse-card">
+          <div class="glimpse-card-title">
+            <span>Regulatory status</span>
+            <span class="glimpse-lock-chip">+ 8-year trustee history, filings, TRA detail</span>
+          </div>
+          <div class="glimpse-visible">
+            <strong>Registered charity since 1896.</strong> Last ISI inspection November 2023, graded <strong style="color: var(--teal-dk);">Excellent</strong>. Governance structure active, no regulatory warnings filed in the last 24 months.
+          </div>
+          <div class="glimpse-hidden">
+            <dl class="dr-kv">
+              <dt>Charity number</dt><dd>310638</dd>
+              <dt>Trustees</dt><dd>12 (2 new in 2025)</dd>
+              <dt>Last filing</dt><dd>Dec 2024</dd>
+              <dt>Companies House</dt><dd>Not a company</dd>
+              <dt>TRA record</dt><dd>Clean — 0 open referrals</dd>
+            </dl>
+          </div>
+          <button class="glimpse-inline-unlock" onclick="setState('paid')">Unlock full regulatory record →</button>
+        </div>
+
+        <!-- GLIMPSE 2: Inspection quote -->
+        <div class="glimpse-card">
+          <div class="glimpse-card-title">
+            <span>ISI inspection · verbatim quotes</span>
+            <span class="glimpse-lock-chip">+ 3 more quotes, inspector profile, scores</span>
+          </div>
+          <blockquote style="margin: 0; padding-left: 14px; border-left: 3px solid var(--teal); font-size: 14px; font-style: italic; color: var(--body); line-height: 1.7;">
+            "The quality of pupils' academic achievements is excellent…"
+          </blockquote>
+          <div class="glimpse-hidden" style="margin-top: 14px;">
+            <blockquote style="margin: 0 0 10px; padding-left: 14px; border-left: 3px solid var(--teal); font-size: 14px; font-style: italic; color: var(--body);">
+              "Pupils demonstrate exceptional attitudes to learning, and the ethos of the school fosters independent, confident learners who…"
+            </blockquote>
+            <blockquote style="margin: 0 0 10px; padding-left: 14px; border-left: 3px solid var(--teal); font-size: 14px; font-style: italic; color: var(--body);">
+              "The quality of pupils' personal development is excellent. Pupils across all year groups display a strong sense of identity…"
+            </blockquote>
+          </div>
+          <button class="glimpse-inline-unlock" onclick="setState('paid')">Read all 4 inspection quotes →</button>
+        </div>
+
+        <!-- GLIMPSE 3: Financial health -->
+        <div class="glimpse-card">
+          <div class="glimpse-card-title">
+            <span>Financial health · 3-year trend</span>
+            <span class="glimpse-lock-chip">+ 3-yr P&amp;L, cash flow, sector benchmarks</span>
+          </div>
+          <div class="glimpse-visible">
+            <strong>Headline:</strong> Net assets grew <strong style="color: var(--teal-dk);">+4% year-on-year</strong> (2022 → 2024). School is financially stable — no covenant warnings, reserves above sector average.
+          </div>
+          <div class="glimpse-hidden" style="margin-top: 12px;">
+            <div class="stat-grid" style="margin-bottom: 14px;">
+              <div class="stat-card"><div class="stat-label">Net assets 2024</div><div class="stat-value">£71.2m</div><div class="stat-sub">+4.1% YoY</div></div>
+              <div class="stat-card"><div class="stat-label">Cash reserves</div><div class="stat-value">£9.8m</div><div class="stat-sub">142 days cover</div></div>
+              <div class="stat-card"><div class="stat-label">Fee inflation 3yr</div><div class="stat-value">5.9%</div><div class="stat-sub">avg annual</div></div>
+            </div>
+
+            <p style="font-size: 13px; color: var(--body); margin: 0 0 8px;"><strong>3-year income vs expenditure (£m):</strong></p>
+            <dl class="dr-kv" style="margin-bottom: 14px;">
+              <dt>Income 2024</dt><dd>£37.4m</dd>
+              <dt>Expenditure 2024</dt><dd>£34.1m</dd>
+              <dt>Net surplus</dt><dd>£3.3m</dd>
+              <dt>Pension liability</dt><dd>£4.1m (funded)</dd>
+              <dt>Capital reserves</dt><dd>£23.6m</dd>
+            </dl>
+
+            <p style="font-size: 13px; color: var(--body); margin: 0 0 8px;"><strong>Sector benchmark:</strong> Wycombe Abbey's net-asset growth is 1.8× the ISC top-50 median of 2.3%/yr over the same period. Fee inflation is in line with sector average (5.7%).</p>
+
+            <p style="font-size: 13px; color: var(--body); margin: 0;"><strong>Risk flags:</strong> None. No bank covenant breach history. Charity Commission filings submitted on time for 10 consecutive years…</p>
+          </div>
+          <button class="glimpse-inline-unlock" onclick="setState('paid')">See full financial analysis →</button>
+        </div>
+
+        <!-- GLIMPSE 4: Parent-fit verdict -->
+        <div class="glimpse-card">
+          <div class="glimpse-card-title">
+            <span>Parent-fit verdict</span>
+            <span class="glimpse-lock-chip">+ 8-dimension fit scorecard, success predictors</span>
+          </div>
+          <div class="glimpse-visible">
+            <strong>Best for:</strong> academically ambitious girls who thrive in a traditional boarding structure with strong peer competition…
+          </div>
+          <div class="glimpse-hidden" style="margin-top: 10px;">
+            <p style="font-size: 14px; margin: 0 0 10px; color: var(--body); line-height: 1.7;">
+              The house system is the social spine — parents should expect deep loyalty to the specific house rather than the school as a whole. Academic pace is relentless and the school is explicit about this.
+            </p>
+            <p style="font-size: 14px; margin: 0; color: var(--body); line-height: 1.7;">
+              <strong>Less suited to:</strong> pupils who need a quieter pastoral style, or families who want a co-ed environment from an early age…
+            </p>
+          </div>
+          <button class="glimpse-inline-unlock" onclick="setState('paid')">Read full parent-fit verdict →</button>
+        </div>
+
+        <!-- GLIMPSE 5: Tour questions (2 visible) -->
+        <div class="glimpse-card">
+          <div class="glimpse-card-title">
+            <span>5 pointed tour questions</span>
+            <span class="glimpse-lock-chip">+ per-question follow-ups &amp; red flags to watch</span>
+          </div>
+          <ol style="margin: 0; padding-left: 20px; font-size: 14px; color: var(--body); line-height: 1.8;">
+            <li>How do you support pupils who don't make the top sports teams?</li>
+            <li>What proportion of 2024 leavers took a gap year, and for what reasons?</li>
+          </ol>
+          <div class="glimpse-hidden" style="margin-top: 10px;">
+            <ol start="3" style="margin: 0; padding-left: 20px; font-size: 14px; color: var(--body); line-height: 1.8;">
+              <li>Can you describe the pastoral flow when a boarding issue is raised — who acts, within what time?</li>
+              <li>How have fees changed in the last 3 years, and what drove each increase?</li>
+              <li>Which academic subjects have you added or dropped in the past 5 years, and why?</li>
+            </ol>
+          </div>
+          <button class="glimpse-inline-unlock" onclick="setState('paid')">Reveal all 5 questions →</button>
+        </div>
+
+        <!-- FINAL UNLOCK BANNER -->
+        <div class="unlock-banner">
+          <div class="unlock-banner-kicker">One payment · instant access · downloadable PDF</div>
+          <div class="unlock-banner-title">Unlock the full Deep Research for Wycombe Abbey</div>
+          <p class="unlock-banner-sub">You've seen the shape of the analysis. Unlock to read the complete regulatory record, all 4 inspection quotes, full financial health, the parent-fit verdict, and all 5 tour questions.</p>
+          <button class="unlock-btn" onclick="setState('paid')">Unlock Deep Research →</button>
+        </div>
+
+      </div>
+      <div class="tier-body" data-show="paid" style="display: none;">
+        <div class="dr-card">
+          <div class="dr-card-title">Regulatory status</div>
+          <dl class="dr-kv">
+            <dt>Charity number</dt><dd>310638</dd>
+            <dt>Trustees</dt><dd>12 (2 new in 2025)</dd>
+            <dt>Companies House</dt><dd>Not a company — charity only</dd>
+            <dt>Last ISI inspection</dt><dd>Nov 2023 · Excellent</dd>
+            <dt>TRA record</dt><dd>Clean</dd>
+          </dl>
+        </div>
+        <div class="dr-card">
+          <div class="dr-card-title">ISI inspection quote (Nov 2023)</div>
+          <blockquote style="margin: 0; padding-left: 14px; border-left: 3px solid var(--teal); font-size: 14px; font-style: italic; color: var(--body); line-height: 1.7;">
+            "The quality of pupils' academic achievements is excellent. Pupils demonstrate exceptional attitudes to learning, and the ethos of the school fosters independent, confident learners."
+          </blockquote>
+        </div>
+        <div class="dr-card">
+          <div class="dr-card-title">Parent-fit verdict</div>
+          <p style="font-size: 14px; margin: 0 0 10px; color: var(--body); line-height: 1.7;">
+            <strong>Best for:</strong> academically ambitious girls who thrive in a traditional boarding structure with strong peer competition. The house system is the social spine — parents should expect deep loyalty to the specific house rather than the school as a whole.
+          </p>
+          <p style="font-size: 14px; margin: 0; color: var(--body); line-height: 1.7;">
+            <strong>Less suited to:</strong> pupils who need a quieter pastoral style, or families who want a co-ed environment from an early age.
+          </p>
+        </div>
+        <div class="dr-card">
+          <div class="dr-card-title">5 tour questions to ask</div>
+          <ol style="margin: 0; padding-left: 20px; font-size: 14px; color: var(--body); line-height: 1.8;">
+            <li>How do you support pupils who don't make the top sports teams?</li>
+            <li>What proportion of 2024 leavers took a gap year, and for what reasons?</li>
+            <li>Can you describe the pastoral flow when a boarding issue is raised — who acts, within what time?</li>
+            <li>How have fees changed in the last 3 years, and what drove each increase?</li>
+            <li>Which academic subjects have you added or dropped in the past 5 years, and why?</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function setState(state) {
+  document.body.setAttribute('data-state', state);
+  document.querySelectorAll('.state-toggle-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.state === state);
+  });
+  // Tier B blur
+  document.getElementById('tier-b-blur').classList.toggle('is-blurred', state === 'free');
+  // Tier A/B pills — show the right one
+  document.querySelectorAll('[data-show]').forEach(el => {
+    el.style.display = (el.dataset.show === state) ? '' : 'none';
+  });
+}
+
+document.querySelectorAll('.state-toggle-btn').forEach(b => {
+  b.addEventListener('click', () => setState(b.dataset.state));
+});
+
+function toggleTier(header) {
+  header.closest('.tier').classList.toggle('tier-collapsed');
+}
+
+// init free state
+setState('free');
+</script>
+
+</body>
+</html>
