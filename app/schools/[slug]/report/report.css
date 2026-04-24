@@ -1468,6 +1468,10 @@
 
 /* ── Tennis section ─────────────── */
 .report-page .tennis-strip { margin-bottom: 18px; }
+
+/* Provenance markers next to scalar values with Phase-1 evidence attached. */
+.report-page .tennis-provenance-tick { color: #16A34A; font-weight: 700; font-size: 13px; }
+.report-page .tennis-provenance-warn { color: #D97706; font-weight: 600; font-size: 13px; opacity: .8; }
 .report-page .tennis-badge {
   display: inline-block; padding: 4px 10px; border-radius: 999px;
   font-size: 13px; font-weight: 600; line-height: 1.4;

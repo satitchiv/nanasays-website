@@ -1,9 +1,14 @@
+import { readValue, readEvidence, isLegacyScalar, methodLabel, type Provenanced } from '@/lib/provenance'
+
 type Coach = { name: string; title?: string; role?: string; notable?: string | null }
 type Alumnus = { name: string; known_for?: string }
 type CupResult =
   | string
   | { tournament?: string; name?: string; year?: string | number; result?: string; note?: string; source?: string }
 
+// `school_teams_visible` is the first field to adopt the Phase-1 structured
+// evidence shape (Provenanced<number>). Legacy scalar values still work via
+// readValue()'s backwards-compat branch.
 type TennisData = {
   notes?: string | null
   head_coach?: Coach | null
@@ -19,7 +24,7 @@ type TennisData = {
   indoor_centre_named?: string | null
   academy_scholarship?: boolean | null
   academy_scholarship_notes?: string | null
-  school_teams_visible?: number | null
+  school_teams_visible?: number | Provenanced<number> | null
   pathway_to_professional?: string | null
   programme_classification?: string | null
   evidence_urls?: string[] | null
@@ -41,7 +46,7 @@ function hasMeaningfulData(t: TennisData): boolean {
   if (t.lta_accredited) return true
   if ((t.cup_results?.length ?? 0) > 0) return true
   if ((t.notable_alumni?.length ?? 0) > 0) return true
-  if ((t.school_teams_visible ?? 0) >= 10) return true
+  if ((readValue<number>(t.school_teams_visible) ?? 0) >= 10) return true
   return false
 }
 
@@ -119,12 +124,35 @@ export default function TennisSection({ tennis }: Props) {
             <span className="insp-meta-value">{tennis.programme_classification}</span>
           </div>
         )}
-        {(tennis.school_teams_visible ?? 0) > 0 && (
-          <div className="insp-meta-item">
-            <span className="insp-meta-label">Teams</span>
-            <span className="insp-meta-value">{tennis.school_teams_visible}</span>
-          </div>
-        )}
+        {(() => {
+          const teams = readValue<number>(tennis.school_teams_visible)
+          if (!teams || teams <= 0) return null
+          const evidence = readEvidence(tennis.school_teams_visible)
+          const legacy = isLegacyScalar(tennis.school_teams_visible)
+          const tooltip = legacy
+            ? 'Legacy value — no provenance recorded'
+            : evidence
+            ? `${methodLabel(evidence.method)} · ${evidence.url ?? '(no URL)'}`
+            : 'No provenance'
+          return (
+            <div className="insp-meta-item">
+              <span className="insp-meta-label">Teams</span>
+              <span className="insp-meta-value" title={tooltip}>
+                {teams}
+                {evidence?.method === 'deterministic_counter' && (
+                  <span className="tennis-provenance-tick" aria-label="Counted from source">
+                    {' '}✓
+                  </span>
+                )}
+                {legacy && (
+                  <span className="tennis-provenance-warn" aria-label="Legacy — no source">
+                    {' '}~
+                  </span>
+                )}
+              </span>
+            </div>
+          )
+        })()}
       </div>
 
       {/* Summary — the juicy notes paragraph */}
