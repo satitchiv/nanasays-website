@@ -17,6 +17,7 @@ type Props = {
   boarding?: boolean | null
   charityNumber?: string | null
   reportDate?: string
+  pdfUnlocked?: boolean
 }
 
 function isWikimarkup(text: string): boolean {
@@ -31,7 +32,7 @@ function genderText(g?: string | null) {
 }
 
 export default function RptHeader({
-  schoolName, slug, subtitle, city, country, gender, ageMin, ageMax, boarding, charityNumber, reportDate,
+  schoolName, slug, subtitle, city, country, gender, ageMin, ageMax, boarding, charityNumber, reportDate, pdfUnlocked,
 }: Props) {
   const ages = ageMin && ageMax ? `${ageMin}–${ageMax}` : ageMin ? `${ageMin}+` : null
   const displayDate = reportDate || new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
@@ -41,7 +42,7 @@ export default function RptHeader({
       <div className="rpt-eyebrow">
         Deep School Report · Written for parents, not lawyers
         {slug && (
-          <a href={`/api/schools/${slug}/report/pdf`}
+          <a href={`/api/schools/${slug}/report/pdf${pdfUnlocked ? '?unlocked=true' : ''}`}
              className="pdf-download"
              aria-label={`Download ${schoolName} Deep Report as PDF`}>
             ⬇ Download PDF

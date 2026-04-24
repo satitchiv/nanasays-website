@@ -30,7 +30,7 @@ type SportCategories = { major?: string[]; academy?: string[]; optional?: string
 type Scholarships = { available?: boolean; level_required?: string | null; entry_points?: string[]; notes?: string | null }
 type AlumniSociety = { name?: string; sport?: string | null; description?: string | null }
 type ExternalVenue = { name?: string; sport?: string | null; purpose?: string | null }
-type TeamsBySport = { sport?: string; gender?: 'boys' | 'girls' | 'mixed' | null; team_levels?: string[] }
+type TeamsBySport = { sport?: string; gender?: 'boys' | 'girls' | 'mixed' | null; team_levels?: string[]; team_count?: number | null }
 type Opponent = { name?: string; fixture_count_observed?: number | null }
 type SportsTour = { destination?: string; sport?: string; year?: number | null; notes?: string | null }
 
@@ -218,7 +218,7 @@ function aggregateBySport(sport: string, p: SportsProfile) {
   }
 
   const teamEntries = (p.teams_by_sport || []).filter(t => related(t.sport))
-  const totalTeamLevels = teamEntries.reduce((s, e) => s + (e.team_levels?.length || 0), 0)
+  const totalTeamLevels = teamEntries.reduce((s, e) => s + (e.team_count ?? e.team_levels?.length ?? 0), 0)
 
   const competitions = (p.competitions_entered || []).filter(c => related(c.sport))
   const nationalCompCount = competitions.filter(c => c.scope === 'national').length
@@ -592,7 +592,7 @@ export default function SportsSection({ sports, compact = false }: Props) {
                   </td>
                   <td style={{ color: 'var(--muted)' }}>{t.gender || '—'}</td>
                   <td style={{ fontSize: 13 }}>{(t.team_levels || []).join(', ')}</td>
-                  <td style={{ textAlign: 'right', fontWeight: 700 }}>{(t.team_levels || []).length}</td>
+                  <td style={{ textAlign: 'right', fontWeight: 700 }}>{t.team_count ?? (t.team_levels || []).length}</td>
                 </tr>
               ))}
             </tbody>

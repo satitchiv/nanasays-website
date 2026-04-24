@@ -1,5 +1,7 @@
 // GET /admin/content/api/plan/list
-// Returns all plan items still in 'planned' or 'failed' status, plus recent 'generated' items.
+// Returns all plan items still in 'planned' / 'queued' / 'generating' / 'failed'
+// status. The design_family column on social_content_plans is no longer used
+// by any code — we leave the DB column in place but ignore it here.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyAdmin, supabaseService } from '@/lib/supabase-admin'
@@ -14,9 +16,11 @@ export async function GET(req: NextRequest) {
     .select(`
       id, batch_id, scheduled_for, post_type, pillar_slug, school_id, school_ids,
       channel_slug, angle, reasoning, status, generated_post_id, error_message,
-      created_at, created_by
+      created_at, created_by,
+      headline, audience, pain_point, key_insight, proof_points, reader_takeaway,
+      visual_direction, hashtags, risk_flags
     `)
-    .in('status', ['planned', 'generating', 'failed'])
+    .in('status', ['planned', 'queued', 'generating', 'failed'])
     .order('scheduled_for', { ascending: true, nullsFirst: false })
     .order('created_at', { ascending: false })
     .limit(100)

@@ -32,9 +32,14 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
     .from('schools').select('name').eq('slug', slug).maybeSingle()
   if (!school) return new Response('School not found', { status: 404 })
 
-  // Build internal URL to the report page — use the same host the user hit
+  // Build internal URL to the report page — use the same host the user hit.
+  // Forward the unlock state (via ?unlocked=true query or nanasays_unlocked cookie)
+  // so Puppeteer renders the paid view, not the locked preview.
   const url = new URL(req.url)
-  const reportUrl = `${url.protocol}//${url.host}/schools/${slug}/report`
+  const unlocked =
+    url.searchParams.get('unlocked') === 'true' ||
+    req.cookies.get('nanasays_unlocked')?.value === 'true'
+  const reportUrl = `${url.protocol}//${url.host}/schools/${slug}/report${unlocked ? '?unlocked=true' : ''}`
 
   try {
     const pdf = await renderPdf({

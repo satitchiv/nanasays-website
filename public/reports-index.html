@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NanaSays — Deep Reports Index</title>
+<style>
+  :root{
+    --navy:#0a1e3f; --teal:#0aa39f; --ink:#102a43; --muted:#5a6b80;
+    --bg:#f7f8fb; --card:#fff; --line:#e4e8ef;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font:15px/1.55 -apple-system,BlinkMacSystemFont,"Inter",system-ui,sans-serif;color:var(--ink);background:var(--bg)}
+  header{background:var(--navy);color:#fff;padding:28px 24px}
+  header h1{margin:0;font-size:22px;letter-spacing:-.01em}
+  header p{margin:6px 0 0;color:#c9d4e5;font-size:13px}
+  main{max-width:960px;margin:0 auto;padding:24px}
+  section{margin:0 0 28px}
+  h2{font-size:14px;text-transform:uppercase;letter-spacing:.08em;color:var(--teal);margin:0 0 12px}
+  ul{list-style:none;padding:0;margin:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:10px}
+  li{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;transition:.15s}
+  li:hover{border-color:var(--teal);transform:translateY(-1px)}
+  a{color:var(--navy);text-decoration:none;font-weight:600;display:block}
+  a:hover{color:var(--teal)}
+  .meta{display:block;margin-top:2px;font-size:12px;color:var(--muted);font-weight:400}
+  .tag{display:inline-block;font-size:10px;letter-spacing:.05em;text-transform:uppercase;padding:2px 6px;border-radius:4px;margin-right:6px;vertical-align:1px}
+  .tag.live{background:#dff7f2;color:#0a6b66}
+  .tag.mockup{background:#eef2f9;color:#3b4a63}
+  .tag.md{background:#fff1e0;color:#8a4a00}
+  .note{background:#fff;border:1px solid var(--line);border-left:3px solid var(--teal);padding:10px 14px;border-radius:6px;font-size:13px;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <h1>NanaSays — Deep Reports Index</h1>
+  <p>Served from <code>website/public/</code> via Python :8080 on the Mac Mini (Tailscale).</p>
+</header>
+<main>
+
+<section>
+  <h2>Generated reports (styled HTML)</h2>
+  <ul>
+    <li><a href="report-reeds-school-uk-2026-04-21.html"><span class="tag live">live</span>Reed's School (UK)<span class="meta">Generated 2026-04-21 — full deep report</span></a></li>
+    <li><a href="report-reeds-school-2026-04-21.html"><span class="tag live">live</span>Reed's School — alt slug<span class="meta">Generated 2026-04-21</span></a></li>
+  </ul>
+</section>
+
+<section>
+  <h2>Approved style baseline &amp; mockups</h2>
+  <ul>
+    <li><a href="mockup-wycombe-report.html"><span class="tag mockup">baseline</span>Wycombe Abbey report<span class="meta">Approved style baseline (committed 9d746d2)</span></a></li>
+    <li><a href="mockup-school-report.html"><span class="tag mockup">mockup</span>School report mockup</a></li>
+    <li><a href="mockup-deep-research-v2.html"><span class="tag mockup">mockup</span>Deep research v2</a></li>
+    <li><a href="mockup-schools-index.html"><span class="tag mockup">mockup</span>Schools index page</a></li>
+    <li><a href="mockup-report-location-a.html"><span class="tag mockup">mockup</span>Report — location variant A</a></li>
+    <li><a href="mockup-report-location-b.html"><span class="tag mockup">mockup</span>Report — location variant B</a></li>
+    <li><a href="mockup-report-location-c.html"><span class="tag mockup">mockup</span>Report — location variant C</a></li>
+  </ul>
+</section>
+
+<section>
+  <h2>Raw markdown reports (generate-report.js output)</h2>
+  <p class="note">These are raw <code>.md</code> files from the generator. Browsers display them as plain text — readable but unstyled. Ask me to render any of these to HTML and I'll convert them.</p>
+  <ul>
+    <li><a href="deep-reports-md/reeds-school-uk-2026-04-21.md"><span class="tag md">md</span>Reed's School (UK)<span class="meta">2026-04-21 · 29 KB</span></a></li>
+    <li><a href="deep-reports-md/wycombe-abbey-2026-04-18.md"><span class="tag md">md</span>Wycombe Abbey<span class="meta">2026-04-18 · 17 KB</span></a></li>
+    <li><a href="deep-reports-md/wycombe-abbey-2026-04-17.md"><span class="tag md">md</span>Wycombe Abbey<span class="meta">2026-04-17 · 19 KB</span></a></li>
+    <li><a href="deep-reports-md/wycombe-abbey-v16.md"><span class="tag md">md</span>Wycombe Abbey v16<span class="meta">26 KB</span></a></li>
+    <li><a href="deep-reports-md/wycombe-abbey-v15.md"><span class="tag md">md</span>Wycombe Abbey v15<span class="meta">29 KB</span></a></li>
+    <li><a href="deep-reports-md/wycombe-abbey-v14.md"><span class="tag md">md</span>Wycombe Abbey v14</a></li>
+    <li><a href="deep-reports-md/wycombe-abbey-v13.md"><span class="tag md">md</span>Wycombe Abbey v13</a></li>
+    <li><a href="deep-reports-md/wycombe-abbey-v12.md"><span class="tag md">md</span>Wycombe Abbey v12</a></li>
+    <li><a href="deep-reports-md/wycombe-abbey-v11.md"><span class="tag md">md</span>Wycombe Abbey v11</a></li>
+    <li><a href="deep-reports-md/wycombe-abbey-v4.md"><span class="tag md">md</span>Wycombe Abbey v4</a></li>
+    <li><a href="deep-reports-md/wycombe-abbey-v3.md"><span class="tag md">md</span>Wycombe Abbey v3</a></li>
+    <li><a href="deep-reports-md/cheltenham-ladies-college-2026-04-17.md"><span class="tag md">md</span>Cheltenham Ladies' College<span class="meta">2026-04-17</span></a></li>
+    <li><a href="deep-reports-md/cheltenham-ladies-college-v12.md"><span class="tag md">md</span>Cheltenham Ladies' v12<span class="meta">22 KB</span></a></li>
+    <li><a href="deep-reports-md/cheltenham-ladies-college-v11.md"><span class="tag md">md</span>Cheltenham Ladies' v11</a></li>
+    <li><a href="deep-reports-md/cheltenham-ladies-college-v4.md"><span class="tag md">md</span>Cheltenham Ladies' v4</a></li>
+    <li><a href="deep-reports-md/cheltenham-ladies-college-v3.md"><span class="tag md">md</span>Cheltenham Ladies' v3</a></li>
+    <li><a href="deep-reports-md/cheltenham-ladies-college-v2.md"><span class="tag md">md</span>Cheltenham Ladies' v2</a></li>
+    <li><a href="deep-reports-md/wellington-college-2026-04-17.md"><span class="tag md">md</span>Wellington College<span class="meta">2026-04-17</span></a></li>
+    <li><a href="deep-reports-md/wellington-college-v3.md"><span class="tag md">md</span>Wellington College v3</a></li>
+    <li><a href="deep-reports-md/harrow-school-v4.md"><span class="tag md">md</span>Harrow School v4</a></li>
+  </ul>
+</section>
+
+</main>
+</body>
+</html>

@@ -11,6 +11,7 @@ const supabase = createClient(
 
 const NAVY = '#1B3252'
 const TEAL = '#34C3A0'
+const INDIGO = '#4338CA'
 
 type PlanItem = {
   id: string
@@ -28,6 +29,16 @@ type PlanItem = {
   error_message: string | null
   created_at: string
   created_by: string | null
+  // Strategy brief fields
+  headline: string | null
+  audience: string | null
+  pain_point: string | null
+  key_insight: string | null
+  proof_points: string[] | null
+  reader_takeaway: string | null
+  visual_direction: string | null
+  hashtags: string[] | null
+  risk_flags: string[] | null
 }
 
 export default function PlanPage() {
@@ -35,7 +46,12 @@ export default function PlanPage() {
   const [schoolNames, setSchoolNames] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [planning, setPlanning] = useState(false)
-  const [executing, setExecuting] = useState<string | null>(null) // id currently executing
+  // Set of plan-item IDs currently being kicked off. Once the server returns,
+  // the item's DB status is 'generating', so we drop it from this set and rely
+  // on polling to reflect live state. Multiple items can be in this set at once.
+  const [startingIds, setStartingIds] = useState<Set<string>>(new Set())
+  const [regenerating, setRegenerating] = useState<string | null>(null) // "<id>:<mode>"
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
   const [count, setCount] = useState(3)
   const [startDate, setStartDate] = useState(nextMondayISO())
   const [message, setMessage] = useState('')
@@ -46,26 +62,52 @@ export default function PlanPage() {
     return { Authorization: `Bearer ${session?.access_token}` }
   }
 
-  async function load() {
-    setLoading(true)
+  async function load(silent = false) {
+    if (!silent) setLoading(true)
     const headers = await authHeader()
     const res = await fetch('/admin/content/api/plan/list', { headers })
     const resp = await res.json()
     if (resp.ok) {
       setItems(resp.items || [])
       setSchoolNames(resp.schoolNames || {})
-    } else {
+    } else if (!silent) {
       setMessage(`Failed to load: ${resp.error}`)
     }
+    if (!loading) {/* noop to quiet linter */}
     setLoading(false)
   }
 
   useEffect(() => { load() }, [])
 
+  // Live polling: while any item is 'generating' or 'queued', refresh every
+  // 5s so the UI shows status transitions + queue advancement live.
+  useEffect(() => {
+    const anyActive = items.some(i => i.status === 'generating' || i.status === 'queued')
+    if (!anyActive) return
+    const timer = setInterval(() => { load(true) }, 5000)
+    return () => clearInterval(timer)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items])
+
+  // Compute queue position for each queued item (1-indexed among queued by created_at)
+  const queuedIds = items.filter(i => i.status === 'queued')
+    .slice()
+    .sort((a, b) => a.created_at.localeCompare(b.created_at))
+    .map(i => i.id)
+  const queuePosition = new Map(queuedIds.map((id, idx) => [id, idx + 1]))
+
+  function toggleExpand(id: string) {
+    setExpanded(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
   async function handlePlan() {
     setPlanning(true)
     setLog('')
-    setMessage('Planning… 15–30 seconds.')
+    setMessage('Planning… ~30 seconds.')
     try {
       const headers = { 'Content-Type': 'application/json', ...(await authHeader()) }
       const res = await fetch('/admin/content/api/plan/create', {
@@ -77,6 +119,8 @@ export default function PlanPage() {
       if (resp.log || resp.stdout) setLog([resp.log, resp.stdout].filter(Boolean).join('\n'))
       if (resp.ok) {
         setMessage(`✓ Plan created: ${resp.items?.length || 0} items`)
+        // Auto-expand new items so user sees full brief
+        setExpanded(new Set((resp.items || []).map((i: PlanItem) => i.id)))
         await load()
       } else {
         setMessage(`❌ ${resp.error || 'Plan failed'}`)
@@ -88,9 +132,12 @@ export default function PlanPage() {
     }
   }
 
+  // Kicks off a generation in the background. Returns immediately after the
+  // server acknowledges the spawn. Status polling (above) shows live progress.
+  // Guards against double-fire: if we're already starting this id, return early.
   async function handleGenerateItem(id: string) {
-    setExecuting(id)
-    setMessage(`Generating ${id.slice(0, 8)}… up to 90 seconds.`)
+    if (startingIds.has(id)) return // client-side guard against rapid double-click
+    setStartingIds(prev => new Set(prev).add(id))
     try {
       const headers = { 'Content-Type': 'application/json', ...(await authHeader()) }
       const res = await fetch('/admin/content/api/plan/execute-item', {
@@ -100,24 +147,62 @@ export default function PlanPage() {
       })
       const resp = await res.json()
       if (resp.ok) {
-        setMessage(`✓ Generated. Post ${resp.item?.generated_post_id?.slice(0, 8)}…`)
+        if (resp.alreadyClaimed) {
+          setMessage(`ℹ︎ Already ${resp.status}. No new job started.`)
+        } else if (resp.status === 'queued') {
+          setMessage(`✓ Queued ${id.slice(0, 8)}… (will start when current one finishes)`)
+        } else {
+          setMessage(`✓ Started ${id.slice(0, 8)}… (running in background, ~10-20 min). You can close this tab.`)
+        }
       } else {
-        setMessage(`❌ ${resp.error || 'Failed'}`)
+        setMessage(`❌ ${resp.error || 'Failed to start'}`)
       }
-      await load()
+      await load(true)
     } catch (e) {
       setMessage(`❌ ${e instanceof Error ? e.message : 'Failed'}`)
     } finally {
-      setExecuting(null)
+      setStartingIds(prev => {
+        const next = new Set(prev)
+        next.delete(id)
+        return next
+      })
     }
   }
 
+  // Enqueues every planned item. The server's queue runs one at a time
+  // (ALBUM_CONCURRENCY=1 by default), so these will execute sequentially in
+  // background processes with no extra UI wait.
   async function handleGenerateAll() {
     const planned = items.filter(i => i.status === 'planned')
     if (!planned.length) { setMessage('Nothing to generate'); return }
-    if (!confirm(`Generate ${planned.length} posts sequentially? This may take ${planned.length * 60}+ seconds.`)) return
+    if (!confirm(`Start ${planned.length} albums? They'll run one at a time in background (~${planned.length * 15} min total). You can close this tab.`)) return
+    setMessage(`Queueing ${planned.length} albums…`)
+    // Fire sequentially so the DB accurately reflects generating vs queued
     for (const item of planned) {
       await handleGenerateItem(item.id)
+    }
+    setMessage(`✓ All ${planned.length} albums queued. First is running; the rest will run in order.`)
+  }
+
+  async function handleRegenerate(id: string, field: 'all' | 'headline') {
+    setRegenerating(`${id}:${field}`)
+    setMessage(field === 'headline' ? 'Getting a fresh headline…' : 'Regenerating full brief… ~30s')
+    try {
+      const headers = { 'Content-Type': 'application/json', ...(await authHeader()) }
+      const res = await fetch(`/admin/content/api/plan/item/${id}/regenerate`, {
+        method: 'POST', headers, body: JSON.stringify({ field }),
+      })
+      const resp = await res.json()
+      if (resp.ok) {
+        setMessage(field === 'headline' ? `✓ New headline: "${resp.item?.headline}"` : '✓ Fresh brief ready')
+        await load()
+      } else {
+        setMessage(`❌ ${resp.error}`)
+      }
+    } catch (e) {
+      setMessage(`❌ ${e instanceof Error ? e.message : 'Failed'}`)
+    } finally {
+      setRegenerating(null)
     }
   }
 
@@ -127,22 +212,41 @@ export default function PlanPage() {
     const res = await fetch(`/admin/content/api/plan/item/${id}`, { method: 'DELETE', headers })
     const resp = await res.json()
     if (resp.ok) {
-      setMessage(`Removed`)
+      setMessage('Removed')
       await load()
     } else {
       setMessage(`❌ ${resp.error}`)
     }
   }
 
-  async function handleEditAngle(id: string, current: string | null) {
-    const next = prompt('New angle (editorial focus):', current || '')
-    if (next === null || next === current) return
-    const headers = { 'Content-Type': 'application/json', ...(await authHeader()) }
-    const res = await fetch(`/admin/content/api/plan/item/${id}`, {
-      method: 'PATCH', headers, body: JSON.stringify({ angle: next }),
-    })
-    const resp = await res.json()
-    if (resp.ok) { setMessage('✓ Angle updated'); await load() } else { setMessage(`❌ ${resp.error}`) }
+  async function handleEditField(id: string, field: string, currentValue: string | null) {
+    const next = prompt(`Edit ${field.replace(/_/g, ' ')}:`, currentValue || '')
+    if (next === null || next === currentValue) return
+    try {
+      const headers = { 'Content-Type': 'application/json', ...(await authHeader()) }
+      const res = await fetch(`/admin/content/api/plan/item/${id}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ [field]: next }),
+      })
+
+      let resp: { ok?: boolean; error?: string } = {}
+      try {
+        resp = await res.json()
+      } catch {
+        const text = await res.text().catch(() => '')
+        resp = { ok: false, error: text || `Request failed (${res.status})` }
+      }
+
+      if (resp.ok) {
+        setMessage(`✓ ${field.replace(/_/g, ' ')} updated`)
+        await load()
+      } else {
+        setMessage(`❌ ${resp.error || `Request failed (${res.status})`}`)
+      }
+    } catch (e) {
+      setMessage(`❌ ${e instanceof Error ? e.message : 'Failed to update field'}`)
+    }
   }
 
   return (
@@ -155,7 +259,7 @@ export default function PlanPage() {
 
       <h1 style={{ fontSize: 24, fontWeight: 800, color: NAVY, margin: '0 0 6px' }}>Content plan</h1>
       <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 20px' }}>
-        Plan a week of content before generating. Claude sees your recent posts and proposes distinct pillar + school + angle combos so nothing repeats.
+        A content brief for every planned post — headline, audience, insight, proof points — that you can review, edit, and regenerate before committing production time.
       </p>
 
       {/* Planner controls */}
@@ -181,9 +285,14 @@ export default function PlanPage() {
             {planning ? 'Planning…' : '✨ Plan the week'}
           </button>
           {items.some(i => i.status === 'planned') && (
-            <button onClick={handleGenerateAll} disabled={!!executing} style={secondaryBtn(!!executing)}>
-              {executing ? 'Executing…' : `⚡ Generate all (${items.filter(i => i.status === 'planned').length})`}
+            <button onClick={handleGenerateAll} style={secondaryBtn(false)}>
+              ⚡ Generate all ({items.filter(i => i.status === 'planned').length})
             </button>
+          )}
+          {items.some(i => i.status === 'generating' || i.status === 'queued') && (
+            <span style={{ fontSize: 12, color: '#D97706', fontWeight: 600, padding: '9px 0' }}>
+              ⏳ {items.filter(i => i.status === 'generating').length} running · {items.filter(i => i.status === 'queued').length} queued
+            </span>
           )}
         </div>
         {message && <div style={{ marginTop: 12, fontSize: 13, color: message.startsWith('❌') ? '#B91C1C' : NAVY }}>{message}</div>}
@@ -200,17 +309,23 @@ export default function PlanPage() {
           No planned items. Click <strong>Plan the week</strong> above.
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {items.map(item => (
             <PlanItemCard
               key={item.id}
               item={item}
               schoolNames={schoolNames}
-              executing={executing === item.id}
-              disabled={!!executing && executing !== item.id}
+              isExpanded={expanded.has(item.id)}
+              toggleExpand={() => toggleExpand(item.id)}
+              starting={startingIds.has(item.id)}
+              regeneratingAll={regenerating === `${item.id}:all`}
+              regeneratingHeadline={regenerating === `${item.id}:headline`}
+              queuePosition={queuePosition.get(item.id)}
               onGenerate={() => handleGenerateItem(item.id)}
-              onEditAngle={() => handleEditAngle(item.id, item.angle)}
+              onRegenerateAll={() => handleRegenerate(item.id, 'all')}
+              onRegenerateHeadline={() => handleRegenerate(item.id, 'headline')}
               onRemove={() => handleRemove(item.id)}
+              onEditField={(field, v) => handleEditField(item.id, field, v)}
             />
           ))}
         </div>
@@ -219,76 +334,218 @@ export default function PlanPage() {
   )
 }
 
-function PlanItemCard({ item, schoolNames, executing, disabled, onGenerate, onEditAngle, onRemove }: {
+function PlanItemCard({
+  item, schoolNames, isExpanded, toggleExpand,
+  starting, regeneratingAll, regeneratingHeadline, queuePosition,
+  onGenerate, onRegenerateAll, onRegenerateHeadline, onRemove, onEditField,
+}: {
   item: PlanItem
   schoolNames: Record<string, string>
-  executing: boolean
-  disabled: boolean
+  isExpanded: boolean
+  toggleExpand: () => void
+  starting: boolean
+  regeneratingAll: boolean
+  regeneratingHeadline: boolean
+  queuePosition: number | undefined
   onGenerate: () => void
-  onEditAngle: () => void
+  onRegenerateAll: () => void
+  onRegenerateHeadline: () => void
   onRemove: () => void
+  onEditField: (field: string, currentValue: string | null) => void
 }) {
+  const isGenerating = item.status === 'generating' || starting
+  const isQueued = item.status === 'queued'
   const schoolLabel = item.school_id
     ? schoolNames[item.school_id] || item.school_id.slice(0, 8)
     : item.school_ids?.length
-      ? item.school_ids.map(sid => schoolNames[sid] || sid.slice(0, 8)).join(' · ')
+      ? `${item.school_ids.length} schools: ${item.school_ids.map(sid => schoolNames[sid] || sid.slice(0, 8)).join(' · ')}`
       : null
 
   const statusColor =
     item.status === 'planned'    ? '#6B7280' :
+    item.status === 'queued'     ? '#4338CA' :
     item.status === 'generating' ? '#D97706' :
     item.status === 'generated'  ? TEAL :
     item.status === 'failed'     ? '#B91C1C' : '#6B7280'
 
+  const statusLabel =
+    item.status === 'queued' && queuePosition
+      ? `queued · #${queuePosition}`
+      : item.status
+
   return (
     <div style={{
-      background: '#fff', borderRadius: 10, padding: 14,
-      border: `1px solid ${item.status === 'failed' ? '#FCA5A5' : '#E2E8F0'}`,
-      opacity: disabled ? 0.5 : 1,
+      background: '#fff', borderRadius: 10,
+      border: `1px solid ${item.status === 'failed' ? '#FCA5A5' : isGenerating ? '#D97706' : isQueued ? INDIGO : isExpanded ? NAVY : '#E2E8F0'}`,
+      overflow: 'hidden',
     }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: '#6B7280', marginBottom: 4 }}>
-            <strong style={{ color: NAVY }}>{item.scheduled_for || 'unscheduled'}</strong>
-            <span>·</span>
-            <span style={{ fontFamily: 'ui-monospace, monospace', background: '#F1F5F9', padding: '2px 6px', borderRadius: 4 }}>
-              📚 {item.pillar_slug}
-            </span>
-            <span style={{ color: statusColor, fontWeight: 700 }}>{item.status}</span>
+      {/* Collapsed header — always visible */}
+      <div style={{ padding: 14, cursor: 'pointer' }} onClick={toggleExpand}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: '#6B7280', marginBottom: 6 }}>
+          <span style={{ color: '#94A3B8', fontSize: 11 }}>{isExpanded ? '▼' : '▶'}</span>
+          <strong style={{ color: NAVY }}>{item.scheduled_for || 'unscheduled'}</strong>
+          <span>·</span>
+          <span style={{ fontFamily: 'ui-monospace, monospace', background: '#F1F5F9', padding: '2px 6px', borderRadius: 4 }}>
+            📚 {item.pillar_slug}
+          </span>
+          <span style={{ color: statusColor, fontWeight: 700 }}>{statusLabel}</span>
+          {item.risk_flags?.length ? <span style={{ color: '#B91C1C', fontWeight: 700 }}>⚠ {item.risk_flags.length} risk{item.risk_flags.length > 1 ? 's' : ''}</span> : null}
+        </div>
+
+        {/* Headline — the hook */}
+        <div style={{ fontSize: 16, fontWeight: 800, color: NAVY, lineHeight: 1.3, marginBottom: 6 }}>
+          {item.headline || <span style={{ color: '#94A3B8', fontWeight: 400, fontStyle: 'italic' }}>(no headline — click Regenerate)</span>}
+        </div>
+
+        {/* Takeaway — what reader should do */}
+        {item.reader_takeaway && (
+          <div style={{ fontSize: 13, color: TEAL, fontWeight: 600 }}>
+            → {item.reader_takeaway}
           </div>
+        )}
+      </div>
+
+      {/* Expanded detail */}
+      {isExpanded && (
+        <div style={{ padding: '0 14px 14px 14px', borderTop: '1px solid #F1F5F9' }}>
           {schoolLabel && (
-            <div style={{ fontSize: 14, color: NAVY, fontWeight: 600, marginBottom: 4 }}>{schoolLabel}</div>
+            <Field label="School(s)" value={schoolLabel} />
           )}
-          {item.angle && (
-            <div style={{ fontSize: 13, color: '#334155', marginBottom: 4 }}>
-              <span style={{ color: '#6B7280' }}>angle:</span> {item.angle}
+
+          <Field label="Audience" value={item.audience} onEdit={() => onEditField('audience', item.audience)} />
+
+          <Field label="Pain point" value={item.pain_point} onEdit={() => onEditField('pain_point', item.pain_point)} />
+
+          <Field
+            label="💡 Key insight"
+            value={item.key_insight}
+            onEdit={() => onEditField('key_insight', item.key_insight)}
+            highlight
+          />
+
+          {item.proof_points?.length ? (
+            <div style={{ marginTop: 10 }}>
+              <div style={fieldLabelStyle}>Proof points</div>
+              <ul style={{ margin: '4px 0 0 20px', padding: 0, fontSize: 13, color: '#334155', lineHeight: 1.5 }}>
+                {item.proof_points.map((p, i) => <li key={i}>{p}</li>)}
+              </ul>
             </div>
-          )}
-          {item.reasoning && (
-            <div style={{ fontSize: 12, color: '#6B7280', fontStyle: 'italic' }}>{item.reasoning}</div>
-          )}
-          {item.error_message && (
-            <div style={{ fontSize: 12, color: '#B91C1C', marginTop: 6 }}>Error: {item.error_message}</div>
-          )}
-          {item.generated_post_id && (
-            <div style={{ fontSize: 12, marginTop: 6 }}>
-              <Link href={`/admin/content/${item.generated_post_id}`} style={{ color: TEAL }}>→ View generated post</Link>
-            </div>
-          )}
-        </div>
-        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-          {item.status === 'planned' || item.status === 'failed' ? (
-            <button onClick={onGenerate} disabled={disabled} style={actionBtn(disabled, TEAL)}>
-              {executing ? '…' : 'Generate'}
-            </button>
           ) : null}
-          {item.status === 'planned' && (
-            <button onClick={onEditAngle} disabled={disabled} style={actionBtn(disabled)}>Edit</button>
+
+          {item.angle && <Field label="Angle (internal)" value={item.angle} onEdit={() => onEditField('angle', item.angle)} small />}
+          {item.visual_direction && <Field label="Visual direction" value={item.visual_direction} onEdit={() => onEditField('visual_direction', item.visual_direction)} small />}
+
+          {item.hashtags?.length ? (
+            <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {item.hashtags.map(h => (
+                <span key={h} style={{ fontSize: 11, background: '#EEF2FF', color: INDIGO, padding: '3px 8px', borderRadius: 10, fontWeight: 600 }}>
+                  #{h}
+                </span>
+              ))}
+            </div>
+          ) : null}
+
+          {item.risk_flags?.length ? (
+            <div style={{ marginTop: 12, padding: 8, background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 6 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#B91C1C', marginBottom: 4 }}>⚠ RISKS TO VERIFY</div>
+              <ul style={{ margin: '0 0 0 18px', padding: 0, fontSize: 12, color: '#991B1B' }}>
+                {item.risk_flags.map((r, i) => <li key={i}>{r}</li>)}
+              </ul>
+            </div>
+          ) : null}
+
+          {item.reasoning && (
+            <div style={{ marginTop: 12, padding: 8, background: '#F8FAFC', borderRadius: 6, fontSize: 12, color: '#64748B', fontStyle: 'italic' }}>
+              💭 Why now: {item.reasoning}
+            </div>
           )}
-          {item.status !== 'generating' && (
-            <button onClick={onRemove} disabled={disabled} style={actionBtn(disabled, '#B91C1C')}>Remove</button>
+
+          {item.error_message && (
+            <div style={{ marginTop: 10, fontSize: 12, color: '#B91C1C', padding: 8, background: '#FEF2F2', borderRadius: 6 }}>
+              Error: {item.error_message}
+            </div>
+          )}
+
+          {item.generated_post_id && (
+            <div style={{ marginTop: 10, fontSize: 13 }}>
+              <Link href={`/admin/content/${item.generated_post_id}`} style={{ color: TEAL, fontWeight: 600 }}>
+                → View generated post
+              </Link>
+            </div>
           )}
         </div>
+      )}
+
+      {/* Action buttons — always visible at the bottom */}
+      <div style={{ padding: 10, borderTop: '1px solid #F1F5F9', display: 'flex', gap: 6, flexWrap: 'wrap', background: '#FAFBFC' }}>
+        {isGenerating ? (
+          <span style={{ fontSize: 12, color: '#D97706', fontWeight: 700, padding: '6px 10px' }}>
+            ⏳ Generating in background… (~10-20 min)
+          </span>
+        ) : isQueued ? (
+          <>
+            <span style={{ fontSize: 12, color: INDIGO, fontWeight: 700, padding: '6px 10px' }}>
+              ⏸ Queued{queuePosition ? ` · position #${queuePosition}` : ''} — will start when the current one finishes
+            </span>
+            <button onClick={onRemove} style={actionBtn(false, '#B91C1C')}>🗑 Remove from queue</button>
+          </>
+        ) : (
+          <>
+            {(item.status === 'planned' || item.status === 'failed') && (
+              <button onClick={onGenerate} disabled={starting} style={actionBtn(starting, TEAL)}>
+                {starting ? '… starting' : '✨ Generate'}
+              </button>
+            )}
+            {item.status !== 'generated' && (
+              <>
+                <button onClick={onRegenerateAll} disabled={regeneratingAll} style={actionBtn(regeneratingAll, NAVY)}>
+                  {regeneratingAll ? '…' : '↻ Regenerate all'}
+                </button>
+                <button onClick={onRegenerateHeadline} disabled={regeneratingHeadline} style={actionBtn(regeneratingHeadline, INDIGO)}>
+                  {regeneratingHeadline ? '…' : '↻ Regenerate headline'}
+                </button>
+              </>
+            )}
+            <button onClick={onRemove} style={actionBtn(false, '#B91C1C')}>
+              🗑 Remove
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function Field({ label, value, onEdit, highlight, small }: {
+  label: string
+  value: string | null
+  onEdit?: () => void
+  highlight?: boolean
+  small?: boolean
+}) {
+  if (!value) return null
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div style={fieldLabelStyle}>
+        {label}
+        {onEdit && (
+          <button
+            onClick={onEdit}
+            style={{ marginLeft: 8, fontSize: 10, color: '#64748B', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+          >edit</button>
+        )}
+      </div>
+      <div style={{
+        fontSize: small ? 12 : 13,
+        color: highlight ? NAVY : '#334155',
+        fontWeight: highlight ? 600 : 400,
+        lineHeight: 1.5,
+        padding: highlight ? '6px 10px' : 0,
+        background: highlight ? '#F0FDFA' : 'transparent',
+        borderLeft: highlight ? `3px solid ${TEAL}` : 'none',
+        borderRadius: highlight ? 4 : 0,
+      }}>
+        {value}
       </div>
     </div>
   )
@@ -304,17 +561,14 @@ function nextMondayISO() {
 
 const labelStyle = { display: 'block', fontSize: 11, color: '#6B7280', marginBottom: 4, fontWeight: 600 } as const
 const inputStyle = { padding: '8px 10px', border: '1px solid #CBD5E1', borderRadius: 6, fontSize: 14, background: '#fff' } as const
+const fieldLabelStyle = { fontSize: 10, color: '#6B7280', fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: 0.5, marginBottom: 2 }
 
 function tabStyle(active: boolean) {
   return {
-    padding: '10px 16px',
-    fontSize: 14,
-    fontWeight: 700,
-    color: active ? NAVY : '#6B7280',
-    textDecoration: 'none',
+    padding: '10px 16px', fontSize: 14, fontWeight: 700,
+    color: active ? NAVY : '#6B7280', textDecoration: 'none',
     borderBottom: active ? `3px solid ${TEAL}` : '3px solid transparent',
-    marginBottom: -1,
-    cursor: active ? 'default' : 'pointer',
+    marginBottom: -1, cursor: active ? 'default' : 'pointer',
   } as const
 }
 function primaryBtn(disabled: boolean) {

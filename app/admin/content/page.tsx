@@ -22,7 +22,10 @@ type PostRow = {
   image_url: string | null
   copy_en: string | null
   created_at: string
-  source_data: { plan_item_id?: string | null; angle?: string | null } | null
+  source_data: {
+    plan_item_id?: string | null
+    angle?: string | null
+  } | null
   social_pillars: { slug: string; name_en: string } | null
   schools: { name: string | null } | null
 }

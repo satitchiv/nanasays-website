@@ -26,7 +26,7 @@ export type SchoolLife = {
   notable_traditions?: string[]
   boarding_life?: string | null
   faith_character?: string | null
-  notable_alumni?: string[]
+  notable_alumni?: (string | { name?: string; known_for?: string; role?: string })[]
   unique_differentiators?: string[]
   day_in_the_life?: string | null
   notes?: string | null
@@ -199,12 +199,20 @@ export default function SchoolLifeSection({ schoolLife }: Props) {
         <>
           <h3 className="block-sub">Notable alumni</h3>
           <div className="sl-alumni-grid">
-            {notable_alumni.map((a, i) => {
-              const m = a.match(/^(.+?)\s*\((.+)\)$/)
+            {notable_alumni.map((a: any, i) => {
+              let name: string, role: string | null = null
+              if (typeof a === 'string') {
+                const m = a.match(/^(.+?)\s*\((.+)\)$/)
+                name = m ? m[1].trim() : a
+                role = m ? m[2].trim() : null
+              } else {
+                name = a?.name ?? ''
+                role = a?.known_for ?? a?.role ?? null
+              }
               return (
                 <div key={i} className="sl-alumni-item">
-                  <strong>{m ? m[1].trim() : a}</strong>
-                  {m && <span className="sl-alumni-role">{m[2].trim()}</span>}
+                  <strong>{name}</strong>
+                  {role && <span className="sl-alumni-role">{role}</span>}
                 </div>
               )
             })}

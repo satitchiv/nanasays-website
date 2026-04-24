@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Premium Data Desk — mockup preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #E2E8F0;
+    font-family: 'Nunito Sans', sans-serif;
+    padding: 40px 20px 80px;
+    display: flex; flex-direction: column; align-items: center; gap: 24px;
+    min-height: 100vh;
+  }
+  .caption {
+    font-size: 13px; font-weight: 700; color: #475569;
+    letter-spacing: .5px; text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .sub-caption { font-size: 12px; color: #64748B; max-width: 600px; text-align: center; line-height: 1.6; }
+
+  /* ── Slide shell — 540×540 (matches our Instagram Feed Square render size) ── */
+  .slide {
+    width: 540px; height: 540px;
+    background: #FFFFFF;
+    box-shadow: 0 16px 48px rgba(15,23,42,0.20);
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    display: flex; flex-direction: column;
+  }
+
+  /* ── Top bar ── */
+  .top {
+    padding: 20px 28px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .wordmark {
+    font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 21px; letter-spacing: -0.5px;
+  }
+  .wn-n { color: #1B3252; }
+  .wn-s { color: #34C3A0; }
+  .verified {
+    display: flex; align-items: center; gap: 7px;
+    background: #ECFDF5;
+    border: 1px solid rgba(52,195,160,0.5);
+    border-radius: 999px;
+    padding: 5px 12px 5px 8px;
+  }
+  .verified-check {
+    width: 16px; height: 16px; border-radius: 50%;
+    background: #34C3A0; color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 900;
+  }
+  .verified-text {
+    font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 10px; color: #239C80;
+    line-height: 1.15;
+    text-align: left;
+  }
+  .verified-text small {
+    font-family: 'Nunito Sans', sans-serif; font-weight: 600;
+    font-size: 9px; color: #34C3A0;
+    display: block; margin-top: 1px;
+  }
+
+  /* ── Title ── */
+  .title {
+    padding: 4px 28px 16px;
+    font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 28px; color: #1B3252;
+    line-height: 1.05; letter-spacing: -0.8px;
+  }
+
+  /* ── Data grid ── */
+  .data-grid {
+    padding: 0 24px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 16px;
+    row-gap: 0;
+  }
+  .data-row {
+    display: grid;
+    grid-template-columns: 18px 1fr auto;
+    align-items: center; gap: 9px;
+    padding: 8px 4px;
+    border-bottom: 1px solid rgba(27,50,82,0.08);
+  }
+  .data-icon {
+    width: 18px; height: 18px;
+    color: #94A3B8;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px;
+  }
+  .data-label {
+    font-size: 9.5px; font-weight: 700;
+    color: #64748B;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .data-value {
+    font-family: 'Nunito Sans', sans-serif; font-weight: 700;
+    font-size: 11px; color: #1B3252;
+  }
+
+  /* ── Stat tiles ── */
+  .tiles {
+    padding: 14px 24px 20px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-top: auto;
+  }
+  .tile {
+    background: #F6F8FA;
+    border: 1px solid rgba(27,50,82,0.06);
+    border-radius: 10px;
+    padding: 10px 6px 8px;
+    display: flex; flex-direction: column; align-items: center;
+    text-align: center;
+    gap: 2px;
+  }
+  .tile-icon {
+    font-size: 14px;
+    color: #34C3A0;
+    margin-bottom: 2px;
+  }
+  .tile-value {
+    font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 17px; color: #1B3252;
+    line-height: 1.0; letter-spacing: -0.5px;
+  }
+  .tile-label {
+    font-size: 8px; font-weight: 700;
+    color: #64748B;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    line-height: 1.2;
+  }
+
+  /* ── Progress dots ── */
+  .dots {
+    position: absolute; bottom: 6px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 5px; align-items: center;
+  }
+  .dot { width: 5px; height: 5px; border-radius: 50%; background: rgba(27,50,82,0.2); }
+  .dot.on { width: 16px; border-radius: 100px; background: #1B3252; }
+
+  /* ── Notes row ── */
+  .notes {
+    max-width: 540px;
+    background: white;
+    border: 1px solid #E2E8F0;
+    border-radius: 10px;
+    padding: 16px 20px;
+    font-size: 13px; color: #334155; line-height: 1.55;
+  }
+  .notes strong { color: #1B3252; }
+  .notes ul { margin: 8px 0 0 18px; padding: 0; }
+  .notes li { margin: 2px 0; }
+
+  /* ── Larger preview at 2x for viewing on laptop ── */
+  .two-up { display: flex; gap: 32px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+  .preview-col { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .preview-col h3 { font-size: 11px; font-weight: 700; color: #64748B; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+  .slide-2x { transform: scale(1.6); transform-origin: top center; margin-bottom: 340px; }
+</style>
+</head>
+<body>
+
+<div class="caption">Premium Data Desk — Mockup Preview</div>
+<div class="sub-caption">
+  Real data from Bangkok Patana School · rendered at 540×540 (exactly the size the pipeline produces for Instagram Feed Square, which upscales to 1080×1080).
+  This is a static HTML proof — no Claude generation involved. If you like the look, we wire it up to the DB so it auto-renders per school.
+</div>
+
+<div class="two-up">
+  <div class="preview-col">
+    <h3>Actual size · 540×540</h3>
+    <div class="slide">
+      <div class="top">
+        <div class="wordmark"><span class="wn-n">Nana</span><span class="wn-s">Says</span></div>
+        <div class="verified">
+          <div class="verified-check">✓</div>
+          <div class="verified-text">Verified<small>Apr 2026</small></div>
+        </div>
+      </div>
+
+      <div class="title">Bangkok Patana<br>School</div>
+
+      <div class="data-grid">
+        <div class="data-row">
+          <div class="data-icon">◈</div>
+          <div class="data-label">Founded</div>
+          <div class="data-value">1957</div>
+        </div>
+        <div class="data-row">
+          <div class="data-icon">◎</div>
+          <div class="data-label">Campus</div>
+          <div class="data-value">Bangkok</div>
+        </div>
+        <div class="data-row">
+          <div class="data-icon">▣</div>
+          <div class="data-label">Total Students</div>
+          <div class="data-value">~2,300</div>
+        </div>
+        <div class="data-row">
+          <div class="data-icon">◉</div>
+          <div class="data-label">Location</div>
+          <div class="data-value">Bang Na</div>
+        </div>
+        <div class="data-row">
+          <div class="data-icon">◐</div>
+          <div class="data-label">Ages</div>
+          <div class="data-value">2 – 18</div>
+        </div>
+        <div class="data-row">
+          <div class="data-icon">◆</div>
+          <div class="data-label">School Type</div>
+          <div class="data-value">Co-educational</div>
+        </div>
+        <div class="data-row">
+          <div class="data-icon">▤</div>
+          <div class="data-label">Curriculum</div>
+          <div class="data-value">IB Diploma · CP</div>
+        </div>
+        <div class="data-row">
+          <div class="data-icon">◫</div>
+          <div class="data-label">Academic Year</div>
+          <div class="data-value">Aug – Jun</div>
+        </div>
+        <div class="data-row">
+          <div class="data-icon">◯</div>
+          <div class="data-label">Nationality Mix</div>
+          <div class="data-value">65+ nationalities</div>
+        </div>
+        <div class="data-row">
+          <div class="data-icon">▦</div>
+          <div class="data-label">Languages</div>
+          <div class="data-value">English</div>
+        </div>
+        <div class="data-row">
+          <div class="data-icon">▨</div>
+          <div class="data-label">IB Pass Rate</div>
+          <div class="data-value">99%</div>
+        </div>
+        <div class="data-row">
+          <div class="data-icon">✓</div>
+          <div class="data-label">Accreditation</div>
+          <div class="data-value">IB World School</div>
+        </div>
+      </div>
+
+      <div class="tiles">
+        <div class="tile">
+          <div class="tile-icon">▣</div>
+          <div class="tile-value">~2,300</div>
+          <div class="tile-label">Students</div>
+        </div>
+        <div class="tile">
+          <div class="tile-icon">◈</div>
+          <div class="tile-value">1957</div>
+          <div class="tile-label">Founded</div>
+        </div>
+        <div class="tile">
+          <div class="tile-icon">▨</div>
+          <div class="tile-value">99%</div>
+          <div class="tile-label">IB Pass Rate</div>
+        </div>
+        <div class="tile">
+          <div class="tile-icon">◯</div>
+          <div class="tile-value">65+</div>
+          <div class="tile-label">Nationalities</div>
+        </div>
+      </div>
+
+      <div class="dots">
+        <div class="dot on"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="preview-col">
+    <h3>Scaled 1.6× for closer look</h3>
+    <div class="slide slide-2x">
+      <div class="top">
+        <div class="wordmark"><span class="wn-n">Nana</span><span class="wn-s">Says</span></div>
+        <div class="verified">
+          <div class="verified-check">✓</div>
+          <div class="verified-text">Verified<small>Apr 2026</small></div>
+        </div>
+      </div>
+      <div class="title">Bangkok Patana<br>School</div>
+      <div class="data-grid">
+        <div class="data-row"><div class="data-icon">◈</div><div class="data-label">Founded</div><div class="data-value">1957</div></div>
+        <div class="data-row"><div class="data-icon">◎</div><div class="data-label">Campus</div><div class="data-value">Bangkok</div></div>
+        <div class="data-row"><div class="data-icon">▣</div><div class="data-label">Total Students</div><div class="data-value">~2,300</div></div>
+        <div class="data-row"><div class="data-icon">◉</div><div class="data-label">Location</div><div class="data-value">Bang Na</div></div>
+        <div class="data-row"><div class="data-icon">◐</div><div class="data-label">Ages</div><div class="data-value">2 – 18</div></div>
+        <div class="data-row"><div class="data-icon">◆</div><div class="data-label">School Type</div><div class="data-value">Co-educational</div></div>
+        <div class="data-row"><div class="data-icon">▤</div><div class="data-label">Curriculum</div><div class="data-value">IB Diploma · CP</div></div>
+        <div class="data-row"><div class="data-icon">◫</div><div class="data-label">Academic Year</div><div class="data-value">Aug – Jun</div></div>
+        <div class="data-row"><div class="data-icon">◯</div><div class="data-label">Nationality Mix</div><div class="data-value">65+ nationalities</div></div>
+        <div class="data-row"><div class="data-icon">▦</div><div class="data-label">Languages</div><div class="data-value">English</div></div>
+        <div class="data-row"><div class="data-icon">▨</div><div class="data-label">IB Pass Rate</div><div class="data-value">99%</div></div>
+        <div class="data-row"><div class="data-icon">✓</div><div class="data-label">Accreditation</div><div class="data-value">IB World School</div></div>
+      </div>
+      <div class="tiles">
+        <div class="tile"><div class="tile-icon">▣</div><div class="tile-value">~2,300</div><div class="tile-label">Students</div></div>
+        <div class="tile"><div class="tile-icon">◈</div><div class="tile-value">1957</div><div class="tile-label">Founded</div></div>
+        <div class="tile"><div class="tile-icon">▨</div><div class="tile-value">99%</div><div class="tile-label">IB Pass Rate</div></div>
+        <div class="tile"><div class="tile-icon">◯</div><div class="tile-value">65+</div><div class="tile-label">Nationalities</div></div>
+      </div>
+      <div class="dots">
+        <div class="dot on"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="notes">
+  <strong>What this is:</strong> a hand-built HTML mockup using real Supabase data for Bangkok Patana. No Claude call, no AI generation.
+  <ul>
+    <li>If you like this look → I build a real template that auto-renders any school in this format (~1 day).</li>
+    <li>This would be slide 1 of a 6-slide Premium Data Desk album. Slides 2–6 would follow the same data-desk visual system (e.g. an "Outcomes" slide, "Fees" slide, "Facilities" slide) — all with the same header, hairline grid, tile footer identity.</li>
+    <li>Every NanaSays visual signal stays locked: navy #1B3252, teal #34C3A0, Nunito headlines, white canvas, wordmark top-left, verified badge top-right, progress dots bottom.</li>
+    <li>Compared to freestyle AI: the layout is pixel-predictable, never drifts, renders in 5 seconds (no Claude call per slide), and every school gets the same structure so the feed looks like a magazine series, not 8 different experiments.</li>
+  </ul>
+</div>
+
+</body>
+</html>

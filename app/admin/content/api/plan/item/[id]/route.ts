@@ -1,10 +1,14 @@
-// PATCH /admin/content/api/plan/item/[id] — edit angle / scheduled_for / school_id / channel_slug
+// PATCH /admin/content/api/plan/item/[id] — edit angle / scheduled_for / school_id / channel_slug + strategy brief fields
 // DELETE /admin/content/api/plan/item/[id] — mark as skipped (or hard delete if never generated)
 
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyAdmin, supabaseService } from '@/lib/supabase-admin'
 
-const EDITABLE_FIELDS = ['angle', 'scheduled_for', 'school_id', 'channel_slug'] as const
+const EDITABLE_FIELDS = [
+  'angle', 'scheduled_for', 'school_id', 'channel_slug',
+  'headline', 'audience', 'pain_point', 'key_insight', 'proof_points',
+  'reader_takeaway', 'visual_direction', 'hashtags', 'risk_flags',
+] as const
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await verifyAdmin(req)
