@@ -412,6 +412,21 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
               pastoralModel={structured?.pastoral_model}
             />
 
+            <CommunityProfile
+              community={structured?.student_community}
+              totalPupilsFallback={structured?.student_count || school.student_count}
+            />
+
+            <DailyLifeGrid
+              wellbeing={structured?.wellbeing_staffing}
+              policies={structured?.policies_summary}
+              boarding={school.boarding}
+              totalPupils={structured?.student_count || school.student_count}
+            />
+
+            {/* Sports & Athletics — its own top-level group in the TOC,
+                so the body section sits after Daily life to keep body
+                order in sync with the sidebar. */}
             <section className="block" id="sports-athletics">
               <h2 className="block-title">Sports &amp; Athletics</h2>
 
@@ -424,18 +439,6 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
                 </>
               )}
             </section>
-
-            <CommunityProfile
-              community={structured?.student_community}
-              totalPupilsFallback={structured?.student_count || school.student_count}
-            />
-
-            <DailyLifeGrid
-              wellbeing={structured?.wellbeing_staffing}
-              policies={structured?.policies_summary}
-              boarding={school.boarding}
-              totalPupils={structured?.student_count || school.student_count}
-            />
 
             <FeesSection
               feesMin={structured?.fees_local_min || structured?.fees_min}
