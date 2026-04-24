@@ -11,6 +11,7 @@ import FeesSection            from '@/components/report/FeesSection'
 import PastoralSection        from '@/components/report/PastoralSection'
 import SchoolLifeSection      from '@/components/report/SchoolLifeSection'
 import SportsSection          from '@/components/report/SportsSection'
+import TennisSection          from '@/components/report/TennisSection'
 import CommunityProfile       from '@/components/report/CommunityProfile'
 import DailyLifeGrid          from '@/components/report/DailyLifeGrid'
 import RecentSection          from '@/components/report/RecentSection'
@@ -326,6 +327,7 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
           ageMax={school.age_max}
           boarding={school.boarding}
           charityNumber={charity?.number}
+          pdfUnlocked={isPaid}
         />
 
         <DossierOverview schoolName={school.name} stats={stats} />
@@ -357,6 +359,10 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
           />
         ) : (
           <>
+            <VerdictBox verdict={verdict} />
+
+            <ParentFit fit={parentFit} />
+
             <KeyFactsGrid
               founded={school.founded_year || lead.founded}
               head={headObj?.name || null}
@@ -408,6 +414,8 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
 
             <SportsSection sports={structured?.sports_profile} />
 
+            <TennisSection tennis={structured?.sports_profile?.tennis} />
+
             <CommunityProfile
               community={structured?.student_community}
               totalPupilsFallback={structured?.student_count || school.student_count}
@@ -439,12 +447,8 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
             <TierDivider
               tier="C"
               title="Independently verified &amp; regulated"
-              subtitle="Charity Commission, Companies House, ISI inspection quotes, safeguarding, parent-fit verdict, and tour questions."
+              subtitle="Charity Commission, Companies House, ISI inspection quotes, safeguarding, and tour questions."
             />
-
-            <VerdictBox verdict={verdict} />
-
-            <ParentFit fit={parentFit} />
 
             <RegulatoryStatus
               charity={charity ? {

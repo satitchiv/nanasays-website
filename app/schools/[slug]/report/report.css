@@ -1465,3 +1465,96 @@
   .report-page .glimpse-stats,
   .report-page .glimpse-sports-tiers { grid-template-columns: 1fr; }
 }
+
+/* ── Tennis section ─────────────── */
+.report-page .tennis-strip { margin-bottom: 18px; }
+.report-page .tennis-badge {
+  display: inline-block; padding: 4px 10px; border-radius: 999px;
+  font-size: 13px; font-weight: 600; line-height: 1.4;
+}
+.report-page .tennis-badge.tier-elite    { background: #FDE68A; color: #92400E; }
+.report-page .tennis-badge.tier-strong   { background: #A7F3D0; color: #065F46; }
+.report-page .tennis-badge.tier-regional { background: #E0E7FF; color: #3730A3; }
+.report-page .tennis-badge.tier-rec      { background: #F3F4F6; color: #4B5563; }
+.report-page .tennis-badge.tennis-lta    { background: #DBEAFE; color: #1E40AF; }
+.report-page .tennis-badge.tennis-schol  { background: #FEE2E2; color: #991B1B; }
+
+.report-page .tennis-list { margin: 8px 0 16px; padding-left: 20px; }
+.report-page .tennis-list li { margin-bottom: 6px; line-height: 1.55; color: var(--navy); }
+.report-page .tennis-muted { color: var(--muted); font-size: 14px; }
+.report-page .tennis-tag {
+  display: inline-block; margin-left: 8px; padding: 1px 8px;
+  background: var(--teal); color: #fff; font-size: 11px;
+  font-weight: 600; border-radius: 4px; text-transform: uppercase; letter-spacing: .05em;
+}
+
+.report-page .tennis-facility-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px; margin: 10px 0 18px;
+}
+.report-page .tennis-facility-item {
+  background: #F8FAFC; border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px 16px; text-align: center;
+}
+.report-page .tennis-facility-num {
+  font-family: 'Crimson Text', serif; font-size: 32px; font-weight: 600;
+  color: var(--navy); line-height: 1;
+}
+.report-page .tennis-facility-lbl {
+  font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted); font-weight: 600; margin-top: 6px;
+}
+.report-page .tennis-facility-named { text-align: left; }
+.report-page .tennis-facility-named-txt { font-size: 15px; color: var(--navy); font-weight: 500; margin-top: 4px; }
+
+/* Cup results — summary badges for repeat winners + row list */
+.report-page .tennis-cup-summary {
+  display: flex; flex-wrap: wrap; gap: 10px; margin: 10px 0 14px;
+}
+.report-page .tennis-cup-summary-item {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: #FFFBEB; border: 1px solid #FDE68A; color: #92400E;
+  padding: 8px 14px; border-radius: 10px; font-size: 14px;
+}
+.report-page .tennis-cup-summary-count { font-weight: 700; font-size: 16px; color: #78350F; }
+.report-page .tennis-cup-summary-name  { font-weight: 600; }
+.report-page .tennis-cup-summary-years { color: #92400E; opacity: .8; font-size: 13px; }
+
+.report-page .tennis-cup-list { list-style: none; padding: 0; margin: 8px 0 16px; }
+.report-page .tennis-cup-row {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+}
+.report-page .tennis-cup-row:last-child { border-bottom: none; }
+.report-page .tennis-cup-tournament { font-weight: 600; color: var(--navy); min-width: 160px; }
+.report-page .tennis-cup-year { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.report-page .tennis-cup-result {
+  display: inline-block; padding: 2px 10px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; text-transform: capitalize;
+}
+.report-page .tennis-cup-result.cup-winner    { background: #FDE68A; color: #78350F; }
+.report-page .tennis-cup-result.cup-finalist  { background: #DBEAFE; color: #1E40AF; }
+.report-page .tennis-cup-result.cup-other     { background: #F3F4F6; color: #4B5563; }
+
+.report-page .tennis-pathway,
+.report-page .tennis-schol-notes {
+  color: var(--navy); line-height: 1.6; margin: 8px 0 16px;
+  padding: 14px 16px; background: #F8FAFC; border-left: 3px solid var(--teal); border-radius: 6px;
+}
+
+.report-page .tennis-details {
+  margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px;
+}
+.report-page .tennis-details > summary {
+  cursor: pointer; font-weight: 600; color: var(--navy);
+  font-size: 14px; padding: 4px 0;
+}
+.report-page .tennis-details > summary:hover { color: var(--teal); }
+.report-page .tennis-reasoning { color: var(--muted); line-height: 1.6; margin-top: 8px; font-size: 14px; }
+.report-page .tennis-sources { margin-top: 10px; padding-left: 20px; font-size: 13px; }
+.report-page .tennis-sources li { margin-bottom: 4px; }
+.report-page .tennis-sources a { color: var(--teal); word-break: break-all; }
+
+@media (max-width: 640px) {
+  .report-page .tennis-facility-grid { grid-template-columns: repeat(2, 1fr); }
+}
