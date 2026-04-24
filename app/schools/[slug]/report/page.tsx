@@ -11,7 +11,6 @@ import FeesSection            from '@/components/report/FeesSection'
 import PastoralSection        from '@/components/report/PastoralSection'
 import SchoolLifeSection      from '@/components/report/SchoolLifeSection'
 import SportsSection          from '@/components/report/SportsSection'
-import SportsBlockHeader      from '@/components/report/SportsBlockHeader'
 import TennisSection, { hasMeaningfulTennisData } from '@/components/report/TennisSection'
 import CommunityProfile       from '@/components/report/CommunityProfile'
 import DailyLifeGrid          from '@/components/report/DailyLifeGrid'
@@ -413,19 +412,18 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
               pastoralModel={structured?.pastoral_model}
             />
 
-            <div className="sports-block-group" id="sports-block">
-              <SportsBlockHeader />
+            <section className="block" id="sports-athletics">
+              <h2 className="block-title">Sports &amp; Athletics</h2>
 
-              <div className="sports-block-subdivider">Overview</div>
-              <SportsSection sports={structured?.sports_profile} />
+              <SportsSection sports={structured?.sports_profile} headless />
 
               {hasMeaningfulTennisData(structured?.sports_profile?.tennis) && (
                 <>
-                  <div className="sports-block-subdivider">Academy programmes</div>
-                  <TennisSection tennis={structured?.sports_profile?.tennis} />
+                  <h3 className="block-sub sports-major-heading">Major sports</h3>
+                  <TennisSection tennis={structured?.sports_profile?.tennis} headless />
                 </>
               )}
-            </div>
+            </section>
 
             <CommunityProfile
               community={structured?.student_community}

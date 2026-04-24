@@ -62,7 +62,18 @@ export type SportsProfile = {
   source_urls?: string[]
 }
 
-type Props = { sports: SportsProfile | null; compact?: boolean }
+type Props = {
+  sports: SportsProfile | null
+  compact?: boolean
+  /**
+   * When true, render only the content inside a plain <div id="sports"> —
+   * no outer <section className="block"> card and no top-level <h2> title.
+   * Used when SportsSection is nested inside a parent section (e.g. the
+   * unified "Sports & Athletics" block) that already supplies the heading.
+   * Default false → standalone rendering.
+   */
+  headless?: boolean
+}
 
 /* ─── Sport → emoji map (for per-sport cards + featured comps + facilities) */
 const SPORT_EMOJI: Record<string, string> = {
@@ -330,7 +341,7 @@ function SportCard({ sport, tier, profile }: { sport: string; tier: 'major' | 'a
   )
 }
 
-export default function SportsSection({ sports, compact = false }: Props) {
+export default function SportsSection({ sports, compact = false, headless = false }: Props) {
   if (!sports) return null
 
   const sig = Array.isArray(sports.signature_sports) ? sports.signature_sports : []
@@ -382,9 +393,14 @@ export default function SportsSection({ sports, compact = false }: Props) {
     return rank(a.scope) - rank(b.scope)
   })
 
+  // Wrapper + heading differ based on headless. Anchor id="sports" is
+  // preserved in both modes so TOC links keep working.
+  const Wrapper: 'section' | 'div' = headless ? 'div' : 'section'
+  const wrapperClass = headless ? 'sport-subsection' : 'block'
+
   return (
-    <section className="block" id="sports">
-      <h2 className="block-title">Sport & athletics</h2>
+    <Wrapper className={wrapperClass} id="sports">
+      {!headless && <h2 className="block-title">Sport & athletics</h2>}
 
       {/* ─── Headline stats row ─── */}
       <div className="fin-callout">
@@ -857,6 +873,6 @@ export default function SportsSection({ sports, compact = false }: Props) {
           <em>{sports.notes}</em>
         </p>
       )}
-    </section>
+    </Wrapper>
   )
 }

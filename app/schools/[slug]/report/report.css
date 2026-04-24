@@ -1466,55 +1466,28 @@
   .report-page .glimpse-sports-tiers { grid-template-columns: 1fr; }
 }
 
-/* ── Sports & Athletics group banner ─────────────── */
-/* Groups the generic SportsSection and specialist academy sections
-   (TennisSection, future cricket/rugby) under one visual area so the
-   reader sees them as one coherent topic. */
-.report-page .sports-block-group {
-  margin-top: 32px;
-  margin-bottom: 32px;
-  padding: 24px;
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  background: linear-gradient(180deg, #F8FAFC 0%, #FFFFFF 120px);
+/* ── Sports & Athletics section ─────────────── */
+/* The Sports & Athletics section is a single top-level block (like
+   "Life at school") containing:
+     - general SportsSection rendered headless
+     - a "Major sports" sub-heading
+     - TennisSection rendered headless (plus future cricket/rugby siblings)
+   The .sport-subsection class strips the card styling that the inner
+   sections would normally apply, so everything reads as one flat
+   continuous block for easier scrolling. */
+.report-page .sport-subsection {
+  margin-top: 4px;
 }
-.report-page .sports-block-banner {
-  margin: -24px -24px 16px;
-  padding: 22px 24px 18px;
-  border-bottom: 1px solid var(--border);
-  background: var(--navy);
-  color: #fff;
-  border-radius: 13px 13px 0 0;
+.report-page .sport-subsection + .sports-major-heading,
+.report-page .sports-major-heading {
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
 }
-.report-page .sports-block-banner-title {
-  display: flex; align-items: center; gap: 12px;
+.report-page .sport-subsection-title {
   font-family: 'Crimson Text', serif;
-  font-weight: 600; font-size: 26px; letter-spacing: 0.01em; line-height: 1.2;
-}
-.report-page .sports-block-banner-icon { font-size: 28px; line-height: 1; }
-.report-page .sports-block-banner-lede {
-  margin: 8px 0 0; font-size: 14px; line-height: 1.55;
-  color: rgba(255, 255, 255, 0.82); max-width: 640px;
-}
-.report-page .sports-block-subdivider {
-  margin: 24px 0 12px; padding: 8px 0 10px;
-  border-bottom: 2px solid var(--teal);
-  font-size: 12px; text-transform: uppercase; letter-spacing: 0.08em;
-  font-weight: 700; color: var(--teal-dk, var(--teal));
-}
-/* Demote the existing h2 block-titles inside the grouped sections so they
-   read as subsections of the banner rather than parallel top-level blocks. */
-.report-page .sports-block-group .block-title {
-  font-size: 22px; margin-top: 4px;
-}
-.report-page .sports-block-group > section.block {
-  margin-top: 0;
-}
-
-@media (max-width: 640px) {
-  .report-page .sports-block-group { padding: 16px; }
-  .report-page .sports-block-banner { margin: -16px -16px 12px; padding: 18px 16px 14px; }
-  .report-page .sports-block-banner-title { font-size: 22px; }
+  font-size: 22px; font-weight: 600; color: var(--navy);
+  margin: 16px 0 10px;
 }
 
 /* ── Tennis section ─────────────── */

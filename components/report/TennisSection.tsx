@@ -31,7 +31,17 @@ type TennisData = {
   extracted_at?: string | null
 }
 
-type Props = { tennis?: TennisData | null }
+type Props = {
+  tennis?: TennisData | null
+  /**
+   * When true, render only the content inside a plain <div id="tennis"> —
+   * no outer <section className="block"> card and no top-level <h2> title.
+   * Used when TennisSection is nested inside a parent section (e.g. the
+   * unified "Sports & Athletics" block) that already supplies the heading.
+   * Default false → standalone rendering.
+   */
+  headless?: boolean
+}
 
 const TIER_LABELS: Record<string, { text: string; cls: string }> = {
   'national-elite':    { text: 'National elite',    cls: 'tier-elite' },
@@ -95,16 +105,27 @@ function summariseCups(cups: CupResult[]) {
   return summaries
 }
 
-export default function TennisSection({ tennis }: Props) {
+export default function TennisSection({ tennis, headless = false }: Props) {
   if (!tennis || !hasMeaningfulData(tennis)) return null
 
   const tier = tennis.competitive_tier ? TIER_LABELS[tennis.competitive_tier] : null
   const totalCourts = (tennis.courts_outdoor ?? 0) + (tennis.courts_indoor ?? 0)
   const showCourts = (tennis.courts_outdoor ?? 0) > 0 || (tennis.courts_indoor ?? 0) > 0 || tennis.indoor_centre_named
 
+  // Wrapper + heading differ based on headless. Anchor id="tennis" is
+  // preserved in both modes so TOC links keep working.
+  const Wrapper: 'section' | 'div' = headless ? 'div' : 'section'
+  const wrapperClass = headless ? 'sport-subsection' : 'block'
+  const HeadingTag: 'h3' | 'h2' = headless ? 'h3' : 'h2'
+  const headingClass = headless ? 'sport-subsection-title' : 'block-title'
+  const headingText = headless ? '🎾 Tennis' : '🎾 Tennis programme'
+  // Internal block-sub headings ("Coaching", "Facilities", etc.) demote from
+  // h3 to h4 when headless so they nest correctly under the h3 Tennis heading.
+  const SubTag: 'h3' | 'h4' = headless ? 'h4' : 'h3'
+
   return (
-    <section className="block" id="tennis">
-      <h2 className="block-title">🎾 Tennis programme</h2>
+    <Wrapper className={wrapperClass} id="tennis">
+      <HeadingTag className={headingClass}>{headingText}</HeadingTag>
 
       {/* Header strip — tier / LTA / scholarship badges */}
       <div className="insp-meta-strip tennis-strip">
@@ -176,7 +197,7 @@ export default function TennisSection({ tennis }: Props) {
       {/* Coaching */}
       {(tennis.head_coach?.name || (tennis.tennis_coaches?.length ?? 0) > 0) && (
         <>
-          <h3 className="block-sub">Coaching</h3>
+          <SubTag className="block-sub">Coaching</SubTag>
           <ul className="tennis-list">
             {tennis.head_coach?.name && (
               <li>
@@ -200,7 +221,7 @@ export default function TennisSection({ tennis }: Props) {
       {/* Facilities */}
       {showCourts && (
         <>
-          <h3 className="block-sub">Facilities</h3>
+          <SubTag className="block-sub">Facilities</SubTag>
           <div className="tennis-facility-grid">
             {(tennis.courts_outdoor ?? 0) > 0 && (
               <div className="tennis-facility-item">
@@ -233,7 +254,7 @@ export default function TennisSection({ tennis }: Props) {
       {/* Competitive record */}
       {(tennis.cup_results?.length ?? 0) > 0 && (
         <>
-          <h3 className="block-sub">Competitive record</h3>
+          <SubTag className="block-sub">Competitive record</SubTag>
           {summariseCups(tennis.cup_results!).length > 0 && (
             <div className="tennis-cup-summary">
               {summariseCups(tennis.cup_results!).map((s, i) => (
@@ -264,7 +285,7 @@ export default function TennisSection({ tennis }: Props) {
       {/* Alumni & pathway */}
       {((tennis.notable_alumni?.length ?? 0) > 0 || tennis.pathway_to_professional) && (
         <>
-          <h3 className="block-sub">Alumni & pathway</h3>
+          <SubTag className="block-sub">Alumni & pathway</SubTag>
           {(tennis.notable_alumni?.length ?? 0) > 0 && (
             <ul className="tennis-list">
               {tennis.notable_alumni!.map((a, i) => (
@@ -284,7 +305,7 @@ export default function TennisSection({ tennis }: Props) {
       {/* Scholarship detail */}
       {tennis.academy_scholarship && tennis.academy_scholarship_notes && (
         <>
-          <h3 className="block-sub">Scholarship detail</h3>
+          <SubTag className="block-sub">Scholarship detail</SubTag>
           <p className="tennis-schol-notes">{tennis.academy_scholarship_notes}</p>
         </>
       )}
@@ -310,6 +331,6 @@ export default function TennisSection({ tennis }: Props) {
           )}
         </details>
       )}
-    </section>
+    </Wrapper>
   )
 }
