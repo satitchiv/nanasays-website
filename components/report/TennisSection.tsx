@@ -41,7 +41,14 @@ const TIER_LABELS: Record<string, { text: string; cls: string }> = {
   'recreational':      { text: 'Recreational',      cls: 'tier-rec' },
 }
 
-function hasMeaningfulData(t: TennisData): boolean {
+/**
+ * Single source of truth for "would TennisSection render anything useful?".
+ * Exported so page.tsx can gate the surrounding "Academy programmes" divider
+ * on the same predicate — prevents a lonely divider with nothing under it
+ * when a school has a tennis object present but too thin to render.
+ */
+export function hasMeaningfulTennisData(t: TennisData | null | undefined): boolean {
+  if (!t) return false
   if (t.head_coach?.name) return true
   if (t.lta_accredited) return true
   if ((t.cup_results?.length ?? 0) > 0) return true
@@ -49,6 +56,9 @@ function hasMeaningfulData(t: TennisData): boolean {
   if ((readValue<number>(t.school_teams_visible) ?? 0) >= 10) return true
   return false
 }
+
+// Local alias preserves the short internal name used below.
+const hasMeaningfulData = hasMeaningfulTennisData
 
 function normaliseCup(c: CupResult) {
   if (typeof c === 'string') return { tournament: c, year: null, result: null, note: null }
