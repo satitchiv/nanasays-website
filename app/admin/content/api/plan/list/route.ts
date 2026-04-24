@@ -1,7 +1,7 @@
 // GET /admin/content/api/plan/list
 // Returns all plan items still in 'planned' / 'queued' / 'generating' / 'failed'
-// status. The design_family column on social_content_plans is no longer used
-// by any code — we leave the DB column in place but ignore it here.
+// status. design_family selects the cover-slide template used at generation
+// time; 'auto' is the default and resolves to the legacy Claude path.
 
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyAdmin, supabaseService } from '@/lib/supabase-admin'
@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     .select(`
       id, batch_id, scheduled_for, post_type, pillar_slug, school_id, school_ids,
       channel_slug, angle, reasoning, status, generated_post_id, error_message,
-      created_at, created_by,
+      created_at, created_by, design_family,
       headline, audience, pain_point, key_insight, proof_points, reader_takeaway,
       visual_direction, hashtags, risk_flags
     `)

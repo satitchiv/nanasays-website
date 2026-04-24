@@ -29,6 +29,7 @@ type PlanItem = {
   error_message: string | null
   created_at: string
   created_by: string | null
+  design_family: string | null
   // Strategy brief fields
   headline: string | null
   audience: string | null
@@ -219,6 +220,26 @@ export default function PlanPage() {
     }
   }
 
+  async function handleDesignFamilyChange(id: string, value: string) {
+    try {
+      const headers = { 'Content-Type': 'application/json', ...(await authHeader()) }
+      const res = await fetch(`/admin/content/api/plan/item/${id}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ design_family: value }),
+      })
+      const resp = await res.json().catch(() => ({}))
+      if (resp.ok) {
+        setMessage(`✓ cover template set to ${value}`)
+        await load(true)
+      } else {
+        setMessage(`❌ ${resp.error || `Request failed (${res.status})`}`)
+      }
+    } catch (e) {
+      setMessage(`❌ ${e instanceof Error ? e.message : 'Failed to update template'}`)
+    }
+  }
+
   async function handleEditField(id: string, field: string, currentValue: string | null) {
     const next = prompt(`Edit ${field.replace(/_/g, ' ')}:`, currentValue || '')
     if (next === null || next === currentValue) return
@@ -326,6 +347,7 @@ export default function PlanPage() {
               onRegenerateHeadline={() => handleRegenerate(item.id, 'headline')}
               onRemove={() => handleRemove(item.id)}
               onEditField={(field, v) => handleEditField(item.id, field, v)}
+              onChangeDesignFamily={(v) => handleDesignFamilyChange(item.id, v)}
             />
           ))}
         </div>
@@ -338,6 +360,7 @@ function PlanItemCard({
   item, schoolNames, isExpanded, toggleExpand,
   starting, regeneratingAll, regeneratingHeadline, queuePosition,
   onGenerate, onRegenerateAll, onRegenerateHeadline, onRemove, onEditField,
+  onChangeDesignFamily,
 }: {
   item: PlanItem
   schoolNames: Record<string, string>
@@ -352,6 +375,7 @@ function PlanItemCard({
   onRegenerateHeadline: () => void
   onRemove: () => void
   onEditField: (field: string, currentValue: string | null) => void
+  onChangeDesignFamily: (value: string) => void
 }) {
   const isGenerating = item.status === 'generating' || starting
   const isQueued = item.status === 'queued'
@@ -434,6 +458,27 @@ function PlanItemCard({
 
           {item.angle && <Field label="Angle (internal)" value={item.angle} onEdit={() => onEditField('angle', item.angle)} small />}
           {item.visual_direction && <Field label="Visual direction" value={item.visual_direction} onEdit={() => onEditField('visual_direction', item.visual_direction)} small />}
+
+          <div style={{ marginTop: 10 }}>
+            <div style={fieldLabelStyle}>Cover template</div>
+            <select
+              value={item.design_family || 'auto'}
+              onChange={(e) => onChangeDesignFamily(e.target.value)}
+              style={{
+                marginTop: 4,
+                padding: '6px 10px',
+                border: '1px solid #D1D5DB',
+                borderRadius: 6,
+                fontSize: 13,
+                color: NAVY,
+                background: '#fff',
+                cursor: 'pointer',
+              }}
+            >
+              <option value="auto">Auto — Claude generates cover</option>
+              <option value="premium_data_desk">Premium Data Desk</option>
+            </select>
+          </div>
 
           {item.hashtags?.length ? (
             <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6 }}>

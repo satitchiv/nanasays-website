@@ -5,10 +5,19 @@ import { NextRequest, NextResponse } from 'next/server'
 import { verifyAdmin, supabaseService } from '@/lib/supabase-admin'
 
 const EDITABLE_FIELDS = [
-  'angle', 'scheduled_for', 'school_id', 'channel_slug',
+  'angle', 'scheduled_for', 'school_id', 'channel_slug', 'design_family',
   'headline', 'audience', 'pain_point', 'key_insight', 'proof_points',
   'reader_takeaway', 'visual_direction', 'hashtags', 'risk_flags',
 ] as const
+
+// Matches the CHECK constraint added in migration 2026-04-23-social-design-family.sql.
+// Empty string normalizes to null (form selects often send '' for the neutral option);
+// null will be replaced by the DB default 'auto'.
+const DESIGN_FAMILY_VALUES = new Set([
+  'auto', 'freestyle', 'premium_data_desk', 'tuition_intelligence',
+  'inspection_dossier', 'editorial_photo_overlay', 'campus_detail_card',
+  'human_data_split', 'story_cover',
+])
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await verifyAdmin(req)
@@ -19,6 +28,19 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
   for (const k of EDITABLE_FIELDS) {
     if (k in body) patch[k] = body[k]
+  }
+
+  if ('design_family' in patch) {
+    const raw = patch.design_family
+    const normalized = raw === '' || raw === null || raw === undefined ? null : String(raw)
+    if (normalized !== null && !DESIGN_FAMILY_VALUES.has(normalized)) {
+      return NextResponse.json({
+        error: `Invalid design_family. Must be one of: ${Array.from(DESIGN_FAMILY_VALUES).join(', ')}`,
+      }, { status: 400 })
+    }
+    // Let the DB default 'auto' replace null — don't send null to the NOT NULL column.
+    if (normalized === null) delete patch.design_family
+    else patch.design_family = normalized
   }
 
   if (Object.keys(patch).length === 1) {
