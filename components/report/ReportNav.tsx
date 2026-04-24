@@ -27,9 +27,15 @@ const DEFAULT_GROUPS: TocGroup[] = [
     items: [
       { href: '#school-life',   label: "What's it like here?" },
       { href: '#pastoral',      label: 'Pastoral & wellbeing' },
-      { href: '#sports',        label: 'Sport & athletics' },
       { href: '#community',     label: 'Student community' },
       { href: '#daily-life',    label: 'Daily life' },
+    ],
+  },
+  {
+    label: 'Sports & Athletics',
+    items: [
+      { href: '#sports',        label: 'Sport & athletics' },
+      { href: '#tennis',        label: '🎾 Tennis' },
     ],
   },
   {
@@ -56,6 +62,26 @@ const DEFAULT_GROUPS: TocGroup[] = [
 ]
 
 const ALL_ITEMS = DEFAULT_GROUPS.flatMap(g => g.items)
+
+/**
+ * Filter TOC groups to only items whose target #id exists in the DOM.
+ * Prevents dangling links for conditional sections (e.g. #tennis on a
+ * school without meaningful tennis data). Groups emptied by the filter
+ * are dropped entirely. Runs client-side only; SSR renders the full
+ * list so the nav doesn't flash empty on first paint.
+ */
+function useFilteredGroups(): TocGroup[] {
+  const [groups, setGroups] = useState<TocGroup[]>(DEFAULT_GROUPS)
+
+  useEffect(() => {
+    const filtered: TocGroup[] = DEFAULT_GROUPS
+      .map(g => ({ ...g, items: g.items.filter(i => document.getElementById(i.href.slice(1))) }))
+      .filter(g => g.items.length > 0)
+    setGroups(filtered)
+  }, [])
+
+  return groups
+}
 
 function useActiveSection() {
   const [active, setActive] = useState<string>('')
@@ -84,13 +110,14 @@ function useActiveSection() {
 
 export function SideTOC() {
   const active = useActiveSection()
+  const groups = useFilteredGroups()
 
   return (
     <nav className="side-toc" aria-label="On this page">
       <div className="side-toc-title">On this page</div>
       <ul>
         <li><a href="#top">↑ Top — verdict</a></li>
-        {DEFAULT_GROUPS.map((g) => (
+        {groups.map((g) => (
           <div key={g.label}>
             <li className="toc-part">{g.label}</li>
             {g.items.map((i) => (
@@ -111,6 +138,7 @@ export function SideTOC() {
 }
 
 export function MobileTOC() {
+  const groups = useFilteredGroups()
   return (
     <details className="mobile-toc">
       <summary>
@@ -118,7 +146,7 @@ export function MobileTOC() {
         <span style={{ fontWeight: 500, textTransform: 'none', letterSpacing: 0, color: 'var(--muted)', fontSize: 12, marginLeft: 6 }}>— tap to expand</span>
       </summary>
       <div className="mobile-toc-body">
-        {DEFAULT_GROUPS.map((g) => (
+        {groups.map((g) => (
           <div key={g.label}>
             <div className="grp">{g.label}</div>
             <ul>
