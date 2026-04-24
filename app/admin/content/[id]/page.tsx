@@ -19,6 +19,9 @@ type Post = {
   post_type: string | null
   slide_count: number | null
   copy_en: string | null
+  copy_th: string | null
+  copy_th_generated_at: string | null
+  copy_th_model: string | null
   hashtags: string[] | null
   image_url: string | null
   image_urls: string[] | null
@@ -45,12 +48,19 @@ export default function PostDetailPage() {
   const [slideIndex, setSlideIndex] = useState(0)
   const [showReasons, setShowReasons] = useState(false)
   const [showSource, setShowSource] = useState(false)
+  // Local drafts for the caption editor. Initialised from the post on load
+  // and synced back on save. Dirty = draft !== saved; Save button only
+  // appears when something has actually changed.
+  const [draftEn, setDraftEn] = useState('')
+  const [draftTh, setDraftTh] = useState('')
+  const [savingCaption, setSavingCaption] = useState(false)
+  const [translating, setTranslating] = useState(false)
 
   async function load() {
     const { data } = await supabase
       .from('social_posts')
       .select(`
-        id, status, post_type, slide_count, copy_en, hashtags,
+        id, status, post_type, slide_count, copy_en, copy_th, copy_th_generated_at, copy_th_model, hashtags,
         image_url, image_urls, image_alt_en, channel_slug, link_url,
         pick_reasons, source_data, generator_model, generator_backend,
         requires_branded_content_disclosure, created_at,
@@ -59,7 +69,10 @@ export default function PostDetailPage() {
       `)
       .eq('id', id)
       .single()
-    setPost(data as unknown as Post)
+    const p = data as unknown as Post
+    setPost(p)
+    setDraftEn(p?.copy_en || '')
+    setDraftTh(p?.copy_th || '')
     setLoading(false)
   }
   useEffect(() => { load() }, [id])
@@ -127,6 +140,64 @@ export default function PostDetailPage() {
     setMessage('✓ Caption copied to clipboard')
   }
 
+  async function saveCaption() {
+    if (!post) return
+    const body: Record<string, string> = {}
+    if (draftEn !== (post.copy_en || '')) body.copy_en = draftEn
+    if (draftTh !== (post.copy_th || '')) body.copy_th = draftTh
+    if (!Object.keys(body).length) return
+    setSavingCaption(true)
+    setMessage('')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`/admin/content/api/post/${id}/caption`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify(body),
+      })
+      const resp = await res.json().catch(() => ({}))
+      if (!res.ok) throw new Error(resp.error || 'Save failed')
+      setMessage('✓ Caption saved')
+      await load()
+    } catch (err) {
+      setMessage(`✗ ${err instanceof Error ? err.message : 'Save failed'}`)
+    } finally {
+      setSavingCaption(false)
+    }
+  }
+
+  // Translate regenerates copy_th from whatever copy_en is saved in the DB.
+  // If the reviewer has edited copy_en without saving, we nudge them to
+  // save first so the translation matches the on-screen English.
+  async function handleTranslate() {
+    if (!post) return
+    if (draftEn !== (post.copy_en || '')) {
+      setMessage('✗ Save your English edit first, then translate.')
+      return
+    }
+    setTranslating(true)
+    setMessage('Translating… (~10s)')
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`/admin/content/api/post/${id}/translate-caption`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session?.access_token}` },
+      })
+      const resp = await res.json().catch(() => ({}))
+      if (!res.ok || !resp.ok) throw new Error(resp.error || `Translation failed (${res.status})`)
+      setDraftTh(resp.copy_th)
+      setMessage('✓ Thai caption generated')
+      await load()
+    } catch (err) {
+      setMessage(`✗ ${err instanceof Error ? err.message : 'Translation failed'}`)
+    } finally {
+      setTranslating(false)
+    }
+  }
+
   if (loading) return <div style={{ padding: 40, color: '#6B7280' }}>Loading…</div>
   if (!post) return <div style={{ padding: 40, color: '#B91C1C' }}>Post not found.</div>
 
@@ -136,6 +207,7 @@ export default function PostDetailPage() {
   const verifiedAgeDays = post.schools?.verified_at
     ? Math.round((Date.now() - new Date(post.schools.verified_at).getTime()) / 86_400_000)
     : null
+  const dirty = draftEn !== (post.copy_en || '') || draftTh !== (post.copy_th || '')
 
   return (
     <div>
@@ -248,15 +320,74 @@ export default function PostDetailPage() {
           )}
 
           <div style={{ background: '#fff', padding: 16, borderRadius: 8, border: '1px solid #E2E8F0', marginBottom: 16 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, color: '#6B7280', marginBottom: 8 }}>CAPTION</div>
-            <div style={{ fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-wrap', color: '#1F2937' }}>
-              {post.copy_en || '(no copy)'}
+            {/* English caption — editable */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, color: '#6B7280' }}>CAPTION · ENGLISH</span>
+              {dirty && (
+                <button onClick={saveCaption} disabled={savingCaption} style={{
+                  padding: '4px 12px', fontSize: 11, fontWeight: 700,
+                  background: savingCaption ? '#94A3B8' : TEAL, color: '#fff',
+                  border: 'none', borderRadius: 5, cursor: savingCaption ? 'not-allowed' : 'pointer',
+                }}>{savingCaption ? 'Saving…' : '✓ Save changes'}</button>
+              )}
             </div>
+            <textarea
+              value={draftEn}
+              onChange={e => setDraftEn(e.target.value)}
+              rows={Math.max(4, Math.min(14, draftEn.split('\n').length + 1))}
+              style={{
+                width: '100%', padding: 10, border: '1px solid #E2E8F0', borderRadius: 6,
+                fontSize: 14, lineHeight: 1.6, color: '#1F2937', fontFamily: 'inherit',
+                resize: 'vertical', boxSizing: 'border-box',
+                background: draftEn !== (post.copy_en || '') ? '#FFFBEB' : '#fff',
+              }}
+            />
             {post.hashtags?.length ? (
               <div style={{ marginTop: 12, fontSize: 13, color: '#3730A3' }}>
                 {post.hashtags.map(h => `#${h}`).join(' ')}
               </div>
             ) : null}
+
+            {/* Thai caption — editable + on-demand generator */}
+            <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid #F1F5F9' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, color: '#6B7280' }}>CAPTION · THAI</span>
+                  {post.copy_th_generated_at && (
+                    <span style={{ fontSize: 11, color: '#94A3B8' }}>
+                      translated {relativeTime(post.copy_th_generated_at)}
+                      {post.copy_th_model ? ` · ${post.copy_th_model}` : ''}
+                    </span>
+                  )}
+                </div>
+                <button onClick={handleTranslate} disabled={translating || !post.copy_en} style={{
+                  padding: '4px 12px', fontSize: 11, fontWeight: 600,
+                  background: translating ? '#F3F4F6' : '#fff',
+                  color: translating ? '#94A3B8' : '#4338CA',
+                  border: '1px solid #E2E8F0', borderRadius: 5,
+                  cursor: (translating || !post.copy_en) ? 'not-allowed' : 'pointer',
+                }}>
+                  {translating ? '⏳ Translating…' : post.copy_th ? '🔄 Regenerate Thai' : '🇹🇭 Generate Thai'}
+                </button>
+              </div>
+              {draftTh ? (
+                <textarea
+                  value={draftTh}
+                  onChange={e => setDraftTh(e.target.value)}
+                  rows={Math.max(4, Math.min(14, draftTh.split('\n').length + 1))}
+                  style={{
+                    width: '100%', padding: 10, border: '1px solid #E2E8F0', borderRadius: 6,
+                    fontSize: 14, lineHeight: 1.6, color: '#1F2937', fontFamily: 'inherit',
+                    resize: 'vertical', boxSizing: 'border-box',
+                    background: draftTh !== (post.copy_th || '') ? '#FFFBEB' : '#fff',
+                  }}
+                />
+              ) : (
+                <div style={{ padding: '12px 10px', fontSize: 13, color: '#94A3B8', fontStyle: 'italic', background: '#F9FAFB', borderRadius: 6 }}>
+                  No Thai translation yet. Click &quot;Generate Thai&quot; to create one.
+                </div>
+              )}
+            </div>
           </div>
 
           <Collapsible title="Why these picks?" open={showReasons} onToggle={() => setShowReasons(!showReasons)}>
@@ -365,4 +496,15 @@ function btnStyle(bg: string, disabled: boolean): React.CSSProperties {
     border: 'none', borderRadius: 6, cursor: disabled ? 'not-allowed' : 'pointer',
     fontSize: 13, fontWeight: 700,
   }
+}
+
+function relativeTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime()
+  const mins = Math.round(diffMs / 60_000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.round(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.round(hrs / 24)
+  return `${days}d ago`
 }

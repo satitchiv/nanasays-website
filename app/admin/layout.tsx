@@ -68,11 +68,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     )
   }
 
+  // `soon: true` tabs route to stub pages — kept visible so the roadmap is
+  // always in sight, but rendered with a muted style + "SOON" pill so we
+  // don't click into them by reflex.
   const tabs = [
-    { label: 'Queue',    href: '/admin/content' },
-    { label: 'Schedule', href: '/admin/content/schedule' },
-    { label: 'Design',   href: '/admin/content/design' },
-    { label: 'Layout',   href: '/admin/content/layout' },
+    { label: 'Queue',    href: '/admin/content',          soon: false },
+    { label: 'Plan',     href: '/admin/content/plan',     soon: false },
+    { label: 'Schedule', href: '/admin/content/schedule', soon: true  },
+    { label: 'Design',   href: '/admin/content/design',   soon: true  },
+    { label: 'Layout',   href: '/admin/content/layout',   soon: true  },
   ]
 
   return (
@@ -106,15 +110,40 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         padding: '0 32px', display: 'flex', gap: 2,
       }}>
         {tabs.map(t => {
-          const active = pathname === t.href || (t.href === '/admin/content' && pathname.startsWith('/admin/content/') && !pathname.includes('/schedule') && !pathname.includes('/design') && !pathname.includes('/layout'))
+          // Queue is active for /admin/content and any child route that isn't
+          // one of the other known tabs. The simpler `pathname === t.href`
+          // works for the explicit ones (Plan, Schedule, Design, Layout).
+          const isQueueCatchAll =
+            t.href === '/admin/content' &&
+            pathname.startsWith('/admin/content/') &&
+            !pathname.startsWith('/admin/content/plan') &&
+            !pathname.startsWith('/admin/content/schedule') &&
+            !pathname.startsWith('/admin/content/design') &&
+            !pathname.startsWith('/admin/content/layout')
+          const active = pathname === t.href || isQueueCatchAll
           return (
             <Link key={t.href} href={t.href} style={{
-              padding: '14px 20px', fontSize: 14, fontWeight: 600,
-              color: active ? NAVY : '#6B7280',
+              padding: '14px 20px', fontSize: 14,
+              fontWeight: t.soon ? 500 : 600,
+              color: active ? NAVY : (t.soon ? '#94A3B8' : '#6B7280'),
               borderBottom: `3px solid ${active ? TEAL : 'transparent'}`,
               textDecoration: 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
             }}>
               {t.label}
+              {t.soon && (
+                <span style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: '#94A3B8',
+                  background: '#F1F5F9',
+                  padding: '2px 6px',
+                  borderRadius: 10,
+                  letterSpacing: 0.3,
+                }}>SOON</span>
+              )}
             </Link>
           )
         })}

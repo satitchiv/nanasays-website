@@ -272,12 +272,6 @@ export default function PlanPage() {
 
   return (
     <div>
-      {/* Tab nav */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: `1px solid #E2E8F0` }}>
-        <Link href="/admin/content" style={tabStyle(false)}>Queue</Link>
-        <span style={tabStyle(true)}>Plan</span>
-      </div>
-
       <h1 style={{ fontSize: 24, fontWeight: 800, color: NAVY, margin: '0 0 6px' }}>Content plan</h1>
       <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 20px' }}>
         A content brief for every planned post — headline, audience, insight, proof points — that you can review, edit, and regenerate before committing production time.

@@ -21,6 +21,8 @@ type PostRow = {
   channel_slug: string | null
   image_url: string | null
   copy_en: string | null
+  copy_th: string | null
+  copy_th_generated_at: string | null
   created_at: string
   source_data: {
     plan_item_id?: string | null
@@ -51,12 +53,15 @@ export default function QueuePage() {
   const [genLog, setGenLog] = useState<string>('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
+  // Post IDs currently mid-translation. Drives button spinner + disabled
+  // state. Multiple cards can translate in parallel (different IDs).
+  const [translatingIds, setTranslatingIds] = useState<Set<string>>(new Set())
 
   async function load() {
     setLoading(true)
     let q = supabase
       .from('social_posts')
-      .select('id, status, post_type, slide_count, school_id, channel_slug, image_url, copy_en, created_at, source_data, social_pillars(slug, name_en), schools(name)')
+      .select('id, status, post_type, slide_count, school_id, channel_slug, image_url, copy_en, copy_th, copy_th_generated_at, created_at, source_data, social_pillars(slug, name_en), schools(name)')
       .order('created_at', { ascending: false })
       .limit(100)
     if (filter !== 'all') q = q.eq('status', filter)
@@ -111,6 +116,37 @@ export default function QueuePage() {
     }
   }
 
+  async function handleTranslate(postId: string) {
+    setTranslatingIds(prev => new Set(prev).add(postId))
+    setMessage(`Translating… (~10s)`)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`/admin/content/api/post/${postId}/translate-caption`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session?.access_token}` },
+      })
+      const resp = await res.json().catch(() => ({}))
+      if (!res.ok || !resp.ok) {
+        setMessage(`✗ ${resp.error || `Translation failed (${res.status})`}`)
+        return
+      }
+      // Splice the new Thai caption into local state so the card updates
+      // without waiting for a full reload round-trip.
+      setPosts(prev => prev.map(p => p.id === postId
+        ? { ...p, copy_th: resp.copy_th, copy_th_generated_at: resp.copy_th_generated_at }
+        : p))
+      setMessage(`✓ Thai caption generated`)
+    } catch (err) {
+      setMessage(`✗ ${err instanceof Error ? err.message : 'Translation failed'}`)
+    } finally {
+      setTranslatingIds(prev => {
+        const next = new Set(prev)
+        next.delete(postId)
+        return next
+      })
+    }
+  }
+
   function toggleSelect(id: string) {
     setSelected(prev => {
       const next = new Set(prev)
@@ -152,18 +188,6 @@ export default function QueuePage() {
 
   return (
     <div>
-      {/* Tab nav */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: `1px solid #E2E8F0` }}>
-        <span style={{
-          padding: '10px 16px', fontSize: 14, fontWeight: 700, color: NAVY,
-          borderBottom: `3px solid ${TEAL}`, marginBottom: -1, cursor: 'default',
-        }}>Queue</span>
-        <Link href="/admin/content/plan" style={{
-          padding: '10px 16px', fontSize: 14, fontWeight: 700, color: '#6B7280',
-          textDecoration: 'none', borderBottom: '3px solid transparent', marginBottom: -1,
-        }}>Plan</Link>
-      </div>
-
       {/* Top bar */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, gap: 16, flexWrap: 'wrap' }}>
 
@@ -341,8 +365,38 @@ export default function QueuePage() {
                       {p.schools?.name || p.social_pillars?.name_en || '(no school)'}
                     </div>
                     <div style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.5, maxHeight: 54, overflow: 'hidden' }}>
-                      {p.copy_en?.slice(0, 120) || '(no copy)'}{p.copy_en && p.copy_en.length > 120 ? '…' : ''}
+                      <span style={{ fontSize: 9, fontWeight: 700, color: '#94A3B8', marginRight: 6, letterSpacing: 0.4 }}>EN</span>
+                      {p.copy_en?.slice(0, 110) || '(no copy)'}{p.copy_en && p.copy_en.length > 110 ? '…' : ''}
                     </div>
+
+                    {p.copy_th && (
+                      <div style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.5, maxHeight: 54, overflow: 'hidden', marginTop: 6 }}>
+                        <span style={{ fontSize: 9, fontWeight: 700, color: '#94A3B8', marginRight: 6, letterSpacing: 0.4 }}>TH</span>
+                        {p.copy_th.slice(0, 110)}{p.copy_th.length > 110 ? '…' : ''}
+                      </div>
+                    )}
+
+                    {p.copy_en && (
+                      <button
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleTranslate(p.id) }}
+                        disabled={translatingIds.has(p.id)}
+                        style={{
+                          marginTop: 10,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          padding: '4px 10px',
+                          border: '1px solid #E2E8F0',
+                          borderRadius: 5,
+                          background: translatingIds.has(p.id) ? '#F3F4F6' : '#fff',
+                          color: translatingIds.has(p.id) ? '#94A3B8' : '#4338CA',
+                          cursor: translatingIds.has(p.id) ? 'wait' : 'pointer',
+                        }}
+                      >
+                        {translatingIds.has(p.id)
+                          ? '⏳ Translating…'
+                          : p.copy_th ? '🔄 Regenerate Thai' : '🇹🇭 Generate Thai'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </Link>
