@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <!-- Bell support bar -->
+  <rect x="80" y="100" width="340" height="15" fill="#1B3252"/>
+  <!-- Bell hanger rope -->
+  <line x1="250" y1="115" x2="250" y2="160" stroke="#1B3252" stroke-width="5"/>
+  <!-- Bell top crown -->
+  <rect x="238" y="155" width="24" height="18" fill="#1B3252"/>
+  <!-- Bell body (classic bell shape) -->
+  <path d="M 170 180 Q 170 280 140 370 L 360 370 Q 330 280 330 180 Q 310 160 250 160 Q 190 160 170 180 Z" fill="#1B3252"/>
+  <!-- Bell band -->
+  <rect x="155" y="330" width="190" height="16" fill="#B08A3E"/>
+  <!-- Bell rim shadow -->
+  <rect x="140" y="360" width="220" height="10" fill="#0E1F38"/>
+  <!-- Clapper -->
+  <line x1="250" y1="370" x2="250" y2="395" stroke="#1B3252" stroke-width="4"/>
+  <circle cx="250" cy="400" r="12" fill="#1B3252"/>
+  <!-- Sound waves -->
+  <g stroke="#34C3A0" stroke-width="2.5" fill="none" opacity="0.7">
+    <path d="M 110 250 Q 90 270 95 300"/>
+    <path d="M 85 220 Q 55 260 65 310"/>
+    <path d="M 390 250 Q 410 270 405 300"/>
+    <path d="M 415 220 Q 445 260 435 310"/>
+  </g>
+  <!-- Decorative engraving on bell -->
+  <g stroke="#B08A3E" stroke-width="1.5" fill="none">
+    <circle cx="250" cy="240" r="20"/>
+    <line x1="230" y1="240" x2="270" y2="240"/>
+    <line x1="250" y1="220" x2="250" y2="260"/>
+  </g>
+</svg>

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <!-- Scroll body -->
+  <rect x="100" y="180" width="300" height="180" fill="#FAF7F2" stroke="#1B3252" stroke-width="3"/>
+  <!-- Left roll -->
+  <ellipse cx="100" cy="270" rx="30" ry="90" fill="#1B3252"/>
+  <ellipse cx="100" cy="270" rx="15" ry="70" fill="#B08A3E"/>
+  <ellipse cx="100" cy="270" rx="5" ry="50" fill="#1B3252"/>
+  <!-- Right roll -->
+  <ellipse cx="400" cy="270" rx="30" ry="90" fill="#1B3252"/>
+  <ellipse cx="400" cy="270" rx="15" ry="70" fill="#B08A3E"/>
+  <ellipse cx="400" cy="270" rx="5" ry="50" fill="#1B3252"/>
+  <!-- Text lines on scroll -->
+  <g stroke="#1B3252" stroke-width="2.5">
+    <line x1="140" y1="220" x2="360" y2="220"/>
+    <line x1="140" y1="245" x2="340" y2="245"/>
+    <line x1="140" y1="270" x2="360" y2="270"/>
+    <line x1="140" y1="295" x2="330" y2="295"/>
+    <line x1="140" y1="320" x2="350" y2="320"/>
+  </g>
+  <!-- Ribbon draped over scroll -->
+  <path d="M 230 160 L 230 380 L 205 400 L 230 395 L 250 410 L 270 395 L 295 400 L 270 380 L 270 160 Z" fill="#34C3A0"/>
+  <!-- Ribbon fold shadow -->
+  <rect x="230" y="165" width="40" height="200" fill="#239C80" opacity="0.6"/>
+  <!-- Wax seal -->
+  <circle cx="250" cy="240" r="20" fill="#B08A3E"/>
+  <circle cx="250" cy="240" r="12" fill="#1B3252"/>
+  <text x="250" y="246" text-anchor="middle" fill="#B08A3E" font-family="Helvetica, Arial Black, sans-serif" font-weight="900" font-size="12">N</text>
+</svg>

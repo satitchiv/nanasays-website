@@ -1,0 +1,1553 @@
+# NanaSays social-media asset library manifest.
+# Input for the future ingest script; each entry maps to one row in social_assets.
+# Human-maintained. Ingest script writes content_hash and (when the migration lands)
+# the Supabase UUID back into provenance.db_id.
+
+version: 6
+created: 2026-04-24
+note: Phase 1 library — 81 assets across 2 styles (Woodcut 43, Linebase 38). SVG-only.
+
+assets:
+
+  # ═══ WOODCUT (43) ═════════════════════════════════════════════════════════
+
+  - slug: woodcut-school-building-01
+    file: library/woodcut/woodcut-school-building-01.svg
+    title: Woodcut school building
+    description: Classical school facade silhouette with flag, in high-contrast woodcut style.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [school_spotlight, regions, admissions, boarding_life]
+    style_tags: [woodcut, editorial, bold, printed]
+    region_tags: [global]
+    mood_tags: [institutional, heritage]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.20 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: false }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-tree-study-01
+    file: library/woodcut/woodcut-tree-study-01.svg
+    title: Woodcut tree with books
+    description: Large oak-like tree with a stack of coloured books at the base.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [glossary_terms, academics, pastoral_care, admissions]
+    style_tags: [woodcut, editorial, bold, printed, nature]
+    region_tags: [global]
+    mood_tags: [contemplative, heritage, warm]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.22 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-graduation-figure-01
+    file: library/woodcut/woodcut-graduation-figure-01.svg
+    title: Woodcut graduation figure
+    description: Single silhouette in cap and gown with ochre tassel; milestone imagery.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, admissions]
+    style_tags: [woodcut, editorial, bold, milestone]
+    region_tags: [global]
+    mood_tags: [ceremonial, achievement]
+    specificity: generic
+    injection_roles: [full_bleed_bg, corner_ornament]
+    default_opacity: { full_bleed_bg: 0.18, corner_ornament: 0.60 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: false }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-book-spine-row-01
+    file: library/woodcut/woodcut-book-spine-row-01.svg
+    title: Woodcut book spine row
+    description: Row of book spines on a shelf — varied heights, navy/teal/ochre.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: ['*']
+    style_tags: [woodcut, editorial, bold, printed, scholarly]
+    region_tags: [global]
+    mood_tags: [scholarly, warm, heritage]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.22 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-hills-landscape-01
+    file: library/woodcut/woodcut-hills-landscape-01.svg
+    title: Woodcut rolling hills
+    description: Layered rolling-hills silhouette with sun in the sky.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [regions, boarding_life, academics, glossary_terms]
+    style_tags: [woodcut, editorial, bold, nature]
+    region_tags: [global]
+    mood_tags: [calm, heritage, warm]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.25 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-sun-rays-01
+    file: library/woodcut/woodcut-sun-rays-01.svg
+    title: Woodcut sun-rays medallion
+    description: Central sun disk with radiating ochre rays; ceremonial / achievement motif.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, admissions, school_spotlight]
+    style_tags: [woodcut, editorial, ceremonial, milestone]
+    region_tags: [global]
+    mood_tags: [ceremonial, achievement, energetic]
+    specificity: generic
+    injection_roles: [full_bleed_bg, corner_ornament]
+    default_opacity: { full_bleed_bg: 0.15, corner_ornament: 0.50 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-mountain-range-01
+    file: library/woodcut/woodcut-mountain-range-01.svg
+    title: Woodcut mountain range
+    description: Layered jagged peaks with moon — alpine / Swiss feel.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [regions, boarding_life, academics]
+    style_tags: [woodcut, editorial, bold, nature]
+    region_tags: [global, switzerland]
+    mood_tags: [heritage, contemplative, calm]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.22 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-cityscape-01
+    file: library/woodcut/woodcut-cityscape-01.svg
+    title: Woodcut cityscape silhouette
+    description: Generic city skyline with varied building heights and lit windows.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [regions, admissions, boarding_life]
+    style_tags: [woodcut, editorial, bold, urban]
+    region_tags: [global, bangkok, uk]
+    mood_tags: [practical, energetic]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.20 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-reading-seated-01
+    file: library/woodcut/woodcut-reading-seated-01.svg
+    title: Woodcut seated reader
+    description: Full silhouette of a seated reader in profile, holding a teal book.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [glossary_terms, academics, pastoral_care, admissions]
+    style_tags: [woodcut, editorial, figure]
+    region_tags: [global]
+    mood_tags: [calm, scholarly]
+    specificity: generic
+    injection_roles: [full_bleed_bg, corner_ornament]
+    default_opacity: { full_bleed_bg: 0.18, corner_ornament: 0.55 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: false }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-crossed-tools-01
+    file: library/woodcut/woodcut-crossed-tools-01.svg
+    title: Woodcut crossed tools
+    description: Pencil and compass crossed in an X — classical academic motif.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, admissions, tuition_snapshot]
+    style_tags: [woodcut, editorial, ceremonial, academic]
+    region_tags: [global]
+    mood_tags: [scholarly, heritage]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.18 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-laurel-wreath-01
+    file: library/woodcut/woodcut-laurel-wreath-01.svg
+    title: Woodcut laurel wreath
+    description: Symmetric laurel wreath with central ochre medallion — achievement motif.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, admissions, school_spotlight]
+    style_tags: [woodcut, editorial, ceremonial, heritage]
+    region_tags: [global]
+    mood_tags: [ceremonial, achievement, heritage]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.16 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-vintage-key-01
+    file: library/woodcut/woodcut-vintage-key-01.svg
+    title: Woodcut vintage key
+    description: Ornate old-style key with decorative bow — access / admissions motif.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [admissions, academics]
+    style_tags: [woodcut, editorial, heritage, access]
+    region_tags: [global]
+    mood_tags: [heritage, warm, ceremonial]
+    specificity: generic
+    injection_roles: [full_bleed_bg, corner_ornament]
+    default_opacity: { full_bleed_bg: 0.18, corner_ornament: 0.55 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-shield-crest-01
+    file: library/woodcut/woodcut-shield-crest-01.svg
+    title: Woodcut academic shield
+    description: Generic academic shield with banner, cross, and laurel sprigs — heritage motif.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [school_spotlight, regions, academics]
+    style_tags: [woodcut, editorial, heritage, ceremonial]
+    region_tags: [global]
+    mood_tags: [heritage, institutional, ceremonial]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.15 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: false }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-uk-castle-01
+    file: library/woodcut/woodcut-uk-castle-01.svg
+    title: Woodcut UK castle
+    description: British castle silhouette with crenellated towers, flag, and central gate.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [school_spotlight, regions]
+    style_tags: [woodcut, editorial, heritage, architectural]
+    region_tags: [uk, global]
+    mood_tags: [heritage, institutional]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.22 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: false }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-thai-temple-01
+    file: library/woodcut/woodcut-thai-temple-01.svg
+    title: Woodcut Thai temple (wat)
+    description: Thai temple silhouette with tiered roof and spire — Bangkok cultural motif.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [regions, school_spotlight]
+    style_tags: [woodcut, editorial, cultural, architectural]
+    region_tags: [bangkok, thailand, global]
+    mood_tags: [cultural, heritage]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.22 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-palm-trees-01
+    file: library/woodcut/woodcut-palm-trees-01.svg
+    title: Woodcut palm trees
+    description: Three palm trees with sun — tropical Thailand setting.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [regions, boarding_life]
+    style_tags: [woodcut, editorial, nature, tropical]
+    region_tags: [bangkok, thailand, global]
+    mood_tags: [tropical, warm]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.25 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-greek-columns-01
+    file: library/woodcut/woodcut-greek-columns-01.svg
+    title: Woodcut Greek columns
+    description: Classical temple facade with four fluted columns, pediment, and stepped base.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, school_spotlight]
+    style_tags: [woodcut, editorial, classical, architectural]
+    region_tags: [global]
+    mood_tags: [heritage, institutional, classical]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.20 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-clock-tower-01
+    file: library/woodcut/woodcut-clock-tower-01.svg
+    title: Woodcut clock tower
+    description: Gothic clock tower with spired roof, crenellated top, and illuminated windows.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [admissions, school_spotlight]
+    style_tags: [woodcut, editorial, architectural, heritage]
+    region_tags: [global, uk]
+    mood_tags: [heritage, institutional]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.20 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: false }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-rowing-boat-01
+    file: library/woodcut/woodcut-rowing-boat-01.svg
+    title: Woodcut rowing boat
+    description: Rowing boat with four silhouette rowers and oars on water — Oxbridge feel.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [regions, school_spotlight, academics]
+    style_tags: [woodcut, editorial, sports, heritage]
+    region_tags: [global, uk]
+    mood_tags: [heritage, active]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.22 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-music-notes-01
+    file: library/woodcut/woodcut-music-notes-01.svg
+    title: Woodcut music notation
+    description: Treble clef and musical notes on a five-line staff with time signature.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics]
+    style_tags: [woodcut, editorial, music, arts]
+    region_tags: [global]
+    mood_tags: [artistic, creative]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.22 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-artist-palette-01
+    file: library/woodcut/woodcut-artist-palette-01.svg
+    title: Woodcut artist palette
+    description: Painter's palette with paint dollops and crossed brushes — arts motif.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics]
+    style_tags: [woodcut, editorial, arts, creative]
+    region_tags: [global]
+    mood_tags: [artistic, creative, warm]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.22 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-microscope-01
+    file: library/woodcut/woodcut-microscope-01.svg
+    title: Woodcut microscope
+    description: Classical compound microscope with ocular, objective turret, and stage slide.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, school_spotlight]
+    style_tags: [woodcut, editorial, science, academic]
+    region_tags: [global]
+    mood_tags: [scientific, scholarly]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.20 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-globe-01
+    file: library/woodcut/woodcut-globe-01.svg
+    title: Woodcut globe
+    description: Earth globe on support with abstract continents, latitudes, and ochre equator.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [regions, school_spotlight, academics]
+    style_tags: [woodcut, editorial, global, educational]
+    region_tags: [global]
+    mood_tags: [worldly, scholarly]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.22 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-scroll-ribbon-01
+    file: library/woodcut/woodcut-scroll-ribbon-01.svg
+    title: Woodcut scroll with ribbon
+    description: Rolled parchment scroll with teal ribbon and wax seal — certificate motif.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, admissions, school_spotlight]
+    style_tags: [woodcut, editorial, ceremonial, heritage]
+    region_tags: [global]
+    mood_tags: [ceremonial, achievement, heritage]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.20 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-school-bell-01
+    file: library/woodcut/woodcut-school-bell-01.svg
+    title: Woodcut school bell
+    description: Hanging bell with clapper and sound-wave emanations — session marker.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [admissions, academics]
+    style_tags: [woodcut, editorial, heritage]
+    region_tags: [global]
+    mood_tags: [heritage, active]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.22 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-ivy-garland-01
+    file: library/woodcut/woodcut-ivy-garland-01.svg
+    title: Woodcut ivy garland
+    description: Three curving vines with ivy leaves and small ochre berries — heritage decoration.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: ['*']
+    style_tags: [woodcut, editorial, decorative, heritage, nature]
+    region_tags: [global]
+    mood_tags: [heritage, ornamental, warm]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.25 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-snowflakes-01
+    file: library/woodcut/woodcut-snowflakes-01.svg
+    title: Woodcut snowflakes
+    description: Large central snowflake plus scattered smaller snowflakes — winter / alpine motif.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [regions, pastoral_care]
+    style_tags: [woodcut, editorial, seasonal, nature]
+    region_tags: [switzerland, global]
+    mood_tags: [calm, wintry]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.25 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-lighthouse-01
+    file: library/woodcut/woodcut-lighthouse-01.svg
+    title: Woodcut lighthouse
+    description: Striped lighthouse with beacon light beams on rocky base above ocean waves.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [admissions, pastoral_care]
+    style_tags: [woodcut, editorial, metaphorical]
+    region_tags: [global, uk]
+    mood_tags: [guidance, warm]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.20 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-rugby-ball-01
+    file: library/woodcut/woodcut-rugby-ball-01.svg
+    title: Woodcut rugby ball
+    description: Oval rugby ball with central lacing and stitch detail.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [school_spotlight, academics]
+    style_tags: [woodcut, editorial, sports, bold]
+    region_tags: [global, uk]
+    mood_tags: [active, sporty]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.22 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-football-soccer-01
+    file: library/woodcut/woodcut-football-soccer-01.svg
+    title: Woodcut football (soccer ball)
+    description: Classic pentagon/hexagon patterned football in navy and off-white.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [school_spotlight, academics]
+    style_tags: [woodcut, editorial, sports, bold]
+    region_tags: [global]
+    mood_tags: [active, sporty]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.20 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-tennis-racket-01
+    file: library/woodcut/woodcut-tennis-racket-01.svg
+    title: Woodcut tennis racket and ball
+    description: Tennis racket at an angle with strings, grip-wrap handle, and a teal ball.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [school_spotlight, academics]
+    style_tags: [woodcut, editorial, sports, bold]
+    region_tags: [global]
+    mood_tags: [active, sporty]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.22 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-cricket-set-01
+    file: library/woodcut/woodcut-cricket-set-01.svg
+    title: Woodcut cricket set
+    description: Cricket bat leaning on three wickets with a red ball below.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [school_spotlight, academics, regions]
+    style_tags: [woodcut, editorial, sports, heritage, printed]
+    region_tags: [global, uk]
+    mood_tags: [heritage, sporty]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.22 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-running-track-01
+    file: library/woodcut/woodcut-running-track-01.svg
+    title: Woodcut running track
+    description: Top-down running track with lanes and central teal infield.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [school_spotlight, academics]
+    style_tags: [woodcut, editorial, sports, architectural]
+    region_tags: [global]
+    mood_tags: [active, practical]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.22 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-swimming-lane-01
+    file: library/woodcut/woodcut-swimming-lane-01.svg
+    title: Woodcut swimming pool
+    description: Top-down swimming pool with numbered lanes and teal water ripples.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [school_spotlight, academics]
+    style_tags: [woodcut, editorial, sports, architectural]
+    region_tags: [global]
+    mood_tags: [active, practical]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.22 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-medal-ribbon-01
+    file: library/woodcut/woodcut-medal-ribbon-01.svg
+    title: Woodcut medal on ribbon
+    description: Ochre gold medal with star engraving hanging from a navy-teal ribbon.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, admissions, school_spotlight]
+    style_tags: [woodcut, editorial, ceremonial, milestone]
+    region_tags: [global]
+    mood_tags: [ceremonial, achievement]
+    specificity: generic
+    injection_roles: [full_bleed_bg, corner_ornament]
+    default_opacity: { full_bleed_bg: 0.20, corner_ornament: 0.55 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-trophy-cup-01
+    file: library/woodcut/woodcut-trophy-cup-01.svg
+    title: Woodcut trophy cup
+    description: Classical two-handled trophy cup on a plinth with a star engraving.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, admissions, school_spotlight]
+    style_tags: [woodcut, editorial, ceremonial, milestone]
+    region_tags: [global]
+    mood_tags: [ceremonial, achievement]
+    specificity: generic
+    injection_roles: [full_bleed_bg, corner_ornament]
+    default_opacity: { full_bleed_bg: 0.20, corner_ornament: 0.55 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-open-book-stack-01
+    file: library/woodcut/woodcut-open-book-stack-01.svg
+    title: Woodcut open book on stack
+    description: Open book with page lines and teal bookmark on top of two closed books.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, glossary_terms, tuition_snapshot]
+    style_tags: [woodcut, editorial, scholarly]
+    region_tags: [global]
+    mood_tags: [scholarly, warm]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.22 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-chess-knight-01
+    file: library/woodcut/woodcut-chess-knight-01.svg
+    title: Woodcut chess knight
+    description: Classical chess-knight silhouette on a stepped base — strategy motif.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, school_spotlight]
+    style_tags: [woodcut, editorial, strategic, scholarly]
+    region_tags: [global]
+    mood_tags: [scholarly, strategic]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.20 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-inkwell-quill-01
+    file: library/woodcut/woodcut-inkwell-quill-01.svg
+    title: Woodcut inkwell and quill
+    description: Navy inkwell with INK label and a diagonal feather quill with ochre nib.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, glossary_terms]
+    style_tags: [woodcut, editorial, heritage, scholarly]
+    region_tags: [global]
+    mood_tags: [scholarly, heritage]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.22 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-magnifying-glass-01
+    file: library/woodcut/woodcut-magnifying-glass-01.svg
+    title: Woodcut magnifying glass
+    description: Large magnifying glass with a bold ochre star inside the lens — close-look motif.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [inspection_snapshot, academics, glossary_terms]
+    style_tags: [woodcut, editorial, investigative]
+    region_tags: [global]
+    mood_tags: [analytical, scholarly]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.20 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-atom-model-01
+    file: library/woodcut/woodcut-atom-model-01.svg
+    title: Woodcut atom model
+    description: Three rotated electron orbits around a central nucleus — sciences motif.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, school_spotlight]
+    style_tags: [woodcut, editorial, scientific, academic]
+    region_tags: [global]
+    mood_tags: [scientific, scholarly]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.22 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-abacus-01
+    file: library/woodcut/woodcut-abacus-01.svg
+    title: Woodcut abacus
+    description: Classical wooden abacus with navy and teal beads on five rods.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, tuition_snapshot]
+    style_tags: [woodcut, editorial, heritage, academic]
+    region_tags: [global]
+    mood_tags: [scholarly, heritage]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.22 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: woodcut-test-tubes-01
+    file: library/woodcut/woodcut-test-tubes-01.svg
+    title: Woodcut test tubes
+    description: Five lab test tubes in a wooden rack with varying liquid colours.
+    style: woodcut
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, school_spotlight]
+    style_tags: [woodcut, editorial, scientific, academic]
+    region_tags: [global]
+    mood_tags: [scientific, scholarly]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.22 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  # ═══ LINEBASE (38) ════════════════════════════════════════════════════════
+
+  - slug: linebase-contour-landscape-01
+    file: library/linebase/linebase-contour-landscape-01.svg
+    title: Line-based topographic contours
+    description: Abstract horizontal contour-line pattern suggesting elevation.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: ['*']
+    style_tags: [linebase, minimal, abstract, designed, premium]
+    region_tags: [global]
+    mood_tags: [quiet, premium, editorial]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.40 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-wireframe-books-01
+    file: library/linebase/linebase-wireframe-books-01.svg
+    title: Line-based wireframe book stack
+    description: Isometric book stack rendered as pure wireframe lines.
+    style: linebase
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: true
+    pillar_tags: ['*']
+    style_tags: [linebase, minimal, technical, wireframe]
+    region_tags: [global]
+    mood_tags: [technical, precise, quiet]
+    specificity: generic
+    injection_roles: [corner_ornament, full_bleed_bg]
+    default_opacity: { corner_ornament: 0.60, full_bleed_bg: 0.35 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-constellation-01
+    file: library/linebase/linebase-constellation-01.svg
+    title: Line-based constellation network
+    description: Abstract pattern of dots connected by thin lines — pathways/systems.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: true
+    pillar_tags: [admissions, academics, glossary_terms]
+    style_tags: [linebase, minimal, abstract, network]
+    region_tags: [global]
+    mood_tags: [conceptual, quiet, designed]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.45 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-dotted-grid-01
+    file: library/linebase/linebase-dotted-grid-01.svg
+    title: Line-based dotted grid
+    description: Uniform grid of small dots with a central accent.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: ['*']
+    style_tags: [linebase, minimal, designed, pattern]
+    region_tags: [global]
+    mood_tags: [quiet, premium]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.40 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-radial-rays-01
+    file: library/linebase/linebase-radial-rays-01.svg
+    title: Line-based radial rays
+    description: Fan of thin lines radiating from a corner point.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: ['*']
+    style_tags: [linebase, minimal, designed, radiant]
+    region_tags: [global]
+    mood_tags: [energetic, focused]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.35 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-wavy-horizontal-01
+    file: library/linebase/linebase-wavy-horizontal-01.svg
+    title: Line-based wavy horizontal
+    description: Parallel wavy lines stacked — rhythmic/calm pattern.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: ['*']
+    style_tags: [linebase, minimal, designed, wave]
+    region_tags: [global]
+    mood_tags: [calm, rhythmic]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.40 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-grid-perspective-01
+    file: library/linebase/linebase-grid-perspective-01.svg
+    title: Line-based perspective grid
+    description: Grid lines receding to a central vanishing point.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [admissions, academics, glossary_terms]
+    style_tags: [linebase, minimal, technical, perspective]
+    region_tags: [global]
+    mood_tags: [structured, forward]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.35 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-diagonal-stripes-01
+    file: library/linebase/linebase-diagonal-stripes-01.svg
+    title: Line-based diagonal stripes
+    description: Thin parallel diagonal lines at 45°.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: ['*']
+    style_tags: [linebase, minimal, designed, pattern]
+    region_tags: [global]
+    mood_tags: [energetic, designed]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.30 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-concentric-rings-01
+    file: library/linebase/linebase-concentric-rings-01.svg
+    title: Line-based concentric rings
+    description: Concentric circles from a central point, with one accent ring.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: ['*']
+    style_tags: [linebase, minimal, designed, pattern]
+    region_tags: [global]
+    mood_tags: [focused, premium]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.30 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-stars-scatter-01
+    file: library/linebase/linebase-stars-scatter-01.svg
+    title: Line-based stars scatter
+    description: Scattered 4-pointed star diamonds across the canvas.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [school_spotlight, academics, admissions]
+    style_tags: [linebase, minimal, designed, celestial]
+    region_tags: [global]
+    mood_tags: [celebratory, premium]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.40 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-crosshatch-light-01
+    file: library/linebase/linebase-crosshatch-light-01.svg
+    title: Line-based crosshatching
+    description: Subtle crosshatch texture — light editorial background.
+    style: linebase
+    kind: texture
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: ['*']
+    style_tags: [linebase, minimal, texture, designed]
+    region_tags: [global]
+    mood_tags: [quiet, editorial]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.50 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-fibonacci-curve-01
+    file: library/linebase/linebase-fibonacci-curve-01.svg
+    title: Line-based Fibonacci spiral
+    description: Golden-ratio spiral with faint reference rectangles.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, tuition_snapshot, data_desk]
+    style_tags: [linebase, minimal, technical, designed]
+    region_tags: [global]
+    mood_tags: [scholarly, premium]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.30 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-isobars-01
+    file: library/linebase/linebase-isobars-01.svg
+    title: Line-based isobars
+    description: Weather-map-style closed contour loops with pressure markers.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [regions, admissions, data_desk]
+    style_tags: [linebase, minimal, technical, map]
+    region_tags: [global]
+    mood_tags: [analytical, informational]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.35 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-triangle-grid-01
+    file: library/linebase/linebase-triangle-grid-01.svg
+    title: Line-based triangle grid
+    description: Tessellated triangles forming a geometric pattern with a filled accent.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: ['*']
+    style_tags: [linebase, minimal, pattern, geometric]
+    region_tags: [global]
+    mood_tags: [designed, premium]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.35 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-bar-chart-01
+    file: library/linebase/linebase-bar-chart-01.svg
+    title: Line-based bar chart
+    description: Abstract bar-chart outlines with gridlines and one filled teal bar.
+    style: linebase
+    kind: chart_background
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [tuition_snapshot, data_desk, academics, inspection_snapshot]
+    style_tags: [linebase, minimal, data, technical]
+    region_tags: [global]
+    mood_tags: [analytical, informational]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.35 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-compass-rose-01
+    file: library/linebase/linebase-compass-rose-01.svg
+    title: Line-based compass rose
+    description: Simple compass rose with N/S/E/W points, intermediate markers, and letters.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [admissions, regions]
+    style_tags: [linebase, minimal, navigational]
+    region_tags: [global]
+    mood_tags: [directional, designed]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.30 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-calendar-grid-01
+    file: library/linebase/linebase-calendar-grid-01.svg
+    title: Line-based calendar grid
+    description: Month calendar grid with day-of-week headers and one highlighted cell.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [admissions, academics]
+    style_tags: [linebase, minimal, temporal]
+    region_tags: [global]
+    mood_tags: [structured, informational]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.30 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-ruler-ticks-01
+    file: library/linebase/linebase-ruler-ticks-01.svg
+    title: Line-based ruler tick marks
+    description: Four horizontal rulers with evenly-spaced tick marks and a centre accent.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, data_desk, inspection_snapshot]
+    style_tags: [linebase, minimal, measurement]
+    region_tags: [global]
+    mood_tags: [analytical, precise]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.40 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-flow-arrows-01
+    file: library/linebase/linebase-flow-arrows-01.svg
+    title: Line-based flow arrows
+    description: Flowchart-style 3x3 grid of boxes with connecting arrows and a teal highlight.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [admissions, academics]
+    style_tags: [linebase, minimal, procedural]
+    region_tags: [global]
+    mood_tags: [procedural, structured]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.35 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-blob-cluster-01
+    file: library/linebase/linebase-blob-cluster-01.svg
+    title: Line-based organic blobs
+    description: Nine irregular rounded blob outlines scattered across the canvas.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [pastoral_care, glossary_terms]
+    style_tags: [linebase, minimal, organic]
+    region_tags: [global]
+    mood_tags: [soft, warm]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.40 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-staircase-01
+    file: library/linebase/linebase-staircase-01.svg
+    title: Line-based staircase
+    description: Rising staircase step pattern with teal accent dots on key corners.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, admissions]
+    style_tags: [linebase, minimal, progression]
+    region_tags: [global]
+    mood_tags: [progression, forward]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.40 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-solar-rings-01
+    file: library/linebase/linebase-solar-rings-01.svg
+    title: Line-based solar rings
+    description: Orbital rings around a central sun with planet dots and scattered stars.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, regions]
+    style_tags: [linebase, minimal, celestial, scientific]
+    region_tags: [global]
+    mood_tags: [scholarly, universal]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.35 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-sine-wave-01
+    file: library/linebase/linebase-sine-wave-01.svg
+    title: Line-based sine waves
+    description: Seven parallel sine waves stacked, with one teal accent wave.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: ['*']
+    style_tags: [linebase, minimal, scientific, wave]
+    region_tags: [global]
+    mood_tags: [rhythmic, calm]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.40 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-track-lanes-01
+    file: library/linebase/linebase-track-lanes-01.svg
+    title: Line-based track lanes
+    description: Top-down oval running-track lane lines with a teal start marker.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [school_spotlight, academics]
+    style_tags: [linebase, minimal, sports, technical]
+    region_tags: [global]
+    mood_tags: [technical, active]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.35 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-tournament-bracket-01
+    file: library/linebase/linebase-tournament-bracket-01.svg
+    title: Line-based tournament bracket
+    description: Single-elimination tournament bracket with an ochre champion dot in the centre.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [school_spotlight, academics]
+    style_tags: [linebase, minimal, sports, procedural]
+    region_tags: [global]
+    mood_tags: [competitive, structured]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.35 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-podium-01
+    file: library/linebase/linebase-podium-01.svg
+    title: Line-based podium 1-2-3
+    description: Three-tier podium outlines (2-1-3 left-to-right) with a gold star above 1st.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, admissions, school_spotlight]
+    style_tags: [linebase, minimal, milestone, ceremonial]
+    region_tags: [global]
+    mood_tags: [ceremonial, achievement]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.30 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-scoreboard-grid-01
+    file: library/linebase/linebase-scoreboard-grid-01.svg
+    title: Line-based scoreboard grid
+    description: Sports-scoreboard table with team/1/2/Total columns and sample scores.
+    style: linebase
+    kind: chart_background
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [school_spotlight, academics, data_desk]
+    style_tags: [linebase, minimal, sports, data]
+    region_tags: [global]
+    mood_tags: [analytical, informational]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.30 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-goal-net-01
+    file: library/linebase/linebase-goal-net-01.svg
+    title: Line-based goal net
+    description: Goal frame with diamond mesh netting pattern and a ball in the corner.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [school_spotlight, academics]
+    style_tags: [linebase, minimal, sports, pattern]
+    region_tags: [global]
+    mood_tags: [active, competitive]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.30 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-trajectory-arcs-01
+    file: library/linebase/linebase-trajectory-arcs-01.svg
+    title: Line-based ball trajectory arcs
+    description: Five nested dashed parabolic arcs over a ground line with a teal launch dot.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, school_spotlight]
+    style_tags: [linebase, minimal, scientific, sports]
+    region_tags: [global]
+    mood_tags: [scholarly, analytical]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.40 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-field-lines-01
+    file: library/linebase/linebase-field-lines-01.svg
+    title: Line-based field markings
+    description: Football-pitch top-down markings — outer boundary, centre circle, penalty boxes.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [school_spotlight, academics]
+    style_tags: [linebase, minimal, sports, architectural]
+    region_tags: [global]
+    mood_tags: [technical, practical]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.35 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-open-book-outline-01
+    file: library/linebase/linebase-open-book-outline-01.svg
+    title: Line-based open book outline
+    description: Open book line-drawing with page lines and a teal bookmark.
+    style: linebase
+    kind: illustration
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: ['*']
+    style_tags: [linebase, minimal, scholarly]
+    region_tags: [global]
+    mood_tags: [scholarly, quiet]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.40 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-grade-chart-01
+    file: library/linebase/linebase-grade-chart-01.svg
+    title: Line-based grade trend chart
+    description: Rising teal trend line with navy data points over a gridded axis.
+    style: linebase
+    kind: chart_background
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [inspection_snapshot, academics, data_desk]
+    style_tags: [linebase, minimal, data, chart]
+    region_tags: [global]
+    mood_tags: [analytical, informational]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.35 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: false }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-pie-chart-01
+    file: library/linebase/linebase-pie-chart-01.svg
+    title: Line-based pie chart
+    description: Four-quarter pie chart in brand colours with percentage labels and central hub.
+    style: linebase
+    kind: chart_background
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [data_desk, tuition_snapshot, academics]
+    style_tags: [linebase, minimal, data, chart]
+    region_tags: [global]
+    mood_tags: [analytical, informational]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.30 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-venn-diagram-01
+    file: library/linebase/linebase-venn-diagram-01.svg
+    title: Line-based Venn diagram
+    description: Three overlapping colour-filled circles labelled A/B/C — set intersection motif.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, glossary_terms]
+    style_tags: [linebase, minimal, scholarly, scientific]
+    region_tags: [global]
+    mood_tags: [analytical, scholarly]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.35 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-exam-bubbles-01
+    file: library/linebase/linebase-exam-bubbles-01.svg
+    title: Line-based exam bubble sheet
+    description: Multi-choice answer sheet with A/B/C/D bubbles (some filled) and a score panel.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, admissions]
+    style_tags: [linebase, minimal, scholarly]
+    region_tags: [global]
+    mood_tags: [scholarly, structured]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.30 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-outline-nested-01
+    file: library/linebase/linebase-outline-nested-01.svg
+    title: Line-based nested outline
+    description: Nested bullet outline with navy main items and teal sub-items — syllabus motif.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, glossary_terms, admissions]
+    style_tags: [linebase, minimal, scholarly, structured]
+    region_tags: [global]
+    mood_tags: [informational, structured]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.35 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-pythagorean-01
+    file: library/linebase/linebase-pythagorean-01.svg
+    title: Line-based Pythagorean theorem
+    description: Right triangle with a², b², c² squares on its sides and the classic equation.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics]
+    style_tags: [linebase, minimal, scientific, scholarly]
+    region_tags: [global]
+    mood_tags: [scholarly, scientific]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.30 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }
+
+  - slug: linebase-periodic-grid-01
+    file: library/linebase/linebase-periodic-grid-01.svg
+    title: Line-based periodic table grid
+    description: Abstracted periodic-table layout of empty cells with H highlighted.
+    style: linebase
+    kind: pattern
+    compatible_channels: ['*']
+    aspect_native: 1:1
+    transparent_bg: false
+    pillar_tags: [academics, school_spotlight]
+    style_tags: [linebase, minimal, scientific, scholarly]
+    region_tags: [global]
+    mood_tags: [scholarly, scientific]
+    specificity: generic
+    injection_roles: [full_bleed_bg]
+    default_opacity: { full_bleed_bg: 0.30 }
+    safety_flags: { no_real_campus: true, no_real_students: true, safe_for_school_specific_posts: true }
+    provenance: { source: claude-generated, license: owned, created_by: claude-code, human_reviewed_at: null, reviewer_id: null }

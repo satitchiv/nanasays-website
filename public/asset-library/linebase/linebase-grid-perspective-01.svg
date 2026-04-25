@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <g stroke="#1B3252" stroke-width="1" fill="none">
+    <!-- Horizontal lines (horizon grid, getting closer as they go up) -->
+    <line x1="0" y1="350" x2="500" y2="350"/>
+    <line x1="80" y1="320" x2="420" y2="320"/>
+    <line x1="140" y1="295" x2="360" y2="295"/>
+    <line x1="180" y1="275" x2="320" y2="275"/>
+    <line x1="210" y1="260" x2="290" y2="260"/>
+    <line x1="225" y1="250" x2="275" y2="250"/>
+    <line x1="235" y1="244" x2="265" y2="244"/>
+    <line x1="242" y1="240" x2="258" y2="240"/>
+    <!-- Radiating perspective lines -->
+    <line x1="0" y1="500" x2="250" y2="235"/>
+    <line x1="500" y1="500" x2="250" y2="235"/>
+    <line x1="80" y1="500" x2="250" y2="235"/>
+    <line x1="160" y1="500" x2="250" y2="235"/>
+    <line x1="250" y1="500" x2="250" y2="235"/>
+    <line x1="340" y1="500" x2="250" y2="235"/>
+    <line x1="420" y1="500" x2="250" y2="235"/>
+  </g>
+  <circle cx="250" cy="235" r="5" fill="#34C3A0"/>
+</svg>

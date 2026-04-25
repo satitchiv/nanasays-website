@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <rect x="180" y="200" width="140" height="260" fill="#1B3252"/>
+  <rect x="160" y="140" width="180" height="80" fill="#1B3252"/>
+  <circle cx="250" cy="180" r="40" fill="#FAF7F2" stroke="#1B3252" stroke-width="3"/>
+  <g fill="#1B3252">
+    <rect x="248" y="142" width="4" height="8"/>
+    <rect x="248" y="212" width="4" height="8"/>
+    <rect x="212" y="178" width="8" height="4"/>
+    <rect x="282" y="178" width="8" height="4"/>
+  </g>
+  <line x1="250" y1="180" x2="250" y2="155" stroke="#1B3252" stroke-width="3" stroke-linecap="round"/>
+  <line x1="250" y1="180" x2="272" y2="180" stroke="#1B3252" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="250" cy="180" r="3" fill="#B08A3E"/>
+  <g fill="#1B3252">
+    <rect x="160" y="125" width="20" height="15"/><rect x="190" y="125" width="20" height="15"/>
+    <rect x="220" y="125" width="20" height="15"/><rect x="260" y="125" width="20" height="15"/>
+    <rect x="290" y="125" width="20" height="15"/><rect x="320" y="125" width="20" height="15"/>
+  </g>
+  <path d="M 180 115 L 250 60 L 320 115 Z" fill="#1B3252"/>
+  <line x1="250" y1="60" x2="250" y2="30" stroke="#1B3252" stroke-width="2"/>
+  <path d="M 250 33 L 275 38 L 272 43 L 275 48 L 250 43 Z" fill="#B08A3E"/>
+  <g fill="#34C3A0">
+    <rect x="220" y="260" width="15" height="25"/><rect x="265" y="260" width="15" height="25"/>
+    <rect x="220" y="310" width="15" height="25"/><rect x="265" y="310" width="15" height="25"/>
+    <rect x="220" y="360" width="15" height="25"/><rect x="265" y="360" width="15" height="25"/>
+  </g>
+  <path d="M 235 460 L 235 410 Q 235 395 250 395 Q 265 395 265 410 L 265 460 Z" fill="#B08A3E"/>
+  <rect x="0" y="460" width="500" height="5" fill="#1B3252"/>
+</svg>

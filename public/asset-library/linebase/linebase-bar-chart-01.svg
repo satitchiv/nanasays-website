@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <!-- Axis lines -->
+  <line x1="60" y1="60" x2="60" y2="440" stroke="#1B3252" stroke-width="1.5"/>
+  <line x1="60" y1="440" x2="460" y2="440" stroke="#1B3252" stroke-width="1.5"/>
+  <!-- Grid lines (horizontal reference) -->
+  <g stroke="#1B3252" stroke-width="0.5" opacity="0.3">
+    <line x1="60" y1="380" x2="460" y2="380"/>
+    <line x1="60" y1="320" x2="460" y2="320"/>
+    <line x1="60" y1="260" x2="460" y2="260"/>
+    <line x1="60" y1="200" x2="460" y2="200"/>
+    <line x1="60" y1="140" x2="460" y2="140"/>
+    <line x1="60" y1="80" x2="460" y2="80"/>
+  </g>
+  <!-- Y-axis tick marks -->
+  <g stroke="#1B3252" stroke-width="1.2">
+    <line x1="55" y1="380" x2="60" y2="380"/>
+    <line x1="55" y1="320" x2="60" y2="320"/>
+    <line x1="55" y1="260" x2="60" y2="260"/>
+    <line x1="55" y1="200" x2="60" y2="200"/>
+    <line x1="55" y1="140" x2="60" y2="140"/>
+    <line x1="55" y1="80" x2="60" y2="80"/>
+  </g>
+  <!-- Bars (outlines only, varied heights) -->
+  <g fill="none" stroke="#1B3252" stroke-width="1.5">
+    <rect x="85" y="350" width="35" height="90"/>
+    <rect x="140" y="290" width="35" height="150"/>
+    <rect x="195" y="210" width="35" height="230"/>
+    <rect x="250" y="150" width="35" height="290"/>
+    <rect x="305" y="250" width="35" height="190"/>
+    <rect x="360" y="320" width="35" height="120"/>
+    <rect x="415" y="380" width="35" height="60"/>
+  </g>
+  <!-- One accent bar filled teal -->
+  <rect x="250" y="150" width="35" height="290" fill="#34C3A0"/>
+</svg>

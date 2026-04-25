@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <!-- Base -->
+  <path d="M 150 420 L 350 420 L 370 450 L 130 450 Z" fill="#1B3252"/>
+  <!-- Stage platform -->
+  <rect x="180" y="310" width="140" height="20" fill="#1B3252"/>
+  <!-- Arm (curved) -->
+  <path d="M 240 420 Q 230 350 250 280 Q 260 230 250 180 L 265 180 Q 270 230 265 280 Q 250 350 260 420 Z" fill="#1B3252"/>
+  <!-- Eyepiece assembly -->
+  <rect x="220" y="120" width="40" height="60" fill="#1B3252"/>
+  <rect x="205" y="110" width="70" height="15" fill="#1B3252"/>
+  <!-- Ocular lens -->
+  <circle cx="240" cy="105" r="15" fill="#34C3A0" stroke="#1B3252" stroke-width="3"/>
+  <!-- Objective lens turret -->
+  <circle cx="240" cy="230" r="22" fill="#1B3252"/>
+  <!-- Objective lenses (3) -->
+  <g fill="#B08A3E">
+    <rect x="222" y="250" width="10" height="28"/>
+    <rect x="235" y="255" width="10" height="23"/>
+    <rect x="248" y="250" width="10" height="28"/>
+  </g>
+  <!-- Slide on stage -->
+  <rect x="200" y="305" width="100" height="5" fill="#FAF7F2"/>
+  <!-- Focus knob -->
+  <circle cx="170" cy="370" r="18" fill="#1B3252"/>
+  <circle cx="170" cy="370" r="10" fill="#B08A3E"/>
+  <!-- Light source below stage -->
+  <circle cx="240" cy="355" r="10" fill="#B08A3E"/>
+  <g stroke="#B08A3E" stroke-width="2" stroke-linecap="round">
+    <line x1="225" y1="345" x2="215" y2="340"/>
+    <line x1="255" y1="345" x2="265" y2="340"/>
+    <line x1="240" y1="335" x2="240" y2="328"/>
+  </g>
+</svg>

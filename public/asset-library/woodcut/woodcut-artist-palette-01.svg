@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <!-- Palette main shape (kidney / oval) -->
+  <path d="M 120 250 Q 100 160 200 130 Q 300 115 380 160 Q 430 200 420 270 Q 400 330 340 340 Q 310 345 295 320 Q 285 295 265 295 Q 240 295 230 315 Q 220 345 180 345 Q 120 340 120 250 Z" fill="#1B3252"/>
+  <!-- Thumb hole -->
+  <ellipse cx="280" cy="315" rx="22" ry="15" fill="#FAF7F2"/>
+  <!-- Paint dollops -->
+  <circle cx="170" cy="200" r="16" fill="#B08A3E"/>
+  <circle cx="220" cy="175" r="16" fill="#34C3A0"/>
+  <circle cx="275" cy="165" r="16" fill="#FAF7F2"/>
+  <circle cx="330" cy="180" r="16" fill="#239C80"/>
+  <circle cx="370" cy="220" r="16" fill="#B08A3E"/>
+  <circle cx="180" cy="260" r="14" fill="#34C3A0"/>
+  <circle cx="370" cy="275" r="14" fill="#FAF7F2"/>
+  <!-- Crossed brushes -->
+  <g transform="rotate(-30 250 400)">
+    <rect x="130" y="395" width="220" height="10" fill="#B08A3E"/>
+    <rect x="350" y="390" width="20" height="20" fill="#1B3252"/>
+    <path d="M 370 390 L 400 390 L 395 410 L 370 410 Z" fill="#1B3252"/>
+  </g>
+  <g transform="rotate(30 250 400)">
+    <rect x="130" y="395" width="220" height="10" fill="#B08A3E"/>
+    <rect x="350" y="390" width="20" height="20" fill="#1B3252"/>
+    <path d="M 370 390 L 400 390 L 395 410 L 370 410 Z" fill="#1B3252"/>
+  </g>
+</svg>

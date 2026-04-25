@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <g fill="none" stroke="#1B3252" stroke-width="1.5">
+    <!-- Rising staircase (bottom-left to top-right) -->
+    <path d="M 30 450 L 30 420 L 80 420 L 80 390 L 130 390 L 130 360 L 180 360 L 180 330 L 230 330 L 230 300 L 280 300 L 280 270 L 330 270 L 330 240 L 380 240 L 380 210 L 430 210 L 430 180 L 480 180"/>
+    <!-- Second step pattern below for depth -->
+    <path d="M 30 470 L 80 470 L 80 445 L 130 445 L 130 420 L 180 420 L 180 395 L 230 395 L 230 370 L 280 370 L 280 345 L 330 345 L 330 320 L 380 320 L 380 295 L 430 295 L 430 270 L 480 270" opacity="0.4"/>
+  </g>
+  <!-- Accent dot on each step corner -->
+  <g fill="#34C3A0">
+    <circle cx="80" cy="390" r="4"/>
+    <circle cx="180" cy="330" r="4"/>
+    <circle cx="280" cy="270" r="4"/>
+    <circle cx="380" cy="210" r="4"/>
+  </g>
+</svg>

@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>NanaSays Card Types — Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #1B3252;
+    --teal: #34C3A0;
+    --teal-dark: #239C80;
+    --light: #F6F8FA;
+    --paper: #FAF7F0;
+  }
+  * { box-sizing: border-box }
+  body {
+    margin: 0; padding: 40px 24px;
+    font: 14px/1.5 'Nunito Sans', -apple-system, sans-serif;
+    color: var(--navy); background: #ECEEF1;
+  }
+  .page-header { max-width: 1200px; margin: 0 auto 32px }
+  .page-header h1 { font: 900 28px 'Nunito'; margin: 0 0 8px }
+  .page-header p { font-size: 14px; color: #6B7280; max-width: 720px; line-height: 1.55 }
+
+  .group { max-width: 1200px; margin: 0 auto 56px }
+  .group-label { font: 900 14px 'Nunito'; color: var(--navy); margin-bottom: 4px; letter-spacing: 0.5px }
+  .group-label .accent { color: var(--teal); margin-left: 6px; font-size: 12px; font-weight: 700 }
+  .group-desc { font-size: 13px; color: #6B7280; margin-bottom: 16px; max-width: 720px; line-height: 1.5 }
+
+  .card-row { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start }
+  .card-frame {
+    width: 540px; height: 540px;
+    border-radius: 14px; overflow: hidden;
+    box-shadow: 0 12px 28px rgba(15, 23, 42, 0.10), 0 2px 6px rgba(15, 23, 42, 0.06);
+    position: relative;
+    font-family: 'Nunito Sans';
+  }
+  .card-meta {
+    width: 540px;
+    padding: 12px 4px 0;
+    font-size: 12px; color: #6B7280;
+  }
+  .card-meta strong { color: var(--navy); font-weight: 700 }
+  .card-meta code { background: #F1F5F9; padding: 1px 6px; border-radius: 3px; font-size: 11px }
+
+  /* Wordmark — used on every card per brand rule */
+  .wordmark { font: 900 20px 'Nunito'; letter-spacing: -0.3px }
+  .wordmark.on-navy span:first-child { color: #fff } .wordmark.on-navy span:last-child { color: var(--teal) }
+  .wordmark.on-teal span:first-child { color: #fff } .wordmark.on-teal span:last-child { color: var(--navy) }
+  .wordmark.on-light span:first-child { color: var(--navy) } .wordmark.on-light span:last-child { color: var(--teal) }
+
+  /* ── 1. Glossary card ───────────────────────────────────────── */
+  .glossary {
+    background: var(--paper);
+    padding: 32px;
+    display: flex; flex-direction: column;
+  }
+  .glossary .top-row { display: flex; justify-content: space-between; align-items: flex-start }
+  .glossary .pillar-chip {
+    background: var(--navy); color: #fff;
+    font-size: 11px; font-weight: 700; padding: 5px 12px; border-radius: 12px;
+    letter-spacing: 0.6px; text-transform: uppercase;
+  }
+  .glossary .icon-stage {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center;
+    margin: 12px 0;
+  }
+  .glossary .icon-stage img { width: 200px; height: 200px }
+  .glossary .term-en {
+    font: 900 64px/1 'Nunito'; color: var(--navy);
+    letter-spacing: -2px; margin: 0;
+  }
+  .glossary .term-th {
+    font: 700 22px/1.2 'Nunito'; color: var(--teal-dark);
+    margin: 8px 0 16px;
+  }
+  .glossary .definition {
+    font-size: 17px; line-height: 1.5; color: #334155;
+    border-top: 2px solid var(--teal); padding-top: 14px;
+  }
+  .glossary .footer { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 20px }
+  .glossary .counter { font-size: 11px; font-weight: 700; color: #94A3B8; letter-spacing: 0.6px; text-transform: uppercase }
+
+  /* ── 2. Tip card ────────────────────────────────────────────── */
+  .tip {
+    background: var(--navy); color: #fff;
+    padding: 32px; position: relative; overflow: hidden;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .tip .corner-icon {
+    position: absolute; top: -20px; right: -20px;
+    width: 220px; height: 220px;
+    opacity: 0.12;
+    transform: rotate(15deg);
+  }
+  .tip .corner-icon img { width: 100%; height: 100% }
+  .tip .top-row { display: flex; justify-content: space-between; align-items: flex-start }
+  .tip .tip-num {
+    background: var(--teal); color: var(--navy);
+    font: 800 12px 'Nunito'; padding: 5px 12px; border-radius: 12px;
+    letter-spacing: 0.6px;
+  }
+  .tip .question {
+    font: 900 44px/1.1 'Nunito'; color: #fff;
+    letter-spacing: -1px; margin: 28px 0 18px;
+    max-width: 90%;
+  }
+  .tip .answer {
+    font-size: 16px; line-height: 1.55; color: rgba(255,255,255,0.82);
+    max-width: 95%;
+  }
+  .tip .footer { display: flex; justify-content: space-between; align-items: flex-end }
+  .tip .pillar { font-size: 11px; color: rgba(255,255,255,0.55); font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase }
+
+  /* ── 3. Stat card ───────────────────────────────────────────── */
+  .stat {
+    background: var(--light); padding: 32px;
+    position: relative; overflow: hidden;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .stat .bg-icon {
+    position: absolute; right: -50px; bottom: -50px;
+    width: 380px; height: 380px;
+    opacity: 0.08;
+  }
+  .stat .bg-icon img { width: 100%; height: 100% }
+  .stat .top-chip {
+    background: var(--teal); color: var(--navy);
+    font: 800 11px 'Nunito'; padding: 5px 12px; border-radius: 12px;
+    letter-spacing: 0.6px; text-transform: uppercase;
+    align-self: flex-start;
+  }
+  .stat .number-stage { z-index: 2 }
+  .stat .number {
+    font: 900 200px/0.9 'Nunito'; color: var(--teal-dark);
+    letter-spacing: -8px;
+  }
+  .stat .number .pct { font-size: 96px; vertical-align: top; margin-left: 6px; color: var(--teal) }
+  .stat .caption {
+    font: 800 24px/1.25 'Nunito'; color: var(--navy);
+    margin-top: 14px; max-width: 80%;
+  }
+  .stat .source {
+    font-size: 12px; color: #6B7280;
+    margin-top: 10px; max-width: 80%;
+  }
+  .stat .footer { display: flex; justify-content: space-between; align-items: flex-end; z-index: 2 }
+
+  /* ── 4. Quote card ──────────────────────────────────────────── */
+  .quote {
+    background: var(--teal); color: var(--navy);
+    padding: 32px; position: relative; overflow: hidden;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .quote .bg-art {
+    position: absolute; inset: 0;
+    background-image: url('/asset-library/woodcut/woodcut-tree-study-01.svg');
+    background-size: 130% 130%;
+    background-position: center;
+    background-repeat: no-repeat;
+    opacity: 0.15;
+    mix-blend-mode: multiply;
+  }
+  .quote .top-chip {
+    background: rgba(27,50,82,0.15); color: var(--navy);
+    font: 800 11px 'Nunito'; padding: 5px 12px; border-radius: 12px;
+    letter-spacing: 0.6px; text-transform: uppercase;
+    align-self: flex-start;
+    z-index: 2;
+  }
+  .quote .open-quote {
+    font: 900 100px/0.6 'Nunito';
+    color: rgba(27,50,82,0.18);
+    margin-top: 6px;
+    z-index: 2;
+  }
+  .quote .body {
+    font: 800 30px/1.3 'Nunito';
+    margin: -10px 0 20px;
+    z-index: 2;
+    max-width: 92%;
+  }
+  .quote .author {
+    font: 700 14px 'Nunito Sans';
+    z-index: 2;
+  }
+  .quote .author .role {
+    color: rgba(27,50,82,0.65); font-weight: 500; margin-left: 6px;
+  }
+  .quote .footer { display: flex; justify-content: space-between; align-items: flex-end; z-index: 2; margin-top: auto }
+
+  /* ── 5. Cover card ──────────────────────────────────────────── */
+  /* Layout RULE for cards with transparent SVG hero art:
+     Split the card into ZONES (art-only top, text-only bottom). Never
+     position art absolutely over the text region — once the SVG is
+     transparent its lines overlap headlines and become unreadable. */
+  .cover {
+    background: linear-gradient(135deg, var(--teal-dark) 0%, var(--teal) 100%);
+    padding: 28px 32px; position: relative; overflow: hidden;
+    display: flex; flex-direction: column;
+    color: #fff;
+  }
+  .cover .top-row { display: flex; justify-content: space-between; align-items: flex-start }
+  .cover .channel-chip {
+    background: rgba(255,255,255,0.18); color: #fff;
+    font: 800 11px 'Nunito'; padding: 5px 12px; border-radius: 12px;
+    letter-spacing: 0.6px; text-transform: uppercase;
+  }
+  /* ART ZONE — fixed-height stage, no text inside */
+  .cover .art-zone {
+    height: 220px;
+    display: flex; align-items: center; justify-content: center;
+    margin: 12px 0 8px;
+  }
+  .cover .art-zone img {
+    max-height: 100%;
+    max-width: 70%;
+    /* Recolor strokes to white-on-teal so the woodcut reads on the gradient */
+    filter: brightness(0) invert(1);
+    opacity: 0.95;
+  }
+  /* TEXT ZONE — sits below the art, no overlap possible */
+  .cover .text-zone { flex: 1 }
+  .cover .headline {
+    font: 900 52px/1.05 'Nunito';
+    letter-spacing: -1.5px;
+    color: #fff;
+    margin: 0;
+  }
+  .cover .subtitle {
+    font: 700 16px/1.45 'Nunito Sans';
+    color: rgba(255,255,255,0.88);
+    margin-top: 12px;
+    max-width: 90%;
+  }
+  .cover .footer { display: flex; justify-content: flex-end; align-items: flex-end; margin-top: 18px }
+
+  /* ── 6. Claude-generated example (Option 2 preview) ─────────── */
+  .creative {
+    background: var(--light);
+    padding: 0; position: relative; overflow: hidden;
+    display: grid; grid-template-columns: 1fr 1fr;
+  }
+  .creative .left {
+    background: var(--navy); color: #fff;
+    padding: 28px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    position: relative;
+  }
+  .creative .left .number {
+    font: 900 110px/0.9 'Nunito'; color: var(--teal);
+    letter-spacing: -4px; margin: 36px 0 0;
+  }
+  .creative .left .label {
+    font: 800 13px 'Nunito';
+    color: rgba(255,255,255,0.85);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-top: 8px;
+    max-width: 90%;
+  }
+  .creative .right {
+    padding: 28px; position: relative;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .creative .right .icon {
+    width: 140px; height: 140px; align-self: flex-end; margin-top: 8px;
+  }
+  .creative .right .body {
+    font: 800 22px/1.32 'Nunito'; color: var(--navy);
+    margin-top: 8px;
+  }
+  .creative .right .body em {
+    font-style: normal; color: var(--teal-dark); position: relative;
+  }
+  .creative .right .body em::after {
+    content: ''; position: absolute; left: 0; right: 0; bottom: 2px; height: 7px;
+    background: var(--teal); opacity: 0.3; z-index: -1; border-radius: 2px;
+  }
+  .creative .right .source { font-size: 11px; color: #94A3B8; margin-top: 14px }
+  .creative .footer-bar {
+    position: absolute; bottom: 14px; left: 28px; right: 28px;
+    display: flex; justify-content: space-between; align-items: center;
+    z-index: 2;
+  }
+  .creative .pillar { font-size: 11px; font-weight: 700; color: var(--navy); letter-spacing: 0.5px; text-transform: uppercase }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Card type mockups</h1>
+  <p>Six design directions using the asset library. Each is one square 540×540 image. Click an SVG icon below in the Library tab to see all 81 available — these mockups use real ones from your set so the proportions are accurate.</p>
+</div>
+
+<!-- ═══ OPTION 1 — TEMPLATES ═══ -->
+<div class="group">
+  <div class="group-label">Option 1 — Templates <span class="accent">fixed layouts you fill in</span></div>
+  <div class="group-desc">Fill 2-4 fields, pick an icon, get a finished post in 30 seconds. Same layout every time, only the icon and text change. Great for daily drip content.</div>
+
+  <div class="card-row">
+
+    <!-- Glossary card -->
+    <div>
+      <div class="card-frame glossary">
+        <div class="top-row">
+          <div class="pillar-chip">Glossary · 04 of 50</div>
+          <div class="wordmark on-light"><span>Nana</span><span>Says</span></div>
+        </div>
+        <div class="icon-stage">
+          <img src="/asset-library/linebase/linebase-compass-rose-01.svg" alt="">
+        </div>
+        <div>
+          <div class="term-en">IB Diploma</div>
+          <div class="term-th">หลักสูตรปริญญานานาชาติ</div>
+          <div class="definition">A 2-year pre-university programme. Students take 6 subjects, write a 4,000-word essay, and finish with global standardised exams.</div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <strong>Glossary card</strong> · single image · pillar=<code>glossary</code><br>
+        Fields: term EN · term TH · definition · icon
+      </div>
+    </div>
+
+    <!-- Tip card -->
+    <div>
+      <div class="card-frame tip">
+        <div class="corner-icon">
+          <img src="/asset-library/woodcut/woodcut-graduation-figure-01.svg" alt="">
+        </div>
+        <div class="top-row">
+          <div class="tip-num">Tip 04 / 12</div>
+          <div class="wordmark on-navy"><span>Nana</span><span>Says</span></div>
+        </div>
+        <div>
+          <div class="question">Did you ask about teacher turnover?</div>
+          <div class="answer">Most schools won&apos;t volunteer this. Ask: &ldquo;What % of teachers stayed last year?&rdquo; Below 80% is a yellow flag. Below 70% is a red one.</div>
+        </div>
+        <div class="footer">
+          <div class="pillar">School Tour Tips</div>
+          <div></div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <strong>Tip card</strong> · single image · pillar=<code>school_tour_tips</code><br>
+        Fields: tip number · question · answer · icon
+      </div>
+    </div>
+
+    <!-- Stat card -->
+    <div>
+      <div class="card-frame stat">
+        <div class="bg-icon">
+          <img src="/asset-library/linebase/linebase-bar-chart-01.svg" alt="">
+        </div>
+        <div class="top-chip">Tuition Snapshot</div>
+        <div class="number-stage">
+          <div class="number">100<span class="pct">%</span></div>
+          <div class="caption">NIST&apos;s IB Diploma pass rate, 3 years running.</div>
+          <div class="source">Source: NIST International School annual reports, 2023–2025</div>
+        </div>
+        <div class="footer">
+          <div></div>
+          <div class="wordmark on-light"><span>Nana</span><span>Says</span></div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <strong>Stat card</strong> · single image · pillar=<code>tuition_snapshot</code> / <code>school_spotlight</code><br>
+        Fields: number · unit · caption · source · bg icon
+      </div>
+    </div>
+
+    <!-- Quote card -->
+    <div>
+      <div class="card-frame quote">
+        <div class="bg-art"></div>
+        <div class="top-chip">Parent voice</div>
+        <div>
+          <div class="open-quote">&ldquo;</div>
+          <div class="body">We picked the school based on numbers. We stayed because of how the head teacher knew our son&apos;s name on day three.</div>
+          <div class="author">— Nina <span class="role">· mum of two, Bangkok Patana parent</span></div>
+        </div>
+        <div class="footer">
+          <div></div>
+          <div class="wordmark on-teal"><span>Nana</span><span>Says</span></div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <strong>Quote card</strong> · single image · pillar=<code>pastoral_care</code> / <code>school_spotlight</code><br>
+        Fields: quote · author · role · bg illustration
+      </div>
+    </div>
+
+    <!-- Cover card -->
+    <div>
+      <div class="card-frame cover">
+        <div class="top-row">
+          <div class="channel-chip">Bangkok</div>
+          <div class="wordmark on-teal"><span>Nana</span><span>Says</span></div>
+        </div>
+        <div class="art-zone">
+          <img src="/asset-library/woodcut/woodcut-cityscape-01.svg" alt="">
+        </div>
+        <div class="text-zone">
+          <div class="headline">Bangkok Schools Guide</div>
+          <div class="subtitle">A no-nonsense rundown of the city&apos;s 18 international schools — what they cost, who they fit, and what no brochure tells you.</div>
+        </div>
+        <div class="footer"></div>
+      </div>
+      <div class="card-meta">
+        <strong>Cover card</strong> · single image · pillar=<code>city_roundup</code><br>
+        Fields: headline · subtitle · channel · hero icon · zoned (no overlap)
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ OPTION 2 — CLAUDE-GENERATED ═══ -->
+<div class="group">
+  <div class="group-label">Option 2 — Claude-generated single posts <span class="accent">freer layout, AI does the design</span></div>
+  <div class="group-desc">You pick an SVG and a topic, Claude designs the layout from scratch (different every time). Slower (~30s-2min per post), more variety, less predictable.</div>
+
+  <div class="card-row">
+
+    <!-- Creative example -->
+    <div>
+      <div class="card-frame creative">
+        <div class="left">
+          <div class="wordmark on-navy"><span>Nana</span><span>Says</span></div>
+          <div>
+            <div class="number">68%</div>
+            <div class="label">of Bangkok int&apos;l school families never ask about teacher retention before signing</div>
+          </div>
+          <div></div>
+        </div>
+        <div class="right">
+          <img class="icon" src="/asset-library/woodcut/woodcut-graduation-figure-01.svg" alt="">
+          <div class="body">It&apos;s the <em>single best signal</em> of how stable your child&apos;s next 5 years will feel.</div>
+          <div class="source">Source: NanaSays parent survey, n=240, March 2026.</div>
+          <div class="pillar" style="margin-top: 18px">Admissions Guide</div>
+        </div>
+      </div>
+      <div class="card-meta">
+        <strong>Claude-generated</strong> · single image · pillar can be anything<br>
+        You pick: SVG + topic. Claude designs the rest. <em>Each post looks different.</em>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══ DESIGN RULES ═══ -->
+<div class="group">
+  <div class="group-label">Design rules for all card templates</div>
+  <div class="group-desc">
+    <ol style="margin: 0; padding-left: 18px; line-height: 1.8">
+      <li><strong>Art and text live in separate zones, never overlapping.</strong> If a template has hero art, give it a fixed-height stage (e.g. <code>.art-zone</code>) and put text only in the <code>.text-zone</code> below. Now that SVGs are transparent, an absolutely-positioned graphic crashes into text and becomes unreadable.</li>
+      <li><strong>If art must be behind text, opacity caps at 15%.</strong> Stat card uses 8%, Quote card uses ~15% via multiply blend. Above 20% on a content area = unreadable headline.</li>
+      <li><strong>Recolor SVG strokes to match the card background</strong> when the asset is meant to be hero. Cover card uses <code>filter: brightness(0) invert(1)</code> to make the navy cityscape strokes white-on-teal. Tip card relies on the corner art being faded enough that color doesn&rsquo;t matter.</li>
+      <li><strong>Wordmark rule</strong> is honoured per card automatically — &ldquo;Nana&rdquo; stays white on dark backgrounds, navy on light. The template owns this; you don&apos;t pick.</li>
+      <li><strong>Text never sits flush against an edge.</strong> Minimum 28-32px padding all sides; chips/labels sit 4-8px in from card padding line.</li>
+    </ol>
+  </div>
+</div>
+
+<div class="group">
+  <div class="group-label">Things to consider before picking which to build first</div>
+  <div class="group-desc">
+    <ul style="margin: 0; padding-left: 18px; line-height: 1.7">
+      <li><strong>Templates (Option 1)</strong> are fast to make once they exist. Each new card = pick template + pick icon + type 2-4 fields = 30 seconds. Five templates above = five distinct content shapes you can mix daily.</li>
+      <li><strong>Claude-generated (Option 2)</strong> takes ~30s-2min per post, but each one looks different. Better for &ldquo;hero&rdquo; posts you don&apos;t make often. Worse for daily drip.</li>
+      <li><strong>You can do both.</strong> Templates handle daily Glossary / Tip / Stat content. Claude-generated handles the occasional &ldquo;featured insight&rdquo; post. They share the same approve / Thai / download pipeline.</li>
+    </ul>
+  </div>
+</div>
+
+</body>
+</html>

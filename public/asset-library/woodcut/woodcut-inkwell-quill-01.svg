@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <path d="M 120 320 L 120 420 L 240 420 L 240 320 L 220 290 L 140 290 Z" fill="#1B3252"/>
+  <ellipse cx="180" cy="290" rx="40" ry="8" fill="#0E1F38"/>
+  <rect x="135" y="350" width="90" height="40" fill="#FAF7F2"/>
+  <text x="180" y="378" text-anchor="middle" fill="#1B3252" font-family="Helvetica, Arial Black, sans-serif" font-weight="900" font-size="20">INK</text>
+  <g transform="rotate(25 310 200)">
+    <path d="M 250 400 L 370 80" stroke="#1B3252" stroke-width="3" fill="none"/>
+    <path d="M 280 330 L 240 340 L 290 320 Z" fill="#1B3252"/>
+    <path d="M 300 270 L 255 280 L 310 260 Z" fill="#1B3252"/>
+    <path d="M 320 210 L 270 220 L 330 200 Z" fill="#1B3252"/>
+    <path d="M 340 150 L 285 160 L 350 140 Z" fill="#1B3252"/>
+    <path d="M 360 95 L 295 105 L 370 85 Z" fill="#1B3252"/>
+    <path d="M 280 330 L 320 340 L 290 320 Z" fill="#1B3252"/>
+    <path d="M 300 270 L 345 280 L 310 260 Z" fill="#1B3252"/>
+    <path d="M 320 210 L 370 220 L 330 200 Z" fill="#1B3252"/>
+    <path d="M 340 150 L 395 160 L 350 140 Z" fill="#1B3252"/>
+    <path d="M 360 95 L 425 105 L 370 85 Z" fill="#1B3252"/>
+    <path d="M 250 400 L 240 425 L 265 415 Z" fill="#B08A3E"/>
+  </g>
+  <circle cx="380" cy="445" r="6" fill="#0E1F38"/>
+</svg>

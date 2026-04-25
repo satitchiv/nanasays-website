@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <!-- Orbital rings (elliptical) -->
+  <g fill="none" stroke="#1B3252" stroke-width="1">
+    <ellipse cx="250" cy="250" rx="60" ry="55"/>
+    <ellipse cx="250" cy="250" rx="110" ry="85"/>
+    <ellipse cx="250" cy="250" rx="160" ry="115"/>
+    <ellipse cx="250" cy="250" rx="210" ry="145"/>
+    <!-- Tilted orbit -->
+    <ellipse cx="250" cy="250" rx="180" ry="80" transform="rotate(20 250 250)"/>
+  </g>
+  <!-- Sun (center) -->
+  <circle cx="250" cy="250" r="22" fill="#B08A3E"/>
+  <circle cx="250" cy="250" r="14" fill="#1B3252"/>
+  <!-- Planets -->
+  <circle cx="310" cy="250" r="6" fill="#1B3252"/>
+  <circle cx="155" cy="190" r="8" fill="#34C3A0"/>
+  <circle cx="395" cy="195" r="10" fill="#1B3252"/>
+  <circle cx="125" cy="320" r="9" fill="#239C80"/>
+  <!-- Small dots (stars) -->
+  <g fill="#1B3252">
+    <circle cx="70" cy="80" r="2"/>
+    <circle cx="440" cy="90" r="2"/>
+    <circle cx="80" cy="420" r="2"/>
+    <circle cx="420" cy="440" r="2"/>
+    <circle cx="300" cy="60" r="2"/>
+    <circle cx="180" cy="450" r="2"/>
+  </g>
+</svg>

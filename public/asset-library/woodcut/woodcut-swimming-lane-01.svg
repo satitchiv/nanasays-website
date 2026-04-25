@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <rect x="50" y="50" width="400" height="400" fill="#34C3A0" stroke="#1B3252" stroke-width="4"/>
+  <g stroke="#FAF7F2" stroke-width="2">
+    <line x1="50" y1="130" x2="450" y2="130"/>
+    <line x1="50" y1="210" x2="450" y2="210"/>
+    <line x1="50" y1="290" x2="450" y2="290"/>
+    <line x1="50" y1="370" x2="450" y2="370"/>
+  </g>
+  <g stroke="#FAF7F2" stroke-width="1.5" fill="none" opacity="0.5">
+    <path d="M 100 90 Q 150 85 200 90"/>
+    <path d="M 260 95 Q 310 90 360 95"/>
+    <path d="M 100 170 Q 150 165 200 170"/>
+    <path d="M 280 175 Q 330 170 380 175"/>
+    <path d="M 120 250 Q 170 245 220 250"/>
+    <path d="M 300 255 Q 350 250 400 255"/>
+    <path d="M 150 330 Q 200 325 250 330"/>
+    <path d="M 320 335 Q 370 330 420 335"/>
+    <path d="M 130 410 Q 180 405 230 410"/>
+  </g>
+  <g fill="#FAF7F2" font-family="Helvetica, Arial Black, sans-serif" font-weight="900" font-size="28">
+    <text x="80" y="100" text-anchor="middle">1</text>
+    <text x="80" y="180" text-anchor="middle">2</text>
+    <text x="80" y="260" text-anchor="middle">3</text>
+    <text x="80" y="340" text-anchor="middle">4</text>
+    <text x="80" y="420" text-anchor="middle">5</text>
+  </g>
+</svg>

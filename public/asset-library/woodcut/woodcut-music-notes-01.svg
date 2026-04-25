@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <!-- Staff lines (5) -->
+  <g stroke="#1B3252" stroke-width="2">
+    <line x1="50" y1="220" x2="450" y2="220"/>
+    <line x1="50" y1="250" x2="450" y2="250"/>
+    <line x1="50" y1="280" x2="450" y2="280"/>
+    <line x1="50" y1="310" x2="450" y2="310"/>
+    <line x1="50" y1="340" x2="450" y2="340"/>
+  </g>
+  <!-- Treble clef (simplified as G shape) -->
+  <g fill="#1B3252">
+    <path d="M 75 200 Q 95 180 115 200 Q 135 230 115 260 Q 85 290 105 340 Q 115 370 90 380 Q 70 370 85 340 L 80 200 Z"/>
+  </g>
+  <!-- Notes -->
+  <g fill="#1B3252">
+    <!-- Note 1 (half-note with stem) -->
+    <ellipse cx="180" cy="290" rx="14" ry="10" transform="rotate(-15 180 290)"/>
+    <rect x="192" y="225" width="3" height="70"/>
+    <!-- Note 2 (quarter note) -->
+    <ellipse cx="230" cy="270" rx="14" ry="10" transform="rotate(-15 230 270)"/>
+    <rect x="242" y="205" width="3" height="70"/>
+    <!-- Note 3 -->
+    <ellipse cx="280" cy="310" rx="14" ry="10" transform="rotate(-15 280 310)"/>
+    <rect x="292" y="245" width="3" height="70"/>
+    <!-- Note 4 -->
+    <ellipse cx="330" cy="280" rx="14" ry="10" transform="rotate(-15 330 280)"/>
+    <rect x="342" y="215" width="3" height="70"/>
+    <!-- Note 5 (eighth note with flag) -->
+    <ellipse cx="390" cy="250" rx="14" ry="10" transform="rotate(-15 390 250)"/>
+    <rect x="402" y="185" width="3" height="70"/>
+    <path d="M 405 185 Q 430 190 420 220" stroke="#1B3252" stroke-width="3" fill="none"/>
+  </g>
+  <!-- Beam between notes 3 and 4 -->
+  <path d="M 292 245 L 345 215 L 345 220 L 292 250 Z" fill="#1B3252"/>
+  <!-- Teal accent: one highlighted note -->
+  <ellipse cx="280" cy="310" rx="14" ry="10" transform="rotate(-15 280 310)" fill="#34C3A0"/>
+  <!-- Time signature -->
+  <text x="155" y="270" fill="#1B3252" font-family="Helvetica, Arial Black, sans-serif" font-weight="900" font-size="32">4</text>
+  <text x="155" y="310" fill="#1B3252" font-family="Helvetica, Arial Black, sans-serif" font-weight="900" font-size="32">4</text>
+</svg>

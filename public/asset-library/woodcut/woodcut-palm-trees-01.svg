@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <rect x="0" y="450" width="500" height="10" fill="#1B3252"/>
+  <circle cx="250" cy="80" r="28" fill="#B08A3E"/>
+  <!-- Palm 1 left tall -->
+  <path d="M 130 450 Q 128 340 132 230 Q 135 150 138 108" stroke="#1B3252" stroke-width="10" fill="none" stroke-linecap="round"/>
+  <g fill="#1B3252">
+    <path d="M 138 108 Q 80 90 45 125 Q 95 128 140 118 Z"/>
+    <path d="M 138 108 Q 90 65 110 32 Q 135 75 145 115 Z"/>
+    <path d="M 138 108 Q 175 60 220 75 Q 175 100 143 115 Z"/>
+    <path d="M 138 108 Q 205 95 240 140 Q 185 125 143 115 Z"/>
+  </g>
+  <!-- Palm 2 middle shorter -->
+  <path d="M 270 450 Q 268 360 272 270 Q 275 195 280 155" stroke="#1B3252" stroke-width="8" fill="none" stroke-linecap="round"/>
+  <g fill="#1B3252">
+    <path d="M 280 155 Q 235 135 210 165 Q 250 170 285 165 Z"/>
+    <path d="M 280 155 Q 245 120 260 85 Q 275 125 285 160 Z"/>
+    <path d="M 280 155 Q 320 125 355 145 Q 315 155 285 165 Z"/>
+    <path d="M 280 155 Q 325 150 355 190 Q 320 170 285 165 Z"/>
+  </g>
+  <!-- Palm 3 right tall -->
+  <path d="M 400 450 Q 398 340 402 240 Q 405 160 408 118" stroke="#1B3252" stroke-width="10" fill="none" stroke-linecap="round"/>
+  <g fill="#1B3252">
+    <path d="M 408 118 Q 355 98 325 135 Q 370 140 412 125 Z"/>
+    <path d="M 408 118 Q 375 75 395 42 Q 405 85 418 125 Z"/>
+    <path d="M 408 118 Q 450 80 485 105 Q 450 125 418 125 Z"/>
+    <path d="M 408 118 Q 455 125 475 165 Q 440 140 418 125 Z"/>
+  </g>
+</svg>

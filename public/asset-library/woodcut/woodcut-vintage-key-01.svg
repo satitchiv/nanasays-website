@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <!-- Bow (outer ring) -->
+  <circle cx="130" cy="250" r="78" fill="#1B3252"/>
+  <!-- Bow inner hole -->
+  <circle cx="130" cy="250" r="38" fill="#FAF7F2"/>
+  <!-- Decorative flourishes on bow -->
+  <path d="M 58 190 L 40 175 L 68 195 Z" fill="#1B3252"/>
+  <path d="M 58 310 L 40 325 L 68 305 Z" fill="#1B3252"/>
+  <path d="M 78 175 L 70 150 L 98 178 Z" fill="#1B3252"/>
+  <path d="M 78 325 L 70 350 L 98 322 Z" fill="#1B3252"/>
+  <!-- Shaft -->
+  <rect x="195" y="236" width="205" height="28" fill="#1B3252"/>
+  <!-- Teeth -->
+  <rect x="360" y="264" width="26" height="22" fill="#1B3252"/>
+  <rect x="336" y="264" width="16" height="16" fill="#1B3252"/>
+  <rect x="316" y="264" width="12" height="12" fill="#1B3252"/>
+  <!-- End cap -->
+  <rect x="400" y="224" width="10" height="52" fill="#1B3252"/>
+  <!-- Teal accent on bow -->
+  <circle cx="130" cy="250" r="14" fill="#34C3A0"/>
+</svg>

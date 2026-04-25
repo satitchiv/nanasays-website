@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <!-- Water ripples background -->
+  <g stroke="#34C3A0" stroke-width="1.5" fill="none" opacity="0.5">
+    <path d="M 20 400 Q 100 395 200 400 Q 300 405 400 400 Q 460 397 490 400"/>
+    <path d="M 20 420 Q 100 415 200 420 Q 300 425 400 420 Q 460 417 490 420"/>
+    <path d="M 20 440 Q 100 435 200 440 Q 300 445 400 440 Q 460 437 490 440"/>
+    <path d="M 20 460 Q 100 455 200 460 Q 300 465 400 460 Q 460 457 490 460"/>
+    <path d="M 20 480 Q 100 475 200 480 Q 300 485 400 480 Q 460 477 490 480"/>
+  </g>
+  <!-- Boat hull -->
+  <path d="M 80 380 L 420 380 Q 440 380 430 400 L 405 410 Q 250 430 95 410 L 70 400 Q 60 380 80 380 Z" fill="#1B3252"/>
+  <!-- Rowers (4 silhouettes) -->
+  <g fill="#1B3252">
+    <circle cx="140" cy="340" r="15"/>
+    <path d="M 125 355 L 118 385 L 162 385 L 155 355 Z"/>
+    <circle cx="220" cy="340" r="15"/>
+    <path d="M 205 355 L 198 385 L 242 385 L 235 355 Z"/>
+    <circle cx="300" cy="340" r="15"/>
+    <path d="M 285 355 L 278 385 L 322 385 L 315 355 Z"/>
+    <circle cx="380" cy="340" r="15"/>
+    <path d="M 365 355 L 358 385 L 402 385 L 395 355 Z"/>
+  </g>
+  <!-- Oars -->
+  <g stroke="#B08A3E" stroke-width="3" stroke-linecap="round">
+    <line x1="140" y1="355" x2="80" y2="395"/>
+    <line x1="220" y1="355" x2="160" y2="395"/>
+    <line x1="300" y1="355" x2="240" y2="395"/>
+    <line x1="380" y1="355" x2="320" y2="395"/>
+  </g>
+  <!-- Sun -->
+  <circle cx="430" cy="100" r="28" fill="#B08A3E"/>
+</svg>

@@ -23,6 +23,7 @@ type PostRow = {
   copy_en: string | null
   copy_th: string | null
   copy_th_generated_at: string | null
+  hashtags: string[] | null
   created_at: string
   source_data: {
     plan_item_id?: string | null
@@ -32,6 +33,14 @@ type PostRow = {
   schools: { name: string | null } | null
 }
 
+// Cap concurrent generation jobs. Each job spawns a Puppeteer browser +
+// a Claude call, so 3 at a time keeps memory + Claude rate-limit safe.
+const MAX_CONCURRENT_JOBS = 3
+
+// Album dropdown options. Items prefixed with `card:` route to the
+// card-album generator (template-driven, Claude plans N slides) instead
+// of the regular Claude HTML album generator. The `card:` prefix is the
+// only signal handleGenerate uses to switch APIs.
 const ALBUM_PILLARS = [
   { value: '', label: 'Auto (random album type)' },
   { value: 'school_tour_tips', label: 'School Tour Tips' },
@@ -39,29 +48,99 @@ const ALBUM_PILLARS = [
   { value: 'head_to_head', label: 'School Comparison (4 schools)' },
   { value: 'school_spotlight', label: 'School Spotlight' },
   { value: 'city_roundup', label: 'City Roundup' },
+  { value: 'card:glossary', label: '📖 Glossary cards (auto-album)' },
+  { value: 'card:tip', label: '💡 School-tour tips (auto-album)' },
 ]
 
 export default function QueuePage() {
   const [posts, setPosts] = useState<PostRow[]>([])
   const [filter, setFilter] = useState<'pending_review' | 'approved' | 'rejected' | 'all'>('pending_review')
   const [loading, setLoading] = useState(true)
-  const [generating, setGenerating] = useState(false)
+  // Async generation queue. Each Generate click fires a request without
+  // blocking the UI; inFlight tracks how many jobs are currently running
+  // so we can show a "X running" badge and cap concurrency.
+  const [inFlight, setInFlight] = useState(0)
   const [genCount, setGenCount] = useState(1)
   const [genType, setGenType] = useState<'album' | 'single'>('album')
   const [genPillar, setGenPillar] = useState('')
   const [message, setMessage] = useState<string>('')
-  const [genLog, setGenLog] = useState<string>('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [deleting, setDeleting] = useState(false)
   // Post IDs currently mid-translation. Drives button spinner + disabled
   // state. Multiple cards can translate in parallel (different IDs).
   const [translatingIds, setTranslatingIds] = useState<Set<string>>(new Set())
+  // Briefly highlight the post you just copied so the action feels confirmed.
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
+  // Build the full clipboard payload: EN caption, then TH caption (if present),
+  // then a single block of hashtags. The website signature is auto-appended
+  // to each caption that doesn't already have it (legacy posts produced
+  // before we added the signature get retrofitted on copy).
+  function assembleCopyText(p: PostRow): string {
+    const en = appendWebsiteSignature(p.copy_en || '')
+    const th = appendWebsiteSignature(p.copy_th || '')
+    const tags = (p.hashtags || []).map(h => `#${h}`).join(' ')
+    return [en, th, tags].filter(s => s && s.trim()).join('\n\n')
+  }
+
+  async function handleCopy(p: PostRow) {
+    const text = assembleCopyText(p)
+    if (!text.trim()) {
+      setMessage('✗ Nothing to copy — this post has no caption yet.')
+      return
+    }
+    try {
+      await copyTextWithFallback(text)
+      setCopiedId(p.id)
+      setTimeout(() => setCopiedId(null), 1800)
+    } catch (err) {
+      setMessage(`✗ Copy failed — ${err instanceof Error ? err.message : 'clipboard error'}`)
+    }
+  }
+
+  // Stamp the website URL at the bottom of a caption if it isn't already
+  // there. Mirrors scripts/social-media-planner/caption-signature.js — kept
+  // in sync manually (small enough that a fetch helper would be over-engineered).
+  function appendWebsiteSignature(text: string): string {
+    if (!text || !text.trim()) return text
+    if (/nanasays\.school/i.test(text)) return text
+    return `${text.trim()}\n\nWebsite: nanasays.school`
+  }
+
+  // Clipboard write with a non-secure-context fallback. The Tailscale dev
+  // URL is plain HTTP, where `navigator.clipboard` is undefined.
+  async function copyTextWithFallback(text: string): Promise<void> {
+    if (typeof window !== 'undefined' && window.navigator.clipboard?.writeText) {
+      try {
+        await window.navigator.clipboard.writeText(text)
+        return
+      } catch {
+        // Fall through to legacy path
+      }
+    }
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.setAttribute('readonly', '')
+    ta.style.position = 'fixed'
+    ta.style.top = '0'
+    ta.style.left = '0'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.focus()
+    ta.select()
+    try {
+      const ok = document.execCommand('copy')
+      if (!ok) throw new Error('execCommand returned false')
+    } finally {
+      document.body.removeChild(ta)
+    }
+  }
 
   async function load() {
     setLoading(true)
     let q = supabase
       .from('social_posts')
-      .select('id, status, post_type, slide_count, school_id, channel_slug, image_url, copy_en, copy_th, copy_th_generated_at, created_at, source_data, social_pillars(slug, name_en), schools(name)')
+      .select('id, status, post_type, slide_count, school_id, channel_slug, image_url, copy_en, copy_th, copy_th_generated_at, hashtags, created_at, source_data, social_pillars(slug, name_en), schools(name)')
       .order('created_at', { ascending: false })
       .limit(100)
     if (filter !== 'all') q = q.eq('status', filter)
@@ -73,15 +152,76 @@ export default function QueuePage() {
 
   useEffect(() => { load() }, [filter])
 
-  async function handleGenerate() {
-    setGenerating(true)
-    setGenLog('')
-    setMessage(`Generating… may take 30–90 seconds.`)
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      const body: Record<string, unknown> = { count: genCount, type: genType }
-      if (genPillar) body.overrides = { pillar_slug: genPillar }
+  // Auto-refresh the queue while jobs are in flight so newly-completed posts
+  // appear without the user reaching for the refresh button. Stops when
+  // inFlight returns to 0.
+  useEffect(() => {
+    if (inFlight === 0) return
+    const id = setInterval(() => load(), 5000)
+    return () => clearInterval(id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inFlight, filter])
 
+  // Fire-and-forget job runner. Each click adds a job; cap at MAX_CONCURRENT_JOBS.
+  // The button stays clickable while jobs run so the user can stack work.
+  function startJob(label: string, runner: () => Promise<{ ok: boolean; message: string }>) {
+    if (inFlight >= MAX_CONCURRENT_JOBS) {
+      setMessage(`✗ ${MAX_CONCURRENT_JOBS} jobs already running. Wait for one to finish.`)
+      return
+    }
+    setInFlight(c => c + 1)
+    setMessage(`⏳ ${label} started — running in background. Queue refreshes as jobs complete.`)
+    ;(async () => {
+      try {
+        const result = await runner()
+        setMessage(result.ok ? `✓ ${result.message}` : `✗ ${result.message}`)
+      } catch (err) {
+        setMessage(`✗ ${err instanceof Error ? err.message : 'job failed'}`)
+      } finally {
+        setInFlight(c => c - 1)
+        load()
+      }
+    })()
+  }
+
+  function handleGenerate() {
+    // Capture current settings so they can change while the job runs.
+    const isCardAlbum = genType === 'album' && genPillar.startsWith('card:')
+
+    if (isCardAlbum) {
+      const template = genPillar.slice(5)
+      const slides = Math.max(3, genCount)
+      startJob(`${template} album (${slides} slides)`, async () => {
+        const { data: { session } } = await supabase.auth.getSession()
+        const res = await fetch('/admin/content/api/generate-card-album', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${session?.access_token}`,
+          },
+          body: JSON.stringify({ template, count: slides }),
+        })
+        const resp = await res.json().catch(() => ({}))
+        if (!res.ok || !resp.ok) {
+          return { ok: false, message: resp.error || `Generator failed (${res.status})` }
+        }
+        const skipped = (resp.skipped || []).length
+        return {
+          ok: true,
+          message: `${template} album · ${resp.slide_count} slides${skipped ? ` · ${skipped} skipped at validation` : ''}`,
+        }
+      })
+      return
+    }
+
+    // Regular Claude album / single flow
+    const count = genCount
+    const type = genType
+    const pillar = genPillar
+    startJob(`${type} (count=${count})`, async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      const body: Record<string, unknown> = { count, type }
+      if (pillar) body.overrides = { pillar_slug: pillar }
       const res = await fetch('/admin/content/api/generate', {
         method: 'POST',
         headers: {
@@ -90,30 +230,18 @@ export default function QueuePage() {
         },
         body: JSON.stringify(body),
       })
-      const resp = await res.json()
-
-      // Always show the log so we can debug failures
-      if (resp.log || resp.stdout || resp.stderr) {
-        setGenLog([resp.log, resp.stderr].filter(Boolean).join('\n---\n'))
-      }
-
+      const resp = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setMessage(`✗ ${resp.error || 'Generator failed'}`)
-        if (resp.stderr) setGenLog(resp.stderr + '\n' + (resp.stdout || ''))
-        return
+        return { ok: false, message: resp.error || 'Generator failed' }
       }
-
       if (resp.generated === 0) {
-        setMessage(`✗ Generator ran but created 0 drafts. Failed: ${resp.failed}. See log below.`)
-      } else {
-        setMessage(`✓ Generated ${resp.generated} draft${resp.generated !== 1 ? 's' : ''}. Failed: ${resp.failed}.`)
+        return { ok: false, message: `0 drafts created · ${resp.failed} failed` }
       }
-      await load()
-    } catch (err) {
-      setMessage(`✗ ${err instanceof Error ? err.message : 'unknown error'}`)
-    } finally {
-      setGenerating(false)
-    }
+      return {
+        ok: true,
+        message: `${resp.generated} draft${resp.generated !== 1 ? 's' : ''} created${resp.failed ? ` · ${resp.failed} failed` : ''}`,
+      }
+    })
   }
 
   async function handleTranslate(postId: string) {
@@ -247,49 +375,97 @@ export default function QueuePage() {
           </div>
 
           {genType === 'album' && (
-            <select value={genPillar} onChange={e => setGenPillar(e.target.value)} style={{
-              padding: '7px 10px', fontSize: 13, border: '1px solid #E2E8F0',
-              borderRadius: 5, color: NAVY, background: '#fff',
-            }}>
+            <select
+              value={genPillar}
+              onChange={e => {
+                const v = e.target.value
+                setGenPillar(v)
+                // Card-album mode wants 5 slides as the sweet spot. If the
+                // count is still at the regular-album default (1-2), bump it
+                // up so the user doesn't get the bare minimum 3 by accident.
+                if (v.startsWith('card:') && genCount < 5) setGenCount(5)
+                // Reverting to a regular album: cap to 5 (Claude flow's max).
+                if (!v.startsWith('card:') && genCount > 5) setGenCount(5)
+              }}
+              style={{
+                padding: '7px 10px', fontSize: 13, border: '1px solid #E2E8F0',
+                borderRadius: 5, color: NAVY, background: '#fff',
+              }}
+            >
               {ALBUM_PILLARS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
           )}
 
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <label style={{ fontSize: 13, fontWeight: 600, color: NAVY }}>Count</label>
-            <input type="number" min={1} max={5} value={genCount}
-              onChange={e => setGenCount(Math.min(Math.max(parseInt(e.target.value) || 1, 1), 5))}
-              style={{ width: 52, padding: '6px 8px', border: '1px solid #E2E8F0', borderRadius: 4, fontSize: 13 }}
-              disabled={generating}
-            />
-            <button onClick={handleGenerate} disabled={generating} style={{
-              flex: 1, padding: '8px 14px', fontSize: 13, fontWeight: 700,
-              background: generating ? '#94A3B8' : TEAL, color: '#fff',
-              border: 'none', borderRadius: 5, cursor: generating ? 'not-allowed' : 'pointer',
-            }}>
-              {generating ? 'Generating…' : 'Generate'}
-            </button>
-          </div>
+          {(() => {
+            const isCardAlbum = genType === 'album' && genPillar.startsWith('card:')
+            const minCount = isCardAlbum ? 3 : 1
+            const maxCount = isCardAlbum ? 10 : 5
+            const atCap = inFlight >= MAX_CONCURRENT_JOBS
+            return (
+              <>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <label style={{ fontSize: 13, fontWeight: 600, color: NAVY }}>
+                    {isCardAlbum ? 'Slides' : 'Count'}
+                  </label>
+                  <input type="number" min={minCount} max={maxCount} value={genCount}
+                    onChange={e => setGenCount(Math.min(Math.max(parseInt(e.target.value) || minCount, minCount), maxCount))}
+                    style={{ width: 52, padding: '6px 8px', border: '1px solid #E2E8F0', borderRadius: 4, fontSize: 13 }}
+                  />
+                  <button onClick={handleGenerate} disabled={atCap} style={{
+                    flex: 1, padding: '8px 14px', fontSize: 13, fontWeight: 700,
+                    background: atCap ? '#94A3B8' : TEAL, color: '#fff',
+                    border: 'none', borderRadius: 5, cursor: atCap ? 'not-allowed' : 'pointer',
+                  }}>
+                    {inFlight === 0
+                      ? 'Generate'
+                      : atCap
+                        ? `${inFlight}/${MAX_CONCURRENT_JOBS} running — wait`
+                        : `+ Add (${inFlight} running)`}
+                  </button>
+                </div>
+                {isCardAlbum && (
+                  <div style={{ fontSize: 11, color: '#6B7280', marginTop: -4 }}>
+                    {minCount}–{maxCount} slides per album. 5–7 is the sweet spot for swipeable carousels.
+                  </div>
+                )}
+              </>
+            )
+          })()}
+
+          {/* Manual card builder — for one-off cards where you want to control the
+              exact term/icon/text. Auto-album generation lives in the dropdown above. */}
+          <Link href="/admin/content/card-builder" style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            padding: '6px 12px', marginTop: 2,
+            fontSize: 11, fontWeight: 600,
+            background: 'transparent', color: '#6B7280',
+            border: 'none', borderRadius: 5,
+            textDecoration: 'none',
+          }}>
+            🃏 Or build one card manually →
+          </Link>
         </div>
       </div>
 
       {/* Status message */}
       {message && (
         <div style={{
-          marginBottom: genLog ? 0 : 20, padding: '12px 16px', borderRadius: genLog ? '6px 6px 0 0' : 6, fontSize: 14,
+          marginBottom: 20, padding: '12px 16px', borderRadius: 6, fontSize: 14,
           background: message.startsWith('✓') ? '#E8FAF6' : message.startsWith('✗') ? '#fdecea' : '#FEF7E0',
           color: message.startsWith('✓') ? '#065F46' : message.startsWith('✗') ? '#B91C1C' : '#92400E',
-        }}>{message}</div>
-      )}
-
-      {/* Generator log — shown when there's a failure or debug info */}
-      {genLog && (
-        <pre style={{
-          marginBottom: 20, padding: '10px 16px', borderRadius: '0 0 6px 6px',
-          background: '#1e1e1e', color: '#d4d4d4', fontSize: 11, lineHeight: 1.5,
-          overflow: 'auto', maxHeight: 200, whiteSpace: 'pre-wrap', wordBreak: 'break-all',
-          border: '1px solid #333',
-        }}>{genLog}</pre>
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12,
+        }}>
+          <span>{message}</span>
+          {inFlight > 0 && (
+            <span style={{
+              padding: '4px 10px', fontSize: 11, fontWeight: 800,
+              background: '#1B3252', color: '#fff', borderRadius: 12,
+              whiteSpace: 'nowrap', letterSpacing: 0.5,
+            }}>
+              ⏳ {inFlight} in queue
+            </span>
+          )}
+        </div>
       )}
 
       {/* Queue grid */}
@@ -377,25 +553,40 @@ export default function QueuePage() {
                     )}
 
                     {p.copy_en && (
-                      <button
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleTranslate(p.id) }}
-                        disabled={translatingIds.has(p.id)}
-                        style={{
-                          marginTop: 10,
-                          fontSize: 11,
-                          fontWeight: 600,
-                          padding: '4px 10px',
-                          border: '1px solid #E2E8F0',
-                          borderRadius: 5,
-                          background: translatingIds.has(p.id) ? '#F3F4F6' : '#fff',
-                          color: translatingIds.has(p.id) ? '#94A3B8' : '#4338CA',
-                          cursor: translatingIds.has(p.id) ? 'wait' : 'pointer',
-                        }}
-                      >
-                        {translatingIds.has(p.id)
-                          ? '⏳ Translating…'
-                          : p.copy_th ? '🔄 Regenerate Thai' : '🇹🇭 Generate Thai'}
-                      </button>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 10 }}>
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleCopy(p) }}
+                          style={{
+                            fontSize: 11, fontWeight: 700,
+                            padding: '4px 10px',
+                            border: copiedId === p.id ? `1px solid ${TEAL}` : '1px solid #E2E8F0',
+                            borderRadius: 5,
+                            background: copiedId === p.id ? '#E8FAF6' : (p.status === 'approved' ? TEAL : '#fff'),
+                            color: copiedId === p.id ? '#065F46' : (p.status === 'approved' ? '#fff' : NAVY),
+                            cursor: 'pointer',
+                          }}
+                          title="Copy caption + hashtags to clipboard"
+                        >
+                          {copiedId === p.id ? '✓ Copied' : '📋 Copy caption'}
+                        </button>
+                        <button
+                          onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleTranslate(p.id) }}
+                          disabled={translatingIds.has(p.id)}
+                          style={{
+                            fontSize: 11, fontWeight: 600,
+                            padding: '4px 10px',
+                            border: '1px solid #E2E8F0',
+                            borderRadius: 5,
+                            background: translatingIds.has(p.id) ? '#F3F4F6' : '#fff',
+                            color: translatingIds.has(p.id) ? '#94A3B8' : '#4338CA',
+                            cursor: translatingIds.has(p.id) ? 'wait' : 'pointer',
+                          }}
+                        >
+                          {translatingIds.has(p.id)
+                            ? '⏳ Translating…'
+                            : p.copy_th ? '🔄 Regenerate Thai' : '🇹🇭 Generate Thai'}
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>

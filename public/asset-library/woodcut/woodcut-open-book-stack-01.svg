@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <rect x="90" y="380" width="320" height="30" fill="#1B3252"/>
+  <rect x="90" y="378" width="320" height="5" fill="#0E1F38"/>
+  <rect x="110" y="345" width="280" height="35" fill="#34C3A0"/>
+  <rect x="110" y="343" width="280" height="5" fill="#239C80"/>
+  <path d="M 120 200 L 250 170 L 380 200 L 380 340 L 250 310 L 120 340 Z" fill="#FAF7F2" stroke="#1B3252" stroke-width="3"/>
+  <line x1="250" y1="170" x2="250" y2="310" stroke="#1B3252" stroke-width="2"/>
+  <g stroke="#1B3252" stroke-width="1.2">
+    <line x1="145" y1="220" x2="235" y2="210"/>
+    <line x1="145" y1="240" x2="225" y2="232"/>
+    <line x1="145" y1="260" x2="235" y2="253"/>
+    <line x1="145" y1="280" x2="220" y2="275"/>
+    <line x1="145" y1="300" x2="230" y2="296"/>
+    <line x1="265" y1="210" x2="355" y2="220"/>
+    <line x1="275" y1="232" x2="355" y2="240"/>
+    <line x1="265" y1="253" x2="355" y2="260"/>
+    <line x1="280" y1="275" x2="355" y2="280"/>
+    <line x1="270" y1="296" x2="355" y2="300"/>
+  </g>
+  <path d="M 300 170 L 305 220 L 310 215 L 315 220 L 310 170 Z" fill="#B08A3E"/>
+</svg>

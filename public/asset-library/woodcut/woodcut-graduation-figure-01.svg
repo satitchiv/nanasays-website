@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <!-- Figure silhouette -->
+  <g fill="#1B3252">
+    <circle cx="250" cy="180" r="42"/>
+    <path d="M 170 470 L 195 260 Q 200 230 250 225 Q 300 230 305 260 L 330 470 Z"/>
+    <path d="M 170 470 L 125 450 L 115 320 Q 125 290 175 275 Z"/>
+    <path d="M 330 470 L 375 450 L 385 320 Q 375 290 325 275 Z"/>
+    <!-- Mortarboard -->
+    <path d="M 175 160 L 325 160 L 315 180 L 185 180 Z"/>
+    <path d="M 175 160 L 325 160 L 320 150 L 180 150 Z"/>
+  </g>
+
+  <!-- Button on top -->
+  <circle cx="250" cy="150" r="4" fill="#B08A3E"/>
+
+  <!-- Tassel -->
+  <path d="M 250 150 Q 280 145 310 165 Q 315 200 308 225" stroke="#B08A3E" stroke-width="3" fill="none" stroke-linecap="round"/>
+  <g stroke="#B08A3E" stroke-width="2" stroke-linecap="round">
+    <line x1="308" y1="225" x2="303" y2="242"/>
+    <line x1="311" y1="222" x2="313" y2="243"/>
+    <line x1="305" y1="220" x2="298" y2="240"/>
+    <line x1="314" y1="220" x2="318" y2="238"/>
+  </g>
+
+  <!-- Ground strokes -->
+  <g fill="#1B3252">
+    <rect x="50" y="480" width="80" height="6"/>
+    <rect x="140" y="480" width="50" height="6"/>
+    <rect x="200" y="480" width="40" height="4"/>
+    <rect x="270" y="480" width="70" height="6"/>
+    <rect x="350" y="480" width="40" height="4"/>
+    <rect x="400" y="480" width="60" height="6"/>
+  </g>
+</svg>

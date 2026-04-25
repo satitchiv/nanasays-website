@@ -55,6 +55,9 @@ export default function PostDetailPage() {
   const [draftTh, setDraftTh] = useState('')
   const [savingCaption, setSavingCaption] = useState(false)
   const [translating, setTranslating] = useState(false)
+  // Two regenerate modes: short (punchy) and long (3-5 paragraph).
+  // We track both separately so spinners are accurate per button.
+  const [regenerating, setRegenerating] = useState<null | 'short' | 'long'>(null)
 
   async function load() {
     const { data } = await supabase
@@ -134,10 +137,37 @@ export default function PostDetailPage() {
   }
 
   async function copyCaption() {
-    if (!post?.copy_en) return
-    const hashtags = post.hashtags?.length ? '\n\n' + post.hashtags.map(h => `#${h}`).join(' ') : ''
-    await navigator.clipboard.writeText(post.copy_en + hashtags)
-    setMessage('✓ Caption copied to clipboard')
+    if (!post) return
+    // Build the full clipboard payload: EN caption + TH caption (if present)
+    // + hashtags. Each caption gets the website signature stamped on it if
+    // not already there (handles legacy posts produced before the signature
+    // was added to the generators).
+    const en = appendWebsiteSignature(post.copy_en || '')
+    const th = appendWebsiteSignature(post.copy_th || '')
+    const tags = (post.hashtags || []).map(h => `#${h}`).join(' ')
+    const text = [en, th, tags].filter(s => s && s.trim()).join('\n\n')
+    if (!text.trim()) {
+      setMessage('✗ Nothing to copy — this post has no caption yet.')
+      return
+    }
+    try {
+      await copyTextToClipboard(text)
+      const parts = []
+      if (en) parts.push('EN')
+      if (th) parts.push('TH')
+      if (tags) parts.push('hashtags')
+      setMessage(`✓ Copied ${parts.join(' + ')} to clipboard`)
+    } catch (err) {
+      setMessage(`✗ Copy failed — ${err instanceof Error ? err.message : 'clipboard unavailable'}`)
+    }
+  }
+
+  // Mirrors scripts/social-media-planner/caption-signature.js. Stamps the
+  // website URL at the bottom if not already present — covers legacy posts.
+  function appendWebsiteSignature(text: string): string {
+    if (!text || !text.trim()) return text
+    if (/nanasays\.school/i.test(text)) return text
+    return `${text.trim()}\n\nWebsite: nanasays.school`
   }
 
   async function saveCaption() {
@@ -166,6 +196,42 @@ export default function PostDetailPage() {
       setMessage(`✗ ${err instanceof Error ? err.message : 'Save failed'}`)
     } finally {
       setSavingCaption(false)
+    }
+  }
+
+  // Regenerate copy_en via Claude. Two modes:
+  //   short — punchy 200-400 char rewrite (default)
+  //   long  — 3-5 paragraph 600-1200 char editorial version
+  // Server reads the saved copy_en + post context and rewrites in NanaSays
+  // voice. If the user has unsaved EN edits we ask them to save first so
+  // Claude has the right starting point — same nudge as Regenerate Thai.
+  async function handleRegenerateEn(length: 'short' | 'long') {
+    if (!post) return
+    if (draftEn !== (post.copy_en || '')) {
+      setMessage('✗ Save your English edit first, then regenerate.')
+      return
+    }
+    setRegenerating(length)
+    setMessage(`Regenerating ${length === 'long' ? 'long' : 'short'} caption… (~15s)`)
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      const res = await fetch(`/admin/content/api/post/${id}/regenerate-caption`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ length }),
+      })
+      const resp = await res.json().catch(() => ({}))
+      if (!res.ok || !resp.ok) throw new Error(resp.error || `Regenerate failed (${res.status})`)
+      setDraftEn(resp.copy_en)
+      setMessage(`✓ ${length === 'long' ? 'Long' : 'Short'} English caption generated. Thai caption is now stale — regenerate it if you want them in sync.`)
+      await load()
+    } catch (err) {
+      setMessage(`✗ ${err instanceof Error ? err.message : 'Regenerate failed'}`)
+    } finally {
+      setRegenerating(null)
     }
   }
 
@@ -342,6 +408,28 @@ export default function PostDetailPage() {
                 background: draftEn !== (post.copy_en || '') ? '#FFFBEB' : '#fff',
               }}
             />
+            {/* Regenerate EN row — short or long mode, both call Claude. */}
+            <div style={{ display: 'flex', gap: 6, marginTop: 8, flexWrap: 'wrap' }}>
+              <button
+                onClick={() => handleRegenerateEn('short')}
+                disabled={!!regenerating || !draftEn.trim()}
+                title="Rewrite the English caption in NanaSays voice — punchy, 200-400 chars."
+                style={regenButtonStyle(regenerating === 'short')}
+              >
+                {regenerating === 'short' ? '⏳ Regenerating…' : '🔄 Regenerate EN'}
+              </button>
+              <button
+                onClick={() => handleRegenerateEn('long')}
+                disabled={!!regenerating || !draftEn.trim()}
+                title="Rewrite as a long editorial caption (3-5 paragraphs, 600-1200 chars)."
+                style={regenButtonStyle(regenerating === 'long')}
+              >
+                {regenerating === 'long' ? '⏳ Writing long version…' : '📝 Long version'}
+              </button>
+              <span style={{ fontSize: 11, color: '#94A3B8', alignSelf: 'center', marginLeft: 'auto' }}>
+                {draftEn.length} chars
+              </span>
+            </div>
             {post.hashtags?.length ? (
               <div style={{ marginTop: 12, fontSize: 13, color: '#3730A3' }}>
                 {post.hashtags.map(h => `#${h}`).join(' ')}
@@ -495,6 +583,49 @@ function btnStyle(bg: string, disabled: boolean): React.CSSProperties {
     background: disabled ? '#94A3B8' : bg, color: '#fff',
     border: 'none', borderRadius: 6, cursor: disabled ? 'not-allowed' : 'pointer',
     fontSize: 13, fontWeight: 700,
+  }
+}
+
+// Clipboard with fallback. The modern `navigator.clipboard` API requires a
+// secure context (HTTPS or localhost). Our dev share is a plain-HTTP
+// Tailscale IP (`http://100.100.120.57:3000`), where `navigator.clipboard`
+// is undefined. The fallback uses a temp <textarea> + `document.execCommand('copy')`
+// which still works on non-secure origins.
+async function copyTextToClipboard(text: string): Promise<void> {
+  if (typeof window !== 'undefined' && window.navigator.clipboard?.writeText) {
+    try {
+      await window.navigator.clipboard.writeText(text)
+      return
+    } catch {
+      // Some browsers throw even when the API is present (no permission etc).
+      // Fall through to the legacy method.
+    }
+  }
+  const ta = document.createElement('textarea')
+  ta.value = text
+  ta.setAttribute('readonly', '')
+  ta.style.position = 'fixed'
+  ta.style.top = '0'
+  ta.style.left = '0'
+  ta.style.opacity = '0'
+  document.body.appendChild(ta)
+  ta.focus()
+  ta.select()
+  try {
+    const ok = document.execCommand('copy')
+    if (!ok) throw new Error('execCommand returned false')
+  } finally {
+    document.body.removeChild(ta)
+  }
+}
+
+function regenButtonStyle(active: boolean): React.CSSProperties {
+  return {
+    fontSize: 11, fontWeight: 600, padding: '4px 10px',
+    background: active ? '#F3F4F6' : '#fff',
+    color: active ? '#94A3B8' : '#4338CA',
+    border: '1px solid #E2E8F0', borderRadius: 5,
+    cursor: active ? 'wait' : 'pointer',
   }
 }
 

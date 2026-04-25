@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <g stroke="#1B3252" stroke-width="1.5" fill="none">
+    <rect x="60" y="70" width="380" height="24"/>
+    <rect x="60" y="180" width="380" height="24"/>
+    <rect x="60" y="290" width="380" height="24"/>
+    <rect x="60" y="400" width="380" height="24"/>
+    <rect x="110" y="106" width="250" height="18"/>
+    <rect x="110" y="132" width="220" height="18"/>
+    <rect x="110" y="158" width="260" height="18"/>
+    <rect x="110" y="216" width="240" height="18"/>
+    <rect x="110" y="242" width="250" height="18"/>
+    <rect x="110" y="268" width="210" height="18"/>
+    <rect x="110" y="326" width="270" height="18"/>
+    <rect x="110" y="352" width="230" height="18"/>
+    <rect x="110" y="378" width="250" height="18"/>
+  </g>
+  <g fill="#1B3252">
+    <circle cx="40" cy="82" r="5"/>
+    <circle cx="40" cy="192" r="5"/>
+    <circle cx="40" cy="302" r="5"/>
+    <circle cx="40" cy="412" r="5"/>
+  </g>
+  <g fill="#34C3A0">
+    <circle cx="90" cy="115" r="3"/>
+    <circle cx="90" cy="141" r="3"/>
+    <circle cx="90" cy="167" r="3"/>
+    <circle cx="90" cy="225" r="3"/>
+    <circle cx="90" cy="251" r="3"/>
+    <circle cx="90" cy="277" r="3"/>
+    <circle cx="90" cy="335" r="3"/>
+    <circle cx="90" cy="361" r="3"/>
+    <circle cx="90" cy="387" r="3"/>
+  </g>
+</svg>

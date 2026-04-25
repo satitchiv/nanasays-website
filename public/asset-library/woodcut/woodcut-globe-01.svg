@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <!-- Base -->
+  <path d="M 180 430 L 320 430 L 340 450 L 160 450 Z" fill="#1B3252"/>
+  <rect x="220" y="400" width="60" height="30" fill="#1B3252"/>
+  <!-- Support arm (curved) -->
+  <path d="M 250 390 L 250 380 Q 140 350 150 220 Q 160 130 250 125 Q 340 130 350 220 Q 360 350 250 380 Z" fill="none" stroke="#1B3252" stroke-width="8"/>
+  <!-- Globe sphere -->
+  <circle cx="250" cy="250" r="120" fill="#239C80"/>
+  <!-- Continents (abstract blobs) -->
+  <g fill="#1B3252">
+    <path d="M 190 200 Q 210 180 240 185 Q 260 200 240 230 Q 220 240 200 230 Q 185 215 190 200 Z"/>
+    <path d="M 270 240 Q 300 230 320 250 Q 325 280 300 295 Q 275 290 265 270 Q 260 250 270 240 Z"/>
+    <path d="M 180 280 Q 200 280 215 295 Q 210 320 195 325 Q 175 320 175 300 Q 175 285 180 280 Z"/>
+    <path d="M 230 310 Q 250 305 265 320 Q 260 340 240 340 Q 225 335 225 320 Q 225 315 230 310 Z"/>
+  </g>
+  <!-- Latitude lines -->
+  <g stroke="#1B3252" stroke-width="1.5" fill="none" opacity="0.5">
+    <ellipse cx="250" cy="250" rx="120" ry="30"/>
+    <ellipse cx="250" cy="250" rx="115" ry="70"/>
+    <ellipse cx="250" cy="250" rx="108" ry="100"/>
+  </g>
+  <!-- Longitude / equator highlight -->
+  <ellipse cx="250" cy="250" rx="120" ry="8" fill="none" stroke="#B08A3E" stroke-width="2"/>
+</svg>

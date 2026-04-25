@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <defs>
+    <pattern id="tri" x="0" y="0" width="50" height="43.3" patternUnits="userSpaceOnUse">
+      <path d="M 25 0 L 50 43.3 L 0 43.3 Z" fill="none" stroke="#1B3252" stroke-width="1"/>
+      <path d="M 25 43.3 L 50 0 L 0 0 Z" fill="none" stroke="#1B3252" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect width="500" height="500" fill="url(#tri)"/>
+  <!-- Accent filled triangle -->
+  <path d="M 250 235 L 262 258 L 238 258 Z" fill="#34C3A0"/>
+</svg>

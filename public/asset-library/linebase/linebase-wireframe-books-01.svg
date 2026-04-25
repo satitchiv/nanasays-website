@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <g fill="none" stroke="#1B3252" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <!-- Book 1 (bottom) -->
+    <path d="M 100 360 L 260 318 L 400 340 L 240 380 Z"/>
+    <path d="M 100 360 L 100 398 L 240 418 L 400 378 L 400 340"/>
+    <path d="M 240 380 L 240 418"/>
+
+    <!-- Book 2 (middle) -->
+    <path d="M 120 300 L 270 268 L 390 286 L 240 318 Z"/>
+    <path d="M 120 300 L 120 332 L 240 350 L 390 318 L 390 286"/>
+    <path d="M 240 318 L 240 350"/>
+
+    <!-- Book 3 (top) -->
+    <path d="M 135 245 L 275 218 L 375 234 L 230 265 Z"/>
+    <path d="M 135 245 L 135 273 L 230 293 L 375 262 L 375 234"/>
+    <path d="M 230 265 L 230 293"/>
+  </g>
+</svg>

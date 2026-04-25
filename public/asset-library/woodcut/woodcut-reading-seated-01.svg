@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <!-- Seated figure silhouette (profile) -->
+  <g fill="#1B3252">
+    <!-- Head -->
+    <ellipse cx="200" cy="180" rx="44" ry="46"/>
+    <!-- Hair sweep back -->
+    <path d="M 160 170 Q 140 130 185 110 Q 230 115 245 150 Q 245 185 220 200 Q 195 205 175 195 Z"/>
+    <!-- Body seated (hip + lap + torso) -->
+    <path d="M 175 220 Q 155 260 145 320 Q 140 380 150 440 L 310 440 Q 330 400 335 360 L 340 330 Q 310 290 280 260 Q 255 230 225 220 Z"/>
+    <!-- Arm over book -->
+    <path d="M 260 280 Q 300 285 330 310 L 345 340 L 340 365 Q 325 370 305 360 Q 280 350 265 330 Z"/>
+  </g>
+  <!-- Book teal -->
+  <g>
+    <rect x="320" y="310" width="100" height="70" fill="#34C3A0"/>
+    <rect x="320" y="310" width="100" height="8" fill="#239C80"/>
+    <line x1="370" y1="318" x2="370" y2="380" stroke="#1B3252" stroke-width="1.5" opacity="0.5"/>
+    <!-- page lines -->
+    <line x1="335" y1="335" x2="365" y2="335" stroke="#FAF7F2" stroke-width="1.5"/>
+    <line x1="335" y1="350" x2="360" y2="350" stroke="#FAF7F2" stroke-width="1.5"/>
+    <line x1="380" y1="335" x2="410" y2="335" stroke="#FAF7F2" stroke-width="1.5"/>
+    <line x1="380" y1="350" x2="405" y2="350" stroke="#FAF7F2" stroke-width="1.5"/>
+  </g>
+  <!-- Ground -->
+  <rect x="0" y="465" width="500" height="5" fill="#1B3252"/>
+</svg>

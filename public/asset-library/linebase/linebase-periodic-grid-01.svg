@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <g fill="none" stroke="#1B3252" stroke-width="1.2">
+    <rect x="50" y="60" width="40" height="40"/>
+    <rect x="410" y="60" width="40" height="40"/>
+    <rect x="50" y="110" width="40" height="40"/><rect x="95" y="110" width="40" height="40"/>
+    <rect x="275" y="110" width="40" height="40"/><rect x="320" y="110" width="40" height="40"/>
+    <rect x="365" y="110" width="40" height="40"/><rect x="410" y="110" width="40" height="40"/>
+    <rect x="230" y="110" width="40" height="40"/><rect x="185" y="110" width="40" height="40"/>
+    <rect x="50" y="160" width="40" height="40"/><rect x="95" y="160" width="40" height="40"/>
+    <rect x="185" y="160" width="40" height="40"/><rect x="230" y="160" width="40" height="40"/>
+    <rect x="275" y="160" width="40" height="40"/><rect x="320" y="160" width="40" height="40"/>
+    <rect x="365" y="160" width="40" height="40"/><rect x="410" y="160" width="40" height="40"/>
+    <rect x="50" y="210" width="40" height="40"/><rect x="95" y="210" width="40" height="40"/>
+    <rect x="140" y="210" width="40" height="40"/><rect x="185" y="210" width="40" height="40"/>
+    <rect x="230" y="210" width="40" height="40"/><rect x="275" y="210" width="40" height="40"/>
+    <rect x="320" y="210" width="40" height="40"/><rect x="365" y="210" width="40" height="40"/>
+    <rect x="410" y="210" width="40" height="40"/>
+    <rect x="50" y="260" width="40" height="40"/><rect x="95" y="260" width="40" height="40"/>
+    <rect x="140" y="260" width="40" height="40"/><rect x="185" y="260" width="40" height="40"/>
+    <rect x="230" y="260" width="40" height="40"/><rect x="275" y="260" width="40" height="40"/>
+    <rect x="320" y="260" width="40" height="40"/><rect x="365" y="260" width="40" height="40"/>
+    <rect x="410" y="260" width="40" height="40"/>
+    <rect x="50" y="310" width="40" height="40"/><rect x="95" y="310" width="40" height="40"/>
+    <rect x="140" y="310" width="40" height="40"/><rect x="185" y="310" width="40" height="40"/>
+    <rect x="230" y="310" width="40" height="40"/><rect x="275" y="310" width="40" height="40"/>
+    <rect x="320" y="310" width="40" height="40"/><rect x="365" y="310" width="40" height="40"/>
+    <rect x="410" y="310" width="40" height="40"/>
+    <rect x="95" y="380" width="40" height="40"/><rect x="140" y="380" width="40" height="40"/>
+    <rect x="185" y="380" width="40" height="40"/><rect x="230" y="380" width="40" height="40"/>
+    <rect x="275" y="380" width="40" height="40"/><rect x="320" y="380" width="40" height="40"/>
+    <rect x="365" y="380" width="40" height="40"/>
+    <rect x="95" y="430" width="40" height="40"/><rect x="140" y="430" width="40" height="40"/>
+    <rect x="185" y="430" width="40" height="40"/><rect x="230" y="430" width="40" height="40"/>
+    <rect x="275" y="430" width="40" height="40"/><rect x="320" y="430" width="40" height="40"/>
+    <rect x="365" y="430" width="40" height="40"/>
+  </g>
+  <rect x="50" y="60" width="40" height="40" fill="#34C3A0"/>
+  <text x="70" y="86" text-anchor="middle" fill="#FAF7F2" font-family="Helvetica, Arial Black, sans-serif" font-weight="900" font-size="20">H</text>
+</svg>

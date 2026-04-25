@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <!-- Sun -->
+  <circle cx="380" cy="140" r="42" fill="#B08A3E"/>
+  <!-- Distant hills (teal wash) -->
+  <path d="M 0 350 Q 100 300 200 340 Q 300 380 400 330 Q 450 310 500 340 L 500 500 L 0 500 Z" fill="#34C3A0" opacity="0.55"/>
+  <!-- Mid hills -->
+  <path d="M 0 400 Q 80 360 180 395 Q 280 420 380 390 Q 440 375 500 395 L 500 500 L 0 500 Z" fill="#239C80"/>
+  <!-- Foreground hills -->
+  <path d="M 0 440 Q 100 420 200 440 Q 320 465 420 435 Q 470 425 500 440 L 500 500 L 0 500 Z" fill="#1B3252"/>
+  <!-- Horizon texture marks -->
+  <g fill="#1B3252" opacity="0.35">
+    <rect x="50" y="348" width="20" height="2"/>
+    <rect x="150" y="338" width="30" height="2"/>
+    <rect x="260" y="352" width="25" height="2"/>
+    <rect x="420" y="346" width="22" height="2"/>
+  </g>
+</svg>

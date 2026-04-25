@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <g fill-opacity="0.45" stroke="#1B3252" stroke-width="2">
+    <circle cx="200" cy="200" r="130" fill="#34C3A0"/>
+    <circle cx="300" cy="200" r="130" fill="#B08A3E"/>
+    <circle cx="250" cy="310" r="130" fill="#239C80"/>
+  </g>
+  <g fill="#1B3252" font-family="Helvetica, Arial Black, sans-serif" font-weight="800" font-size="18">
+    <text x="120" y="100" text-anchor="middle">A</text>
+    <text x="380" y="100" text-anchor="middle">B</text>
+    <text x="250" y="470" text-anchor="middle">C</text>
+  </g>
+</svg>

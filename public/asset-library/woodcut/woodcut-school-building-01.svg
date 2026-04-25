@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <!-- Main building silhouette (slightly rough edges) -->
+  <path d="M 100 450 L 100 210 L 130 205 L 155 215 L 180 210 L 200 160 L 225 130 L 245 105 L 265 130 L 290 160 L 310 210 L 335 215 L 360 205 L 390 210 L 390 450 Z" fill="#1B3252"/>
+
+  <!-- Window cutouts -->
+  <rect x="128" y="260" width="28" height="36" fill="#FAF7F2"/>
+  <rect x="168" y="260" width="28" height="36" fill="#FAF7F2"/>
+  <rect x="295" y="260" width="28" height="36" fill="#FAF7F2"/>
+  <rect x="335" y="260" width="28" height="36" fill="#FAF7F2"/>
+  <rect x="128" y="320" width="28" height="36" fill="#FAF7F2"/>
+  <rect x="168" y="320" width="28" height="36" fill="#FAF7F2"/>
+  <rect x="295" y="320" width="28" height="36" fill="#FAF7F2"/>
+  <rect x="335" y="320" width="28" height="36" fill="#FAF7F2"/>
+
+  <!-- Tower windows -->
+  <rect x="232" y="185" width="26" height="32" fill="#FAF7F2"/>
+  <rect x="234" y="225" width="22" height="22" fill="#FAF7F2"/>
+
+  <!-- Door (teal) -->
+  <path d="M 220 450 L 220 390 Q 220 368 245 368 Q 270 368 270 390 L 270 450 Z" fill="#34C3A0"/>
+
+  <!-- Steps -->
+  <rect x="210" y="450" width="70" height="5" fill="#1B3252"/>
+  <rect x="200" y="460" width="90" height="5" fill="#1B3252"/>
+
+  <!-- Woodcut ground strokes -->
+  <g fill="#1B3252">
+    <rect x="40" y="470" width="80" height="6"/>
+    <rect x="130" y="470" width="50" height="6"/>
+    <rect x="190" y="470" width="40" height="4"/>
+    <rect x="240" y="470" width="70" height="6"/>
+    <rect x="320" y="470" width="60" height="4"/>
+    <rect x="390" y="470" width="80" height="6"/>
+  </g>
+
+  <!-- Flag -->
+  <line x1="255" y1="105" x2="255" y2="55" stroke="#1B3252" stroke-width="4"/>
+  <path d="M 255 60 L 290 65 L 285 75 L 290 85 L 255 80 Z" fill="#B08A3E"/>
+
+  <!-- Cloud marks -->
+  <g fill="#1B3252">
+    <rect x="55" y="90" width="40" height="3"/>
+    <rect x="65" y="100" width="25" height="3"/>
+    <rect x="400" y="120" width="35" height="3"/>
+    <rect x="415" y="130" width="20" height="3"/>
+  </g>
+</svg>

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <defs>
+    <pattern id="netmesh" x="0" y="0" width="28" height="28" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="14" x2="28" y2="14" stroke="#1B3252" stroke-width="1"/>
+      <line x1="14" y1="0" x2="14" y2="28" stroke="#1B3252" stroke-width="1"/>
+    </pattern>
+  </defs>
+  <rect x="50" y="80" width="400" height="320" fill="none" stroke="#1B3252" stroke-width="6"/>
+  <rect x="50" y="80" width="400" height="320" fill="url(#netmesh)"/>
+  <circle cx="380" cy="320" r="32" fill="#FAF7F2" stroke="#1B3252" stroke-width="3"/>
+  <path d="M 380 300 L 395 310 L 390 325 L 370 325 L 365 310 Z" fill="#1B3252"/>
+</svg>

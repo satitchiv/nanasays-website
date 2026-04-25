@@ -74,6 +74,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const tabs = [
     { label: 'Queue',    href: '/admin/content',          soon: false },
     { label: 'Plan',     href: '/admin/content/plan',     soon: false },
+    { label: 'Library',  href: '/admin/content/library',  soon: false },
     { label: 'Schedule', href: '/admin/content/schedule', soon: true  },
     { label: 'Design',   href: '/admin/content/design',   soon: true  },
     { label: 'Layout',   href: '/admin/content/layout',   soon: true  },
@@ -117,6 +118,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             t.href === '/admin/content' &&
             pathname.startsWith('/admin/content/') &&
             !pathname.startsWith('/admin/content/plan') &&
+            !pathname.startsWith('/admin/content/library') &&
             !pathname.startsWith('/admin/content/schedule') &&
             !pathname.startsWith('/admin/content/design') &&
             !pathname.startsWith('/admin/content/layout')

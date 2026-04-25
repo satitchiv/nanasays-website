@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <!-- Central vine (curved) -->
+  <path d="M 40 100 Q 150 50 250 100 Q 350 150 460 100" stroke="#1B3252" stroke-width="4" fill="none"/>
+  <path d="M 40 250 Q 150 200 250 250 Q 350 300 460 250" stroke="#1B3252" stroke-width="4" fill="none"/>
+  <path d="M 40 400 Q 150 350 250 400 Q 350 450 460 400" stroke="#1B3252" stroke-width="4" fill="none"/>
+  <!-- Ivy leaves distributed along vines -->
+  <g fill="#1B3252">
+    <!-- Top vine leaves -->
+    <path d="M 80 90 Q 72 75 85 70 Q 98 78 92 95 Z"/>
+    <path d="M 130 80 Q 120 65 135 60 Q 150 68 142 85 Z"/>
+    <path d="M 195 75 Q 185 60 200 55 Q 215 63 207 80 Z"/>
+    <path d="M 260 100 Q 250 85 265 80 Q 280 88 272 105 Z"/>
+    <path d="M 325 110 Q 315 95 330 90 Q 345 98 337 115 Z"/>
+    <path d="M 395 100 Q 385 85 400 80 Q 415 88 407 105 Z"/>
+    <!-- Middle vine leaves -->
+    <path d="M 80 240 Q 70 225 85 220 Q 100 228 92 245 Z"/>
+    <path d="M 140 220 Q 130 205 145 200 Q 160 208 152 225 Z"/>
+    <path d="M 205 225 Q 195 210 210 205 Q 225 213 217 230 Z"/>
+    <path d="M 270 250 Q 260 235 275 230 Q 290 238 282 255 Z"/>
+    <path d="M 330 265 Q 320 250 335 245 Q 350 253 342 270 Z"/>
+    <path d="M 395 250 Q 385 235 400 230 Q 415 238 407 255 Z"/>
+    <!-- Bottom vine leaves -->
+    <path d="M 80 390 Q 70 375 85 370 Q 100 378 92 395 Z"/>
+    <path d="M 140 370 Q 130 355 145 350 Q 160 358 152 375 Z"/>
+    <path d="M 205 375 Q 195 360 210 355 Q 225 363 217 380 Z"/>
+    <path d="M 270 400 Q 260 385 275 380 Q 290 388 282 405 Z"/>
+    <path d="M 330 415 Q 320 400 335 395 Q 350 403 342 420 Z"/>
+    <path d="M 395 400 Q 385 385 400 380 Q 415 388 407 405 Z"/>
+  </g>
+  <!-- Small ochre berry accents -->
+  <g fill="#B08A3E">
+    <circle cx="165" cy="90" r="4"/>
+    <circle cx="300" cy="95" r="4"/>
+    <circle cx="165" cy="235" r="4"/>
+    <circle cx="300" cy="258" r="4"/>
+    <circle cx="165" cy="385" r="4"/>
+    <circle cx="300" cy="408" r="4"/>
+  </g>
+</svg>
