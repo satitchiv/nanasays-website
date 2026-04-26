@@ -80,19 +80,11 @@ export default function NanaPanel({ slug, schoolName = 'this school' }: Props) {
   const [question, setQuestion] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [retrievalReady, setRetrievalReady] = useState(false)
-  const [tokenCount, setTokenCount] = useState(0)
+  const [streamBuf, setStreamBuf] = useState('')
   const [final, setFinal] = useState<FinalPayload | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [askedQuestion, setAskedQuestion] = useState('')
   const abortRef = useRef<AbortController | null>(null)
-
-  // Toggle a body class so report-page CSS can shift content over to make
-  // room for the panel.
-  useEffect(() => {
-    if (open) document.body.classList.add('nana-panel-open')
-    else document.body.classList.remove('nana-panel-open')
-    return () => document.body.classList.remove('nana-panel-open')
-  }, [open])
 
   // Lora font load (idempotent — fine if it lands twice across the page)
   useEffect(() => {
@@ -107,7 +99,7 @@ export default function NanaPanel({ slug, schoolName = 'this school' }: Props) {
 
   function reset() {
     setRetrievalReady(false)
-    setTokenCount(0)
+    setStreamBuf('')
     setFinal(null)
     setError(null)
   }
@@ -181,10 +173,9 @@ export default function NanaPanel({ slug, schoolName = 'this school' }: Props) {
         setRetrievalReady(true)
         break
       case 'token':
-        // We don't show raw tokens to the user — just bump a counter so we
-        // can show "drafting…" and an animated dot indicator. Final answer
-        // renders in one go when the `final` event arrives.
-        setTokenCount((n) => n + 1)
+        // Accumulate into a buffer so we can extract sections.short_answer
+        // and render it character-by-character as it streams in.
+        setStreamBuf((p) => p + evt.text)
         break
       case 'final':
         setFinal(evt.payload)
@@ -240,7 +231,7 @@ export default function NanaPanel({ slug, schoolName = 'this school' }: Props) {
             {streaming && !final && (
               <StreamingState
                 retrievalReady={retrievalReady}
-                tokenCount={tokenCount}
+                streamBuf={streamBuf}
               />
             )}
 
@@ -316,27 +307,65 @@ function QuestionBlock({ question }: { question: string }) {
   return <div className="nana-question">{question}</div>
 }
 
-// ── Streaming — clean "Reading..." status, no raw JSON ──────────────────────
+// ── Streaming — show extracted short_answer as it streams in ───────────────
 function StreamingState({
   retrievalReady,
-  tokenCount,
+  streamBuf,
 }: {
   retrievalReady: boolean
-  tokenCount: number
+  streamBuf: string
 }) {
+  // Extract the short_answer portion of the streaming JSON. As Claude writes
+  // more characters, the regex captures more. Once it sees the closing `"`
+  // followed by a comma (end of the JSON string), we have the full short
+  // answer — but we don't bother detecting that, we just render whatever
+  // partial text we have.
+  const shortAnswer = extractStreamingField(streamBuf, 'short_answer')
+
   let status = 'Searching the data…'
-  if (retrievalReady && tokenCount === 0) status = 'Reading and drafting…'
-  if (retrievalReady && tokenCount > 0) status = 'Writing your answer…'
+  if (retrievalReady && !streamBuf) status = 'Reading and drafting…'
+  if (retrievalReady && streamBuf && !shortAnswer) status = 'Writing your answer…'
+
   return (
     <div className="nana-streaming">
-      <div className="nana-streaming-status">{status}</div>
-      <div className="nana-streaming-progress">
-        <span className="nana-streaming-dot"></span>
-        <span className="nana-streaming-dot"></span>
-        <span className="nana-streaming-dot"></span>
-      </div>
+      {!shortAnswer && (
+        <>
+          <div className="nana-streaming-status">{status}</div>
+          <div className="nana-streaming-progress">
+            <span className="nana-streaming-dot"></span>
+            <span className="nana-streaming-dot"></span>
+            <span className="nana-streaming-dot"></span>
+          </div>
+        </>
+      )}
+      {shortAnswer && (
+        <>
+          <div className="nana-eyebrow">Short Answer</div>
+          <p className="nana-streaming-text">{shortAnswer}</p>
+        </>
+      )}
     </div>
   )
+}
+
+/**
+ * Extract a partial JSON string-field value from the streaming buffer.
+ * Matches `"key": "..."` even if the closing quote hasn't arrived yet.
+ * Unescapes basic JSON escapes (\n, \t, \", \\) so the live text reads cleanly.
+ */
+function extractStreamingField(buf: string, key: string): string {
+  if (!buf) return ''
+  const re = new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)`, 's')
+  const m = buf.match(re)
+  if (!m) return ''
+  return m[1]
+    .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) =>
+      String.fromCharCode(parseInt(hex, 16))
+    )
+    .replace(/\\n/g, '\n')
+    .replace(/\\t/g, '\t')
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, '\\')
 }
 
 // ── Final answer layout (Style 1B) ───────────────────────────────────────────

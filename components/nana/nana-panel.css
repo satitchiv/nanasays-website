@@ -274,7 +274,16 @@
 }
 .nana-input button:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* Make space for the panel on the right so the report doesn't get covered */
-@media (min-width: 1100px) {
-  body.nana-panel-open .report-page .page { padding-right: 580px; }
+/* Streaming text — visible short answer as it arrives, with a typing cursor */
+.nana-streaming-text {
+  font-family: 'Lora', serif; font-size: 18px; line-height: 1.6;
+  color: #1B3252; font-weight: 500; margin: 18px 0 0;
+}
+.nana-streaming-text::after {
+  content: '▌'; color: #239C80; margin-left: 2px;
+  animation: nana-cursor-blink 1s step-end infinite;
+}
+@keyframes nana-cursor-blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
 }
