@@ -19,6 +19,24 @@
 import { useState, useRef, FormEvent, useEffect } from 'react'
 import './nana-panel.css'
 
+// Maps chunk category → report DOM id (DOM ids use different naming conventions)
+const SECTION_DOM_ID: Record<string, string> = {
+  about:             'school-life',
+  admissions:        'admissions',
+  boarding:          'daily-life',
+  calendar:          'daily-life',
+  community:         'community',
+  curriculum:        'curriculum',
+  facilities:        'daily-life',
+  fees:              'fees',
+  general:           'key-facts',
+  inspection_report: 'inspection',
+  news:              'recent',
+  profile:           'key-facts',
+  sports:            'sports-athletics',
+  support:           'pastoral',
+}
+
 type Source = {
   section_id?: string
   section_label?: string
@@ -649,16 +667,19 @@ function AnswerLayout({
                   </a>
                 )
               }
-              const sectionId = src.section_id
+              const rawId = src.section_id || ''
+              const domId = SECTION_DOM_ID[rawId] ?? rawId
               return (
                 <button
                   key={i}
                   className="nana-pill nana-pill-scroll"
                   onClick={() => {
-                    if (!sectionId) return
-                    const el = document.getElementById(sectionId)
+                    if (!domId) return
+                    const el = document.getElementById(domId)
                     if (!el) return
                     el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    el.classList.remove('nana-section-highlight')
+                    void el.offsetWidth // force reflow so re-adding restarts animation
                     el.classList.add('nana-section-highlight')
                     setTimeout(() => el.classList.remove('nana-section-highlight'), 1800)
                   }}
