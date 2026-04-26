@@ -265,6 +265,21 @@
 }
 .nana-validation-warn strong { display: block; margin-bottom: 2px; }
 .nana-validation-detail { color: #78350f; }
+.nana-validation-debug { margin-top: 10px; }
+.nana-validation-debug summary {
+  cursor: pointer; font-size: 12px; color: #92400e;
+  font-weight: 700; user-select: none;
+}
+.nana-validation-debug ul {
+  margin: 8px 0 0; padding-left: 18px;
+  font-size: 12px; color: #78350f;
+}
+.nana-validation-debug li { margin-bottom: 4px; line-height: 1.5; }
+.nana-validation-debug code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px; word-break: break-all;
+  background: rgba(180, 83, 9, .08); padding: 1px 4px; border-radius: 3px;
+}
 
 .nana-stopped-note {
   margin-top: 18px; padding: 10px 14px;

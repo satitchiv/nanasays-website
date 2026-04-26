@@ -537,6 +537,14 @@ function AnswerLayout({
               ? 'Source links have been hidden because Nana cited something we couldn\'t verify against the school\'s data.'
               : "Treat this answer with extra care — verify with the school directly."}
           </div>
+          <details className="nana-validation-debug">
+            <summary>What specifically failed?</summary>
+            <ul>
+              {validationIssues.map((v, i) => (
+                <li key={i}><code>{v}</code></li>
+              ))}
+            </ul>
+          </details>
         </div>
       )}
 

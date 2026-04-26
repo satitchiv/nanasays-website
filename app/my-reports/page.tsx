@@ -12,6 +12,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
 import { isUnlocked } from '@/lib/paid-status'
+import './my-reports.css'
 
 export const dynamic = 'force-dynamic'
 
@@ -106,86 +107,6 @@ export default async function MyReportsPage({ searchParams }: Props) {
           ))}
         </div>
       </div>
-      <MyReportsStyles />
     </main>
-  )
-}
-
-function MyReportsStyles() {
-  return (
-    <style>{`
-      .my-reports-page {
-        min-height: 100vh;
-        background: var(--off);
-        padding: 60px 20px 80px;
-        font-family: 'Nunito Sans', sans-serif;
-      }
-      .my-reports-wrap { max-width: 1100px; margin: 0 auto; }
-      .my-reports-kicker {
-        font-size: 11px; font-weight: 900; color: var(--teal-dk);
-        letter-spacing: .14em; text-transform: uppercase; margin-bottom: 10px;
-      }
-      .my-reports-title {
-        font-family: 'Nunito', sans-serif;
-        font-size: 34px; font-weight: 900; color: var(--navy);
-        letter-spacing: -.02em; line-height: 1.15; margin: 0 0 10px;
-      }
-      .my-reports-intro {
-        font-size: 15px; color: var(--muted);
-        margin: 0 0 28px;
-      }
-      .my-reports-success {
-        display: flex; align-items: center; gap: 14px;
-        background: #D1FAE5; border: 1px solid #A7F3D0;
-        color: #065F46; padding: 18px 22px; border-radius: 12px;
-        margin-bottom: 28px;
-      }
-      .my-reports-success-icon {
-        width: 36px; height: 36px; background: #065F46;
-        color: #fff; border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        font-weight: 900; font-size: 18px; flex-shrink: 0;
-      }
-      .my-reports-success-title {
-        font-family: 'Nunito', sans-serif; font-weight: 800;
-        font-size: 15px; margin-bottom: 2px;
-      }
-      .my-reports-success-sub { font-size: 13px; opacity: .85; }
-
-      .my-reports-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 14px;
-      }
-      .my-reports-card {
-        background: #fff; border: 1px solid var(--border);
-        border-radius: 12px; padding: 20px;
-        text-decoration: none; color: inherit;
-        display: flex; flex-direction: column; gap: 6px;
-        transition: border-color .15s, box-shadow .15s, transform .15s;
-      }
-      .my-reports-card:hover {
-        border-color: var(--teal);
-        box-shadow: 0 6px 20px rgba(27,50,82,.08);
-        transform: translateY(-1px);
-      }
-      .my-reports-card-name {
-        font-family: 'Nunito', sans-serif;
-        font-weight: 800; font-size: 17px; color: var(--navy);
-        letter-spacing: -.01em; line-height: 1.25;
-      }
-      .my-reports-card-meta {
-        font-size: 12px; color: var(--muted);
-      }
-      .my-reports-card-stats {
-        display: flex; flex-wrap: wrap; gap: 12px;
-        font-size: 12px; color: var(--muted);
-        margin-top: 8px;
-      }
-      .my-reports-card-cta {
-        margin-top: auto; padding-top: 12px;
-        font-size: 13px; font-weight: 700; color: var(--teal-dk);
-      }
-    `}</style>
   )
 }
