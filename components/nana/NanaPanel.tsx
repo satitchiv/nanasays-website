@@ -318,6 +318,22 @@ export default function NanaPanel({ slug, schoolName = 'this school' }: Props) {
               {streaming ? '…' : 'Ask'}
             </button>
           </form>
+          {question.trim() && !streaming && (
+            <div className="nana-hint-row">
+              <button
+                className="nana-hint-btn"
+                onClick={() => ask(undefined, `Break this down step by step: ${question.trim()}`)}
+              >
+                Break it down
+              </button>
+              <button
+                className="nana-hint-btn"
+                onClick={() => ask(undefined, `Compare as a table: ${question.trim()}`)}
+              >
+                Compare as table
+              </button>
+            </div>
+          )}
         </aside>
       )}
     </>

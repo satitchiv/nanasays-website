@@ -342,3 +342,19 @@
   animation: nana-section-pulse 1.8s ease-out forwards;
   border-radius: 8px;
 }
+
+/* Pre-answer hint buttons (Break it down / Compare as table) */
+.nana-hint-row {
+  display: flex; gap: 8px; padding: 6px 20px 0;
+  flex-wrap: wrap;
+}
+.nana-hint-btn {
+  background: none; border: 1px solid var(--border, #DDD4C0);
+  border-radius: 100px; padding: 4px 12px;
+  font-size: 11px; font-weight: 700; color: var(--muted, #8a8070);
+  font-family: 'Nunito Sans', sans-serif; letter-spacing: .04em;
+  cursor: pointer; transition: border-color .15s, color .15s;
+}
+.nana-hint-btn:hover {
+  border-color: #239C80; color: #239C80;
+}
