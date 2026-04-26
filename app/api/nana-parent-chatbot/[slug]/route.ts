@@ -64,7 +64,7 @@ export async function POST(
     return jsonError(429, 'Too many requests. Please slow down.')
   }
 
-  const { slug } = params
+  const slug = params.slug?.toLowerCase()
   if (!slug || !SLUG_RE.test(slug)) {
     return jsonError(400, 'Invalid school slug')
   }
