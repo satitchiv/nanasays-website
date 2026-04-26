@@ -27,6 +27,7 @@ import Sources, { Source }    from '@/components/report/Sources'
 import { SideTOC, MobileTOC } from '@/components/report/ReportNav'
 import LocationSection        from '@/components/report/LocationSection'
 import CrimeSafetySection     from '@/components/report/CrimeSafetySection'
+import NanaPanel              from '@/components/nana/NanaPanel'
 import DossierOverview        from '@/components/report/DossierOverview'
 import TierDivider            from '@/components/report/TierDivider'
 import PreviewSections        from '@/components/report/PreviewSections'
@@ -558,6 +559,8 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
 
         <Sources sources={sourcesList} />
       </div>
+
+      <NanaPanel slug={slug} schoolName={school.name} />
     </main>
   )
 }
