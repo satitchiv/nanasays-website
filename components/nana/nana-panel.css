@@ -38,8 +38,28 @@
   from { transform: translateX(100%); }
   to   { transform: translateX(0); }
 }
-@media (max-width: 640px) {
-  .nana-panel { width: 100vw; }
+
+/* ── Mobile: bottom-sheet ─────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .nana-handle {
+    /* Move tab to bottom-center on mobile */
+    position: fixed; bottom: 0; right: 50%; transform: translateX(50%);
+    top: auto; writing-mode: horizontal-tb;
+    border-radius: 14px 14px 0 0; border-bottom: none; border-right: 1px solid #DDD4C0;
+    padding: 10px 20px;
+  }
+  .nana-panel {
+    top: auto; right: 0; bottom: 0; left: 0;
+    width: 100%; height: 82vh;
+    border-left: none; border-top: 1px solid #DDD4C0;
+    border-radius: 20px 20px 0 0;
+    box-shadow: 0 -8px 32px rgba(27,50,82,0.14);
+    animation: nana-slide-up 0.3s cubic-bezier(0.2, 0, 0, 1);
+  }
+}
+@keyframes nana-slide-up {
+  from { transform: translateY(100%); }
+  to   { transform: translateY(0); }
 }
 
 .nana-header {
