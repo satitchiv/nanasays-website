@@ -1,0 +1,105 @@
+.unlock-page {
+  min-height: 100vh;
+  background: var(--off);
+  padding: 60px 20px 80px;
+  font-family: 'Nunito Sans', sans-serif;
+}
+.unlock-wrap { max-width: 680px; margin: 0 auto; }
+.unlock-kicker {
+  font-size: 11px; font-weight: 900; color: var(--teal-dk);
+  letter-spacing: .14em; text-transform: uppercase; margin-bottom: 12px;
+}
+.unlock-title {
+  font-family: 'Nunito', sans-serif;
+  font-size: 36px; font-weight: 900; color: var(--navy);
+  letter-spacing: -.02em; line-height: 1.15; margin: 0 0 14px;
+}
+.unlock-intro {
+  font-size: 15px; color: var(--body); line-height: 1.65;
+  margin: 0 0 32px; max-width: 600px;
+}
+
+.unlock-price-card {
+  background: linear-gradient(135deg, var(--navy) 0%, #1e3f6b 100%);
+  color: #fff;
+  border-radius: 16px;
+  padding: 28px 32px;
+  margin-bottom: 32px;
+}
+.unlock-price-kicker {
+  font-size: 11px; font-weight: 900; color: var(--teal);
+  letter-spacing: .14em; text-transform: uppercase; margin-bottom: 10px;
+}
+.unlock-price-value {
+  font-family: 'Nunito', sans-serif;
+  font-weight: 900; color: #fff;
+  line-height: 1; height: 58px; overflow: hidden;
+  margin-bottom: 8px;
+}
+.unlock-price-track {
+  display: flex; flex-direction: column;
+  animation: unlockPriceRotate 10s infinite;
+}
+.unlock-price-track span {
+  height: 58px; line-height: 58px; font-size: 56px; flex-shrink: 0;
+}
+@keyframes unlockPriceRotate {
+  0%, 18%   { transform: translateY(0); }
+  25%, 43%  { transform: translateY(-58px); }
+  50%, 68%  { transform: translateY(-116px); }
+  75%, 100% { transform: translateY(-174px); }
+}
+.unlock-price-note {
+  font-size: 13px; color: rgba(255,255,255,.7);
+  margin-bottom: 24px;
+}
+.unlock-form { margin: 0; }
+.unlock-cta {
+  width: 100%;
+  background: var(--teal); color: #fff;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 900; font-size: 15px;
+  letter-spacing: .06em; text-transform: uppercase;
+  padding: 16px 24px; border-radius: 100px;
+  border: none; cursor: pointer;
+  transition: background .15s, transform .15s;
+}
+.unlock-cta:hover { background: var(--teal-dk); transform: translateY(-1px); }
+.unlock-stub-note {
+  font-size: 12px; color: rgba(255,255,255,.55);
+  font-style: italic; margin-top: 14px; line-height: 1.5;
+}
+
+.unlock-included {
+  background: #fff; border: 1px solid var(--border);
+  border-radius: 14px; padding: 28px;
+  margin-bottom: 28px;
+}
+.unlock-included-title {
+  font-family: 'Nunito', sans-serif;
+  font-size: 16px; font-weight: 800; color: var(--navy);
+  margin: 0 0 16px;
+}
+.unlock-included-list {
+  list-style: none; padding: 0; margin: 0;
+  display: grid; grid-template-columns: 1fr; gap: 10px;
+  font-size: 14px; color: var(--body); line-height: 1.5;
+}
+
+.unlock-back {
+  text-align: center; font-size: 13px;
+}
+.unlock-back a { color: var(--muted); font-weight: 600; }
+.unlock-back a:hover { color: var(--navy); }
+
+@media (max-width: 640px) {
+  .unlock-title { font-size: 28px; }
+  .unlock-price-value { height: 44px; }
+  .unlock-price-track span { height: 44px; line-height: 44px; font-size: 40px; }
+  @keyframes unlockPriceRotate {
+    0%, 18%   { transform: translateY(0); }
+    25%, 43%  { transform: translateY(-44px); }
+    50%, 68%  { transform: translateY(-88px); }
+    75%, 100% { transform: translateY(-132px); }
+  }
+}

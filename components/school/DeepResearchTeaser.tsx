@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import './deep-research-teaser.css'
 
 type Structured = {
   exam_results?: unknown | null
@@ -168,26 +169,6 @@ export default function DeepResearchTeaser({ slug, schoolName, structured }: Pro
         Open Deep Research →
       </Link>
 
-      {/* Scoped animation */}
-      <style>{`
-        .dr-price-track {
-          display: flex;
-          flex-direction: column;
-          animation: drPriceRotate30 10s infinite;
-        }
-        .dr-price-track span {
-          height: 30px;
-          line-height: 30px;
-          font-size: 28px;
-          flex-shrink: 0;
-        }
-        @keyframes drPriceRotate30 {
-          0%, 18%   { transform: translateY(0); }
-          25%, 43%  { transform: translateY(-30px); }
-          50%, 68%  { transform: translateY(-60px); }
-          75%, 100% { transform: translateY(-90px); }
-        }
-      `}</style>
     </div>
   )
 }

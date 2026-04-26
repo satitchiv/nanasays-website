@@ -1,4 +1,5 @@
 import dynamicImport from 'next/dynamic'
+import './home.css'
 import type { Metadata } from 'next'
 import Image from 'next/image'
 import Nav from '@/components/Nav'
@@ -360,11 +361,6 @@ export default async function HomePage() {
           </div>
         </div>
       </div>
-      <style>{`
-        .ns-region-card { transition: box-shadow .22s, border-color .22s, transform .22s; }
-        .ns-region-card:hover { border-color: var(--teal) !important; box-shadow: 0 10px 32px rgba(27,50,82,.15); transform: translateY(-4px); }
-        .ns-region-card:hover .ns-region-img { transform: scale(1.05); }
-      `}</style>
 
       {/* ─── COUNTRIES ──────────────────────────────────────────────────────── */}
       <div style={{ background: 'var(--off)', borderTop: '1px solid var(--border)', padding: '72px 5%' }}>
