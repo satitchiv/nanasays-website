@@ -65,6 +65,8 @@ type FinalPayload = {
   claudeMs: number
   totalMs: number
   cost?: { total_usd: number } | null
+  parseError?: string | null
+  claudeError?: string | null
 }
 
 type StreamEvent =
@@ -97,6 +99,20 @@ export default function NanaPanel({ slug, schoolName = 'this school' }: Props) {
     document.head.appendChild(link)
   }, [])
 
+  // Abort any in-flight stream when the component unmounts. Without this,
+  // navigating away mid-answer leaves the SSE fetch + the brain generation
+  // running on the server (and burning Anthropic tokens).
+  useEffect(() => {
+    return () => {
+      abortRef.current?.abort()
+    }
+  }, [])
+
+  function closePanel() {
+    abortRef.current?.abort()
+    setOpen(false)
+  }
+
   function reset() {
     setRetrievalReady(false)
     setStreamBuf('')
@@ -117,6 +133,12 @@ export default function NanaPanel({ slug, schoolName = 'this school' }: Props) {
     const controller = new AbortController()
     abortRef.current = controller
 
+    // Track whether we received a usable terminal event. If the stream
+    // closes without one (network drop, server crash, route timeout), we
+    // surface a fallback error in finally so the panel never silently
+    // freezes on a question with nothing under it.
+    let sawTerminal = false
+
     try {
       const res = await fetch(`/api/nana-parent-chatbot/${slug}`, {
         method: 'POST',
@@ -128,6 +150,7 @@ export default function NanaPanel({ slug, schoolName = 'this school' }: Props) {
       if (!res.ok || !res.body) {
         const text = !res.ok ? await res.text() : '(no response body)'
         setError(`Request failed (${res.status}): ${text.slice(0, 200)}`)
+        sawTerminal = true
         return
       }
 
@@ -137,7 +160,11 @@ export default function NanaPanel({ slug, schoolName = 'this school' }: Props) {
 
       while (true) {
         const { done, value } = await reader.read()
-        if (done) break
+        if (done) {
+          // Flush any trailing bytes still held by the decoder.
+          buf += decoder.decode()
+          break
+        }
         buf += decoder.decode(value, { stream: true })
         let sep
         while ((sep = buf.indexOf('\n\n')) !== -1) {
@@ -154,14 +181,23 @@ export default function NanaPanel({ slug, schoolName = 'this school' }: Props) {
           } catch {
             continue
           }
+          if (evt.type === 'final' || evt.type === 'error') sawTerminal = true
           dispatch(evt)
         }
       }
     } catch (e: any) {
-      if (e?.name !== 'AbortError') {
+      if (e?.name === 'AbortError') {
+        // Caller-initiated abort (close button, unmount). Don't surface as
+        // an error — the user already left.
+        sawTerminal = true
+      } else {
         setError('Network error: ' + (e?.message ?? String(e)))
+        sawTerminal = true
       }
     } finally {
+      if (!sawTerminal) {
+        setError('The connection closed before Nana finished. Please try again.')
+      }
       setStreaming(false)
       abortRef.current = null
     }
@@ -178,6 +214,18 @@ export default function NanaPanel({ slug, schoolName = 'this school' }: Props) {
         setStreamBuf((p) => p + evt.text)
         break
       case 'final':
+        // The brain emits 'final' even when JSON parsing failed (parsed=null)
+        // — render an explicit error so the user isn't staring at a blank
+        // panel.
+        if (!evt.payload?.parsed) {
+          const why =
+            evt.payload?.parseError
+              ? `Couldn't parse Nana's answer: ${evt.payload.parseError}`
+              : evt.payload?.claudeError
+                ? `Claude error: ${evt.payload.claudeError}`
+                : 'Nana finished but produced no answer. Please try again.'
+          setError(why)
+        }
         setFinal(evt.payload)
         break
       case 'error':
@@ -209,7 +257,7 @@ export default function NanaPanel({ slug, schoolName = 'this school' }: Props) {
             <span className="nana-sub">reading {schoolName}</span>
             <button
               className="nana-close"
-              onClick={() => setOpen(false)}
+              onClick={closePanel}
               aria-label="Close"
             >
               ✕
@@ -228,14 +276,25 @@ export default function NanaPanel({ slug, schoolName = 'this school' }: Props) {
               <QuestionBlock question={askedQuestion} />
             )}
 
-            {streaming && !final && (
+            {/* Show streaming view as long as we don't have a final parsed
+                answer. This includes: actively streaming (dots → sections),
+                AND the case where the panel was closed mid-stream then
+                reopened — `streaming` is false but `streamBuf` still has
+                what we saw last. Better than a blank panel. */}
+            {!final?.parsed && (streaming || streamBuf) && (
               <StreamingState
                 retrievalReady={retrievalReady}
                 streamBuf={streamBuf}
+                streaming={streaming}
               />
             )}
 
-            {final?.parsed && <AnswerLayout parsed={final.parsed} />}
+            {final?.parsed && (
+              <AnswerLayout
+                parsed={final.parsed}
+                validationIssues={final.validationIssues || []}
+              />
+            )}
 
             {error && (
               <div className="nana-error">
@@ -307,42 +366,91 @@ function QuestionBlock({ question }: { question: string }) {
   return <div className="nana-question">{question}</div>
 }
 
-// ── Streaming — show extracted short_answer as it streams in ───────────────
+// ── Streaming — render every section as Claude writes it ──────────────────
+// Sections are extracted from the streaming JSON in the order Claude emits
+// them. The last one with content is the "active" one and gets the blinking
+// cursor; earlier ones are settled prose. This way the parent sees the full
+// answer build up rather than just short_answer then a long blank wait.
+const STREAMING_SECTIONS: Array<{
+  key: 'short_answer' | 'confirmed_facts' | 'what_this_means' | 'tradeoff' | 'what_we_dont_know'
+  label: string
+  amber?: boolean
+}> = [
+  { key: 'short_answer',      label: 'Short Answer' },
+  { key: 'confirmed_facts',   label: 'Confirmed Facts' },
+  { key: 'what_this_means',   label: 'What This Means' },
+  { key: 'tradeoff',          label: '⚠ Tradeoff / Watch-Out', amber: true },
+  { key: 'what_we_dont_know', label: "What We Don't Know" },
+]
+
 function StreamingState({
   retrievalReady,
   streamBuf,
+  streaming,
 }: {
   retrievalReady: boolean
   streamBuf: string
+  streaming: boolean
 }) {
-  // Extract the short_answer portion of the streaming JSON. As Claude writes
-  // more characters, the regex captures more. Once it sees the closing `"`
-  // followed by a comma (end of the JSON string), we have the full short
-  // answer — but we don't bother detecting that, we just render whatever
-  // partial text we have.
-  const shortAnswer = extractStreamingField(streamBuf, 'short_answer')
+  const extracted = STREAMING_SECTIONS.map((s) => ({
+    ...s,
+    body: extractStreamingField(streamBuf, s.key),
+  })).filter((s) => s.body && !isEmpty(s.body))
 
   let status = 'Searching the data…'
   if (retrievalReady && !streamBuf) status = 'Reading and drafting…'
-  if (retrievalReady && streamBuf && !shortAnswer) status = 'Writing your answer…'
+  if (retrievalReady && streamBuf && extracted.length === 0) status = 'Writing your answer…'
 
+  if (extracted.length === 0) {
+    // Empty buffer + not actively streaming = nothing to show. Render
+    // nothing rather than spinning dots forever.
+    if (!streaming) return null
+    return (
+      <div className="nana-streaming">
+        <div className="nana-streaming-status">{status}</div>
+        <div className="nana-streaming-progress">
+          <span className="nana-streaming-dot"></span>
+          <span className="nana-streaming-dot"></span>
+          <span className="nana-streaming-dot"></span>
+        </div>
+      </div>
+    )
+  }
+
+  const lastIdx = extracted.length - 1
   return (
     <div className="nana-streaming">
-      {!shortAnswer && (
-        <>
-          <div className="nana-streaming-status">{status}</div>
-          <div className="nana-streaming-progress">
-            <span className="nana-streaming-dot"></span>
-            <span className="nana-streaming-dot"></span>
-            <span className="nana-streaming-dot"></span>
+      {extracted.map((s, i) => {
+        // Cursor blinks only on the section currently being written.
+        // After the panel was closed and reopened, `streaming` is false
+        // and no cursor renders — the partial answer just sits there.
+        const isActive = streaming && i === lastIdx
+        const cursorClass = isActive ? ' nana-streaming-cursor' : ''
+        if (s.key === 'short_answer') {
+          return (
+            <div key={s.key}>
+              <div className="nana-eyebrow">{s.label}</div>
+              <p className={`nana-short-answer${cursorClass}`}>{s.body}</p>
+            </div>
+          )
+        }
+        const eyebrowClass = s.amber ? 'nana-eyebrow nana-amber' : 'nana-eyebrow'
+        const bodyClass = s.key === 'tradeoff' ? 'nana-tradeoff' : 'nana-prose'
+        return (
+          <div key={s.key}>
+            <div className={eyebrowClass}>{s.label}</div>
+            <div
+              className={`${bodyClass}${cursorClass}`}
+              dangerouslySetInnerHTML={{ __html: renderInlineMd(s.body) }}
+            />
           </div>
-        </>
-      )}
-      {shortAnswer && (
-        <>
-          <div className="nana-eyebrow">Short Answer</div>
-          <p className="nana-streaming-text">{shortAnswer}</p>
-        </>
+        )
+      })}
+      {!streaming && (
+        <div className="nana-stopped-note">
+          Nana stopped here when you closed the panel. Ask the question
+          again to get the full answer with sources.
+        </div>
       )}
     </div>
   )
@@ -350,32 +458,88 @@ function StreamingState({
 
 /**
  * Extract a partial JSON string-field value from the streaming buffer.
- * Matches `"key": "..."` even if the closing quote hasn't arrived yet.
- * Unescapes basic JSON escapes (\n, \t, \", \\) so the live text reads cleanly.
+ * Matches `"key": "..."` even if the closing quote hasn't arrived yet,
+ * then runs a proper left-to-right JSON-string decoder over the captured
+ * content. The previous regex-chain approach got the order wrong: a
+ * literal `'` in the model's text would be turned into `'` because
+ * the `\u` pass ran before the `\\` pass. The single-pass decoder below
+ * walks the string once and never re-processes its own output.
  */
 function extractStreamingField(buf: string, key: string): string {
   if (!buf) return ''
   const re = new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)`, 's')
   const m = buf.match(re)
   if (!m) return ''
-  return m[1]
-    .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex) =>
-      String.fromCharCode(parseInt(hex, 16))
-    )
-    .replace(/\\n/g, '\n')
-    .replace(/\\t/g, '\t')
-    .replace(/\\"/g, '"')
-    .replace(/\\\\/g, '\\')
+  return decodeJsonString(m[1])
+}
+
+function decodeJsonString(s: string): string {
+  let out = ''
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i]
+    if (c !== '\\') { out += c; continue }
+    const n = s[i + 1]
+    // Trailing backslash — chunk boundary, drop it for now; next chunk
+    // will bring the rest.
+    if (n === undefined) break
+    if (n === 'u') {
+      const hex = s.slice(i + 2, i + 6)
+      if (hex.length < 4) break  // partial \uXXXX at chunk boundary
+      out += String.fromCharCode(parseInt(hex, 16))
+      i += 5
+      continue
+    }
+    switch (n) {
+      case 'n':  out += '\n'; break
+      case 't':  out += '\t'; break
+      case 'r':  out += '\r'; break
+      case 'b':  out += '\b'; break
+      case 'f':  out += '\f'; break
+      case '"':  out += '"';  break
+      case '\\': out += '\\'; break
+      case '/':  out += '/';  break
+      default:   out += n;     break  // unknown escape: drop the backslash
+    }
+    i += 1
+  }
+  return out
 }
 
 // ── Final answer layout (Style 1B) ───────────────────────────────────────────
-function AnswerLayout({ parsed }: { parsed: ParsedAnswer }) {
+function AnswerLayout({
+  parsed,
+  validationIssues,
+}: {
+  parsed: ParsedAnswer
+  validationIssues: string[]
+}) {
   const s = parsed.sections || {}
   const sources = parsed.sources_used || []
   const followUps = parsed.follow_ups || []
 
+  // The schema/citation validator is the trust mechanism. If any issue
+  // tripped, surface a warning. If a CITATION issue tripped (a URL we
+  // didn't retrieve), suppress source pills entirely — better to show
+  // no source than an unverifiable one.
+  const hasIssues = validationIssues.length > 0
+  const citationFailure = validationIssues.some((v) =>
+    /sources_used|source_url|citation/i.test(v)
+  )
+  const showSources = sources.length > 0 && !citationFailure
+
   return (
     <article className="nana-answer">
+      {hasIssues && (
+        <div className="nana-validation-warn">
+          <strong>⚠ Some checks didn't pass on this answer.</strong>
+          <div className="nana-validation-detail">
+            {citationFailure
+              ? 'Source links have been hidden because Nana cited something we couldn\'t verify against the school\'s data.'
+              : "Treat this answer with extra care — verify with the school directly."}
+          </div>
+        </div>
+      )}
+
       {s.short_answer && (
         <>
           <div className="nana-eyebrow">Short Answer</div>
@@ -440,19 +604,19 @@ function AnswerLayout({ parsed }: { parsed: ParsedAnswer }) {
         </>
       )}
 
-      {sources.length > 0 && (
+      {showSources && (
         <>
           <div className="nana-eyebrow">Sources</div>
           <div className="nana-sources">
             {sources.map((src, i) => {
-              const isExt = !!src.source_url
+              const safeHref = isSafeHttpUrl(src.source_url)
               const label =
                 src.section_label || src.section_id || src.source_url || 'source'
-              if (isExt) {
+              if (safeHref) {
                 return (
                   <a
                     key={i}
-                    href={src.source_url}
+                    href={safeHref}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="nana-pill nana-pill-ext"
@@ -525,6 +689,22 @@ function isEmpty(s?: string) {
   if (!s) return true
   const t = s.trim().toLowerCase()
   return t === 'nothing to flag here' || t === 'nothing to flag here.'
+}
+
+// Defense in depth: never render a source link unless the URL parses and
+// uses http or https. The validator already restricts sources to known
+// hostnames, but if the database is ever poisoned we don't want
+// `javascript:` or `data:` URLs becoming clickable. Returns the safe URL
+// or null.
+function isSafeHttpUrl(u: string | undefined): string | null {
+  if (!u) return null
+  try {
+    const parsed = new URL(u)
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return parsed.toString()
+    }
+  } catch { /* not a URL */ }
+  return null
 }
 
 function escHtml(s: string) {

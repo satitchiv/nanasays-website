@@ -560,7 +560,7 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
         <Sources sources={sourcesList} />
       </div>
 
-      <NanaPanel slug={slug} schoolName={school.name} />
+      {isPaid && <NanaPanel slug={slug} schoolName={school.name} />}
     </main>
   )
 }

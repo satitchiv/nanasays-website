@@ -28,6 +28,7 @@
 import { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { isUnlocked } from '@/lib/paid-status'
 // @ts-ignore — brain is plain JS, types not generated
 import { runOneQuestionStream } from '../../../../../scripts/lib/nana-brain.js'
 
@@ -47,6 +48,17 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { slug: string } }
 ) {
+  // Paid-status gate — mirror the report page's isPaid check. Without this
+  // anyone with the URL could POST and burn API tokens for free, even though
+  // the UI is gated. Uses the nanasays_unlocked cookie (set by /unlock or
+  // the Stripe webhook in Phase 2). The ?unlocked=true page-level dev
+  // override is intentionally NOT honored here — server-side calls don't
+  // carry it, and accepting it on the API would let anyone bypass with a
+  // single query string.
+  if (!(await isUnlocked())) {
+    return jsonError(402, 'This feature requires Deep Research access.')
+  }
+
   // Rate limit — same family as the existing /api/chat (20/10min)
   if (!checkRateLimit(req, 'chat')) {
     return jsonError(429, 'Too many requests. Please slow down.')
@@ -73,6 +85,16 @@ export async function POST(
   }
 
   // Build the SSE stream. Each event from the brain becomes one SSE message.
+  // We thread an AbortController through the brain so a client disconnect
+  // (browser closed, panel closed, fetch aborted) actually halts Claude
+  // generation instead of silently burning tokens to completion.
+  const ac = new AbortController()
+  // The Next/Node request signal fires on client disconnect.
+  if (req.signal) {
+    if (req.signal.aborted) ac.abort()
+    else req.signal.addEventListener('abort', () => ac.abort(), { once: true })
+  }
+
   const encoder = new TextEncoder()
   const stream = new ReadableStream({
     async start(controller) {
@@ -80,25 +102,28 @@ export async function POST(
         try {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`))
         } catch {
-          // Controller closed — client disconnected. Brain generator will
-          // continue running in the background until Claude exits, but we
-          // can't push more events.
+          // Controller closed — client disconnected. Trigger our abort so
+          // the brain stops too.
+          ac.abort()
         }
       }
 
       try {
-        for await (const event of runOneQuestionStream(supabase, slug, question, {})) {
+        for await (const event of runOneQuestionStream(supabase, slug, question, { signal: ac.signal })) {
+          if (ac.signal.aborted) break
           send(event)
         }
       } catch (e: any) {
-        send({ type: 'error', error: e?.message ?? String(e), code: 'unexpected' })
+        if (!ac.signal.aborted) {
+          send({ type: 'error', error: e?.message ?? String(e), code: 'unexpected' })
+        }
       } finally {
         try { controller.close() } catch {}
       }
     },
     cancel() {
-      // Browser closed the stream — nothing we can do mid-Claude-call;
-      // the spawn child process keeps running until Claude finishes.
+      // Browser closed the stream — abort the brain so we stop billing.
+      ac.abort()
     },
   })
 
