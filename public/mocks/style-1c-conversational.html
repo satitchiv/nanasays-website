@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Style 1C — Conversational (Nana mock)</title>
+<style>
+  :root {
+    --navy: #1B3252; --teal: #34C3A0; --teal-dk: #239C80; --teal-bg: #E8FAF6;
+    --amber: #D97706; --amber-bg: #FFFBEB;
+    --off: #F6F8FA; --text: #1f2937; --muted: #6B7280; --border: #E5E7EB;
+    --user-bg: #f1f5f9;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito Sans', -apple-system, system-ui, sans-serif; background: var(--off); color: var(--text); line-height: 1.55; }
+
+  .mock-nav { background: var(--navy); color: white; padding: 8px 16px; font-size: 12px; display: flex; align-items: center; gap: 16px; }
+  .mock-nav a { color: var(--teal); text-decoration: none; }
+  .mock-nav .label { font-weight: 800; letter-spacing: 0.06em; }
+
+  .report-wrap { display: flex; min-height: calc(100vh - 32px); }
+  .report { flex: 1; max-width: 920px; margin: 0 auto; padding: 40px 32px 80px; transition: opacity 0.3s; }
+  .report.dimmed { opacity: 0.4; }
+  .report h1 { font-size: 30px; color: var(--navy); margin-bottom: 8px; font-weight: 800; }
+  .report .breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 24px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .report h2 { font-size: 11px; color: var(--teal-dk); font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; margin: 36px 0 12px; border-top: 1px solid var(--border); padding-top: 24px; }
+  .report p { color: var(--text); font-size: 15px; margin-bottom: 12px; }
+  .report .verdict { background: white; border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 16px; }
+  .report .verdict h3 { font-size: 18px; color: var(--navy); margin-bottom: 8px; font-weight: 700; }
+
+  .panel {
+    position: fixed; top: 0; right: 0; height: 100vh; width: 480px;
+    background: var(--off); box-shadow: -8px 0 32px rgba(27,50,82,0.12);
+    display: flex; flex-direction: column; z-index: 20;
+  }
+  .panel-header {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px; background: white;
+  }
+  .panel-header .pulse { width: 12px; height: 12px; background: var(--teal); border-radius: 50%; box-shadow: 0 0 0 4px rgba(52,195,160,0.2); animation: pulse 2.4s infinite; }
+  .panel-header h2 { font-size: 16px; color: var(--navy); font-weight: 800; }
+  .panel-header .sub { font-size: 12px; color: var(--muted); }
+  .panel-header .close { margin-left: auto; background: none; border: none; font-size: 20px; color: var(--muted); cursor: pointer; padding: 4px 8px; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 4px rgba(52,195,160,0.2);} 50% { box-shadow: 0 0 0 8px rgba(52,195,160,0.05);} }
+
+  .messages { flex: 1; overflow-y: auto; padding: 20px 16px 80px; display: flex; flex-direction: column; gap: 16px; }
+
+  /* Greeting from Nana */
+  .greeting {
+    background: white; border: 1px solid var(--border); border-radius: 16px 16px 16px 4px;
+    padding: 14px 16px; max-width: 85%; align-self: flex-start;
+    font-size: 14px; line-height: 1.5;
+  }
+  .greeting .name { font-weight: 800; color: var(--navy); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 6px; }
+
+  /* User question bubble */
+  .user-msg {
+    background: var(--user-bg); border-radius: 16px 16px 4px 16px;
+    padding: 12px 16px; max-width: 85%; align-self: flex-end;
+    font-size: 14px; color: var(--text);
+  }
+
+  /* Nana response — multi-block */
+  .nana-msg {
+    background: white; border: 1px solid var(--border); border-radius: 16px 16px 16px 4px;
+    padding: 0; max-width: 92%; align-self: flex-start; overflow: hidden;
+  }
+  .nana-msg .name {
+    padding: 10px 16px 0; font-weight: 800; color: var(--navy); font-size: 11px;
+    letter-spacing: 0.18em; text-transform: uppercase;
+  }
+  .nana-msg .body { padding: 8px 16px 14px; font-size: 14px; line-height: 1.55; }
+
+  .short-answer { font-size: 15px; color: var(--navy); font-weight: 500; line-height: 1.5; }
+
+  .facts-list { margin-top: 10px; font-size: 13px; }
+  .facts-list .fact { display: flex; gap: 8px; padding: 5px 0; }
+  .facts-list .fact .check { color: var(--teal-dk); font-weight: 700; flex-shrink: 0; }
+
+  .compare-table {
+    margin: 12px 0 4px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+  }
+  .compare-table .title { background: var(--navy); color: white; padding: 6px 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
+  .compare-table table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .compare-table th, .compare-table td { padding: 6px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  .compare-table th { background: white; color: var(--navy); font-size: 10px; font-weight: 700; }
+  .compare-table tbody tr:nth-child(odd) td { background: var(--off); }
+  .compare-table tr.highlight td { background: var(--teal-bg); font-weight: 700; }
+
+  .tradeoff-msg {
+    background: var(--amber-bg); border: 1px solid #fde68a;
+    border-radius: 16px 16px 16px 4px;
+    padding: 12px 16px; max-width: 92%; align-self: flex-start;
+    font-size: 13px; line-height: 1.5;
+  }
+  .tradeoff-msg .label { font-weight: 800; color: var(--amber); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 4px; }
+
+  .sources-msg {
+    background: white; border: 1px solid var(--border); border-radius: 16px 16px 16px 4px;
+    padding: 10px 14px; max-width: 92%; align-self: flex-start;
+  }
+  .sources-msg .label { font-size: 10px; font-weight: 800; color: var(--teal-dk); letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 6px; }
+  .pill { display: inline-block; background: var(--teal-bg); color: var(--teal-dk); font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 12px; margin: 0 4px 4px 0; text-decoration: none; }
+  .pill.ext { background: white; border: 1px solid var(--teal-dk); }
+
+  /* Suggested replies (chips) — feels like text suggestions in iMessage */
+  .suggestions {
+    align-self: flex-end; max-width: 100%;
+    display: flex; flex-direction: column; gap: 6px; align-items: flex-end;
+    margin-top: -8px; margin-right: 4px;
+  }
+  .suggestions .label { font-size: 10px; color: var(--muted); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 2px; }
+  .suggest-chip {
+    background: white; border: 1px solid var(--teal-dk); color: var(--teal-dk);
+    font-size: 13px; padding: 8px 14px; border-radius: 16px; cursor: pointer;
+    text-align: right;
+  }
+  .suggest-chip:hover { background: var(--teal-bg); }
+
+  .closer-msg {
+    align-self: center; font-size: 12px; color: var(--muted); font-style: italic;
+    padding: 8px 0 0;
+  }
+
+  .panel-input {
+    border-top: 1px solid var(--border); padding: 12px 16px; display: flex; gap: 8px; background: white;
+  }
+  .panel-input input {
+    flex: 1; padding: 10px 14px; border: 1px solid var(--border); border-radius: 20px;
+    font-size: 14px; font-family: inherit;
+  }
+  .panel-input button {
+    background: var(--teal); color: white; border: none; padding: 0 16px;
+    border-radius: 20px; font-weight: 700; font-size: 14px; cursor: pointer;
+  }
+
+  .timestamp { font-size: 10px; color: var(--muted); text-align: center; margin: 4px 0; letter-spacing: 0.04em; }
+</style>
+</head>
+<body>
+
+<div class="mock-nav">
+  <span class="label">STYLE 1C</span>
+  <span>Conversational — chat-bubble style, multi-turn ready, iMessage feel</span>
+  <span style="margin-left: auto; opacity: 0.7;"><a href="./index.html">← back to gallery</a></span>
+</div>
+
+<div class="report-wrap">
+  <div class="report dimmed">
+    <div class="breadcrumb">UK · Surrey · Day + Boarding</div>
+    <h1>Reed's School</h1>
+    <p style="color: var(--muted); margin-bottom: 24px;">Cobham, Surrey · founded 1813 · ~700 pupils · day + boarding</p>
+    <div class="verdict"><h3>Quick verdict</h3><p>Strong all-rounder with notable strength in tennis. 50%+ A/A* at GCSE.</p></div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <div class="pulse"></div>
+    <h2>Nana</h2>
+    <span class="sub">reading Reed's School</span>
+    <button class="close">✕</button>
+  </div>
+
+  <div class="messages">
+    <div class="timestamp">Today, 10:34 AM</div>
+
+    <!-- Nana greeting -->
+    <div class="greeting">
+      <div class="name">Nana</div>
+      <div>Hi — I've read Reed's report and every page of <strong>reeds.surrey.sch.uk</strong>. Ask me anything about the school. I'll show you exactly where my answers come from.</div>
+    </div>
+
+    <!-- User question -->
+    <div class="user-msg">What are Reed's fees?</div>
+
+    <!-- Nana response: short answer + facts -->
+    <div class="nana-msg">
+      <div class="name">Nana</div>
+      <div class="body">
+        <div class="short-answer">
+          Day fees are £8,820/term, full boarding is £14,200/term — about £42,600/year for boarding before extras.
+        </div>
+
+        <div class="facts-list">
+          <div class="fact"><span class="check">✓</span><div>Day pupils (Y7–Y13): <strong>£8,820/term</strong> <a class="pill" href="#">Fees ↑</a></div></div>
+          <div class="fact"><span class="check">✓</span><div>Full boarding (Y9–Y13): <strong>£14,200/term</strong> <a class="pill" href="#">Fees ↑</a></div></div>
+          <div class="fact"><span class="check">✓</span><div>Registration £150 · Deposit £2,000 <a class="pill ext" href="#">reeds.surrey/admissions ↗</a></div></div>
+        </div>
+
+        <div class="compare-table">
+          <div class="title">2025–26 day vs boarding</div>
+          <table>
+            <thead><tr><th></th><th>DAY</th><th>BOARDING</th></tr></thead>
+            <tbody>
+              <tr><td>Tuition / yr</td><td>£26,460</td><td>£42,600</td></tr>
+              <tr class="highlight"><td>All-in est.</td><td>£29-32k</td><td>£45-49k</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tradeoff in its own bubble — feels like Nana adding a "by the way" -->
+    <div class="tradeoff-msg">
+      <div class="label">⚠ Worth flagging</div>
+      <div>Reed's sibling discount applies from the <strong>third child</strong> onwards — not the second. If you have two kids at Reed's you don't get a discount.</div>
+    </div>
+
+    <!-- Sources in their own small bubble -->
+    <div class="sources-msg">
+      <div class="label">Sources</div>
+      <div>
+        <a class="pill" href="#">Fees & true cost ↑</a>
+        <a class="pill ext" href="#">reeds.surrey/fees ↗</a>
+      </div>
+    </div>
+
+    <!-- Closing line -->
+    <div class="closer-msg">— Want me to dig into any of this further?</div>
+
+    <!-- Suggested follow-ups as iMessage-style chips on the user side -->
+    <div class="suggestions">
+      <div class="label">Suggested</div>
+      <div class="suggest-chip">How does the bursary system work?</div>
+      <div class="suggest-chip">What's included vs extra in boarding?</div>
+      <div class="suggest-chip">When did fees last increase?</div>
+    </div>
+  </div>
+
+  <div class="panel-input">
+    <input placeholder="Message Nana…" />
+    <button>Send</button>
+  </div>
+</div>
+</body>
+</html>

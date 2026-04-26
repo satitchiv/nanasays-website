@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Nana — Panel style mocks</title>
+<style>
+  :root {
+    --navy:    #1B3252;
+    --teal:    #34C3A0;
+    --teal-dk: #239C80;
+    --teal-bg: #E8FAF6;
+    --off:     #F6F8FA;
+    --text:    #1f2937;
+    --muted:   #6B7280;
+    --border:  #E5E7EB;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Nunito Sans', -apple-system, system-ui, sans-serif;
+    background: var(--off); color: var(--text); line-height: 1.55;
+    min-height: 100vh; padding: 60px 20px;
+  }
+  .wrap { max-width: 1100px; margin: 0 auto; }
+  h1 {
+    font-size: 32px; color: var(--navy); font-weight: 800;
+    letter-spacing: -0.01em; margin-bottom: 8px;
+  }
+  .sub {
+    color: var(--muted); font-size: 15px; margin-bottom: 40px;
+    max-width: 700px;
+  }
+  .grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+  }
+  .card {
+    background: white; border: 1px solid var(--border); border-radius: 16px;
+    padding: 24px; text-decoration: none; color: var(--text);
+    transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+    display: flex; flex-direction: column;
+  }
+  .card:hover {
+    transform: translateY(-2px); border-color: var(--teal-dk);
+    box-shadow: 0 8px 20px rgba(27,50,82,0.08);
+  }
+  .num {
+    font-size: 11px; font-weight: 800; color: var(--teal-dk);
+    letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 6px;
+  }
+  .title { font-size: 22px; color: var(--navy); font-weight: 800; margin-bottom: 10px; }
+  .desc { font-size: 14px; color: var(--muted); flex-grow: 1; }
+  .footer-note {
+    margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--teal-dk); font-weight: 700;
+  }
+  .preview {
+    background: var(--off); border-radius: 8px; padding: 20px 16px;
+    height: 160px; display: flex; align-items: center; justify-content: center;
+    margin-bottom: 16px; position: relative; overflow: hidden;
+  }
+  /* Mini preview: panel layouts */
+  .preview-1 .report { width: 70%; height: 80%; background: white; border-radius: 4px; border: 1px solid var(--border); }
+  .preview-1 .panel { position: absolute; right: 14px; top: 22px; width: 22%; height: 75%; background: white; border: 2px solid var(--navy); border-radius: 6px; }
+  .preview-1 .panel::before { content: '●'; color: var(--teal); position: absolute; top: 4px; left: 6px; font-size: 8px; }
+
+  .preview-2 .report { width: 100%; height: 60%; background: white; border-radius: 4px; border: 1px solid var(--border); }
+  .preview-2 .panel { position: absolute; bottom: 14px; left: 14px; right: 14px; height: 28%; background: white; border: 1px solid var(--border); border-top: 2px solid var(--teal); border-radius: 4px; padding: 4px 8px; font-size: 8px; color: var(--muted); }
+
+  .preview-3 .report { width: 100%; height: 100%; background: white; border-radius: 4px; border: 1px solid var(--border); }
+  .preview-3 .fab { position: absolute; bottom: 14px; right: 14px; width: 32px; height: 32px; background: var(--teal); border-radius: 50%; box-shadow: 0 4px 8px rgba(0,0,0,0.15); }
+  .preview-3 .floating { position: absolute; bottom: 50px; right: 14px; width: 50%; height: 60%; background: white; border-radius: 8px; box-shadow: 0 8px 24px rgba(27,50,82,0.18); border: 1px solid var(--border); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Nana — pick a panel style</h1>
+  <p class="sub">
+    Three different layouts for the parent-facing chatbot, mounted on Reed's deep school report.
+    Each shows the same sample answer ("What are Reed's fees?") so you can compare how the layout
+    affects the reading experience. Click into each to see it full-screen.
+  </p>
+
+  <div class="grid">
+    <a class="card" href="./style-1-sidepanel.html">
+      <div class="preview preview-1">
+        <div class="report"></div>
+        <div class="panel"></div>
+      </div>
+      <div class="num">Style 1</div>
+      <div class="title">Right-edge slide-out</div>
+      <div class="desc">
+        Click "Ask Nana" → panel slides in from the right edge (480px wide on desktop).
+        Report dims behind. Dedicated chat space, focused conversation. Easy to dismiss.
+        <br><br>
+        <strong>Vibe:</strong> "I'm asking Nana something — pause the report."
+      </div>
+      <div class="footer-note">This is the locked design from UI-DESIGN.md →</div>
+    </a>
+
+    <a class="card" href="./style-2-companion.html">
+      <div class="preview preview-2">
+        <div class="report"></div>
+        <div class="panel">●●●  Ask Nana about Reed's…  ↑</div>
+      </div>
+      <div class="num">Style 2</div>
+      <div class="title">Inline companion bar</div>
+      <div class="desc">
+        A chat bar permanently anchored at the bottom of the report. Always visible, never hidden.
+        Click to expand into a half-screen overlay. The answer pushes the report up rather than
+        covering it.
+        <br><br>
+        <strong>Vibe:</strong> "Nana is always there alongside the report."
+      </div>
+      <div class="footer-note">Always-on companion →</div>
+    </a>
+
+    <a class="card" href="./style-3-floating.html">
+      <div class="preview preview-3">
+        <div class="report"></div>
+        <div class="floating"></div>
+        <div class="fab"></div>
+      </div>
+      <div class="num">Style 3</div>
+      <div class="title">Floating card</div>
+      <div class="desc">
+        Small floating action button bottom-right. Click → compact card opens (400×550) with
+        the answer in a condensed, scannable form. "Read full answer" expands to overlay.
+        Lightweight, dismissable.
+        <br><br>
+        <strong>Vibe:</strong> "Quick lookup tool — get answer, close it."
+      </div>
+      <div class="footer-note">Lightweight quick-ask →</div>
+    </a>
+  </div>
+
+  <p style="margin-top: 40px; padding: 16px 20px; background: white; border: 1px solid var(--border); border-radius: 12px; font-size: 13px; color: var(--muted);">
+    <strong style="color: var(--navy);">How to evaluate:</strong> imagine you're a parent reading
+    Reed's report on your laptop, then your phone. Which style feels least intrusive while still
+    being there when you need it? Answer that and you've picked.
+  </p>
+
+  <h2 style="margin-top: 60px; font-size: 22px; color: var(--navy); font-weight: 800; margin-bottom: 4px;">
+    Style 1 forks — keep the right-edge slide-out, vary the details
+  </h2>
+  <p class="sub" style="margin-bottom: 30px; margin-top: 8px;">
+    You picked Style 1. Here are three variations that all keep the same right-edge slide-out
+    behavior but explore different design philosophies for what's INSIDE the panel.
+  </p>
+
+  <div class="grid">
+    <a class="card" href="./style-1a-gated.html">
+      <div class="preview" style="background: linear-gradient(90deg, var(--off) 65%, white 65%); padding: 18px;">
+        <div style="position: absolute; right: 14px; top: 22px; width: 22%; height: 75%; background: white; border: 1px solid var(--border); border-radius: 6px; padding: 6px;">
+          <div style="height: 4px; background: var(--navy); border-radius: 2px; margin-bottom: 6px;"></div>
+          <div style="height: 3px; background: var(--text); border-radius: 2px; opacity: 0.4; margin-bottom: 4px;"></div>
+          <div style="height: 12px; background: var(--teal-bg); border: 1px solid var(--teal-dk); border-radius: 4px; margin-bottom: 4px; display: flex; align-items: center; padding: 0 4px; font-size: 6px; color: var(--teal-dk); font-weight: 700;">✦ Break down</div>
+          <div style="height: 12px; background: var(--teal-bg); border: 1px solid var(--teal-dk); border-radius: 4px; display: flex; align-items: center; padding: 0 4px; font-size: 6px; color: var(--teal-dk); font-weight: 700;">⊞ Table</div>
+        </div>
+      </div>
+      <div class="num">Style 1A</div>
+      <div class="title">Section-gated minimal</div>
+      <div class="desc">
+        Initial answer is TIGHT — Short Answer + Confirmed Facts only. "What This Means" hides
+        behind a <em>"✦ Break this down for me"</em> button. Comparison table hides behind
+        <em>"⊞ Compare as a table"</em>. Parent expands what they want.
+        <br><br>
+        <strong>Vibe:</strong> "Don't dump everything on me. Let me decide what to dive into."
+      </div>
+      <div class="footer-note">Most faithful to UI-DESIGN.md spec →</div>
+    </a>
+
+    <a class="card" href="./style-1b-document.html">
+      <div class="preview" style="background: linear-gradient(90deg, var(--off) 60%, #fdfcf7 60%); padding: 18px;">
+        <div style="position: absolute; right: 14px; top: 22px; width: 26%; height: 75%; background: #fdfcf7; border: 1px solid var(--border); border-radius: 6px; padding: 8px 10px;">
+          <div style="font-family: Georgia, serif; font-size: 9px; color: var(--navy); font-style: italic; margin-bottom: 6px;">"What are…"</div>
+          <div style="height: 3px; background: var(--text); border-radius: 2px; opacity: 0.4; margin-bottom: 3px;"></div>
+          <div style="height: 3px; background: var(--text); border-radius: 2px; opacity: 0.4; margin-bottom: 3px;"></div>
+          <div style="height: 3px; background: var(--text); border-radius: 2px; opacity: 0.3; margin-bottom: 3px; width: 80%;"></div>
+        </div>
+      </div>
+      <div class="num">Style 1B</div>
+      <div class="title">Document grade</div>
+      <div class="desc">
+        Wider panel (560px vs 480px). Serif headings (Lora). Question framed as a quote. Generous
+        line-height and whitespace. Footnote-style source citations rather than chips. Feels like
+        reading an essay or research report.
+        <br><br>
+        <strong>Vibe:</strong> "This is a serious decision. Treat me like a serious reader."
+      </div>
+      <div class="footer-note">Long-form thoughtful →</div>
+    </a>
+
+    <a class="card" href="./style-1c-conversational.html">
+      <div class="preview" style="padding: 18px;">
+        <div style="position: absolute; right: 14px; top: 14px; width: 28%; height: 80%; background: var(--off); border: 1px solid var(--border); border-radius: 6px; padding: 8px 6px; display: flex; flex-direction: column; gap: 4px;">
+          <div style="background: white; border: 1px solid var(--border); border-radius: 8px 8px 8px 2px; height: 14px; align-self: flex-start; max-width: 75%; width: 75%;"></div>
+          <div style="background: var(--user-bg, #f1f5f9); border-radius: 8px 8px 2px 8px; height: 10px; align-self: flex-end; width: 60%;"></div>
+          <div style="background: white; border: 1px solid var(--border); border-radius: 8px 8px 8px 2px; height: 24px; align-self: flex-start; max-width: 80%; width: 80%;"></div>
+        </div>
+      </div>
+      <div class="num">Style 1C</div>
+      <div class="title">Conversational chat</div>
+      <div class="desc">
+        Chat-bubble layout: your question on the right (gray), Nana's response on the left
+        (white with teal accent). Tradeoff lands as its own "by the way" bubble. Suggested
+        follow-ups appear as iMessage-style chips. Built for multi-turn conversations.
+        <br><br>
+        <strong>Vibe:</strong> "We're having a conversation, not reading a report."
+      </div>
+      <div class="footer-note">Multi-turn assistant feel →</div>
+    </a>
+  </div>
+
+  <h2 style="margin-top: 60px; font-size: 22px; color: var(--navy); font-weight: 800; margin-bottom: 4px;">
+    1B forks — same document-grade DNA, three readability variations
+  </h2>
+  <p class="sub" style="margin-bottom: 30px; margin-top: 8px;">
+    You picked 1B (document-grade) for readability. Each of these keeps the serif typography and
+    paper feel, but pushes the reading experience in a different direction.
+  </p>
+
+  <div class="grid">
+    <a class="card" href="./style-1b-i-editorial.html">
+      <div class="preview" style="background: linear-gradient(90deg, var(--off) 60%, #fdfcf7 60%); padding: 18px;">
+        <div style="position: absolute; right: 14px; top: 14px; bottom: 14px; width: 30%; background: #fdfcf7; border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px;">
+          <div style="text-align: center; font-family: Georgia, serif; font-size: 14px; color: var(--navy); font-weight: 700; margin-bottom: 6px; line-height: 1;">Nana</div>
+          <div style="border-top: 2px solid var(--navy); border-bottom: 2px solid var(--navy); padding: 4px 0; font-family: Georgia, serif; font-size: 6px; font-style: italic; text-align: center; color: var(--navy); margin: 6px 0;">"Pull quote here"</div>
+          <div style="font-family: Georgia, serif; font-size: 7px; line-height: 1.4; color: var(--text);">
+            <span style="font-size: 14px; font-weight: 700; color: var(--navy); float: left; line-height: 1; padding-right: 2px;">F</span>or a parent comparing…
+          </div>
+        </div>
+      </div>
+      <div class="num">Style 1B-i</div>
+      <div class="title">Editorial / publication grade</div>
+      <div class="desc">
+        Magazine-quality typography. Drop cap on the first paragraph. Pull quote with double-rule
+        borders. Dateline ("Vol. 1, Issue 23"). Sign-off with "NanaSays Research." Section heads
+        with horizontal rule decorations. Maximum prestige feel.
+        <br><br>
+        <strong>Vibe:</strong> "This is a thoughtfully edited piece written for me."
+      </div>
+      <div class="footer-note">Most polished, most "writerly" →</div>
+    </a>
+
+    <a class="card" href="./style-1b-ii-compact.html">
+      <div class="preview" style="background: linear-gradient(90deg, var(--off) 65%, #fdfcf7 65%); padding: 14px;">
+        <div style="position: absolute; right: 12px; top: 12px; bottom: 12px; width: 30%; background: #fdfcf7; border: 1px solid var(--border); border-radius: 4px; padding: 6px;">
+          <div style="font-family: Georgia, serif; font-style: italic; font-size: 6px; color: var(--navy); margin-bottom: 4px; line-height: 1.2;">"What are Reed's fees?"</div>
+          <div style="height: 2px; background: var(--text); border-radius: 1px; opacity: 0.6; margin-bottom: 2px;"></div>
+          <div style="height: 2px; background: var(--text); border-radius: 1px; opacity: 0.4; margin-bottom: 2px;"></div>
+          <div style="height: 2px; background: var(--text); border-radius: 1px; opacity: 0.4; margin-bottom: 2px;"></div>
+          <div style="height: 2px; background: var(--text); border-radius: 1px; opacity: 0.4; margin-bottom: 4px; width: 70%;"></div>
+          <div style="height: 14px; background: var(--teal-bg); border-radius: 2px; margin-bottom: 4px;"></div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px;">
+            <div style="height: 12px; background: white; border: 1px solid var(--border); border-radius: 2px;"></div>
+            <div style="height: 12px; background: white; border: 1px solid var(--border); border-radius: 2px;"></div>
+          </div>
+        </div>
+      </div>
+      <div class="num">Style 1B-ii</div>
+      <div class="title">Compact reading</div>
+      <div class="desc">
+        Same Lora serif, same paper background — but tighter. Smaller fonts, less whitespace,
+        a 2-column block for "what we don't know" + "sources." More information visible without
+        scrolling. Still readable but works harder per pixel.
+        <br><br>
+        <strong>Vibe:</strong> "Same calm tone, less scrolling."
+      </div>
+      <div class="footer-note">Density-optimized →</div>
+    </a>
+
+    <a class="card" href="./style-1b-iii-letter.html">
+      <div class="preview" style="background: linear-gradient(90deg, var(--off) 60%, #FBF8F1 60%); padding: 18px;">
+        <div style="position: absolute; right: 14px; top: 14px; bottom: 14px; width: 30%; background: #FBF8F1; border: 1px solid #DDD4C2; border-radius: 4px; padding: 8px 10px;">
+          <div style="font-family: Georgia, serif; font-size: 6px; color: var(--muted); font-style: italic; text-align: right; margin-bottom: 6px;">26 April 2026</div>
+          <div style="font-family: Georgia, serif; font-size: 7px; color: var(--navy); margin-bottom: 4px;">Hello,</div>
+          <div style="font-family: Georgia, serif; font-size: 6px; line-height: 1.5; color: var(--text); margin-bottom: 6px;">The short version: Reed's day fees are <strong>£8,820</strong>…</div>
+          <div style="text-align: right; font-family: Georgia, serif; font-size: 9px; color: var(--navy); font-style: italic; font-weight: 700; border-bottom: 1px solid #C97758; display: inline-block; float: right; padding-right: 14px;">Nana</div>
+        </div>
+      </div>
+      <div class="num">Style 1B-iii</div>
+      <div class="title">Letter from Nana</div>
+      <div class="desc">
+        Different serif (Source Serif). Warmer, more personal. Begins with "Hello," and ends with
+        a handwritten-style signature. Tradeoff lands as an inline "A note" aside. Citations as
+        superscript footnotes [1] [2] with a references block at the bottom. Feels like Nana
+        wrote you a personal letter.
+        <br><br>
+        <strong>Vibe:</strong> "Someone who knows the school sat down and wrote to me."
+      </div>
+      <div class="footer-note">Most personal, least institutional →</div>
+    </a>
+  </div>
+
+  <h2 style="margin-top: 80px; font-size: 26px; color: var(--navy); font-weight: 800; margin-bottom: 4px; padding-top: 30px; border-top: 3px solid var(--navy);">
+    🎯 Final selection — 5 styles to compare
+  </h2>
+  <p class="sub" style="margin-bottom: 30px; margin-top: 8px;">
+    Pick the one that feels right. All five show the SAME answer ("What are Reed's fees?") so the
+    comparison is purely about layout and tone. Each has the real Reed's report on the left for
+    context. Click into each to view full-screen.
+  </p>
+
+  <div class="grid">
+    <a class="card" href="./style-1b-document.html" style="border: 2px solid var(--navy);">
+      <div class="preview" style="background: linear-gradient(90deg, var(--off) 60%, #fdfcf7 60%); padding: 18px;">
+        <div style="position: absolute; right: 14px; top: 14px; bottom: 14px; width: 30%; background: #fdfcf7; border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px; display: flex; flex-direction: column; gap: 4px;">
+          <div style="font-family: Georgia, serif; font-size: 7px; font-style: italic; color: var(--navy); text-align: center;">"What are…"</div>
+          <div style="height: 2px; background: var(--text); opacity: 0.4; border-radius: 1px;"></div>
+          <div style="height: 2px; background: var(--text); opacity: 0.4; border-radius: 1px;"></div>
+          <div style="height: 2px; background: var(--text); opacity: 0.4; border-radius: 1px; width: 80%;"></div>
+        </div>
+      </div>
+      <div class="num">⭐ Original 1B</div>
+      <div class="title">Document grade (base)</div>
+      <div class="desc">
+        Calm, balanced. Lora serif headings, generous line-height, quoted question. The base
+        you originally picked. Uncluttered.
+      </div>
+      <div class="footer-note">The base form →</div>
+    </a>
+
+    <a class="card" href="./style-1b-i-editorial.html" style="border: 2px solid var(--navy);">
+      <div class="preview" style="background: linear-gradient(90deg, var(--off) 60%, #fdfcf7 60%); padding: 18px;">
+        <div style="position: absolute; right: 14px; top: 14px; bottom: 14px; width: 30%; background: #fdfcf7; border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px;">
+          <div style="text-align: center; font-family: Georgia, serif; font-size: 12px; color: var(--navy); font-weight: 700; line-height: 1; margin-bottom: 4px;">Nana</div>
+          <div style="border-top: 2px solid var(--navy); border-bottom: 2px solid var(--navy); padding: 3px 0; font-family: Georgia, serif; font-size: 5px; font-style: italic; text-align: center; color: var(--navy); margin: 4px 0;">"Pull quote"</div>
+          <div style="font-family: Georgia, serif; font-size: 6px; line-height: 1.4; color: var(--text);">
+            <span style="font-size: 12px; font-weight: 700; color: var(--navy); float: left; line-height: 1; padding-right: 2px;">F</span>or a parent comparing…
+          </div>
+        </div>
+      </div>
+      <div class="num">⭐ 1B-i</div>
+      <div class="title">Editorial / publication</div>
+      <div class="desc">
+        Drop cap, pull quote, dateline ("Vol. 1 · Issue 23"). Magazine treatment. The polished
+        editorial you picked from the 1B forks.
+      </div>
+      <div class="footer-note">Magazine grade →</div>
+    </a>
+
+    <a class="card" href="./style-1b-i-A-classical.html">
+      <div class="preview" style="background: linear-gradient(90deg, var(--off) 60%, #FAF4E6 60%); padding: 18px;">
+        <div style="position: absolute; right: 14px; top: 14px; bottom: 14px; width: 30%; background: #FAF4E6; border: 1px solid #ddd2b0; border-radius: 4px; padding: 8px 10px;">
+          <div style="text-align: center; font-family: Georgia, serif; font-style: italic; font-size: 11px; color: #5a3a1f; font-weight: 700; margin-bottom: 4px; border-bottom: 2px double #7a4f2a; padding-bottom: 4px;">Nana</div>
+          <div style="text-align: center; color: #7a4f2a; font-size: 8px; letter-spacing: 0.5em; margin: 4px 0;">❦ ❦ ❦</div>
+          <div style="font-family: Georgia, serif; font-size: 7px; line-height: 1.4; color: #2A2418;">
+            <span style="font-size: 14px; font-weight: 700; color: #5a3a1f; float: left; line-height: 0.9; padding-right: 2px;">F</span>or a parent comparing…
+          </div>
+        </div>
+      </div>
+      <div class="num">1B-i-A</div>
+      <div class="title">Classical library</div>
+      <div class="desc">
+        Cream paper, sepia accents, ornamental rules (❦), Roman numerals (I, II, III, IV).
+        Most traditional and formal. Antiquarian feel.
+      </div>
+      <div class="footer-note">Most traditional →</div>
+    </a>
+
+    <a class="card" href="./style-1b-i-B-modern.html">
+      <div class="preview" style="background: linear-gradient(90deg, var(--off) 60%, #ffffff 60%); padding: 18px; border-left: 1px solid var(--border);">
+        <div style="position: absolute; right: 14px; top: 14px; bottom: 14px; width: 30%; background: white; border: 1px solid var(--border); border-radius: 4px; padding: 8px 10px;">
+          <div style="display: inline-block; background: var(--navy); color: white; font-size: 6px; font-weight: 700; padding: 2px 6px; border-radius: 2px; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px;">Fees</div>
+          <div style="font-family: 'Inter', sans-serif; font-size: 11px; color: var(--navy); font-weight: 900; line-height: 1; margin-bottom: 6px;">What are Reed's fees?</div>
+          <div style="font-family: Georgia, serif; font-size: 6px; line-height: 1.4; color: var(--text);">
+            <span style="background: var(--teal-dk); color: white; font-size: 12px; font-weight: 900; padding: 2px 4px; border-radius: 2px; float: left; line-height: 1; margin-right: 4px;">F</span>or a parent comparing…
+          </div>
+        </div>
+      </div>
+      <div class="num">1B-i-B</div>
+      <div class="title">Modern editorial</div>
+      <div class="desc">
+        Inter sans-serif headlines, Lora serif body. Color-block drop cap. Author avatar in
+        sign-off. Atlantic / Aeon-style contemporary editorial design.
+      </div>
+      <div class="footer-note">Most contemporary →</div>
+    </a>
+
+    <a class="card" href="./style-1b-i-C-academic.html">
+      <div class="preview" style="background: linear-gradient(90deg, var(--off) 60%, #fcfaf3 60%); padding: 18px;">
+        <div style="position: absolute; right: 14px; top: 14px; bottom: 14px; width: 30%; background: #fcfaf3; border: 1px solid #DDD4C0; border-radius: 4px; padding: 8px 10px;">
+          <div style="font-family: Georgia, serif; font-size: 11px; color: var(--navy); font-weight: 700; margin-bottom: 6px;">Nana</div>
+          <div style="background: white; border: 1px solid #DDD4C0; padding: 4px 6px; font-family: Georgia, serif; font-style: italic; font-size: 6px; color: #1f2937; margin-bottom: 4px; border-radius: 2px;"><strong style="font-style: normal; font-size: 6px; color: var(--navy); display: block; letter-spacing: 0.18em; text-transform: uppercase;">Abstract</strong>Reed's day fees are £8,820…</div>
+          <div style="font-family: Georgia, serif; font-size: 6px; color: var(--text); line-height: 1.4;"><span style="color: var(--teal-dk); font-weight: 700; font-family: 'Inter', sans-serif; margin-right: 2px;">1.</span>The headline</div>
+        </div>
+      </div>
+      <div class="num">1B-i-C</div>
+      <div class="title">Academic / footnoted</div>
+      <div class="desc">
+        Numbered sections (1, 2, 3, 4). "Abstract" box at the top. Footnote citations [1] [2]
+        with a references list at the bottom. Most structured and scholarly.
+      </div>
+      <div class="footer-note">Most scholarly →</div>
+    </a>
+  </div>
+
+  <p style="margin-top: 30px; padding: 16px 20px; background: var(--teal-bg); border: 1px solid var(--teal-dk); border-radius: 12px; font-size: 13px; color: var(--navy);">
+    <strong>What changes between them:</strong> typography, paper color, drop cap style, section
+    head treatment, citation format. <strong>What's identical:</strong> the question, the short
+    answer, all 4 confirmed facts, the comparison table figures, the tradeoff paragraph, the
+    "what we don't know" content, the 3 follow-up questions. Pure visual A/B.
+  </p>
+</div>
+</body>
+</html>

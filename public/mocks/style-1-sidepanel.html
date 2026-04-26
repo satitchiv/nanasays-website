@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Style 1 — Right-edge slide-out (Nana mock)</title>
+<style>
+  :root {
+    --navy:    #1B3252;
+    --navy-d:  #0f2238;
+    --teal:    #34C3A0;
+    --teal-dk: #239C80;
+    --teal-bg: #E8FAF6;
+    --amber:   #D97706;
+    --amber-bg:#FEF3C7;
+    --off:     #F6F8FA;
+    --text:    #1f2937;
+    --muted:   #6B7280;
+    --border:  #E5E7EB;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito Sans', -apple-system, system-ui, sans-serif; background: var(--off); color: var(--text); line-height: 1.55; }
+
+  /* Mock-nav */
+  .mock-nav {
+    background: var(--navy); color: white; padding: 8px 16px;
+    font-size: 12px; display: flex; align-items: center; gap: 16px;
+  }
+  .mock-nav a { color: var(--teal); text-decoration: none; }
+  .mock-nav .label { font-weight: 800; letter-spacing: 0.06em; }
+
+  /* Fake report */
+  .report-wrap { display: flex; min-height: calc(100vh - 32px); }
+  .report {
+    flex: 1; max-width: 920px; margin: 0 auto; padding: 40px 32px 80px;
+    transition: opacity 0.3s; position: relative;
+  }
+  .report.dimmed { opacity: 0.4; }
+  .report h1 { font-size: 30px; color: var(--navy); margin-bottom: 8px; font-weight: 800; }
+  .report .breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 24px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .report h2 {
+    font-size: 11px; color: var(--teal-dk); font-weight: 800;
+    text-transform: uppercase; letter-spacing: 0.18em;
+    margin: 36px 0 12px; border-top: 1px solid var(--border); padding-top: 24px;
+  }
+  .report p { color: var(--text); font-size: 15px; margin-bottom: 12px; }
+  .report .verdict {
+    background: white; border: 1px solid var(--border); border-radius: 14px;
+    padding: 24px; margin-bottom: 16px;
+  }
+  .report .verdict h3 { font-size: 18px; color: var(--navy); margin-bottom: 8px; font-weight: 700; }
+
+  /* Floating Ask Nana handle */
+  .nana-handle {
+    position: fixed; right: 0; top: 50%; transform: translateY(-50%);
+    background: white; border: 1px solid var(--border); border-right: none;
+    border-radius: 14px 0 0 14px; padding: 18px 14px; box-shadow: -4px 0 16px rgba(27,50,82,0.06);
+    cursor: pointer; z-index: 10; writing-mode: vertical-rl;
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+    transition: padding 0.2s, box-shadow 0.2s;
+  }
+  .nana-handle:hover { box-shadow: -6px 0 20px rgba(27,50,82,0.10); }
+  .nana-handle.hidden { transform: translateY(-50%) translateX(100%); }
+  .nana-handle .pulse { width: 10px; height: 10px; background: var(--teal); border-radius: 50%; box-shadow: 0 0 0 4px rgba(52,195,160,0.2); animation: pulse 2.4s infinite; writing-mode: horizontal-tb; }
+  .nana-handle .text { font-size: 11px; font-weight: 800; color: var(--navy); letter-spacing: 0.18em; text-transform: uppercase; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 4px rgba(52,195,160,0.2);} 50% { box-shadow: 0 0 0 8px rgba(52,195,160,0.05);} }
+
+  /* Slide-out panel */
+  .panel {
+    position: fixed; top: 0; right: 0; height: 100vh; width: 480px;
+    background: white; box-shadow: -8px 0 32px rgba(27,50,82,0.12);
+    transform: translateX(100%); transition: transform 0.3s cubic-bezier(0.2,0,0,1);
+    display: flex; flex-direction: column; z-index: 20;
+  }
+  .panel.open { transform: translateX(0); }
+  .panel-header {
+    background: white; border-bottom: 1px solid var(--border);
+    padding: 14px 20px; display: flex; align-items: center; gap: 12px;
+  }
+  .panel-header .pulse { width: 12px; height: 12px; background: var(--teal); border-radius: 50%; box-shadow: 0 0 0 4px rgba(52,195,160,0.2); animation: pulse 2.4s infinite; }
+  .panel-header h2 { font-size: 16px; color: var(--navy); font-weight: 800; }
+  .panel-header .sub { font-size: 12px; color: var(--muted); margin-left: 4px; }
+  .panel-header .close { margin-left: auto; background: none; border: none; font-size: 20px; color: var(--muted); cursor: pointer; padding: 4px 8px; }
+
+  .panel-body { flex: 1; overflow-y: auto; padding: 20px 24px 80px; }
+
+  .you-asked {
+    background: var(--off); border-radius: 12px; padding: 12px 14px; margin-bottom: 18px;
+    font-size: 14px; color: var(--text);
+  }
+  .you-asked .label { font-size: 10px; font-weight: 800; color: var(--muted); letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 4px; }
+
+  .eyebrow { font-size: 10px; font-weight: 800; color: var(--teal-dk); letter-spacing: 0.18em; text-transform: uppercase; margin: 18px 0 8px; }
+  .eyebrow.amber { color: var(--amber); }
+  .short-answer { font-size: 17px; color: var(--navy); font-weight: 500; line-height: 1.5; }
+  .body-text { font-size: 14px; color: var(--text); line-height: 1.6; }
+  .body-text ul { margin-left: 18px; margin-top: 4px; }
+  .body-text li { margin-bottom: 8px; }
+  .tradeoff { background: var(--amber-bg); border-left: 3px solid var(--amber); padding: 12px 14px; border-radius: 6px; }
+
+  .compare-table {
+    border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin: 12px 0;
+  }
+  .compare-table .title { background: var(--navy); color: white; padding: 8px 14px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
+  .compare-table table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .compare-table th, .compare-table td { padding: 8px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  .compare-table th { background: white; color: var(--navy); font-size: 11px; font-weight: 700; }
+  .compare-table tbody tr:nth-child(odd) td { background: var(--off); }
+  .compare-table tr.highlight td { background: var(--teal-bg); font-weight: 700; }
+
+  .pill {
+    display: inline-block; background: var(--teal-bg); color: var(--teal-dk);
+    font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 12px;
+    margin: 0 6px 6px 0; text-decoration: none;
+  }
+  .pill.ext { background: white; border: 1px solid var(--teal-dk); }
+
+  .followup {
+    border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px;
+    margin-bottom: 8px; font-size: 14px; cursor: pointer; transition: border-color 0.15s;
+  }
+  .followup:hover { border-color: var(--teal-dk); }
+
+  .closer {
+    margin-top: 16px; font-style: italic; font-size: 13px; color: var(--navy);
+    text-align: right;
+  }
+
+  .panel-input {
+    border-top: 1px solid var(--border); background: white; padding: 14px 20px;
+    display: flex; gap: 10px;
+  }
+  .panel-input input {
+    flex: 1; padding: 10px 14px; border: 1px solid var(--border); border-radius: 12px;
+    font-size: 14px; font-family: inherit;
+  }
+  .panel-input button {
+    background: var(--teal); color: white; border: none; padding: 0 18px;
+    border-radius: 12px; font-weight: 700; font-size: 14px; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div class="mock-nav">
+  <span class="label">STYLE 1</span>
+  <span>Right-edge slide-out</span>
+  <span style="margin-left: auto; opacity: 0.7;"><a href="./index.html">← back to gallery</a></span>
+</div>
+
+<div class="report-wrap">
+  <div class="report" id="report">
+    <div class="breadcrumb">UK · Surrey · Day + Boarding</div>
+    <h1>Reed's School</h1>
+    <p style="color: var(--muted); margin-bottom: 24px;">Cobham, Surrey · founded 1813 · ~700 pupils · day + boarding</p>
+
+    <div class="verdict">
+      <h3>Quick verdict</h3>
+      <p>Strong all-rounder with notable strength in tennis (LTA RPDC centre, Tennis Academy with 8 coaches). 50%+ A/A* at GCSE, 52% at A-Level. Pastoral system designed around small "houses" with resident staff. Sits at the lower-mid end of UK independent boarding costs.</p>
+    </div>
+
+    <h2>Key facts</h2>
+    <p>Day fees from £8,820/term. Boarding from £14,200/term. Registration £150, deposit £2,000 on offer. Day-school routine with optional flexi-boarding.</p>
+
+    <h2>Fees & true cost</h2>
+    <p>Reed's publishes its 2025/26 fee schedule. The headline figures don't include extras like trips, music lessons, exam fees, or uniforms — most parents add 10-15% on top.</p>
+    <p><strong>Sibling discount</strong> applies from the third child onwards (not the second).</p>
+
+    <h2>Pastoral & wellbeing</h2>
+    <p>Each house has a resident Head of House, matron, and tutor team. The 2025 ISI inspection rated pastoral provision "excellent" with a noted strength in personalised feedback…</p>
+
+    <p style="color: var(--muted); font-style: italic; padding: 20px; text-align: center;">[…rest of report…]</p>
+  </div>
+</div>
+
+<!-- Closed-state handle -->
+<div class="nana-handle" id="handle" onclick="openPanel()">
+  <div class="pulse"></div>
+  <div class="text">Ask Nana</div>
+</div>
+
+<!-- Slide-out panel -->
+<div class="panel" id="panel">
+  <div class="panel-header">
+    <div class="pulse"></div>
+    <h2>Nana</h2>
+    <span class="sub">reading Reed's School</span>
+    <button class="close" onclick="closePanel()">✕</button>
+  </div>
+
+  <div class="panel-body">
+    <div class="you-asked">
+      <div class="label">You asked</div>
+      <div>What are Reed's fees?</div>
+    </div>
+
+    <div class="eyebrow">Short Answer</div>
+    <div class="short-answer">
+      Reed's day fees are £8,820/term and full boarding is £14,200/term — about £42,600/year for boarding before extras.
+    </div>
+
+    <div class="eyebrow">Confirmed Facts</div>
+    <div class="body-text">
+      <ul>
+        <li>Day pupils (Y7–Y13): <strong>£8,820/term</strong> <a class="pill" href="#">Fees ↑</a></li>
+        <li>Full boarding (Y9–Y13): <strong>£14,200/term</strong> <a class="pill" href="#">Fees ↑</a></li>
+        <li>Registration fee: £150 <a class="pill ext" href="#">reeds.surrey/admissions ↗</a></li>
+        <li>Deposit on offer of a place: £2,000 <a class="pill ext" href="#">reeds.surrey/admissions ↗</a></li>
+      </ul>
+    </div>
+
+    <div class="compare-table">
+      <div class="title">Reed's 2025–26 — Day vs Boarding fees</div>
+      <table>
+        <thead>
+          <tr><th></th><th>DAY</th><th>BOARDING</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Tuition / term</td><td>£8,820</td><td>£14,200</td></tr>
+          <tr><td>Tuition / year</td><td>£26,460</td><td>£42,600</td></tr>
+          <tr><td>Extras / year (est.)</td><td>£3-6k</td><td>£3-6k</td></tr>
+          <tr class="highlight"><td>All-in estimate</td><td>£29-32k</td><td>£45-49k</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="eyebrow amber">⚠ Tradeoff</div>
+    <div class="body-text tradeoff">
+      Sibling discount applies from the <strong>third child onwards</strong>, not the second. If you have two children at Reed's, you do not get a discount.
+    </div>
+
+    <div class="eyebrow">What we don't know</div>
+    <div class="body-text">
+      <ul>
+        <li>The 2026/27 fee uplift hasn't been published yet</li>
+        <li>Bursary income thresholds aren't disclosed publicly</li>
+      </ul>
+    </div>
+
+    <div class="eyebrow">Sources</div>
+    <div>
+      <a class="pill" href="#">Fees & true cost ↑</a>
+      <a class="pill ext" href="#">reeds.surrey.sch.uk/fees ↗</a>
+    </div>
+
+    <div class="eyebrow">You might also ask</div>
+    <div class="followup">How does Reed's bursary system work?</div>
+    <div class="followup">What's included vs extra in boarding fees?</div>
+    <div class="followup">When did Reed's fees last increase?</div>
+
+    <div class="closer">Want me to dig into any of this further? — Nana</div>
+  </div>
+
+  <div class="panel-input">
+    <input placeholder="Ask another question…" />
+    <button>Send</button>
+  </div>
+</div>
+
+<script>
+  const handle = document.getElementById('handle');
+  const panel  = document.getElementById('panel');
+  const report = document.getElementById('report');
+
+  function openPanel() {
+    panel.classList.add('open');
+    handle.classList.add('hidden');
+    report.classList.add('dimmed');
+  }
+  function closePanel() {
+    panel.classList.remove('open');
+    handle.classList.remove('hidden');
+    report.classList.remove('dimmed');
+  }
+  // Demo: open by default so user sees the panel immediately
+  setTimeout(openPanel, 400);
+</script>
+</body>
+</html>

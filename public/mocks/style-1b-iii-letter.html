@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Style 1B-iii — Letter from Nana (Nana mock)</title>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #1B3252; --teal: #34C3A0; --teal-dk: #239C80; --teal-bg: #E8FAF6;
+    --amber: #B45309; --amber-bg: #FEF3C7;
+    --off: #FAF7F2; --paper: #FBF8F1; --text: #3D3D3D; --muted: #6B7280; --border: #DDD4C2;
+    --accent: #C97758;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Source Serif 4', Georgia, serif; background: var(--off); color: var(--text); line-height: 1.55; }
+
+  .mock-nav { background: var(--navy); color: white; padding: 8px 16px; font-size: 12px; display: flex; align-items: center; gap: 16px; font-family: 'Nunito Sans', sans-serif; }
+  .mock-nav a { color: var(--teal); text-decoration: none; }
+  .mock-nav .label { font-weight: 800; letter-spacing: 0.06em; }
+
+  .report-wrap { display: flex; min-height: calc(100vh - 32px); }
+  .report { flex: 1; max-width: 920px; margin: 0 auto; padding: 40px 32px 80px; opacity: 0.4; font-family: 'Nunito Sans', sans-serif; }
+  .report h1 { font-size: 30px; color: var(--navy); margin-bottom: 8px; font-weight: 800; }
+  .report p { color: var(--text); font-size: 15px; margin-bottom: 12px; }
+  .report .verdict { background: white; border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 16px; }
+  .report .verdict h3 { font-size: 18px; color: var(--navy); margin-bottom: 8px; font-weight: 700; }
+
+  /* Letter-style panel */
+  .panel {
+    position: fixed; top: 0; right: 0; height: 100vh; width: 560px;
+    background: var(--paper);
+    box-shadow: -8px 0 32px rgba(27,50,82,0.10);
+    display: flex; flex-direction: column; z-index: 20;
+    /* Subtle paper texture via gradient */
+    background-image: linear-gradient(180deg, rgba(0,0,0,0.01) 0%, transparent 4%, transparent 96%, rgba(0,0,0,0.01) 100%);
+  }
+  .panel-header {
+    padding: 18px 28px; display: flex; align-items: center; gap: 12px;
+    border-bottom: 1px solid var(--border); background: var(--paper);
+  }
+  .panel-header .pulse {
+    width: 10px; height: 10px; background: var(--teal); border-radius: 50%;
+    box-shadow: 0 0 0 3px rgba(52,195,160,0.2); animation: pulse 2.4s infinite;
+  }
+  .panel-header h2 {
+    font-family: 'Source Serif 4', serif; font-size: 19px; color: var(--navy);
+    font-weight: 600; letter-spacing: 0.01em;
+  }
+  .panel-header .sub { font-family: 'Source Serif 4', serif; font-style: italic; font-size: 12px; color: var(--muted); }
+  .panel-header .close { margin-left: auto; background: none; border: none; font-size: 20px; color: var(--muted); cursor: pointer; padding: 4px 8px; font-family: sans-serif; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 3px rgba(52,195,160,0.2);} 50% { box-shadow: 0 0 0 6px rgba(52,195,160,0.05);} }
+
+  .panel-body {
+    flex: 1; overflow-y: auto;
+    padding: 38px 48px 80px;
+    font-family: 'Source Serif 4', Georgia, serif;
+  }
+
+  /* Letter date / from line */
+  .letter-meta {
+    text-align: right; font-size: 13px; color: var(--muted);
+    font-style: italic; margin-bottom: 32px;
+  }
+
+  /* Greeting */
+  .greeting {
+    font-size: 17px; color: var(--navy); font-weight: 500;
+    margin-bottom: 22px;
+  }
+
+  /* The question, presented as quoted */
+  .question-quote {
+    margin: 0 0 28px; padding: 18px 24px;
+    background: white; border-left: 3px solid var(--accent);
+    font-style: italic; font-size: 16px; line-height: 1.5;
+    color: var(--text);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+  }
+  .question-quote .label {
+    font-family: 'Nunito Sans', sans-serif; font-size: 10px;
+    color: var(--muted); letter-spacing: 0.18em; text-transform: uppercase;
+    font-weight: 700; margin-bottom: 4px; font-style: normal;
+  }
+
+  /* Body — flowing prose */
+  .letter-body { font-size: 16px; line-height: 1.75; color: var(--text); }
+  .letter-body p { margin-bottom: 18px; }
+  .letter-body strong { color: var(--navy); font-weight: 600; }
+  .letter-body em { color: var(--accent); font-style: italic; }
+
+  /* Inline aside — for tradeoff */
+  .aside {
+    margin: 22px -16px; padding: 16px 22px;
+    background: var(--amber-bg); border: 1px solid #f0d9a8;
+    border-radius: 6px; font-size: 15px; line-height: 1.65;
+    font-style: italic; color: var(--text); position: relative;
+  }
+  .aside::before {
+    content: 'A note';
+    position: absolute; top: -8px; left: 16px;
+    background: var(--paper); padding: 0 8px;
+    font-family: 'Nunito Sans', sans-serif; font-size: 10px;
+    color: var(--amber); letter-spacing: 0.18em; text-transform: uppercase;
+    font-weight: 800; font-style: normal;
+  }
+  .aside strong { color: var(--amber); font-style: normal; }
+
+  /* Bullet facts in the letter */
+  .facts-inline { margin: 14px 0 22px; padding-left: 0; list-style: none; }
+  .facts-inline li {
+    padding: 6px 0 6px 24px; position: relative; font-size: 15px;
+    border-bottom: 1px dotted var(--border);
+  }
+  .facts-inline li:last-child { border-bottom: none; }
+  .facts-inline li::before {
+    content: '✓'; position: absolute; left: 0; top: 6px;
+    color: var(--teal-dk); font-weight: 700; font-size: 14px;
+  }
+
+  /* Compact table — looks like an inserted table in a letter */
+  .compare-table {
+    margin: 18px 0; background: white; border: 1px solid var(--border);
+    border-radius: 4px; overflow: hidden;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .compare-table .title {
+    background: var(--paper); border-bottom: 1px solid var(--border);
+    padding: 10px 18px; font-family: 'Source Serif 4', serif;
+    font-size: 14px; font-weight: 600; color: var(--navy); font-style: italic;
+  }
+  .compare-table table { width: 100%; border-collapse: collapse; font-size: 14px; font-family: 'Source Serif 4', serif; }
+  .compare-table th, .compare-table td { padding: 8px 18px; text-align: left; border-bottom: 1px solid var(--border); }
+  .compare-table th { font-size: 11px; color: var(--muted); font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; font-family: 'Nunito Sans', sans-serif; }
+  .compare-table tr.highlight td { background: var(--teal-bg); color: var(--navy); font-weight: 600; }
+  .compare-table tr:last-child td { border-bottom: none; }
+
+  /* Citations in the letter — superscript footnote style */
+  .pill {
+    color: var(--accent); font-weight: 600; font-size: 11px;
+    text-decoration: none; vertical-align: super; line-height: 0;
+    border-bottom: 1px dotted var(--accent); padding-bottom: 1px;
+    margin: 0 1px 0 2px;
+  }
+  .pill::before { content: '['; }
+  .pill::after { content: ']'; }
+
+  /* Things-to-ask-back — formatted as P.S. */
+  .ps {
+    margin-top: 36px; padding-top: 24px; border-top: 1px solid var(--border);
+    font-size: 15px;
+  }
+  .ps .ps-label {
+    font-family: 'Source Serif 4', serif; font-weight: 600;
+    color: var(--accent); margin-right: 8px;
+  }
+  .followup-list { margin-top: 14px; }
+  .followup {
+    padding: 10px 0; padding-left: 26px; position: relative;
+    font-size: 15px; font-style: italic; color: var(--navy);
+    border-bottom: 1px dotted var(--border); cursor: pointer;
+  }
+  .followup:last-child { border-bottom: none; }
+  .followup::before {
+    content: '→'; position: absolute; left: 4px; color: var(--accent);
+    font-style: normal; font-weight: 700;
+  }
+  .followup:hover { color: var(--accent); }
+
+  /* Letter signature */
+  .signature {
+    margin-top: 36px; padding-top: 0;
+    text-align: left;
+  }
+  .signature .salutation {
+    font-size: 16px; color: var(--text); font-style: italic;
+    margin-bottom: 18px;
+  }
+  .signature .name {
+    font-family: 'Source Serif 4', serif; font-size: 24px;
+    color: var(--navy); font-weight: 600; font-style: italic;
+    border-bottom: 1px solid var(--accent); display: inline-block;
+    padding-bottom: 4px; padding-right: 40px;
+  }
+  .signature .role {
+    margin-top: 8px; font-family: 'Nunito Sans', sans-serif;
+    font-size: 11px; color: var(--muted); letter-spacing: 0.18em;
+    text-transform: uppercase; font-weight: 700;
+  }
+
+  /* Footnotes block at bottom */
+  .footnotes {
+    margin-top: 36px; padding-top: 20px; border-top: 1px dashed var(--border);
+    font-size: 12px; color: var(--muted); line-height: 1.7;
+  }
+  .footnotes .label {
+    font-family: 'Nunito Sans', sans-serif; font-size: 10px;
+    letter-spacing: 0.18em; text-transform: uppercase; font-weight: 800;
+    color: var(--text); margin-bottom: 8px; display: block;
+  }
+  .footnotes a { color: var(--accent); text-decoration: none; border-bottom: 1px dotted var(--accent); }
+
+  .panel-input {
+    border-top: 1px solid var(--border); padding: 16px 28px;
+    display: flex; gap: 10px; background: var(--paper);
+  }
+  .panel-input input {
+    flex: 1; padding: 10px 14px; border: 1px solid var(--border);
+    border-radius: 4px; font-size: 14px;
+    font-family: 'Source Serif 4', serif; font-style: italic;
+    background: white;
+  }
+  .panel-input button {
+    background: var(--navy); color: white; border: none; padding: 0 22px;
+    border-radius: 4px; font-weight: 700; font-size: 12px; cursor: pointer;
+    font-family: 'Nunito Sans', sans-serif; letter-spacing: 0.10em; text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<div class="mock-nav">
+  <span class="label">STYLE 1B-iii</span>
+  <span>Letter from Nana — warmer serif, personal voice, signed sign-off</span>
+  <span style="margin-left: auto; opacity: 0.7;"><a href="./index.html">← back to gallery</a></span>
+</div>
+
+<div class="report-wrap">
+  <div class="report">
+    <h1>Reed's School</h1>
+    <p style="color: var(--muted); margin-bottom: 24px;">Cobham, Surrey · founded 1813 · ~700 pupils · day + boarding</p>
+    <div class="verdict"><h3>Quick verdict</h3><p>Strong all-rounder with notable strength in tennis. 50%+ A/A* at GCSE.</p></div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <div class="pulse"></div>
+    <h2>Nana</h2>
+    <span class="sub">reading Reed's School</span>
+    <button class="close">✕</button>
+  </div>
+
+  <div class="panel-body">
+    <div class="letter-meta">
+      Written for you · 26 April 2026
+    </div>
+
+    <div class="greeting">Hello,</div>
+
+    <div class="question-quote">
+      <div class="label">You asked</div>
+      What are Reed's fees?
+    </div>
+
+    <div class="letter-body">
+      <p>The short version: Reed's day fees are <strong>£8,820 per term</strong>, and full boarding is <strong>£14,200 per term</strong>. Multiply through the school year and you get £26,460 for a day pupil and £42,600 for a boarder<a class="pill" href="#">1</a> — before extras.</p>
+
+      <ul class="facts-inline">
+        <li>Day pupils, Y7–Y13: <strong>£8,820/term</strong></li>
+        <li>Full boarding, Y9–Y13: <strong>£14,200/term</strong></li>
+        <li>Registration £150, Deposit £2,000 on offer<a class="pill" href="#">2</a></li>
+      </ul>
+
+      <p>The headline numbers tell only part of the story. Most parents end up adding 10 to 15 percent on top once trips, music lessons, exam fees, and uniform are accounted for. Realistically you'll see <em>about £29-32k/year</em> for a day pupil and <em>£45-49k</em> for a boarder. For context, the ISC's 2024 average for UK independent boarding is around £42k — Reed's sits at the lower-mid end.</p>
+
+      <div class="compare-table">
+        <div class="title">Reed's 2025–26: day vs boarding, in numbers</div>
+        <table>
+          <thead><tr><th></th><th>Day</th><th>Boarding</th></tr></thead>
+          <tbody>
+            <tr><td>Tuition / term</td><td>£8,820</td><td>£14,200</td></tr>
+            <tr><td>Tuition / year</td><td>£26,460</td><td>£42,600</td></tr>
+            <tr><td>Extras / yr (estimated)</td><td>£3-6k</td><td>£3-6k</td></tr>
+            <tr class="highlight"><td>All-in estimate</td><td>£29-32k</td><td>£45-49k</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="aside">
+        Reed's <strong>sibling discount</strong> applies from the third child onwards — not the second. If you have two children at Reed's, you don't get a discount. This is sharper than most UK independents, where the discount usually starts at the second child. Worth raising with the bursar if it matters to you.
+      </div>
+
+      <p>Two things I couldn't confirm: the 2026/27 fee uplift hasn't been published yet, and Reed's doesn't publicly list its bursary income thresholds — the cutoffs that determine partial fee remission. Both are reasonable questions for an admissions or bursar conversation.</p>
+    </div>
+
+    <div class="ps">
+      <span class="ps-label">P.S.</span>
+      <span>If any of these come to mind, I'm happy to dig further:</span>
+      <div class="followup-list">
+        <div class="followup">How does Reed's bursary system work?</div>
+        <div class="followup">What's included versus extra in the boarding fee?</div>
+        <div class="followup">When did Reed's fees last increase, and by how much?</div>
+      </div>
+    </div>
+
+    <div class="signature">
+      <div class="salutation">Hope this helps.</div>
+      <div class="name">Nana</div>
+      <div class="role">NanaSays Research</div>
+    </div>
+
+    <div class="footnotes">
+      <span class="label">Sources</span>
+      [1] <a href="#">Fees & true cost</a> (Reed's deep school report)<br>
+      [2] <a href="#">reeds.surrey.sch.uk/admissions</a>
+    </div>
+  </div>
+
+  <div class="panel-input">
+    <input placeholder="Write back…" />
+    <button>Send</button>
+  </div>
+</div>
+</body>
+</html>

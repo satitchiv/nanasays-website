@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Style 1A — Section-gated minimal (Nana mock)</title>
+<style>
+  :root {
+    --navy: #1B3252; --teal: #34C3A0; --teal-dk: #239C80; --teal-bg: #E8FAF6;
+    --amber: #D97706; --amber-bg: #FFFBEB;
+    --off: #F6F8FA; --text: #1f2937; --muted: #6B7280; --border: #E5E7EB;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito Sans', -apple-system, system-ui, sans-serif; background: var(--off); color: var(--text); line-height: 1.55; }
+
+  .mock-nav { background: var(--navy); color: white; padding: 8px 16px; font-size: 12px; display: flex; align-items: center; gap: 16px; }
+  .mock-nav a { color: var(--teal); text-decoration: none; }
+  .mock-nav .label { font-weight: 800; letter-spacing: 0.06em; }
+
+  .report-wrap { display: flex; min-height: calc(100vh - 32px); }
+  .report { flex: 1; max-width: 920px; margin: 0 auto; padding: 40px 32px 80px; transition: opacity 0.3s; }
+  .report.dimmed { opacity: 0.4; }
+  .report h1 { font-size: 30px; color: var(--navy); margin-bottom: 8px; font-weight: 800; }
+  .report .breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 24px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .report h2 { font-size: 11px; color: var(--teal-dk); font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; margin: 36px 0 12px; border-top: 1px solid var(--border); padding-top: 24px; }
+  .report p { color: var(--text); font-size: 15px; margin-bottom: 12px; }
+  .report .verdict { background: white; border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 16px; }
+  .report .verdict h3 { font-size: 18px; color: var(--navy); margin-bottom: 8px; font-weight: 700; }
+
+  /* Panel: same width as base Style 1 (480px) */
+  .panel {
+    position: fixed; top: 0; right: 0; height: 100vh; width: 480px;
+    background: white; box-shadow: -8px 0 32px rgba(27,50,82,0.12);
+    transform: translateX(0); display: flex; flex-direction: column; z-index: 20;
+  }
+  .panel-header {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .panel-header .pulse { width: 12px; height: 12px; background: var(--teal); border-radius: 50%; box-shadow: 0 0 0 4px rgba(52,195,160,0.2); animation: pulse 2.4s infinite; }
+  .panel-header h2 { font-size: 16px; color: var(--navy); font-weight: 800; }
+  .panel-header .sub { font-size: 12px; color: var(--muted); }
+  .panel-header .close { margin-left: auto; background: none; border: none; font-size: 20px; color: var(--muted); cursor: pointer; padding: 4px 8px; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 4px rgba(52,195,160,0.2);} 50% { box-shadow: 0 0 0 8px rgba(52,195,160,0.05);} }
+
+  .panel-body { flex: 1; overflow-y: auto; padding: 20px 24px 80px; }
+
+  .you-asked {
+    font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.18em;
+    font-weight: 800; margin-bottom: 4px;
+  }
+  .question-text { font-size: 15px; color: var(--navy); font-weight: 600; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid var(--border); }
+
+  .eyebrow { font-size: 10px; font-weight: 800; color: var(--teal-dk); letter-spacing: 0.18em; text-transform: uppercase; margin: 22px 0 10px; }
+  .short-answer { font-size: 17px; color: var(--navy); font-weight: 500; line-height: 1.5; margin-bottom: 16px; }
+  .body-text { font-size: 14px; color: var(--text); line-height: 1.6; }
+  .body-text ul { margin-left: 18px; margin-top: 4px; }
+  .body-text li { margin-bottom: 8px; }
+
+  /* Expand buttons — the key feature of this variation */
+  .expand-row { display: flex; flex-direction: column; gap: 8px; margin: 18px 0; }
+  .expand-btn {
+    padding: 12px 14px; background: white; border: 1px solid var(--teal-dk);
+    color: var(--teal-dk); font-size: 13px; font-weight: 700; cursor: pointer;
+    border-radius: 12px; text-align: left; display: flex; align-items: center;
+    transition: background 0.15s;
+  }
+  .expand-btn:hover { background: var(--teal-bg); }
+  .expand-btn .icon { margin-right: 8px; font-size: 14px; }
+  .expand-btn .arrow { margin-left: auto; }
+  .expand-btn.open { background: var(--teal-bg); }
+
+  .expanded-content {
+    overflow: hidden; max-height: 0; transition: max-height 0.3s ease-out;
+  }
+  .expanded-content.open { max-height: 600px; }
+
+  .what-this-means {
+    background: var(--amber-bg); border-left: 3px solid var(--amber);
+    padding: 14px 16px; border-radius: 0 8px 8px 0; margin-top: 8px; font-size: 13px;
+  }
+  .what-this-means .gap-callout {
+    margin-top: 14px; padding-top: 12px; border-top: 1px dashed rgba(217,119,6,0.4);
+    font-size: 12px;
+  }
+  .what-this-means .gap-callout strong { display: block; font-size: 10px; letter-spacing: 0.14em; color: var(--amber); margin-bottom: 4px; }
+
+  .compare-table { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-top: 8px; }
+  .compare-table .title { background: var(--navy); color: white; padding: 8px 14px; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; display: flex; justify-content: space-between; align-items: center; }
+  .compare-table .pdf-chip { background: white; color: var(--navy); padding: 3px 8px; border-radius: 12px; font-size: 10px; cursor: pointer; }
+  .compare-table table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .compare-table th, .compare-table td { padding: 8px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  .compare-table th { background: white; color: var(--navy); font-size: 11px; font-weight: 700; }
+  .compare-table tbody tr:nth-child(odd) td { background: var(--off); }
+  .compare-table tr.highlight td { background: var(--teal-bg); font-weight: 700; }
+
+  .pill { display: inline-block; background: var(--teal-bg); color: var(--teal-dk); font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 12px; margin: 0 6px 6px 0; text-decoration: none; }
+  .pill.ext { background: white; border: 1px solid var(--teal-dk); }
+
+  .followup { border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; margin-bottom: 8px; font-size: 14px; cursor: pointer; }
+  .followup:hover { border-color: var(--teal-dk); }
+
+  .closer { margin-top: 18px; font-style: italic; font-size: 13px; color: var(--navy); text-align: right; }
+
+  .panel-input { border-top: 1px solid var(--border); padding: 14px 20px; display: flex; gap: 10px; }
+  .panel-input input { flex: 1; padding: 10px 14px; border: 1px solid var(--border); border-radius: 12px; font-size: 14px; font-family: inherit; }
+  .panel-input button { background: var(--teal); color: white; border: none; padding: 0 18px; border-radius: 12px; font-weight: 700; font-size: 14px; cursor: pointer; }
+
+  .gap-banner {
+    margin: 16px 0; padding: 10px 12px; border: 1px dashed var(--border);
+    border-radius: 8px; font-size: 12px; color: var(--muted); display: flex; align-items: flex-start; gap: 8px;
+  }
+  .gap-banner strong { color: var(--amber); }
+</style>
+</head>
+<body>
+
+<div class="mock-nav">
+  <span class="label">STYLE 1A</span>
+  <span>Section-gated — minimal initial answer, expand on demand</span>
+  <span style="margin-left: auto; opacity: 0.7;"><a href="./index.html">← back to gallery</a></span>
+</div>
+
+<div class="report-wrap">
+  <div class="report dimmed">
+    <div class="breadcrumb">UK · Surrey · Day + Boarding</div>
+    <h1>Reed's School</h1>
+    <p style="color: var(--muted); margin-bottom: 24px;">Cobham, Surrey · founded 1813 · ~700 pupils · day + boarding</p>
+    <div class="verdict"><h3>Quick verdict</h3><p>Strong all-rounder with notable strength in tennis (LTA RPDC centre). 50%+ A/A* at GCSE. Pastoral system designed around small "houses" with resident staff.</p></div>
+    <h2>Key facts</h2><p>Day fees from £8,820/term. Boarding from £14,200/term.</p>
+    <h2>Fees & true cost</h2><p>Reed's publishes its 2025/26 fee schedule. Most parents add 10-15% in extras.</p>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <div class="pulse"></div>
+    <h2>Nana</h2>
+    <span class="sub">reading Reed's School</span>
+    <button class="close">✕</button>
+  </div>
+
+  <div class="panel-body">
+    <div class="you-asked">You asked</div>
+    <div class="question-text">What are Reed's fees?</div>
+
+    <!-- ALWAYS-VISIBLE: short answer + confirmed facts -->
+    <div class="eyebrow">Short Answer</div>
+    <div class="short-answer">
+      Reed's day fees are £8,820/term and full boarding is £14,200/term — about £42,600/year for boarding before extras.
+    </div>
+
+    <div class="eyebrow">Confirmed Facts</div>
+    <div class="body-text">
+      <ul>
+        <li>Day pupils (Y7–Y13): <strong>£8,820/term</strong> <a class="pill" href="#">Fees ↑</a></li>
+        <li>Full boarding (Y9–Y13): <strong>£14,200/term</strong> <a class="pill" href="#">Fees ↑</a></li>
+        <li>Registration £150 · Deposit £2,000 <a class="pill ext" href="#">reeds.surrey/admissions ↗</a></li>
+      </ul>
+    </div>
+
+    <!-- HIDDEN behind buttons: WTM + comparison -->
+    <div class="expand-row">
+      <button class="expand-btn" onclick="toggleExpand(this, 'wtm')">
+        <span class="icon">✦</span>
+        <span>Break this down for me</span>
+        <span class="arrow">↓</span>
+      </button>
+      <div id="wtm" class="expanded-content">
+        <div class="what-this-means">
+          A full boarding year at Reed's is £42,600 in tuition — but real "all-in" lands closer to £45-49k once you add uniform, trips, music lessons, and exam fees.
+          <br><br>
+          For a day pupil, expect ~£29-32k/year all-in. Reed's sits at the lower-mid end of UK independent boarding costs (compared to ~£42k average per ISC 2024).
+          <div class="gap-callout">
+            <strong>◇ NANA COULDN'T CONFIRM</strong>
+            Reed's website lists "trips" as a variable extra but doesn't publish typical ranges. Ask on the school tour: "What did your family actually spend last year, all-in?"
+          </div>
+        </div>
+      </div>
+
+      <button class="expand-btn" onclick="toggleExpand(this, 'table')">
+        <span class="icon">⊞</span>
+        <span>Compare as a table</span>
+        <span class="arrow">↓</span>
+      </button>
+      <div id="table" class="expanded-content">
+        <div class="compare-table">
+          <div class="title">
+            <span>Reed's 2025–26 — Day vs Boarding</span>
+            <span class="pdf-chip">↓ PDF</span>
+          </div>
+          <table>
+            <thead><tr><th></th><th>DAY</th><th>BOARDING</th></tr></thead>
+            <tbody>
+              <tr><td>Tuition / term</td><td>£8,820</td><td>£14,200</td></tr>
+              <tr><td>Tuition / year</td><td>£26,460</td><td>£42,600</td></tr>
+              <tr><td>Extras / year (est.)</td><td>£3-6k</td><td>£3-6k</td></tr>
+              <tr class="highlight"><td>All-in estimate</td><td>£29-32k</td><td>£45-49k</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Standalone gap callout (only shows when there's a real gap that wasn't expanded) -->
+    <div class="gap-banner">
+      <strong>?</strong>
+      <div>
+        <strong>What we don't know:</strong> 2026/27 fee uplift not published; bursary income thresholds not on public site.
+      </div>
+    </div>
+
+    <div class="eyebrow">Sources</div>
+    <div>
+      <a class="pill" href="#">Fees & true cost ↑</a>
+      <a class="pill ext" href="#">reeds.surrey.sch.uk/fees ↗</a>
+    </div>
+
+    <div class="eyebrow">You might also ask</div>
+    <div class="followup">How does Reed's bursary system work?</div>
+    <div class="followup">What's included vs extra in boarding fees?</div>
+    <div class="followup">When did Reed's fees last increase?</div>
+
+    <div class="closer">Want me to dig into any of this further? — Nana</div>
+  </div>
+
+  <div class="panel-input">
+    <input placeholder="Ask another question…" />
+    <button>Send</button>
+  </div>
+</div>
+
+<script>
+  function toggleExpand(btn, id) {
+    const el = document.getElementById(id);
+    el.classList.toggle('open');
+    btn.classList.toggle('open');
+    btn.querySelector('.arrow').textContent = el.classList.contains('open') ? '↑' : '↓';
+    btn.querySelector('span:nth-child(2)').textContent = el.classList.contains('open')
+      ? (id === 'wtm' ? 'Hide breakdown' : 'Hide table')
+      : (id === 'wtm' ? 'Break this down for me' : 'Compare as a table');
+  }
+</script>
+</body>
+</html>

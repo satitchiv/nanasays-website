@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Style 2 — Inline companion (Nana mock)</title>
+<style>
+  :root {
+    --navy:    #1B3252;
+    --teal:    #34C3A0;
+    --teal-dk: #239C80;
+    --teal-bg: #E8FAF6;
+    --amber:   #D97706;
+    --amber-bg:#FEF3C7;
+    --off:     #F6F8FA;
+    --text:    #1f2937;
+    --muted:   #6B7280;
+    --border:  #E5E7EB;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: 'Nunito Sans', -apple-system, system-ui, sans-serif; background: var(--off); color: var(--text); line-height: 1.55; overflow: hidden; }
+
+  .mock-nav { background: var(--navy); color: white; padding: 8px 16px; font-size: 12px; display: flex; align-items: center; gap: 16px; height: 32px; }
+  .mock-nav a { color: var(--teal); text-decoration: none; }
+  .mock-nav .label { font-weight: 800; letter-spacing: 0.06em; }
+
+  /* Layout: top report area + bottom companion bar */
+  .layout { display: flex; flex-direction: column; height: calc(100vh - 32px); }
+  .report-pane {
+    flex: 1; overflow-y: auto;
+    transition: max-height 0.3s ease-out;
+  }
+  .report { max-width: 920px; margin: 0 auto; padding: 40px 32px 60px; }
+  .report h1 { font-size: 30px; color: var(--navy); margin-bottom: 8px; font-weight: 800; }
+  .report .breadcrumb { font-size: 12px; color: var(--muted); margin-bottom: 24px; text-transform: uppercase; letter-spacing: 0.08em; }
+  .report h2 { font-size: 11px; color: var(--teal-dk); font-weight: 800; text-transform: uppercase; letter-spacing: 0.18em; margin: 36px 0 12px; border-top: 1px solid var(--border); padding-top: 24px; }
+  .report p { color: var(--text); font-size: 15px; margin-bottom: 12px; }
+  .report .verdict { background: white; border: 1px solid var(--border); border-radius: 14px; padding: 24px; margin-bottom: 16px; }
+  .report .verdict h3 { font-size: 18px; color: var(--navy); margin-bottom: 8px; font-weight: 700; }
+
+  /* Companion bar */
+  .companion {
+    background: white; border-top: 2px solid var(--teal); box-shadow: 0 -4px 20px rgba(27,50,82,0.06);
+    transition: height 0.3s ease-out;
+    height: 80px; overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .companion.expanded { height: 60vh; }
+  .companion-header {
+    height: 80px; padding: 0 24px; display: flex; align-items: center; gap: 14px;
+    border-bottom: 1px solid var(--border); cursor: pointer; flex-shrink: 0;
+    background: white;
+  }
+  .companion-header:hover { background: var(--off); }
+  .companion-header .pulse { width: 14px; height: 14px; background: var(--teal); border-radius: 50%; box-shadow: 0 0 0 4px rgba(52,195,160,0.2); animation: pulse 2.4s infinite; }
+  .companion-header .label { font-size: 11px; font-weight: 800; color: var(--teal-dk); letter-spacing: 0.18em; text-transform: uppercase; }
+  .companion-header .hint { font-size: 14px; color: var(--navy); font-weight: 600; }
+  .companion-header .chevron { margin-left: auto; font-size: 14px; color: var(--muted); transition: transform 0.3s; }
+  .companion.expanded .companion-header .chevron { transform: rotate(180deg); }
+  .companion-header input {
+    flex: 1; padding: 10px 14px; border: 1px solid var(--border); border-radius: 10px;
+    font-size: 14px; font-family: inherit; max-width: 500px;
+  }
+  .companion-header button {
+    background: var(--teal); color: white; border: none; padding: 10px 20px;
+    border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer;
+  }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 4px rgba(52,195,160,0.2);} 50% { box-shadow: 0 0 0 8px rgba(52,195,160,0.05);} }
+
+  .companion-body {
+    flex: 1; overflow-y: auto;
+    padding: 0 24px 24px;
+    display: grid; grid-template-columns: 1fr 360px; gap: 32px;
+    max-width: 1200px; margin: 0 auto; width: 100%;
+  }
+  .answer-col { padding-top: 18px; }
+  .meta-col { padding-top: 18px; border-left: 1px solid var(--border); padding-left: 24px; }
+
+  .you-asked {
+    background: var(--off); border-radius: 8px; padding: 10px 14px; margin-bottom: 16px;
+    font-size: 13px; color: var(--muted);
+  }
+  .you-asked strong { color: var(--text); }
+
+  .eyebrow { font-size: 10px; font-weight: 800; color: var(--teal-dk); letter-spacing: 0.18em; text-transform: uppercase; margin: 14px 0 6px; }
+  .eyebrow.amber { color: var(--amber); }
+  .short-answer { font-size: 17px; color: var(--navy); font-weight: 500; line-height: 1.5; }
+  .body-text { font-size: 14px; color: var(--text); line-height: 1.6; }
+  .body-text ul { margin-left: 18px; margin-top: 4px; }
+  .body-text li { margin-bottom: 6px; }
+  .tradeoff { background: var(--amber-bg); border-left: 3px solid var(--amber); padding: 10px 12px; border-radius: 6px; }
+
+  .compare-table { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin: 8px 0; }
+  .compare-table .title { background: var(--navy); color: white; padding: 6px 12px; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; }
+  .compare-table table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .compare-table th, .compare-table td { padding: 6px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  .compare-table th { background: white; color: var(--navy); font-size: 10px; font-weight: 700; }
+  .compare-table tbody tr:nth-child(odd) td { background: var(--off); }
+  .compare-table tr.highlight td { background: var(--teal-bg); font-weight: 700; }
+
+  .pill { display: inline-block; background: var(--teal-bg); color: var(--teal-dk); font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 12px; margin: 0 4px 4px 0; text-decoration: none; }
+  .pill.ext { background: white; border: 1px solid var(--teal-dk); }
+
+  .followup {
+    border: 1px solid var(--border); border-radius: 10px; padding: 8px 12px;
+    margin-bottom: 6px; font-size: 13px; cursor: pointer; background: white;
+  }
+  .followup:hover { border-color: var(--teal-dk); }
+
+  .conf-pill {
+    display: inline-block; padding: 3px 10px; border-radius: 8px;
+    font-size: 11px; font-weight: 700;
+    background: var(--teal-bg); color: var(--teal-dk);
+  }
+</style>
+</head>
+<body>
+
+<div class="mock-nav">
+  <span class="label">STYLE 2</span>
+  <span>Inline companion</span>
+  <span style="margin-left: auto; opacity: 0.7;"><a href="./index.html">← back to gallery</a></span>
+</div>
+
+<div class="layout">
+  <!-- Top: report content -->
+  <div class="report-pane">
+    <div class="report">
+      <div class="breadcrumb">UK · Surrey · Day + Boarding</div>
+      <h1>Reed's School</h1>
+      <p style="color: var(--muted); margin-bottom: 24px;">Cobham, Surrey · founded 1813 · ~700 pupils · day + boarding</p>
+
+      <div class="verdict">
+        <h3>Quick verdict</h3>
+        <p>Strong all-rounder with notable strength in tennis (LTA RPDC centre, Tennis Academy with 8 coaches). 50%+ A/A* at GCSE, 52% at A-Level. Pastoral system designed around small "houses" with resident staff. Sits at the lower-mid end of UK independent boarding costs.</p>
+      </div>
+
+      <h2>Key facts</h2>
+      <p>Day fees from £8,820/term. Boarding from £14,200/term. Registration £150, deposit £2,000 on offer.</p>
+
+      <h2>Fees & true cost</h2>
+      <p>Reed's publishes its 2025/26 fee schedule. Most parents add 10-15% in extras (trips, music, uniform, exam fees).</p>
+
+      <h2>Pastoral & wellbeing</h2>
+      <p>Each house has a resident Head of House, matron, and tutor team. The 2025 ISI inspection rated pastoral provision "excellent."</p>
+
+      <p style="color: var(--muted); font-style: italic; padding: 20px; text-align: center;">[…rest of report…]</p>
+    </div>
+  </div>
+
+  <!-- Bottom: companion -->
+  <div class="companion" id="companion">
+    <div class="companion-header" onclick="toggleCompanion(event)">
+      <div class="pulse"></div>
+      <span class="label">Nana</span>
+      <span class="hint" id="hint">Reading "Fees & true cost"? Try: <em style="color: var(--teal-dk); font-style: normal;">"What's the all-in cost?"</em></span>
+      <input id="qinput" placeholder="Ask Nana about Reed's…" onclick="event.stopPropagation()" />
+      <button onclick="event.stopPropagation(); expandCompanion()">Ask</button>
+      <span class="chevron">▼</span>
+    </div>
+
+    <div class="companion-body">
+      <div class="answer-col">
+        <div class="you-asked">
+          <strong>You asked:</strong> What are Reed's fees?
+        </div>
+
+        <div class="eyebrow">Short answer</div>
+        <div class="short-answer">
+          Reed's day fees are £8,820/term and full boarding is £14,200/term — about £42,600/year for boarding before extras.
+        </div>
+
+        <div class="eyebrow">Confirmed facts</div>
+        <div class="body-text">
+          <ul>
+            <li>Day pupils (Y7–Y13): <strong>£8,820/term</strong> <a class="pill" href="#">Fees ↑</a></li>
+            <li>Full boarding (Y9–Y13): <strong>£14,200/term</strong> <a class="pill" href="#">Fees ↑</a></li>
+            <li>Registration fee £150 · Deposit £2,000 <a class="pill ext" href="#">reeds.surrey/admissions ↗</a></li>
+          </ul>
+        </div>
+
+        <div class="compare-table">
+          <div class="title">2025–26 — Day vs Boarding</div>
+          <table>
+            <thead><tr><th></th><th>DAY</th><th>BOARDING</th></tr></thead>
+            <tbody>
+              <tr><td>Tuition / term</td><td>£8,820</td><td>£14,200</td></tr>
+              <tr><td>Tuition / year</td><td>£26,460</td><td>£42,600</td></tr>
+              <tr class="highlight"><td>All-in estimate</td><td>£29-32k</td><td>£45-49k</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="eyebrow amber">⚠ Tradeoff</div>
+        <div class="body-text tradeoff">
+          Sibling discount applies from the <strong>third child onwards</strong>, not the second.
+        </div>
+      </div>
+
+      <div class="meta-col">
+        <div class="eyebrow">Confidence</div>
+        <span class="conf-pill">high</span>
+
+        <div class="eyebrow">What we don't know</div>
+        <div class="body-text">
+          • 2026/27 fee uplift not published<br>
+          • Bursary income thresholds not on public site
+        </div>
+
+        <div class="eyebrow">Sources</div>
+        <div>
+          <a class="pill" href="#">Fees & true cost ↑</a>
+          <a class="pill ext" href="#">reeds.surrey/fees ↗</a>
+        </div>
+
+        <div class="eyebrow">You might also ask</div>
+        <div class="followup">How does Reed's bursary system work?</div>
+        <div class="followup">What's included vs extra in boarding fees?</div>
+        <div class="followup">When did Reed's fees last increase?</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const companion = document.getElementById('companion');
+  function toggleCompanion(e) {
+    companion.classList.toggle('expanded');
+  }
+  function expandCompanion() {
+    companion.classList.add('expanded');
+  }
+  // Demo: expand by default after a moment so user sees the answer
+  setTimeout(() => companion.classList.add('expanded'), 600);
+</script>
+</body>
+</html>

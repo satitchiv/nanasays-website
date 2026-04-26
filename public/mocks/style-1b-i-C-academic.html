@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Style 1B-i-C — Academic / footnoted (Nana mock)</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #1B3252; --teal: #34C3A0; --teal-dk: #239C80; --teal-bg: #E8FAF6;
+    --amber: #B45309; --amber-bg: #FEF3C7;
+    --off: #FBFBF8; --paper: #fcfaf3;
+    --text: #1f2937; --muted: #6B7280; --border: #DDD4C0;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Lora', Georgia, serif; background: var(--off); color: var(--text); line-height: 1.55; }
+
+  .mock-nav { background: var(--navy); color: white; padding: 8px 16px; font-size: 12px; display: flex; align-items: center; gap: 16px; font-family: 'Nunito Sans', sans-serif; }
+  .mock-nav a { color: var(--teal); text-decoration: none; }
+  .mock-nav .label { font-weight: 800; letter-spacing: 0.06em; }
+
+  /* ──── Reed's report on the left (shared) ──── */
+  .report-wrap { display: flex; min-height: calc(100vh - 32px); }
+  .report { flex: 1; max-width: 860px; margin: 0 auto; padding: 48px 32px 80px; opacity: 0.55; font-family: 'Nunito Sans', sans-serif; }
+  .report .eyebrow { font-size: 11px; font-weight: 900; color: var(--teal-dk); letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 14px; display: flex; align-items: center; gap: 10px; }
+  .report .eyebrow::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .report h1 { font-family: 'Nunito', sans-serif; font-weight: 900; font-size: 44px; color: var(--navy); letter-spacing: -0.02em; line-height: 1.05; margin-bottom: 16px; }
+  .report .rpt-sub { font-size: 17px; color: var(--text); font-weight: 300; line-height: 1.6; max-width: 700px; }
+  .report .rpt-meta { display: flex; gap: 24px; margin: 28px 0 0; flex-wrap: wrap; padding-bottom: 24px; border-bottom: 1px solid var(--border); }
+  .report .rpt-meta-item .lbl { font-size: 10px; color: var(--muted); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+  .report .rpt-meta-item .val { font-size: 15px; color: var(--navy); font-weight: 700; }
+  .report h2 { font-size: 11px; color: var(--teal-dk); font-weight: 900; letter-spacing: 0.18em; text-transform: uppercase; margin: 32px 0 14px; display: flex; align-items: center; gap: 10px; }
+  .report h2::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .report .verdict { background: white; border: 1px solid var(--border); border-radius: 14px; padding: 24px 26px; margin-bottom: 16px; }
+  .report .verdict h3 { font-size: 19px; color: var(--navy); margin-bottom: 8px; font-weight: 800; }
+  .report p { font-size: 15px; line-height: 1.65; margin-bottom: 12px; }
+  .report .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 14px; }
+  .report .stat { background: white; border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .report .stat .num { font-size: 22px; color: var(--navy); font-weight: 800; line-height: 1; }
+  .report .stat .lbl { font-size: 10px; color: var(--muted); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; margin-top: 6px; }
+
+  /* ──── Right-side panel — academic / journal ──── */
+  .panel {
+    position: fixed; top: 0; right: 0; height: 100vh; width: 580px;
+    background: var(--paper); box-shadow: -8px 0 32px rgba(27,50,82,0.10);
+    display: flex; flex-direction: column; z-index: 20;
+  }
+  .panel-header {
+    padding: 20px 36px 18px; border-bottom: 2px solid var(--navy);
+    background: var(--paper); display: flex; align-items: flex-end; gap: 14px;
+  }
+  .panel-header .masthead {
+    font-family: 'Lora', serif; font-size: 24px; color: var(--navy);
+    font-weight: 700; letter-spacing: 0; line-height: 1;
+  }
+  .panel-header .pulse { width: 8px; height: 8px; background: var(--teal); border-radius: 50%; box-shadow: 0 0 0 3px rgba(52,195,160,0.2); animation: pulse 2.4s infinite; margin-bottom: 7px; }
+  .panel-header .meta { font-family: 'Nunito Sans', sans-serif; font-size: 10px; color: var(--muted); letter-spacing: 0.18em; text-transform: uppercase; padding-bottom: 2px; font-weight: 700; }
+  .panel-header .close { margin-left: auto; background: none; border: none; font-size: 20px; color: var(--muted); cursor: pointer; padding: 4px 8px; font-family: sans-serif; }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 3px rgba(52,195,160,0.2);} 50% { box-shadow: 0 0 0 6px rgba(52,195,160,0.05);} }
+
+  .panel-body { flex: 1; overflow-y: auto; padding: 36px 56px 80px; }
+
+  /* Citation header / metadata */
+  .article-meta {
+    font-family: 'Nunito Sans', sans-serif; font-size: 10px;
+    color: var(--muted); letter-spacing: 0.12em; text-transform: uppercase;
+    margin-bottom: 18px; padding-bottom: 14px; border-bottom: 1px solid var(--border);
+    display: flex; gap: 14px; flex-wrap: wrap;
+  }
+  .article-meta .pill-tag { background: var(--navy); color: white; padding: 3px 10px; border-radius: 3px; font-weight: 700; }
+
+  /* Title */
+  .headline {
+    font-family: 'Lora', serif; font-size: 30px; line-height: 1.25;
+    color: var(--navy); font-weight: 700; margin-bottom: 14px;
+    letter-spacing: -0.01em;
+  }
+
+  /* Abstract / TL;DR box */
+  .abstract {
+    background: white; border: 1px solid var(--border); border-radius: 6px;
+    padding: 18px 22px; margin: 24px 0 32px; position: relative;
+  }
+  .abstract .label {
+    position: absolute; top: -10px; left: 16px; background: var(--paper);
+    padding: 0 10px; font-family: 'Nunito Sans', sans-serif; font-size: 10px;
+    font-weight: 800; color: var(--navy); letter-spacing: 0.20em;
+    text-transform: uppercase;
+  }
+  .abstract .text {
+    font-family: 'Lora', serif; font-style: italic; font-size: 15px;
+    line-height: 1.65; color: var(--text);
+  }
+
+  /* Numbered section heads — academic style */
+  .section-head {
+    font-family: 'Lora', serif; font-size: 18px; line-height: 1.3;
+    color: var(--navy); font-weight: 700; margin: 32px 0 14px;
+    display: flex; align-items: baseline; gap: 14px;
+  }
+  .section-head .num {
+    font-family: 'Nunito Sans', sans-serif; font-size: 13px;
+    color: var(--teal-dk); font-weight: 800; min-width: 28px;
+  }
+  .section-head.amber .num { color: var(--amber); }
+
+  /* Body text — academic prose */
+  .body-text { font-family: 'Lora', serif; font-size: 16px; line-height: 1.85; color: var(--text); padding-left: 42px; }
+  .body-text p { margin-bottom: 16px; }
+  .body-text strong { color: var(--navy); font-weight: 700; }
+
+  /* Confirmed facts — labeled list */
+  .facts-list { font-family: 'Lora', serif; font-size: 15px; line-height: 1.75; padding-left: 42px; }
+  .facts-list ul { list-style: none; padding-left: 0; counter-reset: fact; }
+  .facts-list li {
+    padding: 8px 0 8px 38px; position: relative;
+    border-bottom: 1px dashed var(--border);
+    counter-increment: fact;
+  }
+  .facts-list li:last-child { border-bottom: none; }
+  .facts-list li::before {
+    content: '(' counter(fact) ')';
+    position: absolute; left: 0; top: 8px;
+    color: var(--muted); font-family: 'Nunito Sans', sans-serif;
+    font-weight: 600; font-size: 13px;
+  }
+
+  /* Comparison table — academic */
+  .compare-table {
+    margin: 18px 0 18px 42px; background: white;
+    border: 1px solid var(--border);
+  }
+  .compare-table .title {
+    padding: 8px 16px; font-family: 'Lora', serif; font-style: italic;
+    font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--border);
+    background: var(--off);
+  }
+  .compare-table .title strong { color: var(--navy); font-style: normal; font-weight: 700; }
+  .compare-table table { width: 100%; border-collapse: collapse; font-family: 'Lora', serif; font-size: 14px; }
+  .compare-table th, .compare-table td { padding: 8px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+  .compare-table th { font-family: 'Nunito Sans', sans-serif; font-size: 10px; color: var(--muted); font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+  .compare-table tr.highlight td { background: var(--teal-bg); font-weight: 700; color: var(--navy); }
+  .compare-table tr:last-child td { border-bottom: none; }
+  .compare-table .footer { padding: 6px 16px; font-size: 11px; color: var(--muted); font-style: italic; }
+
+  /* Tradeoff — academic note format */
+  .tradeoff-panel {
+    margin: 16px 0 16px 42px;
+    background: var(--amber-bg); border: 1px solid #f0d9a8;
+    padding: 14px 18px; border-radius: 4px;
+    font-family: 'Lora', serif; font-style: italic;
+    font-size: 14px; line-height: 1.65;
+  }
+  .tradeoff-panel .label {
+    font-family: 'Nunito Sans', sans-serif; font-style: normal;
+    font-size: 10px; color: var(--amber); font-weight: 800;
+    letter-spacing: 0.18em; text-transform: uppercase; display: block; margin-bottom: 4px;
+  }
+  .tradeoff-panel strong { color: var(--amber); font-style: normal; }
+
+  /* Footnote-style citations [1] [2] */
+  .pill {
+    color: var(--teal-dk); font-weight: 700; font-size: 11px;
+    text-decoration: none; vertical-align: super; line-height: 0;
+    margin: 0 1px 0 2px; font-family: 'Nunito Sans', sans-serif;
+  }
+  .pill::before { content: '['; }
+  .pill::after { content: ']'; }
+
+  /* Followups */
+  .further-reading { margin-top: 32px; padding-top: 24px; border-top: 2px solid var(--navy); }
+  .further-reading h3 { font-family: 'Nunito Sans', sans-serif; font-size: 11px; color: var(--navy); font-weight: 800; letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 12px; }
+  .followup {
+    padding: 12px 0 12px 32px; position: relative;
+    font-family: 'Lora', serif; font-size: 15px; color: var(--navy);
+    cursor: pointer; border-bottom: 1px dashed var(--border);
+    counter-increment: ref;
+  }
+  .followup-list { counter-reset: ref; }
+  .followup:last-child { border-bottom: none; }
+  .followup::before {
+    content: counter(ref) '.'; position: absolute; left: 4px; top: 12px;
+    color: var(--muted); font-family: 'Nunito Sans', sans-serif;
+    font-weight: 700; font-size: 13px;
+  }
+  .followup:hover { color: var(--teal-dk); }
+
+  /* Sign-off / author */
+  .signoff {
+    margin-top: 36px; padding-top: 20px; border-top: 1px solid var(--border);
+    font-family: 'Lora', serif; font-size: 14px; color: var(--text);
+  }
+  .signoff .em { font-style: italic; margin-bottom: 10px; }
+  .signoff .author {
+    font-family: 'Nunito Sans', sans-serif; font-size: 11px;
+    color: var(--navy); font-weight: 700; letter-spacing: 0.06em;
+  }
+
+  /* References block */
+  .references {
+    margin-top: 28px; padding-top: 18px; border-top: 1px dashed var(--border);
+    font-family: 'Lora', serif; font-size: 12px; color: var(--muted);
+    line-height: 1.7;
+  }
+  .references h4 {
+    font-family: 'Nunito Sans', sans-serif; font-size: 10px;
+    letter-spacing: 0.20em; text-transform: uppercase; color: var(--text);
+    font-weight: 800; margin-bottom: 10px;
+  }
+  .references a { color: var(--teal-dk); text-decoration: none; border-bottom: 1px dotted var(--teal-dk); }
+  .references .ref { padding: 4px 0 4px 28px; position: relative; counter-increment: bib; }
+  .references-list { counter-reset: bib; }
+  .references .ref::before {
+    content: '[' counter(bib) ']'; position: absolute; left: 0; top: 4px;
+    font-family: 'Nunito Sans', sans-serif; font-weight: 700; color: var(--text);
+  }
+
+  .panel-input {
+    border-top: 2px solid var(--navy); padding: 18px 36px;
+    display: flex; gap: 10px; background: var(--paper);
+  }
+  .panel-input input {
+    flex: 1; padding: 12px 16px; border: 1px solid var(--border); border-radius: 4px;
+    font-size: 14px; font-family: 'Lora', serif; font-style: italic; background: white;
+  }
+  .panel-input button {
+    background: var(--navy); color: white; border: none; padding: 0 22px;
+    border-radius: 4px; font-weight: 700; font-size: 11px; cursor: pointer;
+    font-family: 'Nunito Sans', sans-serif; letter-spacing: 0.18em; text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+
+<div class="mock-nav">
+  <span class="label">STYLE 1B-i-C</span>
+  <span>Academic / footnoted — numbered sections, abstract, references</span>
+  <span style="margin-left: auto; opacity: 0.7;"><a href="./index.html">← gallery</a></span>
+</div>
+
+<div class="report-wrap">
+  <div class="report">
+    <div class="eyebrow">United Kingdom · Surrey · Day + Boarding</div>
+    <h1>Reed's School</h1>
+    <p class="rpt-sub">Independent senior school for boys 11-16 with a co-educational Sixth Form, set on a 40-acre Cobham estate. Founded 1813. Roughly 700 pupils, with about 10% boarding.</p>
+
+    <div class="rpt-meta">
+      <div class="rpt-meta-item"><div class="lbl">Founded</div><div class="val">1813</div></div>
+      <div class="rpt-meta-item"><div class="lbl">Pupils</div><div class="val">~700</div></div>
+      <div class="rpt-meta-item"><div class="lbl">Day fees</div><div class="val">£8,820/term</div></div>
+      <div class="rpt-meta-item"><div class="lbl">Boarding</div><div class="val">£14,200/term</div></div>
+    </div>
+
+    <h2>Quick verdict</h2>
+    <div class="verdict">
+      <h3>Strong all-rounder with elite tennis programme</h3>
+      <p>Reed's combines solid academic outcomes (50%+ A/A* at GCSE, 52% at A-Level) with notable sport investment. Tennis is the standout — Reed's is an LTA RPDC training centre.</p>
+    </div>
+
+    <h2>Key facts</h2>
+    <div class="stat-grid">
+      <div class="stat"><div class="num">52%</div><div class="lbl">A-Level A/A*</div></div>
+      <div class="stat"><div class="num">8</div><div class="lbl">Tennis coaches</div></div>
+      <div class="stat"><div class="num">5</div><div class="lbl">Youll Cup wins</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <div class="panel-header">
+    <span class="masthead">Nana</span>
+    <span class="pulse"></span>
+    <span class="meta">Reed's School Brief</span>
+    <button class="close">✕</button>
+  </div>
+
+  <div class="panel-body">
+    <div class="article-meta">
+      <span class="pill-tag">Brief No. 23</span>
+      <span>Fees & costs</span>
+      <span>26 April 2026</span>
+    </div>
+
+    <h1 class="headline">What are Reed's fees?</h1>
+
+    <div class="abstract">
+      <span class="label">Abstract</span>
+      <div class="text">
+        Reed's day fees are £8,820 a term. Boarding is £14,200. The published numbers tell only part of the story — once extras are added, the realistic all-in cost lands at £29-32k for day pupils and £45-49k for boarders annually. Sibling discount applies only from the third child onwards.
+      </div>
+    </div>
+
+    <div class="section-head">
+      <span class="num">1.</span>
+      <span>The headline</span>
+    </div>
+
+    <div class="body-text">
+      <p>For a parent comparing Reed's to other UK independent schools, the published 2025/26 fee schedule is the obvious starting point — but it is also a starting point that can mislead. Day pupils pay £8,820 a term; full boarders pay £14,200. Multiply by three terms and a school year lands at £26,460 for day, £42,600 for boarding.</p>
+      <p>Those numbers are real. They are also incomplete. Most parents end up adding 10 to 15 percent on top once trips, music lessons, exam fees, and uniform are factored in. The honest "all-in" range is closer to £29-32k for a day pupil and £45-49k for a boarder.</p>
+    </div>
+
+    <div class="section-head">
+      <span class="num">2.</span>
+      <span>The confirmed facts</span>
+    </div>
+
+    <div class="facts-list">
+      <ul>
+        <li>Day pupils, Years 7 to 13: <strong>£8,820 per term</strong><a class="pill" href="#">1</a></li>
+        <li>Full boarding, Years 9 to 13: <strong>£14,200 per term</strong><a class="pill" href="#">1</a></li>
+        <li>Registration fee: £150<a class="pill" href="#">2</a></li>
+        <li>Deposit on offer of a place: £2,000<a class="pill" href="#">2</a></li>
+      </ul>
+    </div>
+
+    <div class="compare-table">
+      <div class="title"><strong>Table 1.</strong> Day vs boarding fees, Reed's School 2025/26</div>
+      <table>
+        <thead><tr><th></th><th>Day</th><th>Boarding</th></tr></thead>
+        <tbody>
+          <tr><td>Tuition / term</td><td>£8,820</td><td>£14,200</td></tr>
+          <tr><td>Tuition / year</td><td>£26,460</td><td>£42,600</td></tr>
+          <tr><td>Extras / yr (estimated)</td><td>£3-6k</td><td>£3-6k</td></tr>
+          <tr class="highlight"><td>All-in estimate</td><td>£29-32k</td><td>£45-49k</td></tr>
+        </tbody>
+      </table>
+      <div class="footer">Source: Reed's published 2025–26 fee schedule. Extras estimated from public parent forums.</div>
+    </div>
+
+    <div class="section-head amber">
+      <span class="num">3.</span>
+      <span>A note worth flagging</span>
+    </div>
+
+    <div class="tradeoff-panel">
+      <span class="label">Tradeoff</span>
+      Reed's <strong>sibling discount</strong> applies from the third child onwards — not the second. If you have two children at Reed's, you do not get a discount. This is sharper than the typical UK independent, where the discount usually starts with the second child.
+    </div>
+
+    <div class="section-head">
+      <span class="num">4.</span>
+      <span>The gaps</span>
+    </div>
+
+    <div class="body-text">
+      <p>Two notable absences from Reed's public materials. The 2026/27 fee uplift has not yet been published, and the bursary income thresholds — the cutoffs that determine partial fee remission — are not disclosed publicly. Both are worth raising directly with the bursar.</p>
+    </div>
+
+    <div class="further-reading">
+      <h3>Further reading</h3>
+      <div class="followup-list">
+        <div class="followup">How does Reed's bursary system work?</div>
+        <div class="followup">What's included versus extra in boarding fees?</div>
+        <div class="followup">When did Reed's fees last increase?</div>
+      </div>
+    </div>
+
+    <div class="signoff">
+      <div class="em">Want me to dig into any of this further?</div>
+      <div class="author">— Nana, NanaSays Research</div>
+    </div>
+
+    <div class="references">
+      <h4>References</h4>
+      <div class="references-list">
+        <div class="ref"><a href="#">Fees & true cost</a> — section of Reed's deep school report on NanaSays.</div>
+        <div class="ref"><a href="#">reeds.surrey.sch.uk/admissions</a> — Reed's School admissions page (registration fee, deposit).</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel-input">
+    <input placeholder="Pose another question to Nana…" />
+    <button>Ask</button>
+  </div>
+</div>
+</body>
+</html>
