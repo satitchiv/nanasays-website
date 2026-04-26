@@ -633,10 +633,22 @@ function AnswerLayout({
                   </a>
                 )
               }
+              const sectionId = src.section_id
               return (
-                <span key={i} className="nana-pill">
+                <button
+                  key={i}
+                  className="nana-pill nana-pill-scroll"
+                  onClick={() => {
+                    if (!sectionId) return
+                    const el = document.getElementById(sectionId)
+                    if (!el) return
+                    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                    el.classList.add('nana-section-highlight')
+                    setTimeout(() => el.classList.remove('nana-section-highlight'), 1800)
+                  }}
+                >
                   {label} ↑
-                </span>
+                </button>
               )
             })}
           </div>

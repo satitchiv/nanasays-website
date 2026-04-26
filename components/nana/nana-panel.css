@@ -321,3 +321,24 @@
   0%, 50% { opacity: 1; }
   51%, 100% { opacity: 0; }
 }
+
+/* Scroll-to-section pills — reset button styles, match .nana-pill */
+.nana-pill-scroll {
+  background: none; border: none; border-bottom: 1px dotted #239C80;
+  padding: 0 0 1px; margin: 0 8px 4px 0;
+  color: #239C80; font-family: 'Nunito Sans', sans-serif;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  display: inline-block;
+}
+.nana-pill-scroll:hover { color: #1B3252; border-bottom-color: #1B3252; }
+
+/* Yellow pulse on the report section that was scrolled to */
+@keyframes nana-section-pulse {
+  0%   { box-shadow: inset 0 0 0 3px #F5C842; background: rgba(245,200,66,0.12); }
+  60%  { box-shadow: inset 0 0 0 3px #F5C842; background: rgba(245,200,66,0.06); }
+  100% { box-shadow: none; background: transparent; }
+}
+.nana-section-highlight {
+  animation: nana-section-pulse 1.8s ease-out forwards;
+  border-radius: 8px;
+}
