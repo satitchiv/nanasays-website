@@ -7,17 +7,17 @@
  * /mocks/style-1b-document.html. Right-edge slide-out, 560px wide on desktop,
  * cream paper background, Lora serif headings, footnote-style citations.
  *
+ * The panel is non-modal: it coexists with the report. When open, the
+ * report page gets right-padding so its content shifts left to make room
+ * for the panel — no dim overlay, no click blocking.
+ *
  * Backend: streams from /api/nana-parent-chatbot/[slug] via SSE
  * (retrieval → token* → final). Parses the final event and renders the
- * structured answer (sections, comparison_table, sources_used, follow_ups,
- * tour_question).
- *
- * v1 scope: State 0 (closed handle + open hero), State 2 (answer). Not yet
- * built: searching constellation animation, "Break this down" gating, Ask the
- * School save flow, email upsell, mobile bottom-sheet variant.
+ * structured answer.
  */
 
 import { useState, useRef, FormEvent, useEffect } from 'react'
+import './nana-panel.css'
 
 type Source = {
   section_id?: string
@@ -75,27 +75,46 @@ type StreamEvent =
 
 type Props = { slug: string; schoolName?: string }
 
-export default function NanaPanel({ slug, schoolName = "this school" }: Props) {
+export default function NanaPanel({ slug, schoolName = 'this school' }: Props) {
   const [open, setOpen] = useState(false)
   const [question, setQuestion] = useState('')
   const [streaming, setStreaming] = useState(false)
   const [retrievalReady, setRetrievalReady] = useState(false)
-  const [tokens, setTokens] = useState('')
+  const [tokenCount, setTokenCount] = useState(0)
   const [final, setFinal] = useState<FinalPayload | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [askedQuestion, setAskedQuestion] = useState('')
   const abortRef = useRef<AbortController | null>(null)
 
+  // Toggle a body class so report-page CSS can shift content over to make
+  // room for the panel.
+  useEffect(() => {
+    if (open) document.body.classList.add('nana-panel-open')
+    else document.body.classList.remove('nana-panel-open')
+    return () => document.body.classList.remove('nana-panel-open')
+  }, [open])
+
+  // Lora font load (idempotent — fine if it lands twice across the page)
+  useEffect(() => {
+    if (document.querySelector('link[data-nana-fonts]')) return
+    const link = document.createElement('link')
+    link.rel = 'stylesheet'
+    link.dataset.nanaFonts = 'true'
+    link.href =
+      'https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&display=swap'
+    document.head.appendChild(link)
+  }, [])
+
   function reset() {
     setRetrievalReady(false)
-    setTokens('')
+    setTokenCount(0)
     setFinal(null)
     setError(null)
   }
 
-  async function ask(e?: FormEvent) {
+  async function ask(e?: FormEvent, override?: string) {
     e?.preventDefault()
-    const q = question.trim()
+    const q = (override ?? question).trim()
     if (!q || streaming) return
 
     reset()
@@ -162,7 +181,10 @@ export default function NanaPanel({ slug, schoolName = "this school" }: Props) {
         setRetrievalReady(true)
         break
       case 'token':
-        setTokens((p) => p + evt.text)
+        // We don't show raw tokens to the user — just bump a counter so we
+        // can show "drafting…" and an animated dot indicator. Final answer
+        // renders in one go when the `final` event arrives.
+        setTokenCount((n) => n + 1)
         break
       case 'final':
         setFinal(evt.payload)
@@ -173,22 +195,8 @@ export default function NanaPanel({ slug, schoolName = "this school" }: Props) {
     }
   }
 
-  // Lora font load (idempotent — fine if it lands twice across the page)
-  useEffect(() => {
-    if (document.querySelector('link[data-nana-fonts]')) return
-    const link = document.createElement('link')
-    link.rel = 'stylesheet'
-    link.dataset.nanaFonts = 'true'
-    link.href =
-      'https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400..700;1,400..700&display=swap'
-    document.head.appendChild(link)
-  }, [])
-
   return (
     <>
-      {/* CSS — scoped via .nana-* class prefix */}
-      <style>{NANA_CSS}</style>
-
       {/* Closed-state handle */}
       {!open && (
         <button
@@ -201,68 +209,66 @@ export default function NanaPanel({ slug, schoolName = "this school" }: Props) {
         </button>
       )}
 
-      {/* Open panel */}
+      {/* Open panel — non-modal, no dim overlay */}
       {open && (
-        <>
-          <div className="nana-dim" onClick={() => setOpen(false)} />
-          <aside className="nana-panel">
-            <header className="nana-header">
-              <span className="nana-pulse" />
-              <h2 className="nana-title">Nana</h2>
-              <span className="nana-sub">reading {schoolName}</span>
-              <button
-                className="nana-close"
-                onClick={() => setOpen(false)}
-                aria-label="Close"
-              >
-                ✕
-              </button>
-            </header>
+        <aside className="nana-panel">
+          <header className="nana-header">
+            <span className="nana-pulse" />
+            <h2 className="nana-title">Nana</h2>
+            <span className="nana-sub">reading {schoolName}</span>
+            <button
+              className="nana-close"
+              onClick={() => setOpen(false)}
+              aria-label="Close"
+            >
+              ✕
+            </button>
+          </header>
 
-            <div className="nana-body">
-              {!askedQuestion && !streaming && (
-                <Hero schoolName={schoolName} setQuestion={setQuestion} ask={ask} />
-              )}
-
-              {askedQuestion && (
-                <QuestionBlock question={askedQuestion} />
-              )}
-
-              {streaming && !final && (
-                <StreamingState
-                  retrievalReady={retrievalReady}
-                  tokens={tokens}
-                />
-              )}
-
-              {final?.parsed && (
-                <AnswerLayout parsed={final.parsed} />
-              )}
-
-              {error && (
-                <div className="nana-error">
-                  <strong>Something went wrong.</strong>
-                  <div>{error}</div>
-                </div>
-              )}
-            </div>
-
-            <form className="nana-input" onSubmit={ask}>
-              <input
-                type="text"
-                placeholder={
-                  askedQuestion ? `Ask another question…` : `Ask about ${schoolName}…`
-                }
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                disabled={streaming}
+          <div className="nana-body">
+            {!askedQuestion && !streaming && (
+              <Hero
+                schoolName={schoolName}
+                onPick={(q) => ask(undefined, q)}
               />
-              <button type="submit" disabled={streaming || !question.trim()}>
-                {streaming ? '…' : 'Ask'}
-              </button>
-            </form>
-          </aside>
-        </>
+            )}
+
+            {askedQuestion && (
+              <QuestionBlock question={askedQuestion} />
+            )}
+
+            {streaming && !final && (
+              <StreamingState
+                retrievalReady={retrievalReady}
+                tokenCount={tokenCount}
+              />
+            )}
+
+            {final?.parsed && <AnswerLayout parsed={final.parsed} />}
+
+            {error && (
+              <div className="nana-error">
+                <strong>Something went wrong.</strong>
+                <div>{error}</div>
+              </div>
+            )}
+          </div>
+
+          <form className="nana-input" onSubmit={(e) => ask(e)}>
+            <input
+              type="text"
+              placeholder={
+                askedQuestion ? `Ask another question…` : `Ask about ${schoolName}…`
+              }
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+              disabled={streaming}
+            />
+            <button type="submit" disabled={streaming || !question.trim()}>
+              {streaming ? '…' : 'Ask'}
+            </button>
+          </form>
+        </aside>
       )}
     </>
   )
@@ -271,12 +277,10 @@ export default function NanaPanel({ slug, schoolName = "this school" }: Props) {
 // ── Hero (State 0) ───────────────────────────────────────────────────────────
 function Hero({
   schoolName,
-  setQuestion,
-  ask,
+  onPick,
 }: {
   schoolName: string
-  setQuestion: (q: string) => void
-  ask: () => void
+  onPick: (q: string) => void
 }) {
   const starters = [
     `What are ${schoolName}'s fees?`,
@@ -296,12 +300,10 @@ function Hero({
           <button
             key={i}
             className="nana-starter"
-            onClick={() => {
-              setQuestion(s)
-              setTimeout(ask, 0)
-            }}
+            onClick={() => onPick(s)}
           >
-            {s} <span className="nana-starter-arrow">→</span>
+            <span>{s}</span>
+            <span className="nana-starter-arrow">→</span>
           </button>
         ))}
       </div>
@@ -314,27 +316,25 @@ function QuestionBlock({ question }: { question: string }) {
   return <div className="nana-question">{question}</div>
 }
 
-// ── Streaming ────────────────────────────────────────────────────────────────
+// ── Streaming — clean "Reading..." status, no raw JSON ──────────────────────
 function StreamingState({
   retrievalReady,
-  tokens,
+  tokenCount,
 }: {
   retrievalReady: boolean
-  tokens: string
+  tokenCount: number
 }) {
+  let status = 'Searching the data…'
+  if (retrievalReady && tokenCount === 0) status = 'Reading and drafting…'
+  if (retrievalReady && tokenCount > 0) status = 'Writing your answer…'
   return (
     <div className="nana-streaming">
-      {!retrievalReady && (
-        <div className="nana-streaming-status">Searching {`Reed's`} data…</div>
-      )}
-      {retrievalReady && !tokens && (
-        <div className="nana-streaming-status">Reading and drafting…</div>
-      )}
-      {tokens && (
-        <div className="nana-streaming-tokens">
-          <pre>{tokens}</pre>
-        </div>
-      )}
+      <div className="nana-streaming-status">{status}</div>
+      <div className="nana-streaming-progress">
+        <span className="nana-streaming-dot"></span>
+        <span className="nana-streaming-dot"></span>
+        <span className="nana-streaming-dot"></span>
+      </div>
     </div>
   )
 }
@@ -354,7 +354,7 @@ function AnswerLayout({ parsed }: { parsed: ParsedAnswer }) {
         </>
       )}
 
-      {s.confirmed_facts && (
+      {s.confirmed_facts && !isEmpty(s.confirmed_facts) && (
         <>
           <div className="nana-eyebrow">Confirmed Facts</div>
           <div
@@ -428,13 +428,13 @@ function AnswerLayout({ parsed }: { parsed: ParsedAnswer }) {
                     rel="noopener noreferrer"
                     className="nana-pill nana-pill-ext"
                   >
-                    {label} <span>↗</span>
+                    {label} ↗
                   </a>
                 )
               }
               return (
                 <span key={i} className="nana-pill">
-                  {label} <span>↑</span>
+                  {label} ↑
                 </span>
               )
             })}
@@ -494,8 +494,8 @@ function ComparisonTableView({ t }: { t: ComparisonTable }) {
 // ── Helpers ──────────────────────────────────────────────────────────────────
 function isEmpty(s?: string) {
   if (!s) return true
-  return s.trim().toLowerCase() === 'nothing to flag here' ||
-         s.trim().toLowerCase() === 'nothing to flag here.'
+  const t = s.trim().toLowerCase()
+  return t === 'nothing to flag here' || t === 'nothing to flag here.'
 }
 
 function escHtml(s: string) {
@@ -516,293 +516,7 @@ function renderInlineMd(text: string): string {
     /(^|[\s(])\*([^*\n]+)\*(?=[\s.,;:!?)]|$)/g,
     '$1<em>$2</em>'
   )
-  // Newlines → <br> for prose readability
+  // Newlines → <br>
   out = out.replace(/\n/g, '<br>')
   return out
 }
-
-// ── Styles ───────────────────────────────────────────────────────────────────
-const NANA_CSS = `
-.nana-handle {
-  position: fixed; right: 0; top: 50%; transform: translateY(-50%);
-  background: #fdfcf7; border: 1px solid #DDD4C0; border-right: none;
-  border-radius: 14px 0 0 14px; padding: 18px 14px;
-  box-shadow: -4px 0 16px rgba(27,50,82,0.06);
-  cursor: pointer; z-index: 80; writing-mode: vertical-rl;
-  display: flex; flex-direction: column; align-items: center; gap: 12px;
-  transition: padding 0.2s, box-shadow 0.2s;
-}
-.nana-handle:hover { box-shadow: -6px 0 20px rgba(27,50,82,0.10); padding-right: 18px; }
-.nana-handle-pulse {
-  width: 10px; height: 10px; background: #34C3A0; border-radius: 50%;
-  box-shadow: 0 0 0 4px rgba(52,195,160,0.2);
-  animation: nana-pulse 2.4s infinite; writing-mode: horizontal-tb;
-}
-.nana-handle-text {
-  font-family: 'Nunito Sans', sans-serif; font-size: 11px; font-weight: 800;
-  color: #1B3252; letter-spacing: 0.18em;
-}
-@keyframes nana-pulse {
-  0%, 100% { box-shadow: 0 0 0 4px rgba(52,195,160,0.2); }
-  50%      { box-shadow: 0 0 0 8px rgba(52,195,160,0.05); }
-}
-
-.nana-dim {
-  position: fixed; inset: 0; background: rgba(15,34,56,0.35);
-  z-index: 90; animation: nana-fade-in 0.3s ease-out;
-}
-@keyframes nana-fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
-}
-
-.nana-panel {
-  position: fixed; top: 0; right: 0; height: 100vh; width: 560px;
-  background: #fdfcf7; box-shadow: -8px 0 32px rgba(27,50,82,0.12);
-  z-index: 100; display: flex; flex-direction: column;
-  animation: nana-slide-in 0.3s cubic-bezier(0.2, 0, 0, 1);
-}
-@keyframes nana-slide-in {
-  from { transform: translateX(100%); }
-  to   { transform: translateX(0); }
-}
-@media (max-width: 640px) {
-  .nana-panel { width: 100vw; }
-}
-
-.nana-header {
-  background: white; border-bottom: 1px solid #DDD4C0;
-  padding: 18px 28px; display: flex; align-items: center; gap: 12px;
-}
-.nana-pulse {
-  width: 10px; height: 10px; background: #34C3A0; border-radius: 50%;
-  box-shadow: 0 0 0 3px rgba(52,195,160,0.2);
-  animation: nana-pulse 2.4s infinite;
-}
-.nana-title {
-  font-family: 'Lora', Georgia, serif; font-size: 20px;
-  color: #1B3252; font-weight: 800; letter-spacing: -0.01em;
-  margin: 0;
-}
-.nana-sub {
-  font-family: 'Lora', Georgia, serif; font-style: italic;
-  font-size: 12px; color: #6B7280;
-}
-.nana-close {
-  margin-left: auto; background: none; border: none;
-  font-size: 22px; color: #6B7280; cursor: pointer; padding: 4px 10px;
-  font-family: -apple-system, system-ui, sans-serif;
-}
-.nana-close:hover { color: #1B3252; }
-
-.nana-body {
-  flex: 1; overflow-y: auto; padding: 32px 36px 40px;
-  font-family: 'Lora', Georgia, serif;
-}
-
-.nana-hero {
-  padding: 20px 0;
-}
-.nana-hero-greeting {
-  font-family: 'Lora', serif; font-size: 26px; color: #1B3252;
-  font-weight: 600; margin-bottom: 12px;
-}
-.nana-hero-claim {
-  font-family: 'Lora', serif; font-size: 16px; line-height: 1.7;
-  color: #1f2937; margin-bottom: 28px;
-}
-.nana-hero-starters-label {
-  font-family: 'Nunito Sans', sans-serif; font-size: 10px;
-  font-weight: 800; color: #1B3252; letter-spacing: 0.18em;
-  text-transform: uppercase; margin-bottom: 10px;
-}
-.nana-hero-starters { display: flex; flex-direction: column; gap: 8px; }
-.nana-starter {
-  background: white; border: 1px solid #DDD4C0; border-radius: 12px;
-  padding: 14px 16px; text-align: left; cursor: pointer;
-  font-family: 'Lora', serif; font-size: 15px; color: #1B3252;
-  display: flex; align-items: center; justify-content: space-between;
-  transition: border-color 0.15s, transform 0.15s;
-}
-.nana-starter:hover {
-  border-color: #239C80; transform: translateX(2px);
-}
-.nana-starter-arrow { color: #239C80; font-weight: 700; margin-left: 12px; }
-
-.nana-question {
-  font-family: 'Lora', serif; font-size: 19px; line-height: 1.4;
-  color: #1B3252; font-weight: 600; font-style: italic;
-  margin-bottom: 24px; padding-bottom: 18px;
-  border-bottom: 1px solid #DDD4C0;
-}
-.nana-question::before {
-  content: '“'; color: #239C80; font-size: 28px; line-height: 0;
-  vertical-align: -8px; margin-right: 4px;
-}
-.nana-question::after {
-  content: '”'; color: #239C80; font-size: 28px; line-height: 0;
-  vertical-align: -8px; margin-left: 4px;
-}
-
-.nana-streaming {
-  padding: 12px 0;
-}
-.nana-streaming-status {
-  font-family: 'Lora', serif; font-style: italic;
-  color: #6B7280; font-size: 14px;
-  display: flex; align-items: center; gap: 10px;
-}
-.nana-streaming-status::before {
-  content: ''; width: 10px; height: 10px; border-radius: 50%;
-  background: #34C3A0; box-shadow: 0 0 0 3px rgba(52,195,160,0.2);
-  animation: nana-pulse 1.6s infinite;
-}
-.nana-streaming-tokens {
-  margin-top: 16px; background: #f6f8fa; border: 1px solid #DDD4C0;
-  border-radius: 8px; padding: 12px 14px; font-family: 'SF Mono', Monaco, monospace;
-  font-size: 11px; line-height: 1.55; color: #4a5563;
-  max-height: 200px; overflow-y: auto;
-}
-.nana-streaming-tokens pre {
-  margin: 0; white-space: pre-wrap; word-break: break-word;
-  font-family: inherit; font-size: inherit;
-}
-
-.nana-eyebrow {
-  font-family: 'Nunito Sans', sans-serif; font-size: 11px; font-weight: 700;
-  color: #239C80; letter-spacing: 0.24em; text-transform: uppercase;
-  margin: 26px 0 12px;
-}
-.nana-eyebrow.nana-amber { color: #D97706; }
-.nana-answer > .nana-eyebrow:first-child { margin-top: 0; }
-
-.nana-short-answer {
-  font-family: 'Lora', serif; font-size: 18px; line-height: 1.6;
-  color: #1B3252; font-weight: 500; margin: 0;
-}
-
-.nana-prose {
-  font-family: 'Lora', serif; font-size: 15px; color: #1f2937; line-height: 1.75;
-}
-.nana-prose strong { color: #1B3252; font-weight: 600; }
-.nana-prose em { color: #1f2937; font-style: italic; }
-
-.nana-tradeoff {
-  background: #FEF3C7; border-left: 4px solid #D97706;
-  padding: 14px 18px; border-radius: 0 8px 8px 0;
-  font-family: 'Lora', serif; font-style: italic;
-  font-size: 15px; line-height: 1.7; color: #1f2937;
-}
-.nana-tradeoff strong { color: #B45309; font-style: normal; }
-
-.nana-tour-card {
-  margin: 20px 0; padding: 18px 22px;
-  background: white; border: 2px solid #1B3252; border-radius: 12px;
-}
-.nana-tour-card .nana-eyebrow { color: #1B3252; margin-top: 0; margin-bottom: 8px; }
-.nana-tour-q {
-  font-family: 'Lora', serif; font-size: 16px; line-height: 1.55;
-  color: #1B3252; font-style: italic; font-weight: 500;
-}
-.nana-tour-who-label {
-  font-family: 'Nunito Sans', sans-serif; font-size: 10px;
-  font-weight: 800; color: #1B3252; letter-spacing: 0.18em;
-  text-transform: uppercase; margin: 14px 0 4px;
-  padding-top: 12px; border-top: 1px solid #E5E7EB;
-}
-.nana-tour-who { font-family: 'Lora', serif; font-size: 14px; color: #1f2937; }
-
-.nana-table {
-  margin: 18px 0; border: 1px solid #DDD4C0; border-radius: 12px;
-  overflow: hidden; background: white;
-}
-.nana-table-title {
-  background: #1B3252; color: white; padding: 10px 16px;
-  font-family: 'Nunito Sans', sans-serif; font-size: 11px;
-  font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase;
-}
-.nana-table table {
-  width: 100%; border-collapse: collapse;
-  font-family: 'Lora', serif; font-size: 14px;
-}
-.nana-table th, .nana-table td {
-  padding: 10px 16px; text-align: left;
-  border-bottom: 1px solid #E5E7EB;
-}
-.nana-table th {
-  font-family: 'Nunito Sans', sans-serif; font-size: 11px;
-  color: #1B3252; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-}
-.nana-table tr:nth-child(odd) td { background: #FBFBF8; }
-.nana-table tr.highlight td {
-  background: #E8FAF6; font-weight: 700; color: #1B3252;
-}
-.nana-table tr:last-child td { border-bottom: none; }
-.nana-table-footer {
-  padding: 6px 16px; font-size: 11px; color: #6B7280; font-style: italic;
-  border-top: 1px solid #E5E7EB; background: white;
-}
-
-.nana-pill, .nana-pill-ext {
-  display: inline-block; color: #239C80; font-family: 'Nunito Sans', sans-serif;
-  font-size: 12px; font-weight: 700; text-decoration: none;
-  border-bottom: 1px dotted #239C80; padding: 0 0 1px;
-  margin: 0 8px 4px 0;
-}
-.nana-pill-ext { color: #239C80; }
-.nana-pill-ext:hover, .nana-pill:hover { color: #1B3252; border-bottom-color: #1B3252; }
-
-.nana-inline-pill, .nana-inline-pill-ext {
-  display: inline; color: #239C80; font-family: 'Nunito Sans', sans-serif;
-  font-size: 11px; font-weight: 700; border-bottom: 1px dotted #239C80;
-  padding: 0 0 1px; white-space: nowrap;
-}
-
-.nana-sources { margin-top: 4px; }
-
-.nana-followups { margin-top: 4px; }
-.nana-followup {
-  padding: 14px 0 14px 22px; position: relative; cursor: pointer;
-  font-family: 'Lora', serif; font-style: italic; font-size: 15px;
-  color: #1B3252; border-bottom: 1px dotted #DDD4C0;
-}
-.nana-followup:last-child { border-bottom: none; }
-.nana-followup::before {
-  content: '→'; position: absolute; left: 0; color: #239C80;
-  font-style: normal; font-weight: 700;
-}
-.nana-followup:hover { color: #239C80; }
-
-.nana-closer {
-  margin-top: 28px; padding-top: 20px; border-top: 1px solid #DDD4C0;
-  font-family: 'Lora', serif; font-style: italic; font-size: 14px;
-  color: #1B3252; text-align: right;
-}
-
-.nana-error {
-  margin-top: 16px; padding: 14px 18px;
-  background: #fef2f2; border: 1px solid #fecaca;
-  border-radius: 8px; color: #991b1b;
-  font-family: 'Nunito Sans', sans-serif; font-size: 13px;
-}
-.nana-error strong { display: block; margin-bottom: 4px; }
-
-.nana-input {
-  border-top: 1px solid #DDD4C0; padding: 16px 28px; background: white;
-  display: flex; gap: 10px;
-}
-.nana-input input {
-  flex: 1; padding: 12px 16px; border: 1px solid #DDD4C0; border-radius: 12px;
-  font-size: 15px; font-family: 'Lora', serif; font-style: italic;
-  color: #1f2937; background: #fdfcf7;
-}
-.nana-input input:focus {
-  outline: none; border-color: #239C80;
-}
-.nana-input button {
-  background: #1B3252; color: white; border: none; padding: 0 22px;
-  border-radius: 12px; font-weight: 700; font-size: 13px; cursor: pointer;
-  font-family: 'Nunito Sans', sans-serif; letter-spacing: 0.06em;
-}
-.nana-input button:disabled { opacity: 0.4; cursor: not-allowed; }
-`
