@@ -1586,3 +1586,184 @@
 @media (max-width: 640px) {
   .report-page .tennis-facility-grid { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ── Rugby section ─────────────── */
+.report-page .rugby-strip { margin-bottom: 18px; }
+
+.report-page .rugby-badge {
+  display: inline-block; padding: 4px 10px; border-radius: 999px;
+  font-size: 13px; font-weight: 600; line-height: 1.4;
+}
+.report-page .rugby-badge.tier-elite    { background: #FDE68A; color: #92400E; }
+.report-page .rugby-badge.tier-strong   { background: #A7F3D0; color: #065F46; }
+.report-page .rugby-badge.tier-regional { background: #E0E7FF; color: #3730A3; }
+.report-page .rugby-badge.tier-rec      { background: #F3F4F6; color: #4B5563; }
+.report-page .rugby-badge-rfu           { background: #DBEAFE; color: #1E40AF; }
+.report-page .rugby-badge-schol         { background: #FEE2E2; color: #991B1B; }
+
+/* DMT ranking card */
+.report-page .rugby-dmt-card {
+  background: linear-gradient(135deg, #1B3252, #0f2238);
+  border-radius: 14px; padding: 20px 24px; margin: 0 0 20px; color: #fff;
+}
+.report-page .rugby-dmt-header {
+  display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 14px;
+}
+.report-page .rugby-dmt-label {
+  font-size: 11px; font-weight: 900; letter-spacing: .14em; text-transform: uppercase;
+  color: #34C3A0;
+}
+.report-page .rugby-dmt-status {
+  font-size: 11px; font-weight: 600; color: rgba(255,255,255,.5);
+  background: rgba(255,255,255,.1); padding: 2px 8px; border-radius: 999px;
+}
+.report-page .rugby-dmt-season-inline {
+  font-weight: 700; color: rgba(255,255,255,.75); font-size: 12px;
+}
+.report-page .rugby-dmt-stats  { display: flex; gap: 32px; flex-wrap: wrap; margin-bottom: 12px; }
+.report-page .rugby-dmt-stat   { text-align: left; }
+.report-page .rugby-dmt-num {
+  font-family: 'Crimson Text', serif; font-size: 38px; font-weight: 600;
+  color: #fff; line-height: 1;
+}
+.report-page .rugby-dmt-lbl {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .06em;
+  color: rgba(255,255,255,.55); font-weight: 600; margin-top: 4px;
+}
+.report-page .rugby-dmt-history {
+  display: flex; flex-wrap: wrap; gap: 8px; margin: 4px 0 14px;
+}
+.report-page .rugby-dmt-history-pill {
+  display: flex; flex-direction: column; align-items: center;
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.15);
+  border-radius: 8px; padding: 6px 12px; min-width: 64px;
+}
+.report-page .rugby-dmt-history-pill.current {
+  background: rgba(52,195,160,.2); border-color: rgba(52,195,160,.5);
+}
+.report-page .rugby-dmt-history-pill.avg {
+  background: rgba(255,255,255,.04); border-style: dashed;
+}
+.report-page .rugby-dmt-history-season {
+  font-size: 10px; font-weight: 700; color: rgba(255,255,255,.5);
+  text-transform: uppercase; letter-spacing: .04em; line-height: 1;
+}
+.report-page .rugby-dmt-history-rank {
+  font-family: 'Crimson Text', serif; font-size: 22px; font-weight: 600;
+  color: #fff; line-height: 1.2; margin-top: 2px;
+}
+.report-page .rugby-dmt-history-live {
+  font-size: 9px; font-weight: 700; color: #34C3A0;
+  text-transform: uppercase; letter-spacing: .06em;
+}
+.report-page .rugby-dmt-note {
+  font-size: 13px; color: rgba(255,255,255,.7); line-height: 1.55;
+  border-top: 1px solid rgba(255,255,255,.12); padding-top: 12px; margin-top: 4px;
+}
+
+/* Programmes */
+.report-page .rugby-programmes { display: flex; gap: 14px; flex-wrap: wrap; margin: 10px 0 18px; }
+.report-page .rugby-prog-block {
+  flex: 1; min-width: 200px; padding: 14px 16px; background: #F8FAFC;
+  border: 1px solid var(--border); border-radius: 10px;
+}
+.report-page .rugby-prog-block--girls { background: #FDF4FF; border-color: #E9D5FF; }
+.report-page .rugby-prog-gender {
+  font-size: 11px; font-weight: 900; text-transform: uppercase; letter-spacing: .1em;
+  color: var(--muted); margin-bottom: 8px;
+}
+.report-page .rugby-prog-formats,
+.report-page .rugby-prog-comps { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+.report-page .rugby-format-pill {
+  padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700;
+  background: var(--navy); color: #fff;
+}
+.report-page .rugby-comp-pill {
+  padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  background: #E8FAF6; color: #065F46; border: 1px solid #A7F3D0;
+}
+
+/* Coaching */
+.report-page .rugby-list { margin: 8px 0 16px; padding-left: 20px; }
+.report-page .rugby-list li { margin-bottom: 6px; line-height: 1.55; color: var(--navy); }
+.report-page .rugby-muted { color: var(--muted); font-size: 14px; }
+.report-page .rugby-tag {
+  display: inline-block; margin-left: 8px; padding: 1px 8px;
+  background: var(--teal); color: #fff; font-size: 11px;
+  font-weight: 600; border-radius: 4px; text-transform: uppercase; letter-spacing: .05em;
+}
+.report-page .rugby-coach-count { font-size: 13px; color: var(--muted); margin: -8px 0 14px; }
+
+/* Facilities */
+.report-page .rugby-facility-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px; margin: 10px 0 14px;
+}
+.report-page .rugby-facility-item {
+  background: #F8FAFC; border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px 16px; text-align: center;
+}
+.report-page .rugby-facility-num {
+  font-family: 'Crimson Text', serif; font-size: 32px; font-weight: 600;
+  color: var(--navy); line-height: 1;
+}
+.report-page .rugby-facility-lbl {
+  font-size: 12px; text-transform: uppercase; letter-spacing: .06em;
+  color: var(--muted); font-weight: 600; margin-top: 6px;
+}
+.report-page .rugby-facility-note { margin: -6px 0 14px; font-size: 13px; }
+
+/* Cup results */
+.report-page .rugby-cup-list { list-style: none; padding: 0; margin: 8px 0 16px; }
+.report-page .rugby-cup-row {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+}
+.report-page .rugby-cup-row:last-child { border-bottom: none; }
+.report-page .rugby-cup-tournament { font-weight: 600; color: var(--navy); min-width: 160px; }
+.report-page .rugby-cup-division   { font-size: 13px; color: var(--muted); }
+.report-page .rugby-cup-year       { color: var(--muted); font-size: 14px; font-variant-numeric: tabular-nums; }
+.report-page .rugby-cup-result {
+  display: inline-block; padding: 2px 10px; border-radius: 999px;
+  font-size: 12px; font-weight: 600; text-transform: capitalize;
+}
+.report-page .rugby-cup-result.cup-winner   { background: #FDE68A; color: #78350F; }
+.report-page .rugby-cup-result.cup-finalist { background: #DBEAFE; color: #1E40AF; }
+.report-page .rugby-cup-result.cup-other    { background: #F3F4F6; color: #4B5563; }
+
+/* SOCS rankings grid */
+.report-page .rugby-socs-grid { display: flex; gap: 12px; flex-wrap: wrap; margin: 10px 0 18px; }
+.report-page .rugby-socs-block { flex: 1; min-width: 160px; background: #0f2238; border-radius: 10px; padding: 14px 16px; }
+.report-page .rugby-socs-label { font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: .1em; color: #34C3A0; margin-bottom: 10px; }
+.report-page .rugby-socs-pills { display: flex; flex-direction: column; gap: 6px; }
+.report-page .rugby-socs-pill { display: flex; align-items: center; gap: 8px; }
+.report-page .rugby-socs-season { font-size: 11px; color: rgba(255,255,255,.5); font-weight: 600; min-width: 38px; }
+.report-page .rugby-socs-rank { font-size: 14px; font-weight: 700; color: #fff; }
+.report-page .rugby-socs-total { font-size: 11px; color: rgba(255,255,255,.35); }
+.report-page .rugby-socs-live { font-size: 9px; font-weight: 700; color: #34C3A0; text-transform: uppercase; letter-spacing: .06em; margin-left: 4px; }
+
+/* Pathway box */
+.report-page .rugby-pathway-box {
+  color: var(--navy); line-height: 1.6; margin: 8px 0 16px;
+  padding: 14px 16px; background: #F8FAFC;
+  border-left: 3px solid var(--teal); border-radius: 6px; font-size: 15px;
+}
+
+/* Collapsibles */
+.report-page .rugby-details {
+  margin-top: 16px; border-top: 1px solid var(--border); padding-top: 12px;
+}
+.report-page .rugby-details > summary {
+  cursor: pointer; font-weight: 600; color: var(--navy);
+  font-size: 14px; padding: 4px 0;
+}
+.report-page .rugby-details > summary:hover { color: var(--teal); }
+.report-page .rugby-reasoning { color: var(--muted); line-height: 1.6; margin-top: 8px; font-size: 14px; }
+.report-page .rugby-sources { margin-top: 10px; padding-left: 20px; font-size: 13px; }
+.report-page .rugby-sources li { margin-bottom: 4px; }
+.report-page .rugby-sources a { color: var(--teal); word-break: break-all; }
+
+@media (max-width: 640px) {
+  .report-page .rugby-facility-grid { grid-template-columns: repeat(2, 1fr); }
+  .report-page .rugby-programmes { flex-direction: column; }
+}

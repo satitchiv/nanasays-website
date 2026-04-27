@@ -36,6 +36,7 @@ const DEFAULT_GROUPS: TocGroup[] = [
     items: [
       { href: '#sports',        label: 'Sport & athletics' },
       { href: '#tennis',        label: '🎾 Tennis' },
+      { href: '#rugby',         label: '🏉 Rugby' },
     ],
   },
   {
