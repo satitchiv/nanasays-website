@@ -227,29 +227,6 @@ export default async function HomePage() {
         </div>
       </div>
 
-      {/* ─── STATS ─────────────────────────────────────────────────────────── */}
-      <div className="ns-stats-section" style={{ background: 'var(--navy)' }}>
-        <div className="ns-stats-grid" style={{ maxWidth: 1240, margin: '0 auto' }}>
-          {[
-            { num: totalSchools, suffix: '+', label: 'Schools in our directory' },
-            { num: totalCountries, suffix: '', label: 'Countries covered' },
-            { num: totalSchools, suffix: '', label: 'International schools verified' },
-            { num: 24, suffix: '/7', label: 'Nana is always available' },
-          ].map((stat, i) => (
-            <div key={i} style={{
-              padding: '36px 32px',
-              borderRight: i < 3 ? '1px solid rgba(255,255,255,.1)' : 'none',
-              position: 'relative', overflow: 'hidden',
-            }}>
-              <div style={{ position: 'absolute', bottom: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'rgba(52,195,160,.06)' }} />
-              <div style={{ fontFamily: 'var(--font-nunito), Nunito, sans-serif', fontSize: 40, fontWeight: 900, color: '#fff', letterSpacing: -2, lineHeight: 1, marginBottom: 6 }}>
-                {stat.num}<span style={{ fontSize: 24, color: 'var(--teal)' }}>{stat.suffix}</span>
-              </div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,.5)', lineHeight: 1.4 }}>{stat.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
 
       {/* ─── MAP DISCOVERY ──────────────────────────────────────────────────── */}
       <div style={{ background: 'var(--off)', borderTop: '1px solid var(--border)', padding: '88px 0 0' }}>
