@@ -285,9 +285,16 @@ function SchoolModeView({ articles, mentionedSchools, schoolCounts, currentSchoo
 
   return (
     <div>
-      <div className="ew-section-header">
-        <p className="ew-section-title">Latest education news updates that affect this school</p>
-        <p className="ew-section-subtitle">{subtitle}</p>
+      <h2 style={{
+        fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.14em',
+        color: 'var(--teal-dk)', marginBottom: 6, paddingBottom: 10,
+        borderBottom: '2px solid var(--border)', fontWeight: 800,
+        fontFamily: 'var(--font-nunito), Nunito, sans-serif', margin: '0 0 6px',
+      }}>
+        In The News
+      </h2>
+      <p style={{ fontSize: 13, color: 'var(--muted)', margin: '0 0 16px' }}>{subtitle}</p>
+      <div style={{ marginBottom: 16 }}>
         {categories.length > 0 && (
           <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' as const }}>
             <button onClick={() => setActiveCategory(null)}
@@ -308,15 +315,17 @@ function SchoolModeView({ articles, mentionedSchools, schoolCounts, currentSchoo
           </div>
         )}
       </div>
-      {visible.length === 0
-        ? <p style={{ fontSize: 14, color: 'var(--muted)', padding: '24px 0' }}>No articles found.</p>
-        : visible.map((article, i) => (
-          <ArticleCard key={article.id} article={article} currentSchoolSlug={currentSchoolSlug} defaultExpanded={i === 0} />
-        ))
-      }
-      {articles.length > 5 && (
-        <Link href="/news" style={{ fontSize: 13, color: '#2563eb', textDecoration: 'none' }}>View all education news →</Link>
-      )}
+      <div>
+        {visible.length === 0
+          ? <p style={{ fontSize: 14, color: 'var(--muted)', padding: '24px 0' }}>No articles found.</p>
+          : visible.map((article, i) => (
+            <ArticleCard key={article.id} article={article} currentSchoolSlug={currentSchoolSlug} defaultExpanded={i === 0} />
+          ))
+        }
+        {articles.length > 5 && (
+          <Link href="/news" style={{ fontSize: 13, color: '#2563eb', textDecoration: 'none' }}>View all education news →</Link>
+        )}
+      </div>
     </div>
   )
 }

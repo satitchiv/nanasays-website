@@ -22,6 +22,8 @@ import AcademicSnapshotSection from '@/components/school/AcademicSnapshotSection
 import SportsOverviewSection from '@/components/school/SportsOverviewSection'
 import ParentFitTeaser from '@/components/school/ParentFitTeaser'
 import DeepReportPreview from '@/components/school/DeepReportPreview'
+import SignatureProgrammesSection from '@/components/school/SignatureProgrammesSection'
+import AlumniSection from '@/components/school/AlumniSection'
 import type { StatBarConfig } from '@/lib/eduworld'
 import SchoolPulseFeed from '@/components/SchoolPulseFeed'
 import SchoolPulseStatBar from '@/components/SchoolPulseStatBar'
@@ -320,6 +322,11 @@ export default async function SchoolPage({ params, searchParams }: Props) {
   const sdReportVerdict: string | null = (sd?.report_verdict as any)?.body ?? (typeof sd?.report_verdict === 'string' ? sd.report_verdict : null)
   const sdParentFit = (sd?.report_parent_fit as any) ?? null
   const sdSourceCount = (sd as any)?.source_count ?? null
+  const sdSchoolLife = (sd?.school_life as any) ?? null
+  const sdLocationProfile = (sd?.location_profile as any) ?? null
+  const sdTourQuestions = (sd?.report_tour_questions as any) ?? null
+  const sdScholarships = (sd?.scholarships_available as any) ?? null
+  const sdBursaryNote = (sd?.bursary_note as any) ?? null
 
   // Build lookup for similar schools that have EduWorld feeds
   const feedSlugsWithCounts = Object.fromEntries(
@@ -1231,9 +1238,38 @@ export default async function SchoolPage({ params, searchParams }: Props) {
           )}
 
           {/* SCHOLARSHIPS — full detail when no scholarship_total_usd */}
-          {(school.scholarship_available && school.scholarship_details && !school.scholarship_total_usd) || school.bursary_available ? (
+          {((school.scholarship_available && school.scholarship_details && !school.scholarship_total_usd) || school.bursary_available || sdScholarships?.length > 0) ? (
             <Section>
               <SectionTitle>{t('school_section_scholarships')}</SectionTitle>
+              {/* Structured scholarship types from deep data */}
+              {sdScholarships?.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 10 }}>
+                    Types Available
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {sdScholarships.map((s: string, i: number) => (
+                      <div key={i} style={{
+                        fontSize: 13, color: 'var(--text)', padding: '10px 14px',
+                        background: 'var(--off)', border: '1px solid var(--border)', borderRadius: 8,
+                        display: 'flex', gap: 10, alignItems: 'flex-start',
+                      }}>
+                        <span style={{ color: 'var(--teal)', flexShrink: 0, fontWeight: 700, fontSize: 14 }}>✓</span>
+                        {s}
+                      </div>
+                    ))}
+                  </div>
+                  {sdBursaryNote && (
+                    <div style={{ marginTop: 10, fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, padding: '10px 14px', background: 'var(--off)', border: '1px solid var(--border)', borderRadius: 8 }}>
+                      <span style={{ fontWeight: 700, color: 'var(--text)' }}>Bursaries (means-tested): </span>
+                      {sdBursaryNote}
+                    </div>
+                  )}
+                  <div style={{ marginTop: 10, fontSize: 12, color: 'var(--muted)' }}>
+                    💡 Scholarship amounts and bursary likelihood analysis are in the Full Deep Report.
+                  </div>
+                </div>
+              )}
               <div style={{
                 background: 'var(--navy)', borderRadius: 14, padding: '24px 28px',
                 color: '#fff',
@@ -1523,6 +1559,14 @@ export default async function SchoolPage({ params, searchParams }: Props) {
             </Section>
           )}
 
+          {/* SIGNATURE PROGRAMMES — what makes this school unique */}
+          <SignatureProgrammesSection
+            signatureProgrammes={sdSchoolLife?.signature_programmes ?? null}
+            uniqueDifferentiators={sdSchoolLife?.unique_differentiators ?? null}
+            tripsExpeditions={sdSchoolLife?.trips_expeditions ?? null}
+            activitiesClubs={sdSchoolLife?.activities_clubs ?? null}
+          />
+
           {/* ACADEMIC SNAPSHOT — SEO: captures exam result searches */}
           <AcademicSnapshotSection
             examResults={sdExamResults}
@@ -1542,6 +1586,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
             schoolName={school.name}
             slug={params.slug}
             sourceCount={sdSourceCount}
+            tourQuestions={sdTourQuestions}
           />
 
           {/* WHY CHOOSE */}
@@ -2033,6 +2078,11 @@ export default async function SchoolPage({ params, searchParams }: Props) {
             sportsFacilities={school.sports_facilities ?? null}
           />
 
+          {/* NOTABLE ALUMNI */}
+          {sdSchoolLife?.notable_alumni?.length > 0 && (
+            <AlumniSection alumni={sdSchoolLife.notable_alumni} />
+          )}
+
           {/* FAQ */}
           {faqs.length > 0 && (
             <Section>
@@ -2086,14 +2136,18 @@ export default async function SchoolPage({ params, searchParams }: Props) {
           {(schoolFeedItems.length > 0 || statBarConfig) && (
             <Section style={{ paddingTop: 20, marginTop: 16 }}>
               {/* Title sits above everything */}
-              <div className="ew-widget ew-section-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-                  <p className="ew-section-title" style={{ margin: 0, flex: 1 }}>
+              <div className="ew-widget" style={{ marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, paddingBottom: 10, borderBottom: '2px solid var(--border)', marginBottom: 6 }}>
+                  <h2 style={{
+                    fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.14em',
+                    color: 'var(--teal-dk)', fontWeight: 800, margin: 0, flex: 1,
+                    fontFamily: 'var(--font-nunito), Nunito, sans-serif',
+                  }}>
                     School Pulse
-                  </p>
+                  </h2>
                   {schoolPulse?.activity_rating && (
                     <span style={{
-                      fontSize: 14, fontWeight: 600, borderRadius: 100, padding: '4px 14px', flexShrink: 0,
+                      fontSize: 11, fontWeight: 700, borderRadius: 100, padding: '3px 10px', flexShrink: 0,
                       ...(schoolPulse.activity_rating === 'Very active'
                         ? { color: '#059669', background: '#d1fae5', border: '1px solid #a7f3d0' }
                         : schoolPulse.activity_rating === 'Active'
@@ -2105,7 +2159,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
                     </span>
                   )}
                 </div>
-                <p className="ew-section-subtitle">
+                <p style={{ fontSize: 13, color: 'var(--muted)', margin: 0 }}>
                   Live updates from {school.name}&apos;s official website · {schoolFeedItems.length} recent update{schoolFeedItems.length !== 1 ? 's' : ''}
                 </p>
               </div>
@@ -2241,6 +2295,9 @@ export default async function SchoolPage({ params, searchParams }: Props) {
             {school.nearest_airport && <SidebarStat label="Nearest Airport" value={school.nearest_airport} />}
             {school.distance_city && !school.nearest_airport && <SidebarStat label="City" value={school.distance_city} />}
             {school.country?.toLowerCase() === 'thailand' && !!school.flight_hours_from_bkk && <SidebarStat label="From Bangkok" value={`${school.flight_hours_from_bkk}h`} />}
+            {sdLocationProfile?.airports?.slice(0, 2).map((a: any) => (
+              <SidebarStat key={a.name} label={`${a.name} airport`} value={`${a.distance_km}km · ~${a.drive_time_min_estimate} min`} />
+            ))}
             {!!school.university_placement_rate && <SidebarStat label={t('school_stat_uni_rate')} value={`${school.university_placement_rate}%`} accent />}
             {school.head_of_school && <SidebarStat label={t('school_sidebar_head')} value={school.head_of_school} />}
           </SidebarCard>

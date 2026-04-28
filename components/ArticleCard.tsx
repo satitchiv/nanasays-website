@@ -203,7 +203,7 @@ export default function ArticleCard({ article, currentSchoolSlug, defaultExpande
       overflow: 'hidden',
     }}>
       {/* Top color bar */}
-      <div style={{ height: 4, background: color }} />
+      <div style={{ height: 2, background: color }} />
 
       {/* Two-column body — collapsed wrapper */}
       <div style={{ position: 'relative' }}>
@@ -218,41 +218,41 @@ export default function ArticleCard({ article, currentSchoolSlug, defaultExpande
 
         {/* LEFT — headline + source + key points */}
         <div style={{
-          padding: '16px 18px',
+          padding: '14px 16px',
           borderRight: '0.5px solid var(--border)',
         }}>
           {/* Source row */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
             <div style={{
-              width: 40, height: 40, borderRadius: '50%',
+              width: 32, height: 32, borderRadius: '50%',
               background: 'var(--off)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 14, fontWeight: 700, color: 'var(--muted)',
+              fontSize: 11, fontWeight: 700, color: 'var(--muted)',
               border: '0.5px solid var(--border)', flexShrink: 0,
             }}>
               {getInitials(sourceName)}
             </div>
             <div>
-              <p style={{ fontSize: 16, fontWeight: 600, margin: 0, color: 'var(--navy)' }}>
+              <p style={{ fontSize: 13, fontWeight: 600, margin: 0, color: 'var(--navy)' }}>
                 {sourceName || 'Education News'}
               </p>
-              <p style={{ fontSize: 14, color: 'var(--muted)', margin: 0 }}>
+              <p style={{ fontSize: 11, color: 'var(--muted)', margin: 0 }}>
                 {timeAgo(article.published_at)}
               </p>
             </div>
             <div style={{ marginLeft: 'auto', display: 'flex', gap: 6, alignItems: 'center' }}>
               {article.category && (
                 <span style={{
-                  fontSize: 14, background: `${color}18`, color: textColor,
-                  padding: '4px 12px', borderRadius: 10, fontWeight: 500,
+                  fontSize: 11, background: `${color}18`, color: textColor,
+                  padding: '3px 9px', borderRadius: 10, fontWeight: 500,
                 }}>
                   {article.category}
                 </span>
               )}
               {isUrgent && (
                 <span style={{
-                  fontSize: 14, background: '#fee2e2', color: '#b91c1c',
-                  padding: '4px 12px', borderRadius: 10, fontWeight: 700,
+                  fontSize: 11, background: '#fee2e2', color: '#b91c1c',
+                  padding: '3px 9px', borderRadius: 10, fontWeight: 700,
                 }}>
                   Urgent
                 </span>
@@ -262,8 +262,8 @@ export default function ArticleCard({ article, currentSchoolSlug, defaultExpande
 
           {/* Headline */}
           <p style={{
-            fontSize: 28, fontWeight: 700, margin: '0 0 18px',
-            lineHeight: 1.35, color: 'var(--navy)',
+            fontSize: 16, fontWeight: 700, margin: '0 0 12px',
+            lineHeight: 1.4, color: 'var(--navy)',
           }}>
             {article.english_headline || article.source_title}
           </p>
@@ -272,19 +272,19 @@ export default function ArticleCard({ article, currentSchoolSlug, defaultExpande
           {bullets.length > 0 && (
             <div>
               <p style={{
-                fontSize: 14, fontWeight: 700, letterSpacing: '0.05em',
-                textTransform: 'uppercase', color: 'var(--muted)', margin: '0 0 12px',
+                fontSize: 10, fontWeight: 700, letterSpacing: '0.07em',
+                textTransform: 'uppercase', color: 'var(--muted)', margin: '0 0 8px',
               }}>
                 Key points
               </p>
 
               {bullets.map((bullet, i) => (
-                <div key={i} style={{ display: 'flex', gap: 12, marginBottom: 14, alignItems: 'flex-start' }}>
+                <div key={i} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>
                   <span style={{
-                    width: 8, height: 8, borderRadius: '50%',
-                    background: color, flexShrink: 0, marginTop: 9,
+                    width: 6, height: 6, borderRadius: '50%',
+                    background: color, flexShrink: 0, marginTop: 6,
                   }} />
-                  <p style={{ fontSize: 17, color: 'var(--body)', margin: 0, lineHeight: 1.6 }}>
+                  <p style={{ fontSize: 13, color: 'var(--body)', margin: 0, lineHeight: 1.55 }}>
                     {bullet}
                   </p>
                 </div>
@@ -299,14 +299,14 @@ export default function ArticleCard({ article, currentSchoolSlug, defaultExpande
           borderLeft: '1px solid rgba(52,195,160,0.25)',
           display: 'flex',
           flexDirection: 'column',
-          padding: '18px 18px',
-          gap: 16,
+          padding: '14px 14px',
+          gap: 12,
         }}>
 
           {/* Nana header */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{
-              width: 36, height: 36, borderRadius: '50%',
+              width: 28, height: 28, borderRadius: '50%',
               background: '#fff',
               border: '1.5px solid rgba(52,195,160,0.35)',
               overflow: 'hidden',
@@ -315,22 +315,22 @@ export default function ArticleCard({ article, currentSchoolSlug, defaultExpande
               <img src="/nana-logo.png" alt="Nana" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
             </div>
             <div>
-              <p style={{ fontSize: 16, fontWeight: 700, color: 'var(--teal-dk)', margin: 0 }}>
-                Nana's Take
+              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--teal-dk)', margin: 0 }}>
+                Nana&apos;s Take
               </p>
-              <p style={{ fontSize: 13, color: 'var(--teal-dk)', opacity: 0.7, margin: 0 }}>
+              <p style={{ fontSize: 11, color: 'var(--teal-dk)', opacity: 0.7, margin: 0 }}>
                 What this means for you
               </p>
             </div>
           </div>
 
-          {/* Who it affects — displayed as prose to preserve full context */}
+          {/* Who it affects */}
           {whoAffected && whoAffected !== 'No direct family impact identified' && (
             <div>
-              <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--teal-dk)', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--teal-dk)', margin: '0 0 5px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                 Who this affects
               </p>
-              <p style={{ fontSize: 15, color: 'var(--teal-dk)', margin: 0, lineHeight: 1.6, opacity: 0.9 }}>
+              <p style={{ fontSize: 12, color: 'var(--teal-dk)', margin: 0, lineHeight: 1.55, opacity: 0.9 }}>
                 {whoAffected}
               </p>
             </div>
@@ -338,13 +338,13 @@ export default function ArticleCard({ article, currentSchoolSlug, defaultExpande
 
           {/* What to do */}
           <div>
-            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--teal-dk)', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+            <p style={{ fontSize: 10, fontWeight: 700, color: 'var(--teal-dk)', margin: '0 0 5px', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               {isRealAction ? 'What to do' : 'Nana says'}
             </p>
             <div style={{
               background: isRealAction ? (dateBadge ? '#fffbeb' : '#fff5f5') : '#fff',
-              borderRadius: 10,
-              padding: '12px 14px',
+              borderRadius: 8,
+              padding: '10px 12px',
               border: isRealAction
                 ? (dateBadge ? '1px solid #fcd34d' : '1px solid #fca5a5')
                 : '1px solid rgba(52,195,160,0.2)',
@@ -352,17 +352,17 @@ export default function ArticleCard({ article, currentSchoolSlug, defaultExpande
               {isRealAction ? (
                 <>
                   <p style={{
-                    fontSize: 15, lineHeight: 1.6, margin: 0,
+                    fontSize: 13, lineHeight: 1.55, margin: 0,
                     color: dateBadge ? '#78350f' : '#7f1d1d',
-                    marginBottom: dateBadge ? 10 : 0,
+                    marginBottom: dateBadge ? 8 : 0,
                   }}>
                     {actionNeeded}
                   </p>
                   {dateBadge && (
                     <span style={{
-                      fontSize: 12, fontWeight: 700,
+                      fontSize: 11, fontWeight: 700,
                       background: '#fef3c7', color: '#b45309',
-                      padding: '2px 10px', borderRadius: 100,
+                      padding: '2px 8px', borderRadius: 100,
                       border: '1px solid #fcd34d',
                       display: 'inline-block', marginTop: 2,
                     }}>
@@ -371,11 +371,11 @@ export default function ArticleCard({ article, currentSchoolSlug, defaultExpande
                   )}
                 </>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--teal-dk)" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0, marginTop: 2 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--teal-dk)" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0, marginTop: 2 }}>
                     <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
                   </svg>
-                  <p style={{ fontSize: 15, color: 'var(--teal-dk)', margin: 0, lineHeight: 1.6 }}>
+                  <p style={{ fontSize: 13, color: 'var(--teal-dk)', margin: 0, lineHeight: 1.55 }}>
                     {actionNeeded || 'Nothing to act on right now — good to stay informed.'}
                   </p>
                 </div>
