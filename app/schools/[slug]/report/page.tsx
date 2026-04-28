@@ -12,6 +12,10 @@ import PastoralSection        from '@/components/report/PastoralSection'
 import SchoolLifeSection      from '@/components/report/SchoolLifeSection'
 import SportsSection          from '@/components/report/SportsSection'
 import TennisSection, { hasMeaningfulTennisData } from '@/components/report/TennisSection'
+import RugbySection,    { hasMeaningfulRugbyData }    from '@/components/report/RugbySection'
+import FootballSection, { hasMeaningfulFootballData } from '@/components/report/FootballSection'
+import HockeySection,  { hasMeaningfulHockeyData }   from '@/components/report/HockeySection'
+import { getHockeyArchivesForSchool } from '@/lib/hockey-archives'
 import CommunityProfile       from '@/components/report/CommunityProfile'
 import DailyLifeGrid          from '@/components/report/DailyLifeGrid'
 import RecentSection          from '@/components/report/RecentSection'
@@ -31,6 +35,7 @@ import NanaPanel              from '@/components/nana/NanaPanel'
 import DossierOverview        from '@/components/report/DossierOverview'
 import TierDivider            from '@/components/report/TierDivider'
 import PreviewSections        from '@/components/report/PreviewSections'
+import PoliciesSection, { hasMeaningfulPoliciesData } from '@/components/report/PoliciesSection'
 import UnlockBanner           from '@/components/report/UnlockBanner'
 import { computeDossierStats } from '@/lib/dossier-stats'
 import { isUnlocked }         from '@/lib/paid-status'
@@ -54,12 +59,13 @@ type Props = {
 }
 
 async function loadAll(slug: string) {
-  const [{ data: school }, { data: structured }, { data: sensitive }] = await Promise.all([
+  const [{ data: school }, { data: structured }, { data: sensitive }, { data: policyDocs }] = await Promise.all([
     supabase.from('schools').select('*').eq('slug', slug).maybeSingle(),
     supabase.from('school_structured_data').select('*').eq('school_slug', slug).maybeSingle(),
     supabase.from('school_sensitive').select('*').eq('school_slug', slug),
+    supabase.from('school_knowledge').select('title, source_url, analysis').eq('school_slug', slug).eq('category', 'policies').eq('source_type', 'pdf').order('title'),
   ])
-  return { school, structured, sensitive: sensitive || [] }
+return { school, structured, sensitive: sensitive || [], policyDocs: policyDocs || [] }
 }
 
 function findRow(rows: any[], source: string, dataType?: string) {
@@ -265,7 +271,7 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
   const sp = (await searchParams) ?? {}
   const isPaid = await isUnlocked(sp.unlocked)
   const justUnlocked = sp.just_unlocked === 'true'
-  const { school, structured, sensitive } = await loadAll(slug)
+  const { school, structured, sensitive, policyDocs } = await loadAll(slug)
   if (!school) notFound()
 
   const stats = computeDossierStats(structured, sensitive)
@@ -295,6 +301,11 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
     const lastL = last.total_liabilities ?? 0
     return prevL > 0 && lastL >= prevL * 2
   })()
+
+  // Hockey archives (SOCS rankings + ISHC bracket) — loaded server-side from shared JSON files
+  const hockeyArchives = hasMeaningfulHockeyData(structured?.sports_profile?.hockey)
+    ? getHockeyArchivesForSchool(slug, school.name ?? '')
+    : null
 
   // Compose sources
   const sourcesList = buildSources(sensitive, structured, school)
@@ -433,11 +444,26 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
 
               <SportsSection sports={structured?.sports_profile} headless />
 
+              {(hasMeaningfulTennisData(structured?.sports_profile?.tennis) || hasMeaningfulRugbyData(structured?.sports_profile?.rugby) || hasMeaningfulFootballData(structured?.sports_profile?.football) || hasMeaningfulHockeyData(structured?.sports_profile?.hockey)) && (
+                <h3 className="block-sub sports-major-heading">Major sports</h3>
+              )}
               {hasMeaningfulTennisData(structured?.sports_profile?.tennis) && (
-                <>
-                  <h3 className="block-sub sports-major-heading">Major sports</h3>
-                  <TennisSection tennis={structured?.sports_profile?.tennis} headless />
-                </>
+                <TennisSection tennis={structured?.sports_profile?.tennis} headless />
+              )}
+              {hasMeaningfulRugbyData(structured?.sports_profile?.rugby) && (
+                <RugbySection rugby={structured?.sports_profile?.rugby} headless />
+              )}
+              {hasMeaningfulFootballData(structured?.sports_profile?.football) && (
+                <FootballSection football={structured?.sports_profile?.football} headless />
+              )}
+              {hasMeaningfulHockeyData(structured?.sports_profile?.hockey) && (
+                <HockeySection
+                  hockey={structured?.sports_profile?.hockey}
+                  sportsProfile={structured?.sports_profile}
+                  archives={hockeyArchives}
+                  schoolName={school.name ?? ''}
+                  headless
+                />
               )}
             </section>
 
@@ -462,6 +488,10 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
               title="Independently verified &amp; regulated"
               subtitle="Charity Commission, Companies House, ISI inspection quotes, safeguarding, and tour questions."
             />
+
+            {hasMeaningfulPoliciesData(policyDocs) && (
+              <PoliciesSection docs={policyDocs} />
+            )}
 
             <RegulatoryStatus
               charity={charity ? {

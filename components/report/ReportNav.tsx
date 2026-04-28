@@ -37,6 +37,8 @@ const DEFAULT_GROUPS: TocGroup[] = [
       { href: '#sports',        label: 'Sport & athletics' },
       { href: '#tennis',        label: '🎾 Tennis' },
       { href: '#rugby',         label: '🏉 Rugby' },
+      { href: '#football',      label: '⚽ Football' },
+      { href: '#hockey',        label: '🏑 Hockey' },
     ],
   },
   {
@@ -50,6 +52,7 @@ const DEFAULT_GROUPS: TocGroup[] = [
   {
     label: 'Due diligence',
     items: [
+      { href: '#policies',      label: '📋 Published policies' },
       { href: '#reg-status',    label: 'Regulatory status' },
       { href: '#financial',     label: 'Financial health' },
       { href: '#inspection',    label: 'Inspection record' },

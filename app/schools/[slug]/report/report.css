@@ -1767,3 +1767,241 @@
   .report-page .rugby-facility-grid { grid-template-columns: repeat(2, 1fr); }
   .report-page .rugby-programmes { flex-direction: column; }
 }
+
+/* ── Published policies section ─────────────────────────────────────────────── */
+.report-page .policies-intro {
+  margin-bottom: 24px; padding: 14px 18px;
+  background: #f0fdf4; border-left: 4px solid #22c55e;
+  border-radius: 8px; font-size: 15px; color: var(--body); line-height: 1.6;
+}
+.report-page .policies-groups { display: flex; flex-direction: column; gap: 28px; }
+.report-page .policies-group-label {
+  font-size: 13px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--navy); margin: 0 0 10px;
+  display: flex; align-items: center; gap: 6px;
+}
+.report-page .policies-list { display: flex; flex-direction: column; gap: 6px; }
+
+/* Each policy is a <details> element */
+.report-page .policy-item {
+  border: 1px solid var(--border); border-radius: 10px;
+  background: #fff; overflow: hidden;
+  transition: border-color .15s;
+}
+.report-page .policy-item[open] { border-color: var(--teal); }
+.report-page .policy-item[open] .policy-chip { background: #f0fdfa; }
+
+.report-page .policy-chip {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 14px; cursor: pointer; list-style: none;
+  font-size: 13.5px; color: var(--navy); user-select: none;
+}
+.report-page .policy-chip::-webkit-details-marker { display: none; }
+.report-page .policy-chip:hover { background: #f8faff; }
+.report-page .policy-chip-icon { font-size: 13px; opacity: .6; flex-shrink: 0; }
+.report-page .policy-chip-name { flex: 1; font-weight: 500; line-height: 1.3; }
+.report-page .policy-findings-badge {
+  flex-shrink: 0; font-size: 11px; font-weight: 700;
+  padding: 2px 8px; border-radius: 20px;
+  background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe;
+}
+.report-page .policy-chip-caret {
+  flex-shrink: 0; font-size: 16px; color: var(--muted);
+  transition: transform .2s; line-height: 1;
+}
+.report-page .policy-item[open] .policy-chip-caret { transform: rotate(90deg); }
+
+/* Expanded analysis panel */
+.report-page .policy-analysis {
+  padding: 12px 16px 14px;
+  border-top: 1px solid var(--border);
+  background: #fafbff;
+}
+.report-page .policy-bullets {
+  margin: 0 0 12px; padding-left: 20px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.report-page .policy-bullets li {
+  font-size: 13.5px; color: var(--body); line-height: 1.55;
+}
+.report-page .policy-tour-q {
+  display: flex; flex-direction: column; gap: 3px;
+  background: #fffbeb; border-left: 3px solid #fbbf24;
+  padding: 8px 12px; border-radius: 6px; margin-bottom: 10px;
+}
+.report-page .policy-tour-label {
+  font-size: 10px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: .1em; color: #92400e;
+}
+.report-page .policy-tour-text {
+  font-size: 13px; color: var(--body); font-style: italic; line-height: 1.45;
+}
+.report-page .policy-analysis-footer {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+}
+.report-page .policy-trans-badge {
+  font-size: 11px; font-weight: 700; padding: 2px 9px;
+  border-radius: 20px; text-transform: uppercase; letter-spacing: .06em;
+}
+.report-page .trans-detailed { background: #dcfce7; color: #166534; }
+.report-page .trans-basic    { background: #fef9c3; color: #854d0e; }
+.report-page .trans-vague    { background: #fee2e2; color: #991b1b; }
+.report-page .policy-pdf-link {
+  font-size: 12.5px; color: var(--teal); text-decoration: none; font-weight: 600;
+  margin-left: auto;
+}
+.report-page .policy-pdf-link:hover { text-decoration: underline; }
+
+@media (max-width: 640px) {
+  .report-page .policy-chip { font-size: 12.5px; padding: 8px 12px; }
+  .report-page .policy-pdf-link { margin-left: 0; }
+}
+
+/* ── Hockey section ─────────────────────────────────────────────────────────── */
+.report-page .hockey-tier-strip {
+  margin: 16px 0 0; padding: 12px 16px; border-radius: 8px;
+  display: flex; align-items: flex-start; gap: 12px; flex-wrap: wrap;
+  background: #f8fafc; border-left: 4px solid var(--border);
+}
+.report-page .hockey-tier-left { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.report-page .hockey-tier-badge {
+  font-family: Nunito, sans-serif; font-size: 11px; font-weight: 800;
+  color: white; padding: 3px 10px; border-radius: 12px;
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.report-page .hockey-tier-sport { font-size: 12px; color: var(--muted); font-weight: 600; }
+.report-page .hockey-meta-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.report-page .hockey-meta-pill {
+  font-size: 12px; background: white; border: 1px solid var(--border);
+  border-radius: 20px; padding: 3px 10px; color: var(--body); white-space: nowrap;
+}
+.report-page .hockey-section-block { margin-top: 22px; }
+.report-page .hockey-sub-note { font-size: 11px; font-weight: 400; color: var(--muted); margin-left: 6px; }
+.report-page .hockey-achieve-list { list-style: none; display: flex; flex-direction: column; gap: 5px; }
+.report-page .hockey-achieve-item { font-size: 13px; display: flex; align-items: baseline; gap: 8px; }
+.report-page .hockey-achieve-year {
+  font-family: Nunito, sans-serif; font-weight: 800; font-size: 11px;
+  color: var(--teal); background: #f0fdfa; border: 1px solid #99f6e4;
+  border-radius: 4px; padding: 1px 6px; flex-shrink: 0;
+}
+.report-page .hockey-socs-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; }
+@media (max-width: 580px) { .report-page .hockey-socs-grid { grid-template-columns: 1fr; } }
+.report-page .hockey-socs-block { padding: 10px 12px; border-radius: 6px; }
+.report-page .hockey-socs-label {
+  font-family: Nunito, sans-serif; font-size: 11px; font-weight: 800;
+  margin-bottom: 6px; text-transform: uppercase; letter-spacing: .04em;
+}
+.report-page .hockey-socs-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.report-page .hockey-socs-table th {
+  text-align: left; font-weight: 600; color: var(--muted); font-size: 11px;
+  padding: 2px 0 4px; border-bottom: 1px solid var(--border);
+}
+.report-page .hockey-socs-table td { padding: 3px 0; vertical-align: middle; }
+.report-page .hockey-td-season { color: var(--muted); font-size: 12px; padding-right: 8px; }
+.report-page .hockey-td-rank { font-family: Nunito, sans-serif; font-weight: 800; font-size: 14px; }
+.report-page .hockey-td-of { font-size: 11px; font-weight: 400; color: var(--muted); }
+.report-page .hockey-td-pct { font-size: 12px; color: var(--muted); }
+.report-page .hockey-socs-live-row td { color: #0369a1; }
+.report-page .hockey-live-dot { font-size: 11px; }
+.report-page .hockey-ac-strip {
+  margin-top: 8px; display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+}
+.report-page .hockey-ac-label { font-size: 11px; font-weight: 700; color: var(--muted); }
+.report-page .hockey-ac-pill {
+  font-size: 11px; background: #f1f5f9; border: 1px solid var(--border);
+  border-radius: 20px; padding: 2px 9px;
+}
+.report-page .hockey-ac-live { color: #0369a1; border-color: #bfdbfe; background: #eff6ff; }
+.report-page .hockey-socs-note { font-size: 11px; color: var(--muted); margin-top: 6px; }
+.report-page .hockey-team-block {
+  margin-bottom: 10px; padding: 10px 12px; background: #f8fafc;
+  border: 1px solid var(--border); border-radius: 8px;
+}
+.report-page .hockey-team-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.report-page .hockey-team-sport { font-family: Nunito, sans-serif; font-weight: 800; font-size: 13px; color: var(--navy); }
+.report-page .hockey-team-badge {
+  font-size: 11px; font-weight: 700; background: var(--navy); color: white;
+  padding: 2px 8px; border-radius: 10px;
+}
+.report-page .hockey-team-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.report-page .hockey-team-chip {
+  font-size: 11px; background: white; border: 1px solid var(--border);
+  border-radius: 4px; padding: 2px 7px; color: #374151;
+}
+.report-page .hockey-team-more { font-size: 11px; color: var(--muted); font-style: italic; padding: 2px 4px; }
+.report-page .hockey-scholar-banner {
+  margin-top: 16px; background: #ecfdf5; border: 1px solid #6ee7b7;
+  border-radius: 8px; padding: 12px 16px; display: flex; gap: 12px;
+  align-items: flex-start; font-size: 14px;
+}
+.report-page .hockey-scholar-icon { font-size: 20px; flex-shrink: 0; }
+.report-page .hockey-scholar-notes { font-size: 12px; color: #065f46; margin-top: 3px; }
+.report-page .hockey-cups-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 8px; }
+.report-page .hockey-cup-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border); background: #f8fafc;
+}
+.report-page .hockey-cup-win      { background: #fffbeb; border-color: #fcd34d; }
+.report-page .hockey-cup-finalist { background: #f0f9ff; border-color: #7dd3fc; }
+.report-page .hockey-cup-semi     { background: #fff7ed; border-color: #fdba74; }
+.report-page .hockey-cup-other    { background: #f8fafc; border-color: #cbd5e1; }
+.report-page .hockey-cup-icon     { font-size: 20px; flex-shrink: 0; line-height: 1; }
+.report-page .hockey-cup-info     { display: flex; flex-direction: column; gap: 2px; }
+.report-page .hockey-cup-name     { font-family: Nunito, sans-serif; font-size: 14px; font-weight: 700; color: var(--navy); }
+.report-page .hockey-cup-meta     { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 5px; flex-wrap: wrap; }
+.report-page .hockey-cup-result-text { font-weight: 700; color: #92400e; }
+.report-page .hockey-cup-win .hockey-cup-result-text { color: #78350f; }
+.report-page .hockey-g-tag {
+  font-size: 10px; font-weight: 700; padding: 1px 7px; border-radius: 10px;
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.report-page .hockey-girls-tag { background: #fce7f3; color: #be185d; }
+.report-page .hockey-boys-tag  { background: #dbeafe; color: #1d4ed8; }
+.report-page .hockey-cups-note { font-size: 11px; color: var(--muted); }
+.report-page .hockey-bracket-list { display: flex; flex-direction: column; gap: 6px; margin-bottom: 8px; }
+.report-page .hockey-bracket-row {
+  display: grid; grid-template-columns: 160px 1fr auto;
+  align-items: center; gap: 10px; padding: 8px 12px;
+  border-radius: 6px; border: 1px solid var(--border); font-size: 13px;
+}
+@media (max-width: 580px) {
+  .report-page .hockey-bracket-row { grid-template-columns: 1fr; gap: 4px; }
+}
+.report-page .hockey-bracket-win   { background: #f0fdf4; border-color: #86efac; }
+.report-page .hockey-bracket-loss  { background: #fff1f2; border-color: #fca5a5; }
+.report-page .hockey-bracket-bye   { background: #f8fafc; border-color: #cbd5e1; color: var(--muted); }
+.report-page .hockey-bracket-round { font-family: Nunito, sans-serif; font-weight: 800; font-size: 11px; color: var(--muted); }
+.report-page .hockey-bracket-match { font-weight: 600; }
+.report-page .hockey-bracket-result { font-size: 12px; text-align: right; white-space: nowrap; }
+.report-page .hockey-bracket-win .hockey-bracket-result  { color: #15803d; font-weight: 700; }
+.report-page .hockey-bracket-loss .hockey-bracket-result { color: #dc2626; font-weight: 700; }
+.report-page .hockey-comps-list { display: flex; flex-wrap: wrap; gap: 6px; }
+.report-page .hockey-comp-pill {
+  font-size: 12px; background: #eff6ff; border: 1px solid #bfdbfe;
+  border-radius: 20px; padding: 3px 10px; color: #1d4ed8;
+}
+.report-page .hockey-alumni-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+.report-page .hockey-alumni-card {
+  background: #f8fafc; border: 1px solid var(--border);
+  border-radius: 8px; padding: 8px 12px; min-width: 160px;
+}
+.report-page .hockey-alumni-name { font-family: Nunito, sans-serif; font-size: 13px; font-weight: 700; }
+.report-page .hockey-alumni-ach  { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.report-page .hockey-head-coach-card {
+  background: #f0f9ff; border: 1px solid #bae6fd;
+  border-radius: 8px; padding: 12px 14px; margin-bottom: 10px;
+}
+.report-page .hockey-hc-header  { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.report-page .hockey-hc-name    { font-family: Nunito, sans-serif; font-size: 15px; font-weight: 800; color: var(--navy); }
+.report-page .hockey-hc-title   { font-size: 12px; color: var(--muted); font-weight: 600; }
+.report-page .hockey-hc-notable { font-size: 12px; color: #0c4a6e; margin-top: 5px; line-height: 1.5; }
+.report-page .hockey-coach-list { display: flex; flex-direction: column; gap: 4px; }
+.report-page .hockey-coach-row  { display: flex; gap: 8px; font-size: 13px; align-items: baseline; }
+.report-page .hockey-coach-name { font-weight: 700; flex-shrink: 0; min-width: 130px; }
+.report-page .hockey-coach-role { color: var(--muted); }
+.report-page .hockey-coach-role em { font-style: normal; color: #0369a1; }
+.report-page .hockey-opponent-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.report-page .hockey-opponent-chip {
+  font-size: 12px; background: #f8fafc; border: 1px solid var(--border);
+  border-radius: 20px; padding: 3px 10px;
+}
