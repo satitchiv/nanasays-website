@@ -103,13 +103,44 @@ button {
 .ns-portal-grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
 .ns-portal-row { display: flex; gap: 16px; align-items: center; }
 
-/* Homepage hero */
+/* Homepage hero — centered column (Mock C style) */
 .ns-hero-inner {
   position: relative; z-index: 2; height: 100%;
-  display: flex; align-items: center; gap: 56px;
-  padding: 72px 5% 72px 52px;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; text-align: center;
+  padding: 88px 5% 72px; max-width: 1240px; margin: 0 auto; width: 100%;
 }
-.ns-hero-search-col { width: 460px; flex-shrink: 0; align-self: center; }
+.ns-hero-search-col { width: 100%; max-width: 460px; }
+
+/* Hero proof line */
+.ns-hero-proof {
+  display: flex; align-items: center; justify-content: center;
+  gap: 24px; margin-bottom: 32px;
+}
+.ns-proof-stat { text-align: center; }
+.ns-proof-num {
+  font-family: var(--font-nunito), Nunito, sans-serif;
+  font-size: 28px; font-weight: 900; color: #fff; letter-spacing: -1px;
+}
+.ns-proof-num em { color: var(--teal); font-style: normal; }
+.ns-proof-label { font-size: 11px; color: rgba(255,255,255,.4); font-weight: 300; margin-top: 2px; }
+.ns-proof-divider { width: 1px; height: 40px; background: rgba(255,255,255,.15); }
+
+/* Hero destination chips */
+.ns-hero-destinations { margin-top: 28px; width: 100%; max-width: 780px; }
+.ns-hero-dest-label {
+  font-size: 10px; font-weight: 800; color: rgba(255,255,255,.35);
+  text-transform: uppercase; letter-spacing: 2px; margin-bottom: 12px;
+}
+.ns-hero-dest-chips { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+.ns-hero-dest-chip {
+  display: flex; align-items: center; gap: 8px; padding: 8px 15px;
+  border-radius: 100px; background: rgba(255,255,255,.07);
+  border: 1px solid rgba(255,255,255,.14); text-decoration: none;
+  transition: background .15s, border-color .15s;
+}
+.ns-hero-dest-chip:hover { background: rgba(52,195,160,.14); border-color: rgba(52,195,160,.4); }
+.ns-hero-dest-chip span { font-size: 12px; font-weight: 700; color: rgba(255,255,255,.82); }
 
 /* Homepage grids */
 .ns-stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); }
@@ -212,15 +243,11 @@ button {
   /* Hero search in CTA band — full width on mobile */
   .ns-hero-search-cta { width: 100%; }
 
-  /* Hero — stack copy above, search below */
-  .ns-hero-inner {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 32px;
-    padding: 40px 5% 48px;
-    height: auto;
-  }
-  .ns-hero-search-col { width: 100%; align-self: auto; }
+  /* Hero — tighter padding on tablet */
+  .ns-hero-inner { padding: 56px 5% 52px; height: auto; }
+  .ns-hero-search-col { width: 100%; }
+  .ns-hero-dest-chips { gap: 8px; }
+  .ns-proof-num { font-size: 22px; }
 
   /* Stats — 2 cols */
   .ns-stats-grid { grid-template-columns: repeat(2, 1fr); }
@@ -356,6 +383,7 @@ button {
 .ns-reveal { opacity: 0; transform: translateY(16px); transition: opacity .5s ease, transform .5s ease; }
 .ns-reveal.ns-visible { opacity: 1; transform: none; }
 @keyframes chipIn { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: scale(1); } }
+@keyframes spin { to { transform: rotate(360deg); } }
 .filter-pill { border: 1.5px solid var(--bmd); background: white; color: var(--muted); border-radius: 100px; padding: 6px 13px; font-size: 11px; font-weight: 600; cursor: pointer; transition: border-color .15s, color .15s, background .15s; font-family: 'Nunito Sans', sans-serif; }
 .filter-pill:hover { border-color: var(--navy); color: var(--navy); }
 .filter-pill.on { background: var(--navy); color: #fff; border-color: var(--navy); }

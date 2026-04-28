@@ -1,5 +1,6 @@
 'use client'
 
+import './NavSearch.css'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@supabase/supabase-js'
@@ -276,9 +277,6 @@ export default function NavSearch() {
         </div>
       )}
 
-      <style>{`
-        mark { background: rgba(52,195,160,.18); color: var(--teal-dk); border-radius: 2px; padding: 0 1px; font-style: normal; }
-      `}</style>
     </div>
   )
 }

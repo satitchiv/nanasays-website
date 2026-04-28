@@ -285,6 +285,21 @@ export async function getSchoolPairs(limit = 500): Promise<{ slugA: string; slug
   return pairs
 }
 
+export function formatEntryExamType(raw: string | null | undefined): string {
+  if (!raw) return ''
+  const trimmed = raw.trim()
+  if (trimmed.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(trimmed)
+      if (Array.isArray(parsed)) {
+        const items = parsed.filter((x): x is string => typeof x === 'string' && x.length > 0)
+        return items.length > 0 ? items.join(', ') : raw
+      }
+    } catch { /* fall through */ }
+  }
+  return raw
+}
+
 export function formatFees(school: Pick<School, 'fees_usd_min' | 'fees_usd_max' | 'fees_original' | 'fees_currency' | 'fees_local_min' | 'fees_local_max' | 'fees_local_currency'>): string {
   if (school.fees_local_min && school.fees_local_currency) {
     const currency = school.fees_local_currency

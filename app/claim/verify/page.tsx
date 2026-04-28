@@ -115,7 +115,6 @@ function VerifyInner() {
                 borderRadius: '50%', margin: '0 auto 24px',
                 animation: 'spin 0.8s linear infinite',
               }} />
-              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
               <p style={{ fontSize: 15, color: muted }}>{message}</p>
             </>
           )}

@@ -1,5 +1,6 @@
 'use client'
 
+import './CountryGrid.css'
 import { useState, useEffect, useRef } from 'react'
 import type { RegionCountry } from '@/lib/regionData'
 
@@ -193,10 +194,6 @@ export default function CountryGrid({ countries }: Props) {
         <NoResults onReset={() => setQuery('')} />
       )}
 
-      <style>{`
-        .ns-reveal { opacity: 0; transform: translateY(14px); transition: opacity .5s ease, transform .5s ease, box-shadow .22s, border-color .22s; }
-        .ns-visible { opacity: 1 !important; transform: translateY(0) !important; }
-      `}</style>
     </div>
   )
 }

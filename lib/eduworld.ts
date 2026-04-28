@@ -1,17 +1,18 @@
+import 'server-only'
 import { createClient } from '@supabase/supabase-js'
 
-// Server-side only — EduWorld Supabase (separate from NanaSays DB)
+// Eduworld tables are now on the NanaSays Supabase with eduworld_ prefix (migrated 2026-04-28)
 function getDb() {
   return createClient(
-    process.env.EDUWORLD_SUPABASE_URL!,
-    process.env.EDUWORLD_SUPABASE_SERVICE_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_KEY!
   )
 }
 
 export async function getSchoolFeed(slug: string): Promise<any[]> {
   try {
     const { data } = await getDb()
-      .from('school_feed_items')
+      .from('eduworld_school_feed_items')
       .select('*')
       .eq('nanasays_slug', slug)
       .order('published_at', { ascending: false })
@@ -44,7 +45,7 @@ export async function getSchoolNews(slug: string): Promise<any[]> {
 
     // Fetch all full-tier published articles
     const { data: articles } = await db
-      .from('articles')
+      .from('eduworld_articles')
       .select('id,english_headline,english_summary,featured_image_url,category,published_at,schools_mentioned,countries_affected,curriculum_relevant,school_types,urgency,faq_json,bullets_json,source_url,source_name,content_tier')
       .eq('status', 'published')
       .eq('content_tier', 'full')
@@ -92,7 +93,7 @@ export async function getDeadlines(limit = 3): Promise<any[]> {
   try {
     const today = new Date().toISOString().split('T')[0]
     const { data } = await getDb()
-      .from('school_feed_items')
+      .from('eduworld_school_feed_items')
       .select('id,nanasays_slug,source_name,title,detected_date,category,link')
       .eq('has_date', true)
       .gte('detected_date', today)
@@ -108,7 +109,7 @@ export async function getMostMentionedSchools(limit = 5): Promise<any[]> {
   try {
     const db = getDb()
     const { data: articles } = await db
-      .from('articles')
+      .from('eduworld_articles')
       .select('schools_mentioned')
       .eq('status', 'published')
       .not('schools_mentioned', 'is', null)
@@ -130,7 +131,7 @@ export async function getMostMentionedSchools(limit = 5): Promise<any[]> {
 
     const slugs = top.map(([s]) => s)
     const { data: sources } = await db
-      .from('school_sources')
+      .from('eduworld_school_sources')
       .select('nanasays_slug,school_name')
       .in('nanasays_slug', slugs)
 
@@ -255,7 +256,7 @@ export async function getArticleSchoolsPool(articles: any[]): Promise<SchoolPool
 export async function getAllPublishedArticles(limit = 20, category?: string): Promise<any[]> {
   try {
     let query = getDb()
-      .from('articles')
+      .from('eduworld_articles')
       .select('id,english_headline,source_title,english_summary,category,tags,published_at,featured_image_url,schools_mentioned,countries_mentioned,countries_affected,curriculum_relevant,is_featured,is_breaking,view_count,bullets_json,faq_json,urgency,source_name,source_url')
       .eq('status', 'published')
       .order('published_at', { ascending: false })
@@ -273,7 +274,7 @@ export async function getAllPublishedArticles(limit = 20, category?: string): Pr
 export async function getArticleById(id: string): Promise<any | null> {
   try {
     const { data } = await getDb()
-      .from('articles')
+      .from('eduworld_articles')
       .select('*')
       .eq('id', id)
       .single()
@@ -286,7 +287,7 @@ export async function getArticleById(id: string): Promise<any | null> {
 export async function getRelatedArticles(category: string, excludeId: string): Promise<any[]> {
   try {
     const { data } = await getDb()
-      .from('articles')
+      .from('eduworld_articles')
       .select('id,english_headline,english_summary,category,published_at,featured_image_url')
       .eq('status', 'published')
       .eq('category', category)
@@ -302,7 +303,7 @@ export async function getRelatedArticles(category: string, excludeId: string): P
 export async function getFollowerCount(slug: string): Promise<number> {
   try {
     const { count } = await getDb()
-      .from('school_followers')
+      .from('eduworld_school_followers')
       .select('id', { count: 'exact', head: true })
       .eq('nanasays_slug', slug)
       .eq('confirmed', true)
@@ -317,7 +318,7 @@ export async function getSchoolPulse(slug: string): Promise<any | null> {
   try {
     const db = getDb()
     const { data: items } = await db
-      .from('school_feed_items')
+      .from('eduworld_school_feed_items')
       .select('*')
       .eq('nanasays_slug', slug)
 
@@ -373,11 +374,11 @@ export async function getSchoolPulse(slug: string): Promise<any | null> {
 
     // News mentions + followers in parallel
     const [{ count: newsMentions }, { count: followersCount }] = await Promise.all([
-      db.from('articles')
+      db.from('eduworld_articles')
         .select('id', { count: 'exact', head: true })
         .eq('status', 'published')
         .contains('schools_mentioned', [slug]),
-      db.from('school_followers')
+      db.from('eduworld_school_followers')
         .select('id', { count: 'exact', head: true })
         .eq('nanasays_slug', slug)
         .eq('confirmed', true)
@@ -403,7 +404,7 @@ export async function getSchoolPulse(slug: string): Promise<any | null> {
 export async function getSchoolsWithFeeds(): Promise<{ nanasays_slug: string; update_count: number; activity_rating: string | null }[]> {
   try {
     const { data } = await getDb()
-      .from('school_feed_items')
+      .from('eduworld_school_feed_items')
       .select('nanasays_slug')
 
     if (!data) return []
@@ -446,10 +447,10 @@ export async function getStatBarConfig(): Promise<StatBarConfig> {
   try {
     const db = getDb()
     const [{ data: metrics }, { data: settings }] = await Promise.all([
-      db.from('stat_bar_config')
+      db.from('eduworld_stat_bar_config')
         .select('metric_key,label,source,format,enabled,pinned,display_order,link_url,default_value')
         .order('display_order'),
-      db.from('display_settings').select('*').eq('id', 1),
+      db.from('eduworld_display_settings').select('*').eq('id', 1),
     ])
     const s = (settings?.[0] as any) || {}
     return { metrics: metrics || [], max_cards: s.max_stat_cards || 5 }

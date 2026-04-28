@@ -1,5 +1,6 @@
 'use client'
 
+import './assistant.css'
 import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@supabase/supabase-js'
 
@@ -233,12 +234,6 @@ export default function AssistantPage() {
         </button>
       </div>
 
-      <style>{`
-        @keyframes bounce {
-          0%, 100% { transform: translateY(0); opacity: 0.4; }
-          50% { transform: translateY(-4px); opacity: 1; }
-        }
-      `}</style>
     </div>
   )
 }

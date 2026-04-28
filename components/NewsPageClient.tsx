@@ -1,5 +1,6 @@
 'use client'
 
+import './NewsPageClient.css'
 import { useState, useMemo, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import ArticleCard from './ArticleCard'
@@ -603,7 +604,6 @@ function MobileFeedView({ articles, schoolCounts, schoolsPool = [] }: { articles
 
       </div>
 
-      <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.2} }`}</style>
     </div>
   )
 }
@@ -1066,10 +1066,6 @@ function DesktopFeedView({ articles, schoolCounts, schoolsPool = [] }: { article
 
       </div>
 
-      {/* Pulse animation */}
-      <style>{`
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.2} }
-      `}</style>
 
     </div>
   )

@@ -44,6 +44,41 @@ const supabase = createClient(
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,80}$/i
 const MAX_QUESTION_CHARS = 2000
 
+async function logChat(
+  sb: ReturnType<typeof createClient>,
+  schoolSlug: string,
+  question: string,
+  payload: any,
+) {
+  const cost = payload.cost ?? null
+  const usage = payload.usage ?? null
+  const retrieval = payload.retrieval ?? null
+  const parsed = payload.parsed ?? null
+
+  await sb.from('nana_chat_logs').insert({
+    school_slug:          schoolSlug,
+    question:             question.slice(0, 2000),
+    answer_preview:       (payload.raw ?? '').slice(0, 500),
+    tokens_in:            usage?.input_tokens               ?? null,
+    tokens_cache_write:   usage?.cache_creation_input_tokens ?? null,
+    tokens_cache_read:    usage?.cache_read_input_tokens    ?? null,
+    tokens_out:           usage?.output_tokens              ?? null,
+    cost_input_usd:       cost?.cost_input                  ?? null,
+    cost_cache_write_usd: cost?.cost_cache_create           ?? null,
+    cost_cache_read_usd:  cost?.cost_cache_read             ?? null,
+    cost_output_usd:      cost?.cost_output                 ?? null,
+    cost_total_usd:       cost?.total_usd                   ?? null,
+    cache_hit_pct:        cost?.cache_hit_pct               ?? null,
+    chunk_count:          retrieval?.chunks?.length          ?? null,
+    sensitive_count:      retrieval?.sensitive?.length       ?? null,
+    backend:              payload.backend                   ?? null,
+    model:                payload.model                     ?? null,
+    confidence:           parsed?.confidence                ?? null,
+    claude_ms:            payload.claudeMs                  ?? null,
+    total_ms:             payload.totalMs                   ?? null,
+  })
+}
+
 export async function POST(
   req: NextRequest,
   { params }: { params: { slug: string } }
@@ -108,9 +143,13 @@ export async function POST(
         }
       }
 
+      // Telemetry captured as events flow through — logged after stream ends.
+      let finalPayload: any = null
+
       try {
         for await (const event of runOneQuestionStream(supabase, slug, question, { signal: ac.signal })) {
           if (ac.signal.aborted) break
+          if ((event as any)?.type === 'final') finalPayload = (event as any).payload
           send(event)
         }
       } catch (e: any) {
@@ -119,6 +158,11 @@ export async function POST(
         }
       } finally {
         try { controller.close() } catch {}
+      }
+
+      // Fire-and-forget DB log — never blocks the response stream.
+      if (finalPayload && !ac.signal.aborted) {
+        logChat(supabase, slug, question, finalPayload).catch(() => {})
       }
     },
     cancel() {

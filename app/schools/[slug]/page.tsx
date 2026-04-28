@@ -4,7 +4,7 @@ import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
 import FaqItem from '@/components/school/FaqItem'
 import GalleryLightbox from '@/components/school/GalleryLightbox'
-import { getSchoolBySlug, getSimilarSchools, formatFees, formatAges } from '@/lib/schools'
+import { getSchoolBySlug, getSimilarSchools, formatFees, formatAges, formatEntryExamType } from '@/lib/schools'
 import type { School } from '@/lib/types'
 import Link from 'next/link'
 import { getServerT } from '@/lib/serverI18n'
@@ -17,6 +17,11 @@ import FeesRangeClient from '@/components/school/FeesRangeClient'
 import { getSchoolFeed, getSchoolNews, getSchoolsWithFeeds, getSchoolPulse, getFollowerCount, getStatBarConfig, getDeadlines, getMostMentionedSchools } from '@/lib/eduworld'
 import { createClient } from '@supabase/supabase-js'
 import DeepResearchTeaser from '@/components/school/DeepResearchTeaser'
+import HeroFeesStat from '@/components/school/HeroFeesStat'
+import AcademicSnapshotSection from '@/components/school/AcademicSnapshotSection'
+import SportsOverviewSection from '@/components/school/SportsOverviewSection'
+import ParentFitTeaser from '@/components/school/ParentFitTeaser'
+import DeepReportPreview from '@/components/school/DeepReportPreview'
 import type { StatBarConfig } from '@/lib/eduworld'
 import SchoolPulseFeed from '@/components/SchoolPulseFeed'
 import SchoolPulseStatBar from '@/components/SchoolPulseStatBar'
@@ -139,19 +144,33 @@ function buildSchoolTitle(school: School): string {
   return name.slice(0, 65 - suffix.length - 1) + '\u2026' + suffix
 }
 
+function truncateAtWord(text: string, maxLen: number): string {
+  if (text.length <= maxLen) return text
+  const cut = text.slice(0, maxLen)
+  const lastSpace = cut.lastIndexOf(' ')
+  return (lastSpace > maxLen * 0.7 ? cut.slice(0, lastSpace) : cut).trimEnd()
+}
+
 function buildSchoolDescription(school: School): string {
   const curr = school.curriculum?.[0] ? shortCurriculum(school.curriculum[0]) : null
   const nat = school.nationalities_count
   const fees = school.fees_usd_min
   const loc = school.city ?? school.country ?? ''
+  const gender = (school as any).gender_split === 'girls' ? "girls'" : (school as any).gender_split === 'boys' ? "boys'" : null
+  const type = gender ? `${gender} ${school.school_type ?? 'independent school'}` : (school.school_type ?? 'international school')
 
+  // Rich: curriculum + nationalities + fees
   if (curr && nat && fees)
-    return `${curr} curriculum · ${nat}+ nationalities · fees from $${fees.toLocaleString()}/yr. Compare admissions, boarding and more on NanaSays.`
+    return `${curr} ${type} in ${loc} · ${nat}+ nationalities · fees from $${fees.toLocaleString()}/yr. Admissions, boarding and full profile on NanaSays.`
+  // Medium: curriculum + fees
   if (curr && fees)
-    return `${curr} curriculum · fees from $${fees.toLocaleString()}/yr. Compare admissions and curriculum details for ${school.name} on NanaSays.`
-  if (school.description)
-    return `${school.description.slice(0, 116).trimEnd()} — compare fees and admissions on NanaSays.`
-  return `Compare fees, admissions, and curriculum details for ${school.name} in ${loc} — all on NanaSays.`
+    return `${curr} ${type} in ${loc} · fees from $${fees.toLocaleString()}/yr. Full admissions, curriculum and boarding details on NanaSays.`
+  // Use school description — truncate cleanly at word boundary
+  if (school.description) {
+    const snippet = truncateAtWord(school.description, 145)
+    return `${snippet}. Full fees, admissions and deep report on NanaSays.`
+  }
+  return `${school.name} is a ${type} in ${loc}. Compare fees, admissions, and full school profile on NanaSays.`
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
@@ -293,6 +312,15 @@ export default async function SchoolPage({ params, searchParams }: Props) {
     return safe
   })() : null
 
+  // SEO section data — drawn from structured data already fetched above
+  const sd = structuredDataRow?.data ?? null
+  const sdExamResults = (sd?.exam_results as any) ?? null
+  const sdUniDestinations = (sd?.university_destinations as any) ?? null
+  const sdSportsProfile = (sd?.sports_profile as any) ?? null
+  const sdReportVerdict: string | null = (sd?.report_verdict as any)?.body ?? (typeof sd?.report_verdict === 'string' ? sd.report_verdict : null)
+  const sdParentFit = (sd?.report_parent_fit as any) ?? null
+  const sdSourceCount = (sd as any)?.source_count ?? null
+
   // Build lookup for similar schools that have EduWorld feeds
   const feedSlugsWithCounts = Object.fromEntries(
     schoolsWithFeeds.map(s => [s.nanasays_slug, s.update_count])
@@ -405,7 +433,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
     {
       q: `Does ${school.name} require an entrance exam?`,
       a: school.entrance_exam_required
-        ? `Yes — ${school.name} requires an entrance assessment as part of the admissions process.${school.entry_exam_type ? ` The assessment is the ${school.entry_exam_type}.` : ''}`
+        ? `Yes — ${school.name} requires an entrance assessment as part of the admissions process.${school.entry_exam_type ? ` The assessment is the ${formatEntryExamType(school.entry_exam_type)}.` : ''}`
         : `No entrance exam is required at ${school.name}. ${school.admissions_process?.split('\n')[0] ?? 'Admission is based on academic records and a school reference.'}`,
     },
     // 4. Curriculum
@@ -540,6 +568,41 @@ export default async function SchoolPage({ params, searchParams }: Props) {
         ? `Yes — ${school.name} accepts applications throughout the year and can accommodate mid-year entry, which is ideal for families relocating mid-term.`
         : `${school.name} typically admits new students at the start of each academic term. Families relocating mid-year should contact the admissions office to discuss available options.`,
     },
+    // 23. A-Level results (from structured data — high SEO value)
+    sdExamResults?.a_level?.pct_a_star != null && {
+      q: `What are ${school.name}'s A-Level results?`,
+      a: [
+        `In ${sdExamResults.a_level.academic_year ?? 'the most recent year'}, ${sdExamResults.a_level.pct_a_star}% of A-Level grades at ${school.name} were A*.`,
+        sdExamResults.a_level.pct_a_star_a != null ? `${sdExamResults.a_level.pct_a_star_a}% of grades were A* or A.` : null,
+      ].filter(Boolean).join(' '),
+    },
+    // 24. GCSE results (from structured data)
+    sdExamResults?.gcse?.pct_9 != null && {
+      q: `What are ${school.name}'s GCSE results?`,
+      a: [
+        `In ${sdExamResults.gcse.academic_year ?? 'the most recent year'}, ${sdExamResults.gcse.pct_9}% of GCSE grades at ${school.name} were grade 9.`,
+        sdExamResults.gcse.pct_7_to_9 != null ? `${sdExamResults.gcse.pct_7_to_9}% of grades were grade 7 or above.` : null,
+      ].filter(Boolean).join(' '),
+    },
+    // 25. Oxbridge (from structured data)
+    sdUniDestinations?.oxbridge_acceptances != null && {
+      q: `How many Oxbridge places does ${school.name} get?`,
+      a: [
+        `In ${sdUniDestinations.year ?? 'the most recent year'}, ${school.name} had ${sdUniDestinations.oxbridge_acceptances} Oxbridge acceptances.`,
+        sdUniDestinations.oxford_count != null && sdUniDestinations.cambridge_count != null
+          ? `This included ${sdUniDestinations.oxford_count} Oxford and ${sdUniDestinations.cambridge_count} Cambridge places.`
+          : null,
+      ].filter(Boolean).join(' '),
+    },
+    // 26. ISI inspection result (from structured data)
+    (sdReportVerdict !== null && sdReportVerdict.includes('ISI')) && {
+      q: `What was ${school.name}'s ISI inspection result?`,
+      a: (() => {
+        const yearMatch = sdReportVerdict!.match(/(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{4})/i)
+        const year = yearMatch ? ` in ${yearMatch[0]}` : ''
+        return `${school.name} was inspected by the Independent Schools Inspectorate (ISI)${year} and met every Standard. ISI is the government-approved body for inspecting independent schools in England.`
+      })(),
+    },
   ].filter(Boolean) as { q: string; a: string }[]
 
   const mapQuery = school.address
@@ -618,6 +681,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(schoolSchema) }} />
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }} />
       <SchoolSchema school={school} />
+      <FaqSchema faqs={faqs.filter(Boolean).map((f: any) => ({ question: f.q, answer: f.a }))} />
       <TrackView schoolId={school.id} />
       <Nav />
 
@@ -792,13 +856,21 @@ export default async function SchoolPage({ params, searchParams }: Props) {
 
           {/* Stats bar */}
           <div className="ns-stats-bar" style={{ gap: 1, background: 'rgba(255,255,255,0.08)', borderRadius: 10, overflow: 'hidden', marginTop: 32 }}>
+            <HeroFeesStat
+              feesLocalMin={school.fees_local_min ?? null}
+              feesLocalMax={school.fees_local_max ?? null}
+              feesLocalCurrency={school.fees_local_currency ?? null}
+              feesUsdMin={school.fees_usd_min ?? null}
+              feesUsdMax={school.fees_usd_max ?? null}
+              feesOriginal={school.fees_original ?? null}
+              label={t('school_stat_fees')}
+            />
             {[
-              { label: t('school_stat_fees'), value: fees, sub: '' },
               school.university_placement_rate != null && { label: t('school_stat_uni_rate'), value: `${school.university_placement_rate}%`, sub: t('school_stat_graduates') },
               (school.age_min != null && school.age_max != null) && { label: t('school_stat_ages'), value: `${school.age_min} – ${school.age_max}`, sub: '' },
               school.student_teacher_ratio && { label: t('school_stat_ratio'), value: school.student_teacher_ratio, sub: t('school_stat_faculty') },
               school.nationalities_count && { label: t('school_stat_nationalities'), value: `${school.nationalities_count}+`, sub: t('school_stat_on_campus') },
-            ].filter(Boolean).slice(0, 5).map((stat: any, i) => (
+            ].filter(Boolean).slice(0, 4).map((stat: any, i) => (
               <div key={i} style={{
                 background: 'rgba(255,255,255,0.05)', padding: '18px 20px',
                 display: 'flex', flexDirection: 'column', gap: 4,
@@ -1451,6 +1523,27 @@ export default async function SchoolPage({ params, searchParams }: Props) {
             </Section>
           )}
 
+          {/* ACADEMIC SNAPSHOT — SEO: captures exam result searches */}
+          <AcademicSnapshotSection
+            examResults={sdExamResults}
+            uniDestinations={sdUniDestinations}
+            reportVerdict={sdReportVerdict}
+            schoolName={school.name}
+          />
+
+          {/* PARENT FIT TEASER — AEO: feeds "is X right for my child" AI queries */}
+          <ParentFitTeaser
+            parentFit={sdParentFit}
+            reportSlug={params.slug}
+          />
+
+          {/* DEEP REPORT PREVIEW — conversion hook: seen early while parent is engaged */}
+          <DeepReportPreview
+            schoolName={school.name}
+            slug={params.slug}
+            sourceCount={sdSourceCount}
+          />
+
           {/* WHY CHOOSE */}
           {school.unique_selling_points && (
             <Section>
@@ -1611,7 +1704,9 @@ export default async function SchoolPage({ params, searchParams }: Props) {
                 {school.entry_exam_type && (
                   <div style={{ background: 'var(--off)', border: '1px solid var(--border)', borderRadius: 10, padding: 20 }}>
                     <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 10 }}>Entrance Exam</div>
-                    <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)' }}>{school.entry_exam_type}</div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)' }}>
+                      {formatEntryExamType(school.entry_exam_type)}
+                    </div>
                   </div>
                 )}
                 {school.application_deadline && (
@@ -1932,6 +2027,12 @@ export default async function SchoolPage({ params, searchParams }: Props) {
             </Section>
           )}
 
+          {/* SPORTS OVERVIEW — SEO: captures sport-focused parent searches */}
+          <SportsOverviewSection
+            sportsProfile={sdSportsProfile}
+            sportsFacilities={school.sports_facilities ?? null}
+          />
+
           {/* FAQ */}
           {faqs.length > 0 && (
             <Section>
@@ -2126,15 +2227,20 @@ export default async function SchoolPage({ params, searchParams }: Props) {
             {school.region && <SidebarStat label={t('school_sidebar_region')} value={expandRegion(school.region, school.country) ?? school.region} />}
             {school.city && !school.region && <SidebarStat label={t('school_sidebar_city')} value={school.city} />}
             {school.school_type && <SidebarStat label={t('school_sidebar_type')} value={school.school_type} />}
+            {(school as any).gender_split && <SidebarStat label="Gender" value={(school as any).gender_split === 'girls' ? 'Girls only' : (school as any).gender_split === 'boys' ? 'Boys only' : 'Co-educational'} />}
             {school.boarding_type && <SidebarStat label="Boarding Type" value={school.boarding_type} />}
+            {!!school.boarding_capacity && <SidebarStat label="Boarding Places" value={school.boarding_capacity.toLocaleString()} />}
             {ages && <SidebarStat label={t('school_sidebar_ages')} value={ages} />}
             {school.founded_year && <SidebarStat label={t('school_label_founded')} value={String(school.founded_year)} />}
+            {(school as any).religious_affiliation && <SidebarStat label="Faith" value={(school as any).religious_affiliation} />}
             {school.ib_authorized_year && <SidebarStat label="IB Authorized" value={String(school.ib_authorized_year)} />}
             {!!school.campus_size_hectares && <SidebarStat label={t('school_sidebar_campus')} value={`${school.campus_size_hectares} ha`} />}
             {!!school.typical_class_size && <SidebarStat label="Avg Class Size" value={String(school.typical_class_size)} />}
             {school.student_teacher_ratio && <SidebarStat label={t('school_stat_ratio')} value={school.student_teacher_ratio} />}
+            {school.accreditations?.length && <SidebarStat label="Accredited by" value={(school.accreditations as string[]).join(' · ')} />}
             {school.nearest_airport && <SidebarStat label="Nearest Airport" value={school.nearest_airport} />}
-            {!!school.flight_hours_from_bkk && <SidebarStat label="From Bangkok" value={`${school.flight_hours_from_bkk}h`} />}
+            {school.distance_city && !school.nearest_airport && <SidebarStat label="City" value={school.distance_city} />}
+            {school.country?.toLowerCase() === 'thailand' && !!school.flight_hours_from_bkk && <SidebarStat label="From Bangkok" value={`${school.flight_hours_from_bkk}h`} />}
             {!!school.university_placement_rate && <SidebarStat label={t('school_stat_uni_rate')} value={`${school.university_placement_rate}%`} accent />}
             {school.head_of_school && <SidebarStat label={t('school_sidebar_head')} value={school.head_of_school} />}
           </SidebarCard>

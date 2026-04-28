@@ -1,5 +1,6 @@
 'use client'
 
+import './assistant.css'
 import { useState, useRef } from 'react'
 
 const navy   = '#1B3252'
@@ -1037,13 +1038,6 @@ export default function DemoAssistantPage() {
         </div>
       )}
 
-      <style>{`
-        @keyframes bounce { 0%,100%{transform:translateY(0);opacity:0.4} 50%{transform:translateY(-4px);opacity:1} }
-        select optgroup { font-weight: 600; color: #999; }
-        .ns-zoom-s { zoom: 0.75; }
-        .ns-zoom-m { zoom: 1; }
-        .ns-zoom-l { zoom: 1.35; }
-      `}</style>
     </div>
   )
 }

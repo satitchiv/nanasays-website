@@ -1,5 +1,6 @@
 'use client'
 
+import './ask.css'
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Nav from '@/components/Nav'
@@ -280,12 +281,6 @@ function AskPageInner() {
         </div>
       </div>
 
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 0.3; transform: scale(0.85); }
-          50% { opacity: 1; transform: scale(1); }
-        }
-      `}</style>
     </>
   )
 }

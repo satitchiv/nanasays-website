@@ -43,7 +43,6 @@ export default function AuthCallback() {
         }} />
         <p style={{ fontSize: 14, color: '#6B7280' }}>Signing you in...</p>
       </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   )
 }

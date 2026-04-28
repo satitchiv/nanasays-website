@@ -1,0 +1,8 @@
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); opacity: 0.4; }
+  50% { transform: translateY(-4px); opacity: 1; }
+}
+select optgroup { font-weight: 600; color: #999; }
+.ns-zoom-s { zoom: 0.75; }
+.ns-zoom-m { zoom: 1; }
+.ns-zoom-l { zoom: 1.35; }

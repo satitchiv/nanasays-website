@@ -43,6 +43,17 @@ const websiteSchema = {
 const MapSection = dynamicImport(() => import('@/components/MapSection'), { ssr: false })
 const HeroSearch = dynamicImport(() => import('@/components/HeroSearch'), { ssr: false })
 
+const TOP_DESTINATIONS = [
+  { name: 'United Kingdom', slug: 'united-kingdom', flagCode: 'gb' },
+  { name: 'Singapore',      slug: 'singapore',      flagCode: 'sg' },
+  { name: 'Thailand',       slug: 'thailand',        flagCode: 'th' },
+  { name: 'Switzerland',    slug: 'switzerland',     flagCode: 'ch' },
+  { name: 'UAE',            slug: 'uae',             flagCode: 'ae' },
+  { name: 'Malaysia',       slug: 'malaysia',        flagCode: 'my' },
+  { name: 'China',          slug: 'china',           flagCode: 'cn' },
+  { name: 'Hong Kong',      slug: 'hong-kong',       flagCode: 'hk' },
+]
+
 const PICKS = [
   {
     rank: '01',
@@ -134,88 +145,84 @@ export default async function HomePage() {
 
       {/* ─── HERO ──────────────────────────────────────────────────────────── */}
       <div className="ns-hero-outer" style={{ marginTop: 60 }}>
-        {/* Full-width hero */}
         <div className="ns-hero-bg">
           <div style={{
             position: 'absolute', inset: 0,
-            backgroundImage: 'url(https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=1200&q=85&auto=format&fit=crop)',
-            backgroundSize: 'cover', backgroundPosition: 'center 22%', opacity: 0.42,
+            backgroundImage: 'url(https://images.unsplash.com/photo-1529156069898-49953e39b3ac?w=1400&q=85&auto=format&fit=crop)',
+            backgroundSize: 'cover', backgroundPosition: 'center 22%', opacity: 0.25,
           }} />
           <div style={{
             position: 'absolute', inset: 0,
-            background: 'linear-gradient(to right, rgba(10,21,32,.78) 0%, rgba(10,21,32,.25) 100%), linear-gradient(to top, rgba(10,21,32,.65) 0%, transparent 55%)',
+            background: 'linear-gradient(to bottom, rgba(27,50,82,.88) 0%, rgba(27,50,82,.72) 55%, rgba(27,50,82,.95) 100%)',
           }} />
-          {/* Content row — copy left + chat card right, both over the photo */}
           <div className="ns-hero-inner">
-            {/* Left — copy */}
-            <div style={{ flex: 1, maxWidth: 560 }}>
-              <div style={{
-                display: 'inline-flex', alignItems: 'center', gap: 7,
-                background: 'rgba(52,195,160,.16)', border: '1px solid rgba(52,195,160,.3)',
-                borderRadius: 100, padding: '5px 14px', fontSize: 12, fontWeight: 700,
-                color: 'var(--teal)', marginBottom: 26, width: 'fit-content',
-              }}>
-                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--teal)', display: 'inline-block' }} />
-                {totalSchools}+ Schools Across {totalCountries} Countries
+
+            {/* Badge */}
+            <div style={{
+              display: 'inline-flex', alignItems: 'center', gap: 7,
+              background: 'rgba(52,195,160,.16)', border: '1px solid rgba(52,195,160,.3)',
+              borderRadius: 100, padding: '5px 16px', fontSize: 12, fontWeight: 700,
+              color: 'var(--teal)', marginBottom: 22,
+            }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--teal)', display: 'inline-block' }} />
+              {totalSchools}+ Schools Across {totalCountries} Countries
+            </div>
+
+            {/* Headline */}
+            <h1 style={{
+              fontFamily: 'var(--font-nunito), Nunito, sans-serif',
+              fontSize: 'clamp(38px, 5vw, 62px)', fontWeight: 900, color: '#fff',
+              lineHeight: 1.06, letterSpacing: '-2.2px', marginBottom: 14,
+            }}>
+              Find the right school<br />
+              <em style={{ fontStyle: 'italic', color: 'var(--teal)' }}>for your child.</em>
+            </h1>
+
+            {/* Subtitle */}
+            <p style={{
+              fontSize: 16, color: 'rgba(255,255,255,.55)', fontWeight: 300,
+              lineHeight: 1.65, marginBottom: 32, maxWidth: 520,
+            }}>
+              The world&apos;s largest verified international school directory — fees,
+              curriculum, boarding life, and Nana&apos;s AI guidance in one place.
+            </p>
+
+            {/* Proof line — replaces the bloated 4-cell stats bar */}
+            <div className="ns-hero-proof">
+              <div className="ns-proof-stat">
+                <div className="ns-proof-num">{totalSchools.toLocaleString()}<em>+</em></div>
+                <div className="ns-proof-label">Schools listed</div>
               </div>
-
-              <h1 style={{
-                fontFamily: 'var(--font-nunito), Nunito, sans-serif',
-                fontSize: 'clamp(34px, 4vw, 54px)', fontWeight: 900, color: '#fff',
-                lineHeight: 1.07, letterSpacing: '-1.8px', marginBottom: 22,
-              }}>
-                Find the right school<br />
-                <em style={{ fontStyle: 'italic', color: 'var(--teal)' }}>for your child.</em>
-              </h1>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 38 }}>
-                {[
-                  { title: 'Built for international families', desc: `Search ${totalSchools.toLocaleString()}+ verified schools across ${totalCountries} countries — all in one place` },
-                  { title: 'Real data, not brochures', desc: 'Fees, pass rates, boarding life, and admissions steps clearly laid out' },
-                  { title: 'Expert guidance, simply presented', desc: "Every school page includes fees, admissions steps, boarding life, and scholarship availability" },
-                ].map(item => (
-                  <div key={item.title} style={{ display: 'flex', alignItems: 'flex-start', gap: 13 }}>
-                    <div style={{
-                      width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                      background: 'rgba(52,195,160,.15)', border: '1px solid rgba(52,195,160,.25)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', marginTop: 1,
-                    }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" strokeWidth="2.5">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                    </div>
-                    <div>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 2 }}>{item.title}</div>
-                      <div style={{ fontSize: 12, color: 'rgba(255,255,255,.55)', fontWeight: 300, lineHeight: 1.5 }}>{item.desc}</div>
-                    </div>
-                  </div>
-                ))}
+              <div className="ns-proof-divider" />
+              <div className="ns-proof-stat">
+                <div className="ns-proof-num">{totalCountries}<em>+</em></div>
+                <div className="ns-proof-label">Countries covered</div>
               </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, paddingTop: 26, borderTop: '1px solid rgba(255,255,255,.13)' }}>
-                <div style={{ display: 'flex' }}>
-                  {['KM', 'KT', 'DS', 'N'].map((init, i) => (
-                    <div key={init} style={{
-                      width: 30, height: 30, borderRadius: '50%', border: '2.5px solid rgba(255,255,255,.4)',
-                      background: i === 3 ? 'var(--teal)' : 'var(--navy-lt)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,.85)',
-                      marginLeft: i === 0 ? 0 : -9,
-                      fontFamily: 'var(--font-nunito), Nunito, sans-serif',
-                    }}>{init}</div>
-                  ))}
-                </div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,.65)', lineHeight: 1.5 }}>
-                  <strong style={{ color: '#fff' }}>Families worldwide trust Nana</strong><br />
-                  to shortlist the right school
-                </div>
+              <div className="ns-proof-divider" />
+              <div className="ns-proof-stat">
+                <div className="ns-proof-num">24<em>/7</em></div>
+                <div className="ns-proof-label">Nana available</div>
               </div>
             </div>
 
-            {/* Right — search card */}
+            {/* Search — centered */}
             <div className="ns-hero-search-col">
               <HeroSearch />
             </div>
+
+            {/* Popular destination chips */}
+            <div className="ns-hero-destinations">
+              <div className="ns-hero-dest-label">Popular destinations</div>
+              <div className="ns-hero-dest-chips">
+                {TOP_DESTINATIONS.map(d => (
+                  <Link key={d.slug} href={`/countries/${d.slug}`} className="ns-hero-dest-chip">
+                    <Image src={flagUrl(d.flagCode, '24x18')} alt={d.name} width={20} height={15} style={{ borderRadius: 2 }} />
+                    <span>{d.name}</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+
           </div>
         </div>
       </div>

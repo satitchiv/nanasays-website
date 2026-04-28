@@ -1,5 +1,6 @@
 'use client'
 
+import './demo.css'
 import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
 
@@ -128,16 +129,6 @@ function PinGate({ onUnlock }: { onUnlock: () => void }) {
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       padding: '40px 24px',
     }}>
-      <style>{`
-        @keyframes shake {
-          0%, 100% { transform: translateX(0); }
-          20% { transform: translateX(-8px); }
-          40% { transform: translateX(8px); }
-          60% { transform: translateX(-6px); }
-          80% { transform: translateX(6px); }
-        }
-      `}</style>
-
       {/* Logo */}
       <div style={{ marginBottom: 48, textAlign: 'center' }}>
         <div style={{ fontFamily: 'Nunito, sans-serif', fontWeight: 900, fontSize: 28, letterSpacing: '-0.02em', marginBottom: 8 }}>

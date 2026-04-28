@@ -1,5 +1,6 @@
 'use client'
 
+import './ChatModal.css'
 import { useState, useRef, useEffect } from 'react'
 
 interface Message {
@@ -211,12 +212,6 @@ export default function ChatModal({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
-      <style>{`
-        @keyframes pulse {
-          0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
-          40% { opacity: 1; transform: scale(1); }
-        }
-      `}</style>
     </>
   )
 }

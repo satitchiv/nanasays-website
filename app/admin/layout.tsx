@@ -63,7 +63,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           width: 40, height: 40, border: `3px solid #E8FAF6`, borderTop: `3px solid ${TEAL}`,
           borderRadius: '50%', animation: 'spin 0.8s linear infinite',
         }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     )
   }
