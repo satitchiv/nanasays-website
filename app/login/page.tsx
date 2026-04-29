@@ -102,7 +102,7 @@ export default function LoginPage() {
             </p>
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div>
+              <div suppressHydrationWarning>
                 <label style={{ fontSize: 12, fontWeight: 700, color: navy, display: 'block', marginBottom: 6 }}>
                   Email address
                 </label>
@@ -112,6 +112,7 @@ export default function LoginPage() {
                   onChange={e => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   required
+                  suppressHydrationWarning
                   style={{
                     width: '100%', padding: '11px 13px', borderRadius: 9,
                     border: `1px solid ${error ? '#e53e3e' : border}`,

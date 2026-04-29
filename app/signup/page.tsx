@@ -105,7 +105,7 @@ export default function SignupPage() {
             </p>
 
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div>
+              <div suppressHydrationWarning>
                 <label style={{ fontSize: 12, fontWeight: 700, color: navy, display: 'block', marginBottom: 6 }}>
                   Email address
                 </label>
@@ -115,6 +115,7 @@ export default function SignupPage() {
                   onChange={e => setEmail(e.target.value)}
                   placeholder="you@example.com"
                   required
+                  suppressHydrationWarning
                   style={{
                     width: '100%', padding: '11px 13px', borderRadius: 9,
                     border: `1px solid ${border}`, fontSize: 14,
