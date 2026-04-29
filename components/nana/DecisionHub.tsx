@@ -1019,33 +1019,18 @@ export function DecisionHub({
               </div>
             )}
 
-            {/* Message history */}
-            {messages.map((msg, i) => (
+            {/* Message history — all committed messages render as static bubbles */}
+            {messages.map(msg => (
               <div key={msg.id}>
-                {/* User message */}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
                   <div className="dh-msg-user">{msg.question}</div>
                 </div>
-                {/* Nana reply — show streaming bubble for last message if currently streaming */}
-                {i === messages.length - 1 && isStreaming ? (
-                  <NanaMsgBubble isStreaming streamBuf={streamBuf} />
-                ) : (
-                  <NanaMsgBubble msg={msg} />
-                )}
+                <NanaMsgBubble msg={msg} />
               </div>
             ))}
 
-            {/* Streaming: new question in flight (no message entry yet) */}
-            {isStreaming && messages.length === 0 && (
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-                  <div className="dh-msg-user">{activeQuestion}</div>
-                </div>
-                <NanaMsgBubble isStreaming streamBuf={streamBuf} />
-              </div>
-            )}
-            {isStreaming && messages.length > 0 && !activeParsed && (
-              /* Streaming for a brand-new message not yet committed */
+            {/* New question streaming in flight — not yet committed to messages[] */}
+            {isStreaming && activeQuestion && (
               <div>
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
                   <div className="dh-msg-user">{activeQuestion}</div>
