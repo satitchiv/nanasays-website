@@ -12,30 +12,28 @@
  * Event types:
  *   retrieval — fired once after vector search completes (~1-2s)
  *   token     — fired for each chunk of Claude's stdout as it streams
- *   final     — fired once with the parsed/validated answer + meta
+ *   final     — fired once with the parsed/validated answer + meta + share_token
  *   error     — fatal failure (Claude crash, parse error, etc.)
  *
  * Browser clients use EventSource or fetch+ReadableStream to consume.
  *
- * Request body: { "question": "..." }
+ * Request body: { "question": "...", "devilsAdvocate"?: boolean }
  * URL param: [slug] — school slug, e.g. "reeds-school-uk"
- *
- * Note: this route uses Node's `child_process.spawn` (via the brain) to
- * invoke the Claude CLI. Required runtime: nodejs (default for API routes).
- * Will not work on edge runtime or serverless without Claude CLI installed.
  */
 
 import { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 import { checkRateLimit } from '@/lib/rateLimit'
-import { isUnlocked } from '@/lib/paid-status'
 // @ts-ignore — brain is plain JS, types not generated
 import { runOneQuestionStream } from '../../../../../scripts/lib/nana-brain.js'
 
 export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'  // never cache — every question is unique
-export const maxDuration = 180          // 3-minute upper bound matching brain's Claude timeout
+export const dynamic = 'force-dynamic'
+export const maxDuration = 180
 
+// Service-role client for DB writes (logs, subscription checks, profile reads)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_KEY!
@@ -44,21 +42,36 @@ const supabase = createClient(
 const SLUG_RE = /^[a-z0-9][a-z0-9-]{0,80}$/i
 const MAX_QUESTION_CHARS = 2000
 
+/** Build a short plain-English context string from the parent profile. */
+function buildParentContext(profile: Record<string, string | boolean | null>): string | null {
+  const parts: string[] = []
+  if (profile.child_year)    parts.push(`child entering ${profile.child_year}`)
+  if (profile.boarding_pref) parts.push(`prefers ${profile.boarding_pref} boarding`)
+  if (profile.budget_range)  parts.push(`budget ${profile.budget_range}/yr`)
+  if (profile.top_priority)  parts.push(`top priority: ${profile.top_priority}`)
+  if (profile.home_region)   parts.push(`based in ${profile.home_region}`)
+  return parts.length ? `Parent context: ${parts.join(', ')}.` : null
+}
+
 async function logChat(
-  sb: ReturnType<typeof createClient>,
   schoolSlug: string,
   question: string,
   payload: any,
+  shareToken: string,
+  userId: string | null,
 ) {
   const cost = payload.cost ?? null
   const usage = payload.usage ?? null
   const retrieval = payload.retrieval ?? null
   const parsed = payload.parsed ?? null
 
-  await sb.from('nana_chat_logs').insert({
+  await supabase.from('nana_chat_logs').insert({
     school_slug:          schoolSlug,
     question:             question.slice(0, 2000),
     answer_preview:       (payload.raw ?? '').slice(0, 500),
+    parsed_answer:        parsed ?? null,
+    share_token:          shareToken,
+    user_id:              userId ?? null,
     tokens_in:            usage?.input_tokens               ?? null,
     tokens_cache_write:   usage?.cache_creation_input_tokens ?? null,
     tokens_cache_read:    usage?.cache_read_input_tokens    ?? null,
@@ -83,18 +96,36 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { slug: string } }
 ) {
-  // Paid-status gate — mirror the report page's isPaid check. Without this
-  // anyone with the URL could POST and burn API tokens for free, even though
-  // the UI is gated. Uses the nanasays_unlocked cookie (set by /unlock or
-  // the Stripe webhook in Phase 2). The ?unlocked=true page-level dev
-  // override is intentionally NOT honored here — server-side calls don't
-  // carry it, and accepting it on the API would let anyone bypass with a
-  // single query string.
-  if (!(await isUnlocked())) {
+  // Auth: get the authenticated user via cookie-based client
+  const cookieStore = await cookies()
+  const authClient = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return cookieStore.getAll() },
+        setAll() {},
+      },
+    }
+  )
+  const { data: { user } } = await authClient.auth.getUser()
+
+  if (!user) {
+    return jsonError(401, 'Login required.')
+  }
+
+  // Subscription gate — check parent_profiles.subscription_status
+  const { data: subCheck } = await supabase
+    .from('parent_profiles')
+    .select('subscription_status')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (subCheck?.subscription_status !== 'active') {
     return jsonError(402, 'This feature requires Deep Research access.')
   }
 
-  // Rate limit — same family as the existing /api/chat (20/10min)
+  // Rate limit
   if (!checkRateLimit(req, 'chat')) {
     return jsonError(429, 'Too many requests. Please slow down.')
   }
@@ -112,19 +143,27 @@ export async function POST(
   }
 
   const question = typeof body?.question === 'string' ? body.question.trim() : ''
-  if (!question) {
-    return jsonError(400, 'question is required')
-  }
+  if (!question) return jsonError(400, 'question is required')
   if (question.length > MAX_QUESTION_CHARS) {
     return jsonError(400, `question must be ≤ ${MAX_QUESTION_CHARS} characters`)
   }
 
-  // Build the SSE stream. Each event from the brain becomes one SSE message.
-  // We thread an AbortController through the brain so a client disconnect
-  // (browser closed, panel closed, fetch aborted) actually halts Claude
-  // generation instead of silently burning tokens to completion.
+  const devilsAdvocate = body?.devilsAdvocate === true
+
+  // Fetch parent profile for personalisation context
+  const { data: profile } = await supabase
+    .from('parent_profiles')
+    .select('child_year, boarding_pref, budget_range, top_priority, home_region')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  const parentContext = profile ? buildParentContext(profile) : null
+
+  // Generate share_token before stream starts so it can be included in the
+  // final SSE event — client shows share button without a second round-trip.
+  const shareToken = crypto.randomUUID()
+
   const ac = new AbortController()
-  // The Next/Node request signal fires on client disconnect.
   if (req.signal) {
     if (req.signal.aborted) ac.abort()
     else req.signal.addEventListener('abort', () => ac.abort(), { once: true })
@@ -137,20 +176,27 @@ export async function POST(
         try {
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`))
         } catch {
-          // Controller closed — client disconnected. Trigger our abort so
-          // the brain stops too.
           ac.abort()
         }
       }
 
-      // Telemetry captured as events flow through — logged after stream ends.
       let finalPayload: any = null
 
       try {
-        for await (const event of runOneQuestionStream(supabase, slug, question, { signal: ac.signal })) {
+        for await (const event of runOneQuestionStream(supabase, slug, question, {
+          signal: ac.signal,
+          devilsAdvocate,
+          parentContext,
+        })) {
           if (ac.signal.aborted) break
-          if ((event as any)?.type === 'final') finalPayload = (event as any).payload
-          send(event)
+
+          // Intercept the final event to inject share_token before forwarding
+          if ((event as any)?.type === 'final') {
+            finalPayload = (event as any).payload
+            send({ ...event as object, shareToken })
+          } else {
+            send(event)
+          }
         }
       } catch (e: any) {
         if (!ac.signal.aborted) {
@@ -162,11 +208,10 @@ export async function POST(
 
       // Fire-and-forget DB log — never blocks the response stream.
       if (finalPayload && !ac.signal.aborted) {
-        logChat(supabase, slug, question, finalPayload).catch(() => {})
+        logChat(slug, question, finalPayload, shareToken, user.id).catch(() => {})
       }
     },
     cancel() {
-      // Browser closed the stream — abort the brain so we stop billing.
       ac.abort()
     },
   })
@@ -174,10 +219,10 @@ export async function POST(
   return new Response(stream, {
     status: 200,
     headers: {
-      'Content-Type':       'text/event-stream; charset=utf-8',
-      'Cache-Control':      'no-cache, no-transform',
-      'Connection':         'keep-alive',
-      'X-Accel-Buffering':  'no', // disable proxy buffering (nginx, etc.)
+      'Content-Type':      'text/event-stream; charset=utf-8',
+      'Cache-Control':     'no-cache, no-transform',
+      'Connection':        'keep-alive',
+      'X-Accel-Buffering': 'no',
     },
   })
 }

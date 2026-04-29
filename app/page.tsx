@@ -138,6 +138,21 @@ export default async function HomePage() {
   const totalCountries = Object.keys(countryCounts).length
   const blogPosts = blogResult.data ?? []
 
+  const REGION_EMOJI: Record<string, string> = {
+    'southeast-asia': '🌏',
+    'europe': '🌍',
+    'middle-east': '🕌',
+    'east-asia': '🌏',
+    'oceania': '🌏',
+    'americas': '🌎',
+    'south-asia': '🌍',
+    'africa': '🌍',
+    'central-asia': '🌍',
+  }
+  const activeRegions = REGIONS_DATA
+    .map(r => ({ ...r, countries: r.countries.filter(c => (countryCounts[c.name] || 0) > 0) }))
+    .filter(r => r.countries.length > 0)
+
   return (
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(websiteSchema) }} />
@@ -347,37 +362,65 @@ export default async function HomePage() {
       </div>
 
       {/* ─── COUNTRIES ──────────────────────────────────────────────────────── */}
-      <div style={{ background: 'var(--off)', borderTop: '1px solid var(--border)', padding: '72px 5%' }}>
+      <div style={{ background: '#fff', borderTop: '1px solid var(--border)', padding: '72px 5%' }}>
         <div style={{ maxWidth: 1240, margin: '0 auto' }}>
-          <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--teal-dk)', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 10 }}>Browse by Country</div>
-          <h2 style={{ fontFamily: 'var(--font-nunito), Nunito, sans-serif', fontSize: 'clamp(24px, 3vw, 38px)', fontWeight: 900, color: 'var(--navy)', letterSpacing: '-0.5px', lineHeight: 1.12, marginBottom: 36 }}>
-            {totalCountries} countries, <span style={{ color: 'var(--teal-dk)' }}>one search.</span>
-          </h2>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(170px, 1fr))', gap: 10 }}>
-            {REGIONS_DATA.flatMap(r => r.countries).filter(c => (countryCounts[c.name] || 0) > 0).map(country => (
-              <Link
-                key={country.slug}
-                href={`/countries/${country.slug}`}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '12px 14px', borderRadius: 10,
-                  border: '1px solid var(--border)', background: '#fff',
-                  textDecoration: 'none',
-                }}
-              >
-                <Image
-                  src={flagUrl(country.flagCode, '24x18')}
-                  alt={country.name}
-                  width={24}
-                  height={18}
-                  style={{ borderRadius: 2, flexShrink: 0 }}
-                />
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--navy)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{country.name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 300 }}>{countryCounts[country.name] ?? country.schoolCount} schools</div>
-                </div>
-              </Link>
-            ))}
+          {/* header */}
+          <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginBottom: 44, flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--teal-dk)', textTransform: 'uppercase', letterSpacing: 2, marginBottom: 8 }}>Browse by Country</div>
+              <h2 style={{ fontFamily: 'var(--font-nunito), Nunito, sans-serif', fontSize: 'clamp(24px, 3vw, 36px)', fontWeight: 900, color: 'var(--navy)', letterSpacing: '-0.5px', lineHeight: 1.12, marginBottom: 6 }}>
+                {totalCountries} countries, <span style={{ color: 'var(--teal-dk)' }}>one search.</span>
+              </h2>
+              <p style={{ fontSize: 14, color: 'var(--muted)', fontWeight: 300 }}>Click any country to explore schools.</p>
+            </div>
+          </div>
+
+          {/* region rows */}
+          {activeRegions.map((region, ri) => (
+            <div key={region.id} style={{ marginBottom: ri < activeRegions.length - 1 ? 36 : 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                <span style={{ fontFamily: 'var(--font-nunito), Nunito, sans-serif', fontSize: 13, fontWeight: 800, color: 'var(--navy)' }}>
+                  {REGION_EMOJI[region.id] ?? '🌐'} {region.name}
+                </span>
+                <span style={{ fontSize: 11, color: 'var(--muted)' }}>{region.countries.length} {region.countries.length === 1 ? 'country' : 'countries'}</span>
+                <div className="ns-region-divider" />
+              </div>
+              <div className="ns-region-strip">
+                {region.countries.map((country, ci) => {
+                  const isFeat = country.isFeatured && ci < 2
+                  return (
+                    <Link
+                      key={country.slug}
+                      href={`/countries/${country.slug}`}
+                      className={`ns-country-card${isFeat ? ' ns-feat' : ''}`}
+                    >
+                      {isFeat && <span className="ns-feat-badge">⭐ Popular</span>}
+                      <Image
+                        src={flagUrl(country.flagCode, '32x24')}
+                        alt={country.name}
+                        width={36}
+                        height={27}
+                        className="ns-country-flag"
+                      />
+                      <div style={{ minWidth: 0 }}>
+                        <div className="ns-country-name">{country.name}</div>
+                        <div className="ns-country-count">{(countryCounts[country.name] ?? country.schoolCount).toLocaleString()} schools</div>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+
+          {/* view all */}
+          <div style={{ marginTop: 36, paddingTop: 28, borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+            <p style={{ fontSize: 14, color: 'var(--muted)', fontWeight: 300 }}>
+              Showing all <strong style={{ color: 'var(--navy)', fontWeight: 700 }}>{totalCountries} countries</strong> with international schools.
+            </p>
+            <Link href="/ask" style={{ fontSize: 13, fontWeight: 700, color: '#fff', background: 'var(--navy)', padding: '10px 22px', borderRadius: 10, textDecoration: 'none' }}>
+              Search all schools →
+            </Link>
           </div>
         </div>
       </div>

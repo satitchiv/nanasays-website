@@ -1,0 +1,66 @@
+.shortlist-map {
+  width: 100%;
+  height: 340px;
+  border-radius: 10px;
+  border: 1px solid #E2E8F0;
+  overflow: hidden;
+}
+
+.shortlist-map-empty {
+  height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #F8FAFC;
+  border: 1px dashed #CBD5E1;
+  border-radius: 10px;
+  color: #94A3B8;
+  font-size: 0.9rem;
+  font-family: var(--font-nunito-sans), sans-serif;
+}
+
+/* Leaflet pin dot */
+.shortlist-pin {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #1B2B4B;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.shortlist-pin:hover {
+  background: #00C4A1;
+}
+
+/* Popup styles */
+.shortlist-popup {
+  font-family: var(--font-nunito-sans), system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.shortlist-popup-name {
+  font-weight: 700;
+  color: #1B2B4B;
+  margin-bottom: 2px;
+}
+
+.shortlist-popup-fees {
+  color: #64748B;
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.shortlist-popup-link {
+  color: #00C4A1;
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 12px;
+}
+
+.shortlist-popup-link:hover {
+  text-decoration: underline;
+}

@@ -1,0 +1,114 @@
+/* schools.css — UK independent schools directory */
+
+.dir-page { min-height: 100vh; background: var(--off); }
+
+/* ── Header ── */
+.dir-header {
+  background: var(--navy); padding: 48px 5% 24px;
+}
+.dir-header h1 {
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: clamp(22px, 3vw, 34px); font-weight: 900;
+  color: #fff; letter-spacing: -.5px; margin: 0 0 6px;
+}
+.dir-header-sub { font-size: 14px; color: rgba(255,255,255,.55); margin: 0 0 24px; }
+
+/* ── Controls bar (navy — visually attached to header) ── */
+.dir-controls-bar {
+  background: var(--navy);
+  padding: 0 5% 28px;
+  border-bottom: 1px solid rgba(52,195,160,.2);
+}
+.dir-controls {
+  display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+}
+.dir-search {
+  flex: 1; min-width: 220px; max-width: 340px;
+  padding: 10px 14px; border-radius: 9px;
+  border: 1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.08);
+  color: #fff; font-size: 14px; font-family: 'Nunito Sans', sans-serif;
+  outline: none; transition: border-color .15s, background .15s;
+}
+.dir-search::placeholder { color: rgba(255,255,255,.35); }
+.dir-search:focus { border-color: var(--teal); background: rgba(255,255,255,.12); }
+.dir-filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.dir-pill {
+  padding: 7px 14px; border-radius: 100px; cursor: pointer;
+  font-family: 'Nunito Sans', sans-serif; font-size: 12px; font-weight: 700;
+  border: 1px solid rgba(255,255,255,.25); background: transparent; color: rgba(255,255,255,.7);
+  transition: all .15s;
+}
+.dir-pill:hover { border-color: var(--teal); color: var(--teal); }
+.dir-pill.active { background: var(--teal); color: var(--navy); border-color: var(--teal); }
+
+/* ── Results bar ── */
+.dir-results-bar {
+  padding: 14px 5%; font-size: 12px; font-weight: 700;
+  font-family: 'Nunito Sans', sans-serif; color: var(--muted);
+  border-bottom: 1px solid var(--border);
+  background: #fff;
+}
+
+/* ── Grid ── */
+.dir-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px; padding: 24px 5% 64px;
+  max-width: 1400px; margin: 0 auto;
+}
+@media (max-width: 640px) {
+  .dir-header { padding: 28px 5% 12px; }
+  .dir-controls-bar { padding: 0 5% 16px; }
+  .dir-controls { flex-direction: column; align-items: stretch; gap: 8px; }
+  .dir-search { min-width: 0; max-width: none; width: 100%; }
+  .dir-filters { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 2px; }
+  .dir-pill { white-space: nowrap; flex-shrink: 0; }
+  .dir-grid { padding: 16px 4% 48px; gap: 12px; }
+}
+@media (max-width: 500px) { .dir-grid { grid-template-columns: 1fr; } }
+
+/* ── Card ── */
+.dir-card {
+  background: #fff; border: 1px solid var(--border); border-radius: 14px;
+  padding: 20px; text-decoration: none;
+  transition: border-color .18s, box-shadow .18s, transform .18s;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.dir-card:hover {
+  border-color: var(--teal);
+  box-shadow: 0 6px 24px rgba(27,50,82,.1);
+  transform: translateY(-2px);
+}
+.dir-card[data-hidden='true'] { display: none; }
+.dir-card-name {
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: 15px; font-weight: 900; color: var(--navy); line-height: 1.2;
+}
+.dir-card-city {
+  font-size: 12px; color: var(--muted); font-weight: 600;
+  font-family: 'Nunito Sans', sans-serif;
+}
+.dir-card-tags { display: flex; flex-wrap: wrap; gap: 5px; }
+.dir-tag {
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 100px;
+  background: var(--off); color: var(--muted);
+  border: 1px solid var(--border);
+}
+.dir-tag.sport { background: var(--teal-bg); color: var(--teal-dk); border-color: rgba(52,195,160,.25); }
+.dir-card-fees {
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: 12px; color: var(--muted); margin-top: auto;
+}
+.dir-card-fees strong { color: var(--navy); }
+.dir-card-cta {
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: 12px; font-weight: 800; color: var(--teal-dk); margin-top: 4px;
+}
+
+/* ── Empty state ── */
+.dir-empty {
+  grid-column: 1 / -1; text-align: center; padding: 64px 0;
+  color: var(--muted); font-family: 'Nunito Sans', sans-serif;
+}
+.dir-empty p { font-size: 15px; margin: 8px 0 0; }

@@ -1,3 +1,40 @@
 .ns-region-card { transition: box-shadow .22s, border-color .22s, transform .22s; }
 .ns-region-card:hover { border-color: var(--teal) !important; box-shadow: 0 10px 32px rgba(27,50,82,.15); transform: translateY(-4px); }
 .ns-region-card:hover .ns-region-img { transform: scale(1.05); }
+
+/* ─── Country section (Mock 2B) ─────────────────────────────────────────────── */
+.ns-country-card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 13px 15px; border-radius: 11px;
+  border: 1.5px solid var(--border); background: var(--off);
+  text-decoration: none; position: relative; overflow: hidden;
+  transition: border-color .16s, box-shadow .16s, background .16s;
+}
+.ns-country-card::after {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; background: var(--teal);
+  transform: scaleY(0); transform-origin: bottom; transition: transform .18s;
+}
+.ns-country-card:hover { border-color: var(--teal); background: #fff; box-shadow: 0 4px 18px rgba(27,50,82,.08); }
+.ns-country-card:hover::after { transform: scaleY(1); }
+
+.ns-country-card.ns-feat { background: var(--navy); border-color: var(--navy); }
+.ns-country-card.ns-feat:hover { box-shadow: 0 6px 22px rgba(27,50,82,.22); border-color: var(--navy-lt); }
+.ns-country-card.ns-feat::after { background: var(--teal); }
+
+.ns-country-flag { border-radius: 3px; box-shadow: 0 1px 5px rgba(0,0,0,.14); flex-shrink: 0; display: block; }
+
+.ns-country-name { font-size: 13px; font-weight: 700; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ns-country-count { font-size: 11px; color: var(--muted); font-weight: 300; }
+.ns-country-card.ns-feat .ns-country-name { color: #fff; }
+.ns-country-card.ns-feat .ns-country-count { color: rgba(255,255,255,.42); }
+
+.ns-region-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(178px, 1fr)); gap: 9px; }
+.ns-region-divider { flex: 1; height: 1px; background: var(--border); }
+
+.ns-feat-badge {
+  position: absolute; top: 6px; right: 8px; z-index: 1;
+  font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .3px;
+  padding: 2px 7px; border-radius: 100px;
+  background: rgba(52,195,160,.2); color: var(--teal); border: 1px solid rgba(52,195,160,.3);
+}

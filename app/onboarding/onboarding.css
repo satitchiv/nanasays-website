@@ -1,0 +1,229 @@
+.onboarding-shell {
+  min-height: 100vh;
+  background: #F7F3EE;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+.onboarding-logo {
+  font-family: var(--font-nunito), sans-serif;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1B2B4B;
+  margin-bottom: 2.5rem;
+  letter-spacing: -0.02em;
+}
+
+.onboarding-logo span {
+  color: #00C4A1;
+}
+
+.onboarding-card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 2px 24px rgba(27, 43, 75, 0.08);
+  padding: 2.5rem 2rem;
+  width: 100%;
+  max-width: 520px;
+}
+
+.onboarding-progress {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 2rem;
+}
+
+.onboarding-progress-dot {
+  height: 4px;
+  border-radius: 2px;
+  flex: 1;
+  background: #E2E8F0;
+  transition: background 0.25s;
+}
+
+.onboarding-progress-dot.active {
+  background: #00C4A1;
+}
+
+.onboarding-step-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #00C4A1;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 0.5rem;
+}
+
+.onboarding-question {
+  font-family: var(--font-nunito), sans-serif;
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #1B2B4B;
+  margin-bottom: 1.5rem;
+  line-height: 1.35;
+}
+
+.onboarding-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.onboarding-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.8rem 1rem;
+  border: 2px solid #E2E8F0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  background: #fff;
+  text-align: left;
+  width: 100%;
+  font-size: 0.95rem;
+  color: #1B2B4B;
+  font-family: var(--font-nunito-sans), sans-serif;
+}
+
+.onboarding-option:hover {
+  border-color: #00C4A1;
+  background: #F0FEFA;
+}
+
+.onboarding-option.selected {
+  border-color: #00C4A1;
+  background: #F0FEFA;
+  font-weight: 600;
+}
+
+.onboarding-option-check {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #CBD5E1;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.onboarding-option.selected .onboarding-option-check {
+  border-color: #00C4A1;
+  background: #00C4A1;
+}
+
+.onboarding-option.selected .onboarding-option-check::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.onboarding-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 2rem;
+}
+
+.onboarding-btn-back {
+  background: none;
+  border: none;
+  color: #64748B;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0;
+  font-family: var(--font-nunito-sans), sans-serif;
+}
+
+.onboarding-btn-back:hover {
+  color: #1B2B4B;
+}
+
+.onboarding-btn-next {
+  background: #1B2B4B;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.7rem 1.75rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: var(--font-nunito), sans-serif;
+  transition: background 0.15s;
+}
+
+.onboarding-btn-next:hover:not(:disabled) {
+  background: #00C4A1;
+}
+
+.onboarding-btn-next:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.onboarding-skip {
+  text-align: center;
+  margin-top: 1.25rem;
+}
+
+.onboarding-skip button {
+  background: none;
+  border: none;
+  color: #94A3B8;
+  font-size: 0.82rem;
+  cursor: pointer;
+  font-family: var(--font-nunito-sans), sans-serif;
+  text-decoration: underline;
+}
+
+.onboarding-skip button:hover {
+  color: #64748B;
+}
+
+.onboarding-done {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.onboarding-done-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.onboarding-done h2 {
+  font-family: var(--font-nunito), sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1B2B4B;
+  margin-bottom: 0.5rem;
+}
+
+.onboarding-done p {
+  color: #64748B;
+  font-size: 0.95rem;
+  margin-bottom: 1.5rem;
+}
+
+.onboarding-btn-finish {
+  background: #00C4A1;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.8rem 2rem;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: var(--font-nunito), sans-serif;
+  transition: background 0.15s;
+}
+
+.onboarding-btn-finish:hover {
+  background: #00a88a;
+}

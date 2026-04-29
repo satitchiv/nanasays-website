@@ -34,6 +34,11 @@ import FaqSchema from '@/components/FaqSchema'
 import SchoolSchema from '@/components/SchoolSchema'
 import SchoolSummary from '@/components/SchoolSummary'
 import NewsPageClient from '@/components/NewsPageClient'
+import KeyFactsGrid    from '@/components/report/KeyFactsGrid'
+import AdmissionsSection from '@/components/report/AdmissionsSection'
+import LocationSection  from '@/components/report/LocationSection'
+import FeesSection      from '@/components/report/FeesSection'
+import './report/report.css'
 
 // Temporarily force-dynamic while we iterate on the sports/fees extraction.
 // Once data is stable, switch back to: export const revalidate = 86400
@@ -1546,6 +1551,33 @@ export default async function SchoolPage({ params, searchParams }: Props) {
             />
           )}
 
+          {/* KEY FACTS STRIP — structured data, SEO: ages / gender / roll / fees */}
+          <KeyFactsGrid
+            founded={school.founded_year ?? sd?.founded_year ?? null}
+            gender={school.gender_split ?? null}
+            ageMin={school.age_min ?? null}
+            ageMax={school.age_max ?? null}
+            studentCount={sd?.student_count ?? (school as any).student_count ?? null}
+            boarderCount={sd?.boarder_count ?? null}
+            feesMin={sd?.fees_local_min ?? sd?.fees_min ?? null}
+            feesMax={sd?.fees_local_max ?? sd?.fees_max ?? null}
+            feesCurrency={sd?.fees_local_currency ?? sd?.fees_currency ?? null}
+            sixthFormOffer={sd?.sixth_form_offer ?? null}
+            inspectorate={school.country === 'United Kingdom' ? 'ISI' : null}
+          />
+
+          {/* FEES — day vs boarding breakdown, #1 parent search query */}
+          <FeesSection
+            feesMin={sd?.fees_local_min ?? sd?.fees_min ?? null}
+            feesMax={sd?.fees_local_max ?? sd?.fees_max ?? null}
+            currency={sd?.fees_local_currency ?? sd?.fees_currency ?? null}
+            feesByGrade={sd?.fees_by_grade ?? null}
+            includesBoarding={sd?.fees_includes_boarding ?? null}
+            scholarships={sd?.scholarships_available ?? null}
+            bursariesNote={sd?.bursary_note ?? null}
+            feesSourceUrl={sd?.fees_source_url ?? null}
+          />
+
           {/* ABOUT */}
           {school.description && (
             <Section>
@@ -1573,6 +1605,13 @@ export default async function SchoolPage({ params, searchParams }: Props) {
             uniDestinations={sdUniDestinations}
             reportVerdict={sdReportVerdict}
             schoolName={school.name}
+          />
+
+          {/* ADMISSIONS — entry points, process, open events; SEO: "[school] how to apply" */}
+          <AdmissionsSection
+            admissionsFormat={sd?.admissions_format ?? null}
+            registrationDeadline={sd?.registration_deadline ?? null}
+            entryExamType={sd?.entry_exam_type ?? null}
           />
 
           {/* PARENT FIT TEASER — AEO: feeds "is X right for my child" AI queries */}
@@ -2082,6 +2121,12 @@ export default async function SchoolPage({ params, searchParams }: Props) {
           {sdSchoolLife?.notable_alumni?.length > 0 && (
             <AlumniSection alumni={sdSchoolLife.notable_alumni} />
           )}
+
+          {/* LOCATION — airports, train, map; SEO: "[school] location" + international parent queries */}
+          <LocationSection
+            location={sdLocationProfile}
+            schoolName={school.name}
+          />
 
           {/* FAQ */}
           {faqs.length > 0 && (

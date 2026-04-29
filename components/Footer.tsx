@@ -1,38 +1,46 @@
 import Link from 'next/link'
+import './footer.css'
 
 export default function Footer() {
   return (
-    <footer style={{
-      background: 'var(--navy)',
-      color: 'rgba(255,255,255,0.4)',
-      padding: '40px 5%',
-      marginTop: 0,
-    }}>
-      <div className="ns-footer-inner">
-        <div>
-          <div style={{
-            fontFamily: 'var(--font-nunito), Nunito, sans-serif',
-            color: '#fff', fontSize: 18, fontWeight: 800,
-          }}>
-            nana<span style={{ color: 'var(--teal)' }}>says</span>
+    <footer className="site-footer">
+      <div className="site-footer-inner">
+
+        <div className="site-footer-brand">
+          <div className="site-footer-wordmark">
+            nana<span>says</span>
           </div>
-          <p style={{ fontSize: 12, marginTop: 6, color: 'rgba(255,255,255,0.4)' }}>
-            International School Directory
+          <p className="site-footer-tagline">UK Independent School Research</p>
+          <p className="site-footer-copy">
+            © {new Date().getFullYear()} Nanasays Ltd. All rights reserved.
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-          <Link href="/news" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: 13 }}>News</Link>
-          <Link href="/blog" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: 13 }}>Blog</Link>
-          <Link href="/about" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: 13 }}>About</Link>
-          <Link href="/methodology" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: 13 }}>Methodology</Link>
-          <Link href="/partners" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: 13 }}>For Schools</Link>
+        <div className="site-footer-links">
+          <div className="site-footer-col">
+            <span className="site-footer-col-head">Research</span>
+            <Link href="/schools">Browse Schools</Link>
+            <Link href="/about">How it works</Link>
+            <Link href="/methodology">Methodology</Link>
+          </div>
+          <div className="site-footer-col">
+            <span className="site-footer-col-head">Account</span>
+            <Link href="/my-reports">My Reports</Link>
+            <Link href="/unlock">Unlock access</Link>
+            <Link href="/signup">Sign up free</Link>
+          </div>
+          <div className="site-footer-col">
+            <span className="site-footer-col-head">Legal</span>
+            <Link href="/privacy">Privacy policy</Link>
+            <Link href="/terms">Terms of service</Link>
+            <a href="mailto:support@nanasays.com">Contact us</a>
+            <Link href="/portal">School portal</Link>
+          </div>
         </div>
 
-        <p style={{ fontSize: 12, maxWidth: 500, lineHeight: 1.6 }}>
-          School data sourced from public listings. Always verify fees and admissions details
-          directly with the school before applying.
-        </p>
+      </div>
+      <div className="site-footer-bar">
+        School data is independently researched from public sources. Verify all details directly with schools before applying.
       </div>
     </footer>
   )

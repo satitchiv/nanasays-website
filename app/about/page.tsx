@@ -1,144 +1,155 @@
 import type { Metadata } from 'next'
+import { createClient } from '@supabase/supabase-js'
 import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
 import Link from 'next/link'
-import { getTotalSchoolCount, getCountrySchoolCounts } from '@/lib/schools'
+import './about.css'
 
 export const metadata: Metadata = {
-  title: 'About NanaSays | International School Directory',
-  description: 'Independent international school directory for expat families. Compare fees, curriculum and boarding across 10,000+ verified schools in 100+ countries.',
-  alternates: { canonical: 'https://nanasays.school/about' },
+  title: 'Nanasays — The independent school guide parents actually trust',
+  description: 'Deep research reports on 140 UK independent schools. Full fees breakdown, ISI inspection history, financial health, safeguarding record, and Nana — your AI school advisor.',
+  alternates: { canonical: 'https://nanasays.com/about' },
   openGraph: {
-    title: 'About NanaSays | International School Directory',
-    description: 'Independent international school directory for expat families. Compare fees, curriculum and boarding across 10,000+ verified schools in 100+ countries.',
-    images: [{ url: 'https://nanasays.school/og-image.jpg', width: 1200, height: 630 }],
+    title: 'Nanasays — The independent school guide parents actually trust',
+    description: 'Deep research reports on 140 UK independent schools. Unlock the risk file parents need before making a £15k–£50k/year decision.',
+    images: [{ url: 'https://nanasays.com/og-image.jpg', width: 1200, height: 630 }],
   },
 }
 
 export const revalidate = 3600
 
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+
+async function getSampleSchools() {
+  const { data } = await supabase
+    .from('schools')
+    .select('slug, name, city, boarding, gender_split, age_min, age_max')
+    .eq('country', 'United Kingdom')
+    .in('slug', ['wycombe-abbey', 'eton-college', 'harrow-school'])
+    .order('name')
+  return data ?? []
+}
+
+function boardingLabel(b: string | null) {
+  if (!b) return null
+  if (b === 'full') return 'Full boarding'
+  if (b === 'weekly') return 'Weekly boarding'
+  if (b === 'flexi') return 'Flexi boarding'
+  if (b === 'day') return 'Day school'
+  return b
+}
+
+function genderLabel(g: string | null) {
+  if (!g) return null
+  if (g === 'boys') return 'Boys'
+  if (g === 'girls') return 'Girls'
+  if (g === 'co-ed' || g === 'mixed') return 'Co-ed'
+  return g
+}
+
 export default async function AboutPage() {
-  const [totalSchools, countryCounts] = await Promise.all([
-    getTotalSchoolCount(),
-    getCountrySchoolCounts(),
-  ])
-  const totalCountries = Object.keys(countryCounts).length
+  const schools = await getSampleSchools()
 
   return (
     <>
       <Nav />
       <main>
-        <div style={{ maxWidth: 760, margin: '0 auto', padding: '80px 5% 88px' }}>
 
-          <h1 style={{
-            fontFamily: 'var(--font-nunito), Nunito, sans-serif',
-            fontSize: 'clamp(28px, 4vw, 42px)',
-            fontWeight: 900, color: 'var(--navy)',
-            letterSpacing: '-0.5px', lineHeight: 1.12,
-            marginBottom: 20,
-          }}>
-            About NanaSays
-          </h1>
-
-          <p style={{ fontSize: 16, color: 'var(--body)', lineHeight: 1.8, marginBottom: 32, fontWeight: 300 }}>
-            NanaSays is an independent international school directory built for families relocating abroad. We exist to make one of the most important decisions in a family&apos;s relocation — choosing the right school — easier, more transparent, and less stressful.
+        {/* ── HERO ── */}
+        <section className="lp-hero">
+          <div className="lp-hero-kicker">UK Independent Schools · Deep Research</div>
+          <h1>The independent school guide<br /><em>parents actually trust</em></h1>
+          <p className="lp-hero-sub">
+            We dig into the ISI inspection record, charity filings, safeguarding data, and school policies — so you can walk into an open day knowing exactly what questions to ask.
           </p>
+          <div className="lp-hero-ctas">
+            <Link href="/signup" className="lp-cta-primary">Create free account →</Link>
+            <Link href="/schools" className="lp-cta-secondary">Browse 140 schools</Link>
+          </div>
+          <p className="lp-hero-proof">140 UK independent schools analysed · £39/month · Cancel any time</p>
+        </section>
 
-          <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16,
-            marginBottom: 48,
-          }}>
-            {[
-              { value: `${totalSchools.toLocaleString()}+`, label: 'Schools listed' },
-              { value: `${totalCountries}+`, label: 'Countries covered' },
-              { value: 'Free', label: 'For families, always' },
-            ].map(stat => (
-              <div key={stat.label} style={{
-                background: 'var(--off)', border: '1px solid var(--border)',
-                borderRadius: 12, padding: '20px 16px', textAlign: 'center',
-              }}>
-                <div style={{
-                  fontFamily: 'var(--font-nunito), Nunito, sans-serif',
-                  fontSize: 28, fontWeight: 900, color: 'var(--teal-dk)', lineHeight: 1, marginBottom: 6,
-                }}>
-                  {stat.value}
+        {/* ── HOW IT WORKS ── */}
+        <section className="lp-how">
+          <div className="lp-section-label">How it works</div>
+          <h2 className="lp-section-title">Three steps to a decision you can trust</h2>
+          <p className="lp-section-sub">Every school gets a full research dossier. The free profile gives you the facts. The unlock gives you the intelligence.</p>
+          <div className="lp-steps">
+            <div className="lp-step">
+              <span className="lp-step-num">STEP 01</span>
+              <span className="lp-step-icon">🔍</span>
+              <h3>Browse the directory</h3>
+              <p>Search 140 UK independent schools by boarding type, sport, location, or fees range. Every school profile is free to read.</p>
+            </div>
+            <div className="lp-step">
+              <span className="lp-step-num">STEP 02</span>
+              <span className="lp-step-icon">📄</span>
+              <h3>Read the deep report</h3>
+              <p>Unlock the full dossier — ISI inspection quotes, charity Commission financials, safeguarding record, policy transparency ratings, and parent-fit verdict.</p>
+            </div>
+            <div className="lp-step">
+              <span className="lp-step-num">STEP 03</span>
+              <span className="lp-step-icon">💬</span>
+              <h3>Chat with Nana</h3>
+              <p>Ask Nana anything about the school. She reads the full research file and answers in plain English — with citations to the source.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* ── SAMPLE SCHOOLS ── */}
+        <section className="lp-schools">
+          <div className="lp-section-label">140 schools covered</div>
+          <h2 className="lp-section-title">From Eton to Wycombe Abbey and beyond</h2>
+          <p className="lp-section-sub" style={{ marginBottom: 40 }}>
+            Every school in the directory has been individually researched. Free profile for all. Full risk file unlocked with a monthly subscription.
+          </p>
+          <div className="lp-school-grid">
+            {schools.map(s => (
+              <Link key={s.slug} href={`/schools/${s.slug}`} className="lp-school-card">
+                <div className="lp-school-name">{s.name}</div>
+                <div className="lp-school-meta">{s.city}</div>
+                <div className="lp-school-tags">
+                  {genderLabel(s.gender_split) && <span className="lp-school-tag">{genderLabel(s.gender_split)}</span>}
+                  {boardingLabel(s.boarding) && <span className="lp-school-tag">{boardingLabel(s.boarding)}</span>}
+                  {s.age_min != null && s.age_max != null && (
+                    <span className="lp-school-tag">Ages {s.age_min}–{s.age_max}</span>
+                  )}
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 600 }}>{stat.label}</div>
-              </div>
+                <div className="lp-school-cta">View profile →</div>
+              </Link>
             ))}
           </div>
+        </section>
 
-          <div style={{ borderTop: '1px solid var(--border)', paddingTop: 40 }}>
-
-            <section style={{ marginBottom: 44 }}>
-              <h2 style={{
-                fontFamily: 'var(--font-nunito), Nunito, sans-serif',
-                fontSize: 22, fontWeight: 900, color: 'var(--navy)',
-                letterSpacing: '-0.3px', marginBottom: 16,
-              }}>
-                Who we serve
-              </h2>
-              <p style={{ fontSize: 15, color: 'var(--body)', lineHeight: 1.8 }}>
-                NanaSays is built for internationally mobile families — expat parents relocating for work, families moving between countries, and parents researching schools before a move. Our directory covers international schools across Southeast Asia, Europe, the Middle East, East Asia, and beyond. The majority of our users are comparing schools across multiple countries before making first contact with a school.
-              </p>
-            </section>
-
-            <section style={{ marginBottom: 44 }}>
-              <h2 style={{
-                fontFamily: 'var(--font-nunito), Nunito, sans-serif',
-                fontSize: 22, fontWeight: 900, color: 'var(--navy)',
-                letterSpacing: '-0.3px', marginBottom: 16,
-              }}>
-                What we offer
-              </h2>
-              <p style={{ fontSize: 15, color: 'var(--body)', lineHeight: 1.8, marginBottom: 14 }}>
-                Each school profile includes: fee ranges in local and USD currency, curriculum type, age range, boarding availability, student nationalities, accreditations, admissions timeline, and where available, university placement data. Schools can claim their profile and update their data directly.
-              </p>
-              <p style={{ fontSize: 15, color: 'var(--body)', lineHeight: 1.8 }}>
-                Nana, our AI school advisor, can answer specific questions — finding schools that match a budget, curriculum, age range, or location requirement — in plain language.
-              </p>
-            </section>
-
-            <section style={{ marginBottom: 44 }}>
-              <h2 style={{
-                fontFamily: 'var(--font-nunito), Nunito, sans-serif',
-                fontSize: 22, fontWeight: 900, color: 'var(--navy)',
-                letterSpacing: '-0.3px', marginBottom: 16,
-              }}>
-                Independence and transparency
-              </h2>
-              <p style={{ fontSize: 15, color: 'var(--body)', lineHeight: 1.8 }}>
-                NanaSays is independent. Our directory is free for families and always will be. Schools that choose to become partners gain enhanced visibility and direct enquiry routing — but all schools are listed regardless of partner status. Our data collection and quality scoring processes are documented in our{' '}
-                <Link href="/methodology" style={{ color: 'var(--teal-dk)', fontWeight: 600, textDecoration: 'none' }}>
-                  methodology
-                </Link>
-                .
-              </p>
-            </section>
-
-            <section>
-              <h2 style={{
-                fontFamily: 'var(--font-nunito), Nunito, sans-serif',
-                fontSize: 22, fontWeight: 900, color: 'var(--navy)',
-                letterSpacing: '-0.3px', marginBottom: 16,
-              }}>
-                Contact and corrections
-              </h2>
-              <p style={{ fontSize: 15, color: 'var(--body)', lineHeight: 1.8 }}>
-                If you represent a school and need to correct or update your listing, visit{' '}
-                <Link href="/claim" style={{ color: 'var(--teal-dk)', fontWeight: 600, textDecoration: 'none' }}>
-                  nanasays.school/claim
-                </Link>
-                . For general enquiries, use the contact form on the{' '}
-                <Link href="/partners" style={{ color: 'var(--teal-dk)', fontWeight: 600, textDecoration: 'none' }}>
-                  partners page
-                </Link>
-                .
-              </p>
-            </section>
-
+        {/* ── PRICING ── */}
+        <section className="lp-pricing">
+          <div className="lp-section-label">Pricing</div>
+          <h2 className="lp-section-title">£39/month. Every school.</h2>
+          <p className="lp-section-sub">
+            You&apos;re making a £15,000–£50,000 per year decision. The research should cost less than a school application fee.
+          </p>
+          <div className="lp-price-card">
+            <div className="lp-price-amount"><sup>£</sup>39<span style={{ fontSize: 22, fontWeight: 600 }}>/mo</span></div>
+            <div className="lp-price-note">Cancel any time · All 140 schools · New schools included</div>
+            <ul className="lp-feature-list">
+              <li>Full fees breakdown — day, boarding, year-by-year</li>
+              <li>ISI inspection quotes and full history</li>
+              <li>Charity Commission financial health (3–5 year trend)</li>
+              <li>Safeguarding record and regulatory status</li>
+              <li>Policy transparency ratings from 30–50 policy docs</li>
+              <li>Parent-fit verdict and school-specific tour questions</li>
+              <li>Deep sports data — rankings, alumni, cup results</li>
+              <li>Nana AI chat across all 140 schools</li>
+              <li>Shortlist + comparison tools</li>
+            </ul>
+            <Link href="/unlock" className="lp-pricing-cta">Unlock access →</Link>
+            <p className="lp-pricing-fine">Free school profiles available without payment. Cancel subscription any time.</p>
           </div>
-        </div>
+        </section>
+
       </main>
       <Footer />
     </>

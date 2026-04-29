@@ -1,0 +1,323 @@
+.shortlist-page {
+  min-height: 100vh;
+  background: #F7F3EE;
+  font-family: var(--font-nunito-sans), system-ui, sans-serif;
+}
+
+.shortlist-nav {
+  background: #1B2B4B;
+  padding: 1rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.shortlist-nav-logo {
+  font-family: var(--font-nunito), sans-serif;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #fff;
+  text-decoration: none;
+  letter-spacing: -0.02em;
+  margin-right: auto;
+}
+
+.shortlist-nav-logo span { color: #00C4A1; }
+
+.shortlist-nav a {
+  color: rgba(255,255,255,0.65);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: color 0.15s;
+}
+
+.shortlist-nav a:hover, .shortlist-nav a.active { color: #fff; }
+
+.shortlist-content {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 2rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .shortlist-content { grid-template-columns: 1fr; }
+}
+
+/* Left column */
+.shortlist-section-header {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+}
+
+.shortlist-section-title {
+  font-family: var(--font-nunito), sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #1B2B4B;
+  margin: 0;
+}
+
+.shortlist-section-count {
+  font-size: 0.8rem;
+  color: #94A3B8;
+  font-weight: 600;
+}
+
+.shortlist-map-wrap {
+  margin-bottom: 1.75rem;
+}
+
+.shortlist-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 640px) {
+  .shortlist-cards { grid-template-columns: 1fr; }
+}
+
+/* School card */
+.shortlist-card {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #E8E2D9;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.shortlist-card-name {
+  font-family: var(--font-nunito), sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1B2B4B;
+  margin: 0;
+}
+
+.shortlist-card-meta {
+  font-size: 0.78rem;
+  color: #64748B;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.shortlist-card-tag {
+  background: #F1F5F9;
+  border-radius: 4px;
+  padding: 2px 7px;
+}
+
+.shortlist-card-fees {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #1B2B4B;
+}
+
+.shortlist-card-health {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 100px;
+}
+
+.shortlist-card-health--green {
+  background: #DCFCE7;
+  color: #15803D;
+}
+
+.shortlist-card-health--amber {
+  background: #FEF3C7;
+  color: #B45309;
+}
+
+.shortlist-card-health--unknown {
+  background: #F1F5F9;
+  color: #94A3B8;
+}
+
+.shortlist-card-sports {
+  font-size: 1rem;
+  letter-spacing: 2px;
+}
+
+.shortlist-card-note {
+  font-size: 0.82rem;
+  color: #64748B;
+  font-style: italic;
+  line-height: 1.4;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.shortlist-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.shortlist-card-btn {
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background 0.15s;
+  font-family: var(--font-nunito-sans), sans-serif;
+}
+
+.shortlist-card-btn--primary {
+  background: #F0FEFA;
+  border: 1px solid #00C4A1;
+  color: #00875e;
+}
+
+.shortlist-card-btn--primary:hover { background: #D6FAF3; }
+
+.shortlist-card-btn--secondary {
+  background: #F8FAFC;
+  border: 1px solid #E2E8F0;
+  color: #475569;
+}
+
+.shortlist-card-btn--secondary:hover { background: #F1F5F9; }
+
+/* Empty state */
+.shortlist-empty {
+  background: #fff;
+  border-radius: 12px;
+  padding: 3rem 2rem;
+  text-align: center;
+  border: 1px dashed #CBD5E1;
+}
+
+.shortlist-empty p {
+  color: #64748B;
+  margin-bottom: 1rem;
+}
+
+.shortlist-empty a {
+  color: #00C4A1;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+/* Right sidebar */
+.shortlist-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.shortlist-widget {
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #E8E2D9;
+  padding: 1.25rem;
+}
+
+.shortlist-widget-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: #1B2B4B;
+  margin: 0 0 0.9rem;
+}
+
+/* Open days */
+.shortlist-open-days { list-style: none; margin: 0; padding: 0; }
+.shortlist-open-day-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid #F1F5F9;
+  font-size: 0.85rem;
+}
+.shortlist-open-day-item:last-child { border-bottom: none; }
+.shortlist-open-day-school { font-weight: 600; color: #1B2B4B; }
+.shortlist-open-day-date { color: #64748B; font-size: 0.78rem; }
+.shortlist-ics-link {
+  flex-shrink: 0;
+  font-size: 0.75rem;
+  color: #00C4A1;
+  font-weight: 600;
+  text-decoration: none;
+}
+.shortlist-no-events {
+  color: #94A3B8;
+  font-size: 0.85rem;
+}
+
+/* Financial alerts */
+.shortlist-alert-list { list-style: none; margin: 0; padding: 0; }
+.shortlist-alert-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #F1F5F9;
+  font-size: 0.83rem;
+  line-height: 1.4;
+}
+.shortlist-alert-item:last-child { border-bottom: none; }
+.shortlist-alert-icon { flex-shrink: 0; margin-top: 1px; }
+.shortlist-alert-text { color: #334155; }
+
+/* Progress */
+.shortlist-progress-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.shortlist-stat {
+  text-align: center;
+  padding: 0.75rem 0.5rem;
+  background: #F8FAFC;
+  border-radius: 8px;
+}
+.shortlist-stat-value {
+  font-family: var(--font-nunito), sans-serif;
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #1B2B4B;
+  line-height: 1;
+}
+.shortlist-stat-label {
+  font-size: 0.72rem;
+  color: #94A3B8;
+  margin-top: 3px;
+}
+
+/* Ask Nana CTA */
+.shortlist-nana-cta {
+  display: block;
+  width: 100%;
+  padding: 0.75rem;
+  background: #1B2B4B;
+  color: #fff;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  font-family: var(--font-nunito), sans-serif;
+  transition: background 0.15s;
+}
+.shortlist-nana-cta:hover { background: #00C4A1; }

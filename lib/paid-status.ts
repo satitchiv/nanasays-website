@@ -1,20 +1,38 @@
-/**
- * Paid-unlock status for Deep Research pages.
- *
- * Phase 1 stub: a plain cookie (nanasays_unlocked=true) grants access.
- * In Phase 2 this will be replaced by a Supabase row per paid user
- * (keyed by email/Stripe customer id).
- *
- * The `?unlocked=true` query param also grants access — useful for
- * design review without going through the checkout stub.
- */
-
+import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
-export const UNLOCK_COOKIE = 'nanasays_unlocked'
+export async function isUnlocked(): Promise<boolean> {
+  return (await getUnlockedUser()).isPaid
+}
 
-export async function isUnlocked(queryParam?: string): Promise<boolean> {
-  if (queryParam === 'true') return true
-  const store = await cookies()
-  return store.get(UNLOCK_COOKIE)?.value === 'true'
+/** Returns isPaid + the authenticated user's email (for watermarking). */
+export async function getUnlockedUser(): Promise<{ isPaid: boolean; userEmail: string | null }> {
+  if (process.env.NEXT_PUBLIC_DEV_UNLOCK === 'true') return { isPaid: true, userEmail: null }
+
+  const cookieStore = await cookies()
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return cookieStore.getAll() },
+        setAll() {},
+      },
+    }
+  )
+
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { isPaid: false, userEmail: null }
+
+  const { data } = await supabase
+    .from('parent_profiles')
+    .select('subscription_status')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  return {
+    isPaid: data?.subscription_status === 'active',
+    userEmail: user.email ?? null,
+  }
 }

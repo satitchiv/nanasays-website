@@ -1,0 +1,47 @@
+/* legal.css — shared styles for Privacy Policy and Terms of Service pages */
+
+.legal-page { min-height: 100vh; background: #fff; }
+
+.legal-hero {
+  background: var(--navy);
+  padding: 56px 5% 48px;
+}
+.legal-hero h1 {
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: clamp(24px, 3vw, 36px); font-weight: 900;
+  color: #fff; letter-spacing: -.5px; margin: 0 0 8px;
+}
+.legal-hero-meta {
+  font-size: 13px; color: rgba(255,255,255,.45);
+  font-family: 'Nunito Sans', sans-serif;
+}
+
+.legal-body {
+  max-width: 740px; margin: 0 auto;
+  padding: 56px 5% 96px;
+}
+.legal-body h2 {
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: 18px; font-weight: 900; color: var(--navy);
+  margin: 40px 0 12px; letter-spacing: -.2px;
+}
+.legal-body h2:first-child { margin-top: 0; }
+.legal-body p {
+  font-size: 15px; color: var(--body); line-height: 1.8;
+  margin: 0 0 14px;
+}
+.legal-body ul {
+  margin: 0 0 14px; padding-left: 20px;
+}
+.legal-body li {
+  font-size: 15px; color: var(--body); line-height: 1.8; margin-bottom: 6px;
+}
+.legal-body a {
+  color: var(--teal-dk); text-decoration: none; font-weight: 600;
+}
+.legal-body a:hover { text-decoration: underline; }
+.legal-highlight {
+  background: var(--teal-bg); border-left: 3px solid var(--teal);
+  border-radius: 0 8px 8px 0; padding: 14px 18px; margin: 20px 0;
+}
+.legal-highlight p { margin: 0; font-size: 14px; }

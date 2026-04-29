@@ -6,7 +6,9 @@ const LIMITS: Record<string, number> = {
   'general-enquiry':    5,
   'claim-enquiry':      5,
   'request-prospectus': 5,
+  'checkout':           5,  // 5 checkout attempts per 10 min per IP
   'chat':               20,
+  'nana-session':       30, // 30 session reads per 10 min
   'track-click':        50, // 50 clicks per 10 min — blocks scrapers, fine for real users
 }
 

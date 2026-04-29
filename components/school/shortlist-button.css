@@ -1,0 +1,32 @@
+.shortlist-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-nunito-sans), sans-serif;
+  background: #fff;
+  border: 1px solid #CBD5E1;
+  color: #475569;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.shortlist-btn:hover {
+  border-color: #1B2B4B;
+  color: #1B2B4B;
+}
+
+.shortlist-btn--saved {
+  background: #1B2B4B;
+  border-color: #1B2B4B;
+  color: #fff;
+}
+
+.shortlist-btn--saved:hover {
+  background: #EF4444;
+  border-color: #EF4444;
+  color: #fff;
+}

@@ -11,12 +11,19 @@
   color: var(--body);
   line-height: 1.65;
   min-height: 100vh;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .report-page .page {
   max-width: 860px;
   margin: 0 auto;
   padding: 0 24px 120px;
+}
+@media (max-width: 480px) {
+  .report-page .page { padding: 0 16px 100px; }
+  .rpt-header { padding: 28px 0 20px; }
+  .rpt-title { font-size: clamp(26px, 7vw, 36px); }
 }
 
 .report-page a { color: var(--teal-dk); text-decoration: none; }
@@ -949,6 +956,37 @@
   .report-page h1.rpt-title { font-size: 22pt; }
   .report-page h2.block-title { font-size: 15pt; }
   .report-page h3.block-sub { font-size: 12pt; }
+}
+
+/* ── Watermark — paid content ─────────────────────────────── */
+.report-page .part-premium {
+  position: relative;
+}
+.report-page .part-premium::before {
+  content: 'nanasays.com · nanasays.com · nanasays.com · nanasays.com · nanasays.com · nanasays.com';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(27, 50, 82, 0.04);
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  white-space: pre-wrap;
+  word-break: break-all;
+  overflow: hidden;
+  z-index: 0;
+  transform: rotate(-25deg) scale(1.4);
+  transform-origin: center center;
+  line-height: 2.8;
+  padding: 60px 0;
+}
+
+@media print {
+  .report-page .part-premium::before {
+    color: rgba(27, 50, 82, 0.08);
+    font-size: 9px;
+  }
 }
 
 /* ── Location section ─────────────────────────────────────── */
@@ -2005,3 +2043,52 @@
   font-size: 12px; background: #f8fafc; border: 1px solid var(--border);
   border-radius: 20px; padding: 3px 10px;
 }
+
+/* Calendar open day button */
+.report-action-row {
+  padding: 0 0 12px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.report-calendar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: var(--font-nunito-sans), sans-serif;
+  background: #F0FEFA;
+  border: 1px solid #00C4A1;
+  color: #00875e;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.report-calendar-btn:hover { background: #D6FAF3; }
+.report-calendar-btn--disabled {
+  background: #F8FAFC;
+  border-color: #E2E8F0;
+  color: #94A3B8;
+  cursor: default;
+}
+
+.report-research-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--font-nunito-sans), sans-serif;
+  background: #1B3252;
+  border: 1px solid #1B3252;
+  color: white;
+  text-decoration: none;
+  transition: background 0.15s;
+  letter-spacing: 0.01em;
+}
+.report-research-btn:hover { background: #142844; }

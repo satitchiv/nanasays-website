@@ -1,0 +1,204 @@
+/* about.css — marketing landing page for UK deep research reports */
+
+/* ── Hero ───────────────────────────────────────────────────────── */
+.lp-hero {
+  background: var(--navy);
+  padding: 96px 5% 88px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.lp-hero::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+  background: rgba(52,195,160,.25);
+}
+.lp-hero-kicker {
+  display: inline-block;
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: 11px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--teal); margin-bottom: 22px;
+  padding: 5px 14px; border: 1px solid rgba(52,195,160,.35); border-radius: 100px;
+}
+.lp-hero h1 {
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: clamp(30px, 4.5vw, 54px);
+  font-weight: 900; color: #fff;
+  line-height: 1.1; letter-spacing: -1px;
+  max-width: 720px; margin: 0 auto 20px;
+}
+.lp-hero h1 em { color: var(--teal); font-style: normal; }
+.lp-hero-sub {
+  font-size: clamp(15px, 1.8vw, 18px);
+  color: rgba(255,255,255,.72);
+  max-width: 540px; margin: 0 auto 36px;
+  line-height: 1.7; font-weight: 300;
+}
+.lp-hero-ctas {
+  display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;
+}
+.lp-cta-primary {
+  background: var(--teal); color: var(--navy);
+  padding: 14px 28px; border-radius: 10px;
+  font-family: 'Nunito Sans', sans-serif; font-weight: 800; font-size: 15px;
+  text-decoration: none; transition: opacity .15s;
+}
+.lp-cta-primary:hover { opacity: .88; }
+.lp-cta-secondary {
+  background: rgba(255,255,255,.1); color: #fff;
+  border: 1px solid rgba(255,255,255,.25);
+  padding: 14px 28px; border-radius: 10px;
+  font-family: 'Nunito Sans', sans-serif; font-weight: 700; font-size: 15px;
+  text-decoration: none; transition: background .15s;
+}
+.lp-cta-secondary:hover { background: rgba(255,255,255,.18); }
+.lp-hero-proof {
+  margin-top: 40px;
+  font-size: 12px; color: rgba(255,255,255,.42);
+  font-family: 'Nunito Sans', sans-serif; font-weight: 600; letter-spacing: .04em;
+}
+
+/* ── How it works ───────────────────────────────────────────────── */
+.lp-how {
+  background: #fff;
+  padding: 80px 5%;
+  text-align: center;
+}
+.lp-section-label {
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: 11px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase;
+  color: var(--teal-dk); margin-bottom: 12px;
+}
+.lp-section-title {
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: clamp(22px, 3vw, 34px); font-weight: 900;
+  color: var(--navy); letter-spacing: -.5px;
+  margin: 0 0 12px;
+}
+.lp-section-sub {
+  font-size: 15px; color: var(--muted); max-width: 480px;
+  margin: 0 auto 52px; line-height: 1.7; font-weight: 300;
+}
+.lp-steps {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 32px; max-width: 900px; margin: 0 auto;
+}
+@media (max-width: 640px) {
+  .lp-steps { grid-template-columns: 1fr; }
+  .lp-hero { padding: 60px 5% 52px; }
+  .lp-how { padding: 52px 5%; }
+  .lp-cta-primary, .lp-cta-secondary { width: 100%; text-align: center; box-sizing: border-box; }
+}
+.lp-step {
+  background: var(--off); border: 1px solid var(--border);
+  border-radius: 16px; padding: 32px 24px; text-align: left;
+  position: relative;
+}
+.lp-step-num {
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: 11px; font-weight: 800; letter-spacing: .14em;
+  color: var(--teal); margin-bottom: 16px; display: block;
+}
+.lp-step-icon { font-size: 28px; margin-bottom: 14px; display: block; }
+.lp-step h3 {
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: 17px; font-weight: 900; color: var(--navy);
+  margin: 0 0 10px;
+}
+.lp-step p { font-size: 13px; color: var(--muted); line-height: 1.7; margin: 0; }
+
+/* ── School cards ───────────────────────────────────────────────── */
+.lp-schools {
+  background: var(--off); border-top: 1px solid var(--border);
+  padding: 80px 5%;
+  text-align: center;
+}
+.lp-school-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 20px; max-width: 940px; margin: 0 auto;
+}
+@media (max-width: 700px) {
+  .lp-school-grid { grid-template-columns: 1fr; }
+  .lp-schools { padding: 52px 5%; }
+}
+.lp-school-card {
+  background: #fff; border: 1px solid var(--border);
+  border-radius: 14px; padding: 24px 20px; text-align: left;
+  text-decoration: none; transition: border-color .18s, box-shadow .18s;
+  display: flex; flex-direction: column; gap: 12px;
+}
+.lp-school-card:hover { border-color: var(--teal); box-shadow: 0 6px 24px rgba(27,50,82,.1); }
+.lp-school-name {
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: 16px; font-weight: 900; color: var(--navy); line-height: 1.2;
+}
+.lp-school-meta {
+  font-size: 12px; color: var(--muted); font-weight: 600;
+  font-family: 'Nunito Sans', sans-serif;
+}
+.lp-school-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.lp-school-tag {
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 100px;
+  background: var(--teal-bg); color: var(--teal-dk);
+  border: 1px solid rgba(52,195,160,.25);
+}
+.lp-school-cta {
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: 12px; font-weight: 800; color: var(--teal-dk);
+  letter-spacing: .04em; margin-top: auto;
+}
+
+/* ── Pricing ────────────────────────────────────────────────────── */
+.lp-pricing {
+  background: var(--navy);
+  padding: 80px 5%;
+  text-align: center;
+}
+.lp-pricing .lp-section-label { color: rgba(52,195,160,.8); }
+.lp-pricing .lp-section-title { color: #fff; }
+.lp-pricing .lp-section-sub { color: rgba(255,255,255,.6); }
+.lp-price-card {
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.15);
+  border-radius: 20px; padding: 40px 36px;
+  max-width: 440px; margin: 0 auto 32px;
+}
+.lp-price-amount {
+  font-family: 'Nunito Sans', sans-serif;
+  font-size: 56px; font-weight: 900; color: #fff; line-height: 1;
+  margin-bottom: 4px;
+}
+.lp-price-amount sup { font-size: 24px; vertical-align: super; }
+.lp-price-note {
+  font-size: 13px; color: rgba(255,255,255,.5);
+  margin-bottom: 28px; font-family: 'Nunito Sans', sans-serif;
+}
+.lp-feature-list {
+  list-style: none; padding: 0; margin: 0 0 28px;
+  text-align: left; display: flex; flex-direction: column; gap: 10px;
+}
+.lp-feature-list li {
+  font-size: 14px; color: rgba(255,255,255,.8);
+  font-family: 'Nunito Sans', sans-serif; display: flex; align-items: flex-start; gap: 10px;
+}
+.lp-feature-list li::before {
+  content: '✓'; color: var(--teal); font-weight: 800; flex-shrink: 0; margin-top: 1px;
+}
+.lp-pricing-cta {
+  display: inline-block;
+  background: var(--teal); color: var(--navy);
+  padding: 14px 32px; border-radius: 10px;
+  font-family: 'Nunito Sans', sans-serif; font-weight: 800; font-size: 15px;
+  text-decoration: none; transition: opacity .15s;
+}
+.lp-pricing-cta:hover { opacity: .88; }
+.lp-pricing-fine {
+  font-size: 12px; color: rgba(255,255,255,.35);
+  margin-top: 16px; font-family: 'Nunito Sans', sans-serif;
+}
+
+@media (max-width: 640px) {
+  .lp-pricing { padding: 52px 5%; }
+  .lp-price-card { padding: 28px 20px; }
+  .lp-price-amount { font-size: 44px; }
+}

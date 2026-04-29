@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Nunito, Nunito_Sans } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
 import "leaflet/dist/leaflet.css";
 import IconSprite from "@/components/IconSprite";
@@ -8,6 +7,8 @@ import { LanguageProvider } from "@/components/LanguageProvider";
 import { CurrencyProvider } from "@/components/CurrencyProvider";
 import SiteTracker from "@/components/SiteTracker";
 import OverflowDebugger from "@/components/OverflowDebugger";
+import CookieBanner from "@/components/CookieBanner";
+import ConsentAnalytics from "@/components/ConsentAnalytics";
 
 const nunito = Nunito({
   subsets: ['latin'],
@@ -68,18 +69,6 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${nunito.variable} ${nunitoSans.variable}`}>
       <body style={{ fontFamily: 'var(--font-nunito-sans), sans-serif' }}>
-        {/* Google Analytics 4 — add NEXT_PUBLIC_GA_MEASUREMENT_ID to Netlify env vars */}
-        {gaMeasurementId && (
-          <>
-            <Script
-              strategy="afterInteractive"
-              src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`}
-            />
-            <Script id="ga4-init" strategy="afterInteractive">
-              {`window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${gaMeasurementId}');`}
-            </Script>
-          </>
-        )}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
@@ -90,6 +79,8 @@ export default function RootLayout({
             <SiteTracker />
             <OverflowDebugger />
             {children}
+            <CookieBanner />
+            {gaMeasurementId && <ConsentAnalytics measurementId={gaMeasurementId} />}
           </CurrencyProvider>
         </LanguageProvider>
       </body>

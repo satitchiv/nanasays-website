@@ -52,7 +52,6 @@ export default function PreviewSections({
   // Tier B data
   const exam = structured?.exam_results ?? null
   const topUnis: TopUni[] = structured?.university_destinations?.top_universities ?? []
-  const sportCategories = structured?.sports_profile?.sport_categories ?? null
   const community = structured?.student_community ?? null
   const wellbeing = structured?.wellbeing_staffing ?? null
 
@@ -67,13 +66,6 @@ export default function PreviewSections({
 
   return (
     <>
-      {/* ═══ TIER B ═══ */}
-      <TierDivider
-        tier="B"
-        title="What the public data shows"
-        subtitle="Our analysis of published exam results, destinations, sports, community, and fees."
-      />
-
       {/* EXAM RESULTS */}
       {exam && (
         <GlimpseCard
@@ -135,34 +127,6 @@ export default function PreviewSections({
                 </li>
               )}
             </ul>
-          </div>
-        </GlimpseCard>
-      )}
-
-      {/* SPORTS TIER BREAKDOWN */}
-      {sportCategories && (sportCategories.major?.length || sportCategories.academy?.length) && (
-        <GlimpseCard
-          title="Sports tier breakdown"
-          chipText="+ coach profiles, team records, facilities audit"
-          unlockHref={unlockHref}
-          unlockLabel="Unlock full sports analysis"
-        >
-          <div className="glimpse-sports-tiers">
-            {sportCategories.major?.length > 0 && (
-              <SportTier color="amber" label="Major sports" items={sportCategories.major} />
-            )}
-            {sportCategories.academy?.length > 0 && (
-              <SportTier color="blue" label="Academy" items={sportCategories.academy} />
-            )}
-          </div>
-          <div className="glimpse-hidden">
-            {sportCategories.optional?.length > 0 && (
-              <div className="glimpse-sports-tiers" style={{ gridTemplateColumns: '1fr' }}>
-                <SportTier color="muted" label="Optional" items={sportCategories.optional} />
-              </div>
-            )}
-            <p className="glimpse-blur-copy"><strong>Competitions entered:</strong> National Schools Hockey Championships, ISGA Lacrosse Cup, National Netball Finals…</p>
-            <p className="glimpse-blur-copy"><strong>Coaching staff:</strong> Director of Sport + specialist coaches with national-team backgrounds.</p>
           </div>
         </GlimpseCard>
       )}
@@ -250,9 +214,8 @@ export default function PreviewSections({
           </blockquote>
           {allQuotes.length > 1 && (
             <div className="glimpse-hidden">
-              {allQuotes.slice(1, 3).map((q, i) => (
-                <blockquote key={i} className="glimpse-quote">&ldquo;{q.text}&rdquo;</blockquote>
-              ))}
+              <blockquote className="glimpse-quote">&ldquo;Inspectors noted strong outcomes across academic and boarding provisions…&rdquo;</blockquote>
+              <blockquote className="glimpse-quote">&ldquo;The quality of pupils&apos; personal development was found to be excellent…&rdquo;</blockquote>
             </div>
           )}
         </GlimpseCard>
@@ -335,10 +298,10 @@ export default function PreviewSections({
 
       {/* FINAL NAVY UNLOCK BANNER */}
       <div className="preview-final-banner">
-        <div className="preview-final-kicker">One payment · instant access · downloadable PDFs</div>
-        <h2 className="preview-final-title">Unlock the full Deep Research for {schoolName}</h2>
+        <div className="preview-final-kicker">One payment · instant access · all schools included</div>
+        <h2 className="preview-final-title">Unlock the risk file for {schoolName}</h2>
         <p className="preview-final-sub">
-          You&apos;ve seen the shape of the analysis. Unlock to read the complete regulatory record, all inspection quotes, full financial health, the parent-fit verdict, and all 5 tour questions — for this school and 28 others.
+          The free profile gives you the facts. The paid report gives you the intelligence: full financial health from charity filings, ISI inspection quotes, safeguarding record, policy transparency ratings, parent-fit verdict, and school-specific tour questions — for this school and every other on Nanasays.
         </p>
         <Link href={unlockHref} className="preview-final-btn">Unlock Deep Research →</Link>
       </div>
@@ -375,15 +338,6 @@ function StatCard({ label, value, sub }: { label: string; value: string; sub: st
       <div className="stat-label">{label}</div>
       <div className="stat-value">{value}</div>
       <div className="stat-sub">{sub}</div>
-    </div>
-  )
-}
-
-function SportTier({ color, label, items }: { color: 'amber' | 'blue' | 'muted'; label: string; items: string[] }) {
-  return (
-    <div className={`sport-tier sport-tier-${color}`}>
-      <div className="sport-tier-label">{label}</div>
-      <div className="sport-tier-items">{items.slice(0, 4).join(', ')}{items.length > 4 ? ` + ${items.length - 4} more` : ''}</div>
     </div>
   )
 }

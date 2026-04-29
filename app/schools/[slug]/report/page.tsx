@@ -38,7 +38,9 @@ import PreviewSections        from '@/components/report/PreviewSections'
 import PoliciesSection, { hasMeaningfulPoliciesData } from '@/components/report/PoliciesSection'
 import UnlockBanner           from '@/components/report/UnlockBanner'
 import { computeDossierStats } from '@/lib/dossier-stats'
-import { isUnlocked }         from '@/lib/paid-status'
+import { getUnlockedUser }    from '@/lib/paid-status'
+import VisitNotes             from '@/components/school/VisitNotes'
+import ShortlistButton        from '@/components/school/ShortlistButton'
 
 import './report.css'
 
@@ -269,7 +271,7 @@ function buildSources(rows: any[], structured: any, school: any): Source[] {
 export default async function SchoolReportPage({ params, searchParams }: Props) {
   const { slug } = await params
   const sp = (await searchParams) ?? {}
-  const isPaid = await isUnlocked(sp.unlocked)
+  const { isPaid, userEmail } = await getUnlockedUser()
   const justUnlocked = sp.just_unlocked === 'true'
   const { school, structured, sensitive, policyDocs } = await loadAll(slug)
   if (!school) notFound()
@@ -344,6 +346,34 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
 
         <DossierOverview schoolName={school.name} stats={stats} />
 
+        {isPaid && (() => {
+          const openEvents: string[] = structured?.admissions_format?.open_events ?? []
+          const hasDate = openEvents.some((ev: string) =>
+            /\d{1,2}(?:st|nd|rd|th)?\s+(?:january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{4}/i.test(ev)
+          )
+          return (
+            <div className="report-action-row">
+              <ShortlistButton slug={slug} />
+              <a href={`/nana/research/${slug}`} className="report-research-btn">
+                🔬 Research Mode
+              </a>
+              {hasDate ? (
+                <a
+                  href={`/api/calendar/${slug}`}
+                  download
+                  className="report-calendar-btn"
+                >
+                  📅 Add open day to calendar
+                </a>
+              ) : (
+                <span className="report-calendar-btn report-calendar-btn--disabled">
+                  📅 Open day date not yet listed
+                </span>
+              )}
+            </div>
+          )
+        })()}
+
         <UnlockBanner
           justUnlocked={justUnlocked}
           isPaid={isPaid}
@@ -353,11 +383,75 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
 
         <MobileTOC />
 
-        {/* ═══ TIER A — verified overview ═══ */}
+        {/* ═══ TIER A — free for all ═══ */}
         <TierDivider
           tier="A"
           title="What the school says — verified"
           subtitle="Facts and figures as published by the school, cross-checked against primary sources."
+        />
+
+        <VerdictBox verdict={verdict} />
+
+        <KeyFactsGrid
+          founded={school.founded_year || lead.founded}
+          head={headObj?.name || null}
+          chair={chairName}
+          gender={school.gender_split}
+          ageMin={school.age_min}
+          ageMax={school.age_max}
+          studentCount={structured?.student_count || school.student_count}
+          boarderCount={structured?.boarder_count}
+          feesMin={structured?.fees_local_min || structured?.fees_min}
+          feesMax={structured?.fees_local_max || structured?.fees_max}
+          feesCurrency={structured?.fees_local_currency || structured?.fees_currency}
+          sixthFormOffer={sixthFormShort}
+          inspectorate={school.country === 'United Kingdom' ? 'ISI' : null}
+          inspectionDate={isi?.shortDate}
+          charityNumber={charity?.number}
+          charityLegalName={charity?.legalName}
+        />
+
+        {recentItems.length > 0 && <RecentSection items={recentItems} />}
+
+        <LocationSection
+          location={structured?.location_profile ?? null}
+          schoolName={school.name}
+        />
+
+        {/* Sports overview always free; deep sections gated */}
+        <section className="block" id="sports-athletics">
+          <h2 className="block-title">Sports &amp; Athletics</h2>
+          <SportsSection sports={structured?.sports_profile} headless compact={!isPaid} />
+          {isPaid && (hasMeaningfulTennisData(structured?.sports_profile?.tennis) || hasMeaningfulRugbyData(structured?.sports_profile?.rugby) || hasMeaningfulFootballData(structured?.sports_profile?.football) || hasMeaningfulHockeyData(structured?.sports_profile?.hockey)) && (
+            <>
+              <h3 className="block-sub sports-major-heading">Major sports</h3>
+              {hasMeaningfulTennisData(structured?.sports_profile?.tennis) && (
+                <TennisSection tennis={structured?.sports_profile?.tennis} headless />
+              )}
+              {hasMeaningfulRugbyData(structured?.sports_profile?.rugby) && (
+                <RugbySection rugby={structured?.sports_profile?.rugby} headless />
+              )}
+              {hasMeaningfulFootballData(structured?.sports_profile?.football) && (
+                <FootballSection football={structured?.sports_profile?.football} headless />
+              )}
+              {hasMeaningfulHockeyData(structured?.sports_profile?.hockey) && (
+                <HockeySection
+                  hockey={structured?.sports_profile?.hockey}
+                  sportsProfile={structured?.sports_profile}
+                  archives={hockeyArchives}
+                  schoolName={school.name ?? ''}
+                  headless
+                />
+              )}
+            </>
+          )}
+        </section>
+
+        {/* ═══ TIER B — locked for free visitors ═══ */}
+        <TierDivider
+          tier="B"
+          title="What the public data shows"
+          subtitle="Our analysis of exam results, destinations, admissions, community, fees detail, and more."
         />
 
         {!isPaid ? (
@@ -371,36 +465,7 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
           />
         ) : (
           <>
-            <VerdictBox verdict={verdict} />
-
             <ParentFit fit={parentFit} />
-
-            <KeyFactsGrid
-              founded={school.founded_year || lead.founded}
-              head={headObj?.name || null}
-              chair={chairName}
-              gender={school.gender_split}
-              ageMin={school.age_min}
-              ageMax={school.age_max}
-              studentCount={structured?.student_count || school.student_count}
-              boarderCount={structured?.boarder_count}
-              feesMin={structured?.fees_local_min || structured?.fees_min}
-              feesMax={structured?.fees_local_max || structured?.fees_max}
-              feesCurrency={structured?.fees_local_currency || structured?.fees_currency}
-              sixthFormOffer={sixthFormShort}
-              inspectorate={school.country === 'United Kingdom' ? 'ISI' : null}
-              inspectionDate={isi?.shortDate}
-              charityNumber={charity?.number}
-              charityLegalName={charity?.legalName}
-            />
-
-            {recentItems.length > 0 && <RecentSection items={recentItems} />}
-
-            <TierDivider
-              tier="B"
-              title="What the public data shows"
-              subtitle="Our analysis of published exam results, destinations, sports, community, and fees."
-            />
 
             <CurriculumSection
               curriculum={structured?.curriculum}
@@ -436,37 +501,6 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
               totalPupils={structured?.student_count || school.student_count}
             />
 
-            {/* Sports & Athletics — its own top-level group in the TOC,
-                so the body section sits after Daily life to keep body
-                order in sync with the sidebar. */}
-            <section className="block" id="sports-athletics">
-              <h2 className="block-title">Sports &amp; Athletics</h2>
-
-              <SportsSection sports={structured?.sports_profile} headless />
-
-              {(hasMeaningfulTennisData(structured?.sports_profile?.tennis) || hasMeaningfulRugbyData(structured?.sports_profile?.rugby) || hasMeaningfulFootballData(structured?.sports_profile?.football) || hasMeaningfulHockeyData(structured?.sports_profile?.hockey)) && (
-                <h3 className="block-sub sports-major-heading">Major sports</h3>
-              )}
-              {hasMeaningfulTennisData(structured?.sports_profile?.tennis) && (
-                <TennisSection tennis={structured?.sports_profile?.tennis} headless />
-              )}
-              {hasMeaningfulRugbyData(structured?.sports_profile?.rugby) && (
-                <RugbySection rugby={structured?.sports_profile?.rugby} headless />
-              )}
-              {hasMeaningfulFootballData(structured?.sports_profile?.football) && (
-                <FootballSection football={structured?.sports_profile?.football} headless />
-              )}
-              {hasMeaningfulHockeyData(structured?.sports_profile?.hockey) && (
-                <HockeySection
-                  hockey={structured?.sports_profile?.hockey}
-                  sportsProfile={structured?.sports_profile}
-                  archives={hockeyArchives}
-                  schoolName={school.name ?? ''}
-                  headless
-                />
-              )}
-            </section>
-
             <FeesSection
               feesMin={structured?.fees_local_min || structured?.fees_min}
               feesMax={structured?.fees_local_max || structured?.fees_max}
@@ -476,11 +510,6 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
               applicationFee={structured?.application_fee_usd}
               scholarships={structured?.scholarships_available}
               bursariesNote={structured?.bursary_note}
-            />
-
-            <LocationSection
-              location={structured?.location_profile ?? null}
-              schoolName={school.name}
             />
 
             <TierDivider
@@ -588,9 +617,24 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
         <Glossary />
 
         <Sources sources={sourcesList} />
+
+        {isPaid && <VisitNotes slug={slug} />}
       </div>
 
-      {isPaid && <NanaPanel slug={slug} schoolName={school.name} />}
+      {isPaid && userEmail && (
+        <span
+          aria-hidden="true"
+          style={{
+            position: 'fixed', bottom: 0, left: 0, opacity: 0.004,
+            fontSize: '7px', color: '#000', pointerEvents: 'none',
+            userSelect: 'none', zIndex: -1, whiteSpace: 'nowrap',
+          }}
+        >
+          {userEmail}
+        </span>
+      )}
+
+      <NanaPanel slug={slug} schoolName={school.name} isPaid={isPaid} />
     </main>
   )
 }

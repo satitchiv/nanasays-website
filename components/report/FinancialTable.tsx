@@ -29,21 +29,14 @@ function fmtMoney(n?: number | null, prefix = '£') {
 
 export default function FinancialTable({ years, currencyPrefix = '£' }: Props) {
   if (!years || years.length === 0) {
-    return (
-      <section className="block" id="financial">
-        <h2 className="block-title">Financial health</h2>
-        <p>No Charity Commission financial data available for this school yet.</p>
-      </section>
-    )
+    return <p>No Charity Commission financial data available for this school yet.</p>
   }
 
   const latest = years[years.length - 1]
   const surplus = (latest.gross_income ?? 0) - (latest.total_expenditure ?? 0)
 
   return (
-    <section className="block" id="financial">
-      <h2 className="block-title">Financial health</h2>
-
+    <>
       <div className="fin-primer">
         <p>
           <strong>Total assets</strong> = everything the school owns (buildings, playing fields, cash in the bank).<br />
@@ -97,6 +90,6 @@ export default function FinancialTable({ years, currencyPrefix = '£' }: Props) 
           ))}
         </tbody>
       </table>
-    </section>
+    </>
   )
 }

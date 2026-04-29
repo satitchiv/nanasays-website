@@ -17,6 +17,7 @@
  */
 
 import { useState, useRef, FormEvent, useEffect } from 'react'
+import Link from 'next/link'
 import './nana-panel.css'
 
 // Maps chunk category → report DOM id (DOM ids use different naming conventions)
@@ -90,12 +91,12 @@ type FinalPayload = {
 type StreamEvent =
   | { type: 'retrieval'; payload: any }
   | { type: 'token'; text: string }
-  | { type: 'final'; payload: FinalPayload }
+  | { type: 'final'; payload: FinalPayload; shareToken?: string }
   | { type: 'error'; error: string; code: string }
 
-type Props = { slug: string; schoolName?: string }
+type Props = { slug: string; schoolName?: string; isPaid?: boolean }
 
-export default function NanaPanel({ slug, schoolName = 'this school' }: Props) {
+export default function NanaPanel({ slug, schoolName = 'this school', isPaid = true }: Props) {
   const [open, setOpen] = useState(false)
   const [question, setQuestion] = useState('')
   const [streaming, setStreaming] = useState(false)
@@ -104,6 +105,8 @@ export default function NanaPanel({ slug, schoolName = 'this school' }: Props) {
   const [final, setFinal] = useState<FinalPayload | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [askedQuestion, setAskedQuestion] = useState('')
+  const [devilsAdvocate, setDevilsAdvocate] = useState(false)
+  const [shareToken, setShareToken] = useState<string | null>(null)
   const abortRef = useRef<AbortController | null>(null)
 
   // Lora font load (idempotent — fine if it lands twice across the page)
@@ -136,6 +139,7 @@ export default function NanaPanel({ slug, schoolName = 'this school' }: Props) {
     setStreamBuf('')
     setFinal(null)
     setError(null)
+    setShareToken(null)
   }
 
   async function ask(e?: FormEvent, override?: string) {
@@ -161,7 +165,7 @@ export default function NanaPanel({ slug, schoolName = 'this school' }: Props) {
       const res = await fetch(`/api/nana-parent-chatbot/${slug}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: q }),
+        body: JSON.stringify({ question: q, devilsAdvocate }),
         signal: controller.signal,
       })
 
@@ -245,11 +249,25 @@ export default function NanaPanel({ slug, schoolName = 'this school' }: Props) {
           setError(why)
         }
         setFinal(evt.payload)
+        if (evt.shareToken) setShareToken(evt.shareToken)
         break
       case 'error':
         setError(`[${evt.code}] ${evt.error}`)
         break
     }
+  }
+
+  if (!isPaid) {
+    return (
+      <Link
+        href={`/unlock?from=/schools/${slug}/report`}
+        aria-label="Unlock Nana"
+        className="nana-handle nana-handle-locked"
+      >
+        <span className="nana-handle-lock">🔒</span>
+        <span className="nana-handle-text">ASK NANA</span>
+      </Link>
+    )
   }
 
   return (
@@ -274,6 +292,14 @@ export default function NanaPanel({ slug, schoolName = 'this school' }: Props) {
             <h2 className="nana-title">Nana</h2>
             <span className="nana-sub">reading {schoolName}</span>
             <button
+              className={`nana-devil-toggle${devilsAdvocate ? ' active' : ''}`}
+              onClick={() => setDevilsAdvocate(d => !d)}
+              title={devilsAdvocate ? "Devil's advocate on — click to turn off" : "Turn on devil's advocate mode"}
+              aria-label="Toggle devil's advocate mode"
+            >
+              🔍
+            </button>
+            <button
               className="nana-close"
               onClick={closePanel}
               aria-label="Close"
@@ -285,6 +311,7 @@ export default function NanaPanel({ slug, schoolName = 'this school' }: Props) {
           <div className="nana-body">
             {!askedQuestion && !streaming && (
               <Hero
+                slug={slug}
                 schoolName={schoolName}
                 onPick={(q) => ask(undefined, q)}
               />
@@ -312,6 +339,19 @@ export default function NanaPanel({ slug, schoolName = 'this school' }: Props) {
                 parsed={final.parsed}
                 validationIssues={final.validationIssues || []}
               />
+            )}
+
+            {final?.parsed && shareToken && (
+              <div className="nana-share-row">
+                <a
+                  href={`/nana/answer/${shareToken}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="nana-share-btn"
+                >
+                  Share this answer →
+                </a>
+              </div>
             )}
 
             {error && (
@@ -360,23 +400,38 @@ export default function NanaPanel({ slug, schoolName = 'this school' }: Props) {
 
 // ── Hero (State 0) ───────────────────────────────────────────────────────────
 function Hero({
+  slug,
   schoolName,
   onPick,
 }: {
+  slug: string
   schoolName: string
   onPick: (q: string) => void
 }) {
-  const starters = [
-    `What are ${schoolName}'s fees?`,
-    `Will my son be happy at ${schoolName}?`,
-    `What's it really like to be a pupil here?`,
+  const fallback = [
+    { text: `What are ${schoolName}'s fees and what's included?` },
+    { text: `Will my child be happy at ${schoolName}?` },
+    { text: `What's it really like to be a pupil here?` },
   ]
+  const [starters, setStarters] = useState(fallback)
+
+  useEffect(() => {
+    fetch(`/api/nana-starters/${slug}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (Array.isArray(data?.starters) && data.starters.length >= 2) {
+          setStarters(data.starters)
+        }
+      })
+      .catch(() => {})
+  }, [slug])
+
   return (
     <div className="nana-hero">
-      <div className="nana-hero-greeting">Hi — I'm Nana.</div>
+      <div className="nana-hero-greeting">Hi — I&apos;m Nana.</div>
       <div className="nana-hero-claim">
-        I've read this entire report and every page of {schoolName}'s public site.
-        Ask me anything — I'll show you exactly where the answer came from.
+        I&apos;ve read this entire report and every page of {schoolName}&apos;s public site.
+        Ask me anything — I&apos;ll show you exactly where the answer came from.
       </div>
       <div className="nana-hero-starters-label">PARENTS USUALLY START WITH</div>
       <div className="nana-hero-starters">
@@ -384,9 +439,9 @@ function Hero({
           <button
             key={i}
             className="nana-starter"
-            onClick={() => onPick(s)}
+            onClick={() => onPick(s.text)}
           >
-            <span>{s}</span>
+            <span>{s.text}</span>
             <span className="nana-starter-arrow">→</span>
           </button>
         ))}
@@ -561,8 +616,61 @@ function AnswerLayout({
   )
   const showSources = sources.length > 0 && !citationFailure
 
+  // Sources sidebar JSX — shared between inline (mobile) and sidebar (desktop)
+  const sourcesList = showSources ? (
+    <div className="nana-sources-sidebar">
+      <div className="nana-eyebrow">Sources</div>
+      <div className="nana-sources">
+        {sources.map((src, i) => {
+          const safeHref = isSafeHttpUrl(src.source_url)
+          const label = src.section_label || src.section_id || src.source_url || 'source'
+          if (safeHref) {
+            return (
+              <a
+                key={i}
+                href={safeHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="nana-pill nana-pill-ext"
+              >
+                {label} ↗
+              </a>
+            )
+          }
+          const rawId = src.section_id || ''
+          const domId = SECTION_DOM_ID[rawId] ?? rawId
+          return (
+            <button
+              key={i}
+              className="nana-pill nana-pill-scroll"
+              onClick={() => {
+                if (!domId) return
+                const el = document.getElementById(domId)
+                if (!el) return
+                el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+                el.classList.remove('nana-section-highlight')
+                void el.offsetWidth
+                el.classList.add('nana-section-highlight')
+                setTimeout(() => el.classList.remove('nana-section-highlight'), 1800)
+              }}
+            >
+              {label} ↑
+            </button>
+          )
+        })}
+      </div>
+      {parsed.confidence && (
+        <div className="nana-sidebar-confidence">
+          Confidence: <strong>{parsed.confidence}</strong>
+        </div>
+      )}
+    </div>
+  ) : null
+
   return (
     <article className="nana-answer">
+      <div className="nana-answer-grid">
+      <div className="nana-answer-main">
       {hasIssues && (
         <div className="nana-validation-warn">
           <strong>⚠ Some checks didn't pass on this answer.</strong>
@@ -646,52 +754,6 @@ function AnswerLayout({
         </>
       )}
 
-      {showSources && (
-        <>
-          <div className="nana-eyebrow">Sources</div>
-          <div className="nana-sources">
-            {sources.map((src, i) => {
-              const safeHref = isSafeHttpUrl(src.source_url)
-              const label =
-                src.section_label || src.section_id || src.source_url || 'source'
-              if (safeHref) {
-                return (
-                  <a
-                    key={i}
-                    href={safeHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="nana-pill nana-pill-ext"
-                  >
-                    {label} ↗
-                  </a>
-                )
-              }
-              const rawId = src.section_id || ''
-              const domId = SECTION_DOM_ID[rawId] ?? rawId
-              return (
-                <button
-                  key={i}
-                  className="nana-pill nana-pill-scroll"
-                  onClick={() => {
-                    if (!domId) return
-                    const el = document.getElementById(domId)
-                    if (!el) return
-                    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
-                    el.classList.remove('nana-section-highlight')
-                    void el.offsetWidth // force reflow so re-adding restarts animation
-                    el.classList.add('nana-section-highlight')
-                    setTimeout(() => el.classList.remove('nana-section-highlight'), 1800)
-                  }}
-                >
-                  {label} ↑
-                </button>
-              )
-            })}
-          </div>
-        </>
-      )}
-
       {followUps.length > 0 && (
         <>
           <div className="nana-eyebrow">You Might Also Ask</div>
@@ -708,6 +770,10 @@ function AnswerLayout({
       <div className="nana-closer">
         Want me to dig into any of this further? — Nana
       </div>
+      </div>{/* end nana-answer-main */}
+
+      {sourcesList}
+      </div>{/* end nana-answer-grid */}
     </article>
   )
 }
