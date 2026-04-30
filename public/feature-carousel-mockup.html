@@ -6,6 +6,9 @@
 <title>Nanasays — Feature Carousel</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<!-- Leaflet for the real country map (matches /countries/[slug] page) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -106,7 +109,7 @@ html, body { font-family: var(--sans); background: var(--off); color: var(--body
 }
 .pause-btn:hover { border-color: var(--navy); color: var(--navy); }
 
-.panel-body { display: flex; gap: 28px; padding: 18px 28px 28px; min-height: 340px; }
+.panel-body { display: flex; gap: 28px; padding: 18px 28px 28px; min-height: 340px; max-height: 480px; }
 .panel-copy { flex: 1; min-width: 0; padding-top: 4px; }
 .panel-copy p { font-size: 14px; line-height: 1.7; color: var(--muted); margin-top: 8px; max-width: 300px; }
 .panel-copy ul { margin-top: 16px; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
@@ -118,7 +121,8 @@ html, body { font-family: var(--sans); background: var(--off); color: var(--body
 }
 .panel-mock {
   flex: 1.4; min-width: 0; background: var(--off); border-radius: 12px;
-  border: 1px solid var(--border); overflow: hidden; min-height: 260px;
+  border: 1px solid var(--border); overflow: hidden;
+  min-height: 260px; max-height: 440px;
   display: flex; flex-direction: column;
 }
 
@@ -368,9 +372,263 @@ html, body { font-family: var(--sans); background: var(--off); color: var(--body
 .niche-name { font-size: 12px; font-weight: 800; color: var(--navy); flex: 1; }
 .niche-pct { font-size: 11px; font-weight: 700; color: var(--teal-dk); }
 
+/* ══════════════════════════════════════════════════════════════════════
+   NEW STYLES — section dividers, dossier, verdict, research panel,
+   UK map, view tabs, capability badges
+══════════════════════════════════════════════════════════════════════ */
+
+/* ── Section divider ── */
+.section-block { margin-top: 88px; }
+.section-eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; color: var(--teal-dk); margin-bottom: 12px; text-align: center; }
+.section-headline { font-family: var(--head); font-size: clamp(24px,3.4vw,38px); font-weight: 900; text-align: center; color: var(--navy); line-height: 1.15; letter-spacing: -.5px; margin-bottom: 10px; }
+.section-headline em { color: var(--teal); font-style: normal; }
+.section-sub { text-align: center; font-size: 15px; color: var(--muted); max-width: 480px; margin: 0 auto 32px; line-height: 1.6; }
+
+/* ── DOSSIER (Parents Tab 2 left pane) ── */
+.dossier-pane { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+.dossier-hdr { padding: 14px 18px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; background: #fff; }
+.dossier-kicker { font-size: 10px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; color: var(--teal-dk); margin-bottom: 5px; }
+.dossier-title { font-family: var(--head); font-size: 15px; font-weight: 900; color: var(--navy); line-height: 1.25; }
+.dossier-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; background: var(--border); flex-shrink: 0; }
+.dossier-stat { background: #fff; padding: 8px 6px; text-align: center; }
+.dossier-stat-val { font-family: var(--head); font-size: 16px; font-weight: 900; color: var(--navy); }
+.dossier-stat-val em { color: var(--teal); font-style: normal; }
+.dossier-stat-lbl { font-size: 9px; color: var(--muted); margin-top: 1px; font-weight: 700; line-height: 1.2; }
+
+/* ── 22-row TOC ── */
+.toc-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 3px; background: var(--off); }
+.toc-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: #fff; border-radius: 7px; border: 1px solid var(--border); cursor: pointer; transition: border-color .15s, background .15s; }
+.toc-row:hover { border-color: var(--teal); }
+.toc-row.open { border-color: var(--teal); background: var(--teal-bg); }
+.toc-num { font-size: 10px; font-weight: 900; color: var(--muted); width: 18px; text-align: center; flex-shrink: 0; }
+.toc-row.open .toc-num { color: var(--teal-dk); }
+.toc-label { font-size: 12px; font-weight: 700; color: var(--navy); flex: 1; line-height: 1.3; }
+.toc-chip { font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 100px; background: var(--off2); color: var(--muted); flex-shrink: 0; }
+.toc-chip.green { background: var(--teal-bg); color: var(--teal-dk); }
+.toc-chip.amber { background: #FFF3CD; color: #856404; }
+.toc-expand { max-height: 0; overflow: hidden; transition: max-height .35s ease; padding: 0 10px 0 36px; background: #fff; border-radius: 0 0 7px 7px; }
+.toc-row.open + .toc-expand { max-height: 320px; padding: 8px 12px 12px 36px; border-left: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); margin-top: -3px; border-top: none; border-radius: 0 0 7px 7px; }
+.toc-expand-text { font-size: 11px; color: var(--body); line-height: 1.6; }
+.toc-expand-table { width: 100%; font-size: 11px; border-collapse: collapse; margin-top: 6px; }
+.toc-expand-table th { background: var(--off); padding: 5px 8px; text-align: left; font-weight: 800; color: var(--navy); border: 1px solid var(--border); font-size: 10px; }
+.toc-expand-table td { padding: 5px 8px; border: 1px solid var(--border); color: var(--body); }
+.toc-expand-table .tier-1 { color: var(--teal-dk); font-weight: 800; }
+.toc-quote { background: var(--off); border-left: 3px solid var(--teal); padding: 8px 12px; font-style: italic; font-size: 11px; color: var(--body); margin-top: 6px; line-height: 1.5; border-radius: 0 6px 6px 0; }
+.toc-quote-cite { display: block; font-style: normal; font-size: 10px; color: var(--muted); margin-top: 4px; font-weight: 700; }
+
+/* ── Verdict box (right pane Parents Tab 2) ── */
+.verdict-pane { background: var(--navy); padding: 16px 18px; height: 100%; overflow-y: auto; color: #fff; }
+.verdict-kicker { display: flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; color: var(--teal); margin-bottom: 8px; }
+.verdict-kicker::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--teal); }
+.verdict-headline { font-family: var(--head); font-size: 14px; font-weight: 900; line-height: 1.3; margin-bottom: 7px; color: #fff; }
+.verdict-body { font-size: 11px; line-height: 1.55; color: rgba(255,255,255,.75); margin-bottom: 12px; }
+.verdict-lights { display: grid; grid-template-columns: repeat(2,1fr); gap: 5px; margin-bottom: 12px; }
+.vlight { background: rgba(255,255,255,.06); border-radius: 7px; padding: 7px 9px; }
+.vlight-label { font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.6); margin-bottom: 2px; }
+.vlight-value { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; color: #fff; }
+.vlight-dot { width: 8px; height: 8px; border-radius: 50%; }
+.vlight.green .vlight-dot { background: #34C3A0; box-shadow: 0 0 0 2px rgba(52,195,160,.25); }
+.vlight.amber .vlight-dot { background: #F5A623; box-shadow: 0 0 0 2px rgba(245,166,35,.25); }
+.vlight.red .vlight-dot { background: #E5616E; box-shadow: 0 0 0 2px rgba(229,97,110,.25); }
+.vsplit { background: rgba(255,255,255,.06); border-radius: 7px; padding: 8px 10px; margin-bottom: 5px; border-left: 3px solid var(--teal); }
+.vsplit.warn { border-left-color: #F5A623; }
+.vsplit-label { font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.55); margin-bottom: 3px; }
+.vsplit-text { font-size: 11px; line-height: 1.4; color: rgba(255,255,255,.92); }
+.verdict-qs-label { font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.55); margin: 14px 0 7px; }
+.verdict-q { background: rgba(255,255,255,.06); border-radius: 7px; padding: 7px 10px; margin-bottom: 4px; }
+.verdict-q-cat { font-size: 9px; font-weight: 800; color: var(--teal); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 2px; }
+.verdict-q-text { font-size: 11px; color: rgba(255,255,255,.92); line-height: 1.4; }
+
+/* ── RESEARCH SOURCES PANEL (Parents Tab 3 left) ── */
+.research-pane { width: 38%; flex-shrink: 0; background: var(--off); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+.research-hdr { display: flex; align-items: center; gap: 7px; padding: 10px 13px; background: #fff; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.research-pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); animation: pulse 2s infinite; flex-shrink: 0; }
+.research-title { font-size: 11px; font-weight: 800; color: var(--navy); }
+.research-section-label { font-size: 9px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 8px 13px 5px; flex-shrink: 0; }
+.source-list { flex: 1; overflow-y: auto; padding: 0 8px 8px; display: flex; flex-direction: column; gap: 5px; }
+.source-card { background: #fff; border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 10px; transition: border-color .25s, background .25s, box-shadow .25s; position: relative; }
+.source-card.active { border-color: var(--teal); background: var(--teal-bg); box-shadow: 0 4px 14px rgba(52,195,160,.2); }
+.source-card.active .source-reading { display: flex; }
+.source-row { display: flex; align-items: flex-start; gap: 7px; }
+.source-icon { font-size: 14px; flex-shrink: 0; line-height: 1; padding-top: 1px; }
+.source-name { font-size: 11px; font-weight: 800; color: var(--navy); line-height: 1.3; }
+.source-meta { font-size: 10px; color: var(--muted); margin-top: 2px; line-height: 1.3; }
+.source-verified { font-size: 9px; color: var(--muted); margin-top: 3px; opacity: .7; }
+.source-reading { display: none; align-items: center; gap: 4px; font-size: 9px; font-weight: 800; color: var(--teal-dk); margin-top: 5px; padding: 3px 7px; background: rgba(52,195,160,.15); border-radius: 100px; width: fit-content; letter-spacing: .08em; text-transform: uppercase; }
+.source-reading::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--teal); animation: pulse 1.2s infinite; }
+
+/* Right side of split — wider chat */
+.research-chat { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+/* ── UK MAP (Walkthrough Step 3) ── */
+.map-wrap { background: #0d1f35; border-radius: 12px; padding: 14px; position: relative; overflow: hidden; }
+.map-area { position: relative; height: 290px; width: 100%; }
+.map-area svg { display: block; max-height: 100%; margin: 0 auto; filter: drop-shadow(0 0 12px rgba(52,195,160,.12)); }
+.map-dot-wrap { position: absolute; pointer-events: none; transform: translate(-50%,-50%); }
+.map-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 4px rgba(52,195,160,.25), 0 0 12px rgba(52,195,160,.5); cursor: pointer; pointer-events: auto; position: relative; }
+.map-dot.lg { width: 16px; height: 16px; box-shadow: 0 0 0 6px rgba(52,195,160,.25), 0 0 16px rgba(52,195,160,.6); }
+.map-dot::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid var(--teal); animation: map-pulse 2s ease-out infinite; }
+@keyframes map-pulse { 0%{opacity:.8;transform:scale(.6)} 70%{opacity:0;transform:scale(1.6)} 100%{opacity:0} }
+.map-dot-label { position: absolute; left: 50%; top: 100%; transform: translateX(-50%); margin-top: 8px; background: #fff; color: var(--navy); font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px; white-space: nowrap; opacity: 0; transition: opacity .15s; pointer-events: none; }
+.map-dot-wrap:hover .map-dot-label { opacity: 1; }
+.map-legend { position: absolute; top: 12px; right: 12px; background: rgba(255,255,255,.08); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,.15); border-radius: 8px; padding: 6px 10px; font-size: 10px; color: rgba(255,255,255,.85); font-weight: 700; }
+.map-legend strong { color: var(--teal); }
+
+/* Region breakdown grid below map */
+.region-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 6px; padding: 10px 14px 14px; background: var(--off); }
+.region-card { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 9px 8px; text-align: center; cursor: pointer; transition: border-color .15s, transform .15s; }
+.region-card:hover { border-color: var(--teal); transform: translateY(-1px); }
+.region-name { font-size: 10px; font-weight: 800; color: var(--navy); line-height: 1.2; }
+.region-count { font-size: 13px; font-family: var(--head); font-weight: 900; color: var(--teal-dk); margin-top: 3px; }
+
+/* ── VIEW TABS (Walkthrough Step 5) ── */
+.view-tabs-row { display: flex; gap: 4px; padding: 12px 16px; background: #fff; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.view-tab { flex: 1; padding: 9px 14px; border-radius: 8px; font-size: 12px; font-weight: 800; font-family: var(--sans); border: 1.5px solid var(--border); background: #fff; color: var(--muted); cursor: pointer; transition: all .15s; text-align: center; position: relative; }
+.view-tab:hover { border-color: var(--navy); color: var(--navy); }
+.view-tab.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+.view-tab .vtab-pulse { display: none; position: absolute; top: 6px; right: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--teal); animation: pulse 2.4s infinite; }
+.view-tab:not(.active) .vtab-pulse { display: block; }
+.view-content { flex: 1; overflow-y: auto; padding: 0; }
+.view-pane { display: none; padding: 14px 16px; opacity: 0; transition: opacity .25s; }
+.view-pane.show { display: block; opacity: 1; }
+
+/* ── CAPABILITY BADGES (Walkthrough Step 2) ── */
+.cap-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; padding: 16px; }
+.cap-badge { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; gap: 8px; }
+.cap-icon { font-size: 16px; flex-shrink: 0; }
+.cap-text { font-size: 11px; font-weight: 700; color: var(--navy); line-height: 1.3; }
+
+/* ── ENHANCED COUNTRY GRID (Walkthrough Step 1) ── */
+.country-grid { display: grid; grid-template-columns: repeat(6,1fr); gap: 5px; padding: 0 16px 14px; }
+.country-card-mini { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 8px 6px; text-align: center; cursor: pointer; transition: border-color .15s, transform .15s; }
+.country-card-mini:hover { border-color: var(--teal); transform: translateY(-1px); }
+.cc-flag { font-size: 18px; display: block; margin-bottom: 2px; line-height: 1; }
+.cc-name { font-size: 9px; font-weight: 800; color: var(--navy); line-height: 1.2; }
+.cc-count { font-size: 9px; color: var(--muted); margin-top: 1px; }
+.region-strip { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 16px 14px; }
+.region-pill { background: var(--navy); color: #fff; font-size: 10px; font-weight: 800; padding: 5px 11px; border-radius: 100px; cursor: pointer; }
+.region-pill em { color: var(--teal); font-style: normal; margin-left: 5px; }
+
+/* ── REPORT NAV (Walkthrough Step 4 left pane) ── */
+.rep-nav { display: flex; gap: 0; padding: 0 14px; background: #fff; border-bottom: 1px solid var(--border); overflow-x: auto; flex-shrink: 0; }
+.rep-nav-tab { padding: 9px 11px; font-size: 11px; font-weight: 700; color: var(--muted); border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; transition: color .15s; }
+.rep-nav-tab.active { color: var(--navy); border-bottom-color: var(--teal); }
+.rep-nav-tab:hover { color: var(--navy); }
+.isi-callout { background: var(--teal-bg); border-left: 3px solid var(--teal); padding: 9px 12px; border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 11px; line-height: 1.5; color: var(--body); }
+.isi-callout strong { color: var(--teal-dk); }
+.sport-tier-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11px; }
+.sport-tier-table th { background: var(--off); padding: 5px 7px; text-align: left; font-size: 10px; font-weight: 800; color: var(--navy); border: 1px solid var(--border); }
+.sport-tier-table td { padding: 5px 7px; border: 1px solid var(--border); color: var(--body); }
+.sport-tier-table .tier-1 { color: var(--teal-dk); font-weight: 800; }
+.fees-mini { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: var(--border); margin-top: 8px; }
+.fees-mini-cell { background: #fff; padding: 8px; text-align: center; }
+.fees-mini-val { font-family: var(--head); font-size: 14px; font-weight: 900; color: var(--navy); }
+.fees-mini-val em { color: var(--teal); font-style: normal; }
+.fees-mini-lbl { font-size: 9px; color: var(--muted); margin-top: 1px; font-weight: 600; }
+
+/* ── HOMEPAGE NAV STRIP (walkthrough step 1) ── */
+.wt-section-header { padding: 12px 18px 8px; }
+.wt-section-label { font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+
+/* ══════════════════════════════════════════════════════════════════════
+   PRICING CARD + CONTEXT TOGGLE (above Parents carousel)
+══════════════════════════════════════════════════════════════════════ */
+.context-toggle-wrap { display: flex; justify-content: center; margin-bottom: 20px; }
+.context-toggle { display: flex; gap: 3px; background: #fff; border: 1.5px solid var(--border); border-radius: 100px; padding: 4px; box-shadow: 0 2px 8px var(--shadow); }
+.ctx-btn { padding: 8px 18px; border-radius: 100px; font-size: 12px; font-weight: 800; border: none; cursor: pointer; background: transparent; color: var(--muted); font-family: var(--sans); transition: background .18s, color .18s; }
+.ctx-btn.active { background: var(--navy); color: #fff; }
+
+.pricing-card { background: var(--navy); border-radius: 16px; padding: 24px 28px; margin-bottom: 28px; color: #fff; box-shadow: 0 8px 32px var(--shadow-lg); }
+.pricing-row { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
+.pricing-left { flex: 1; min-width: 240px; }
+.pricing-eyebrow { font-size: 10px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; color: var(--teal); margin-bottom: 8px; }
+.pricing-headline { font-family: var(--head); font-size: 22px; font-weight: 900; color: #fff; line-height: 1.2; margin-bottom: 6px; }
+.pricing-headline em { color: var(--teal); font-style: normal; }
+.pricing-price { font-family: var(--head); font-size: 32px; font-weight: 900; color: #fff; }
+.pricing-price small { font-size: 14px; font-weight: 700; color: rgba(255,255,255,.5); margin-left: 6px; }
+.pricing-cancel { font-size: 11px; color: rgba(255,255,255,.55); margin-top: 4px; font-weight: 600; }
+.pricing-bullets { flex: 1.4; min-width: 280px; }
+.pricing-bullets ul { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 7px 16px; }
+.pricing-bullets li { display: flex; align-items: flex-start; gap: 7px; font-size: 12px; color: rgba(255,255,255,.92); line-height: 1.4; font-weight: 600; }
+.pricing-bullets li::before { content: "✓"; display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: rgba(52,195,160,.2); color: var(--teal); font-size: 10px; font-weight: 900; flex-shrink: 0; margin-top: 1px; }
+.pricing-cta { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.pricing-cta-btn { background: var(--teal); color: #fff; border: none; border-radius: 100px; padding: 12px 24px; font-size: 13px; font-weight: 900; font-family: var(--sans); cursor: pointer; white-space: nowrap; transition: background .15s; }
+.pricing-cta-btn:hover { background: var(--teal-dk); }
+.pricing-cta-mini { font-size: 11px; color: rgba(255,255,255,.5); font-weight: 600; }
+
+@media (max-width: 720px) {
+  .pricing-bullets ul { grid-template-columns: 1fr; }
+  .pricing-row { flex-direction: column; align-items: stretch; }
+}
+
 </style>
 </head>
 <body>
+
+<!-- Inline SVG icon sprite (matches /components/IconSprite.tsx) -->
+<svg width="0" height="0" style="position:absolute;pointer-events:none;overflow:hidden;">
+<defs>
+  <symbol id="ic-nana" viewBox="0 0 48 48">
+    <circle cx="24" cy="24" r="24" fill="#1B3252"/>
+    <ellipse cx="24" cy="42" rx="13" ry="9" fill="#C17A4A"/>
+    <rect x="21" y="31" width="6" height="6" rx="2" fill="#F5C8A0"/>
+    <circle cx="24" cy="23" r="11" fill="#F5C8A0"/>
+    <ellipse cx="24" cy="14" rx="7.5" ry="5" fill="#E0E0E0"/>
+    <circle cx="24" cy="11" r="4.5" fill="#EBEBEB"/>
+    <ellipse cx="14" cy="20" rx="4" ry="6" fill="#E0E0E0"/>
+    <ellipse cx="34" cy="20" rx="4" ry="6" fill="#E0E0E0"/>
+    <ellipse cx="17" cy="26" rx="3" ry="2" fill="#F4A0A0" opacity="0.4"/>
+    <ellipse cx="31" cy="26" rx="3" ry="2" fill="#F4A0A0" opacity="0.4"/>
+    <circle cx="20.5" cy="23" r="1.6" fill="#4A3728"/>
+    <circle cx="27.5" cy="23" r="1.6" fill="#4A3728"/>
+    <circle cx="21.2" cy="22.3" r="0.5" fill="#fff"/>
+    <circle cx="28.2" cy="22.3" r="0.5" fill="#fff"/>
+    <circle cx="20.5" cy="23" r="3.5" stroke="#8B6347" stroke-width="1" fill="none"/>
+    <circle cx="27.5" cy="23" r="3.5" stroke="#8B6347" stroke-width="1" fill="none"/>
+    <line x1="23.5" y1="23" x2="24.5" y2="23" stroke="#8B6347" stroke-width="1"/>
+    <line x1="13" y1="21.5" x2="17" y2="22.3" stroke="#8B6347" stroke-width="1"/>
+    <line x1="31" y1="22.3" x2="35" y2="21.5" stroke="#8B6347" stroke-width="1"/>
+    <path d="M20 28 Q24 31.5 28 28" stroke="#C07850" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+    <circle cx="21" cy="35" r="1.2" fill="#F0EDE8"/>
+    <circle cx="24" cy="36.2" r="1.2" fill="#F0EDE8"/>
+    <circle cx="27" cy="35" r="1.2" fill="#F0EDE8"/>
+  </symbol>
+  <symbol id="ic-globe" viewBox="0 0 32 32" fill="none">
+    <circle cx="16" cy="16" r="13" stroke="currentColor" stroke-width="1.8"/>
+    <ellipse cx="16" cy="16" rx="5" ry="13" stroke="currentColor" stroke-width="1.4" fill="none"/>
+    <line x1="3" y1="16" x2="29" y2="16" stroke="currentColor" stroke-width="1.4"/>
+    <path d="M6 10 Q16 8 26 10" stroke="currentColor" stroke-width="1.1" fill="none"/>
+    <path d="M6 22 Q16 24 26 22" stroke="currentColor" stroke-width="1.1" fill="none"/>
+  </symbol>
+  <symbol id="ic-search" viewBox="0 0 32 32" fill="none">
+    <circle cx="13.5" cy="13.5" r="8" stroke="currentColor" stroke-width="2"/>
+    <line x1="19.5" y1="19.5" x2="28" y2="28" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="ic-map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+    <line x1="8" y1="2" x2="8" y2="18"/>
+    <line x1="16" y1="6" x2="16" y2="22"/>
+  </symbol>
+  <symbol id="ic-school" viewBox="0 0 32 32" fill="none">
+    <path d="M4 28 L4 14 L16 5 L28 14 L28 28" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="11" y="18" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.8" fill="none"/>
+    <rect x="14" y="21" width="4" height="7" fill="currentColor" rx="1"/>
+    <path d="M1 14 L16 4 L31 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="ic-grad" viewBox="0 0 32 32" fill="none">
+    <polygon points="16,5 30,12 16,19 2,12" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linejoin="round"/>
+    <rect x="12.5" y="4" width="7" height="4" rx="1" fill="currentColor"/>
+    <line x1="29.5" y1="12" x2="29.5" y2="22" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    <circle cx="29.5" cy="23.5" r="2" fill="currentColor"/>
+    <path d="M11 19 L11 28" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M21 19 L21 28" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    <line x1="11" y1="28" x2="21" y2="28" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="ic-award" viewBox="0 0 32 32" fill="none">
+    <polygon points="16,3 19.5,12.5 30,12.5 21.5,18.5 24.5,28 16,22 7.5,28 10.5,18.5 2,12.5 12.5,12.5" fill="currentColor"/>
+  </symbol>
+</defs>
+</svg>
 
 <!-- Toast -->
 <div class="toast" id="toast"></div>
@@ -380,193 +638,195 @@ html, body { font-family: var(--sans); background: var(--off); color: var(--body
   <h1 class="headline">The smarter way to choose a<br><em>UK independent school</em></h1>
   <p class="sub">Deep research, honest answers, side-by-side comparison — powered by Nana, your AI school advisor.</p>
 
-  <!-- Audience toggle -->
-  <div class="aud-wrap">
-    <div class="audience-toggle">
-      <button class="aud-btn active" data-aud="parents" onclick="switchAud('parents')">👨‍👩‍👧 For Parents</button>
-      <button class="aud-btn" data-aud="agents" onclick="switchAud('agents')">🎓 For Education Agents</button>
+  <!-- ══════ SECTION 1: SCHOOL DETAIL PAGE EMBED ══════ -->
+  <div class="section-block" style="margin-top:0">
+    <div class="section-eyebrow">🏫 Embed on school detail pages</div>
+    <h2 class="section-headline">Smarter choices on <em>100+ UK schools</em></h2>
+    <p class="section-sub">Pricing card + 3 interactive tabs. Designed for parents already viewing a specific school.</p>
+  </div>
+
+  <!-- Pricing card (school detail page) -->
+  <div class="pricing-card" id="pricing-card">
+    <div class="pricing-row">
+      <div class="pricing-left">
+        <div class="pricing-eyebrow">Unlock everything for this school</div>
+        <div class="pricing-headline">Smarter choices on <em>100+ UK schools</em></div>
+        <div class="pricing-price">£39<small>/month</small></div>
+        <div class="pricing-cancel">Cancel anytime · No long-term commitment</div>
+      </div>
+      <div class="pricing-bullets">
+        <ul>
+          <li>Full 34-page deep dossier (22 sections)</li>
+          <li>Ask Nana — backed by 6 verified sources</li>
+          <li>ISI inspection quotes + SOCS data</li>
+          <li>Compare up to <strong>5 schools</strong> side-by-side</li>
+          <li>Save schools to your shortlist</li>
+          <li>Mobile + desktop access</li>
+        </ul>
+      </div>
+      <div class="pricing-cta">
+        <button class="pricing-cta-btn">Try it out →</button>
+      </div>
     </div>
   </div>
 
-  <!-- ══════ PARENTS CAROUSEL ══════ -->
   <div id="car-parents" class="carousel-card">
     <div class="tab-bar" id="tabs-parents">
       <button class="tab-btn active" data-tab="0" onclick="selTab('parents',0)">
-        <span class="tab-icon">🔍</span><span class="tab-label">Discover</span>
-        <span class="tab-desc">Find the right school</span><div class="tab-progress"></div>
+        <span class="tab-icon">📋</span><span class="tab-label">Reports</span>
+        <span class="tab-desc">Read everything</span><div class="tab-progress"></div>
       </button>
       <button class="tab-btn" data-tab="1" onclick="selTab('parents',1)">
-        <span class="tab-icon">📋</span><span class="tab-label">Reports</span>
-        <span class="tab-desc">Deep school insight</span><div class="tab-progress"></div>
+        <span class="tab-icon">💬</span><span class="tab-label">Ask Nana</span>
+        <span class="tab-desc">Honest answers</span><div class="tab-progress"></div>
       </button>
       <button class="tab-btn" data-tab="2" onclick="selTab('parents',2)">
-        <span class="tab-icon">💬</span><span class="tab-label">Ask Nana</span>
-        <span class="tab-desc">Your AI advisor</span><div class="tab-progress"></div>
-      </button>
-      <button class="tab-btn" data-tab="3" onclick="selTab('parents',3)">
         <span class="tab-icon">⚖️</span><span class="tab-label">Compare</span>
-        <span class="tab-desc">Schools side-by-side</span><div class="tab-progress"></div>
+        <span class="tab-desc">Side by side</span><div class="tab-progress"></div>
       </button>
     </div>
 
-    <!-- P0: DISCOVER -->
+    <!-- P0: DEEP REPORT (rich dossier + verdict) -->
     <div class="panel-content active" data-panel="parents-0">
       <div class="panel-header">
         <div>
-          <div class="panel-title">Find the right school for your child</div>
-          <div class="panel-hint">Drag a school into the compare tray · Double-click to save ❤️</div>
+          <div class="panel-title">Read everything — 34 pages</div>
+          <div class="panel-hint">Click any of the 22 sections to expand · Verdict on the right</div>
         </div>
         <button class="pause-btn" onclick="togglePause('parents')">⏸</button>
       </div>
-      <div class="panel-body">
-        <div class="panel-copy">
-          <p>Search 64+ UK independent schools by boarding type, location, specialism, and fees — all in one place.</p>
-          <ul>
-            <li>Filter by boarding, day, or flexi</li>
-            <li>Search by county or town</li>
-            <li>Narrow by arts, sport, or STEM</li>
-            <li>See ISI rating at a glance</li>
-          </ul>
-        </div>
-        <div class="panel-mock" style="overflow:hidden;">
-          <div class="chrome"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div><div class="url">nanasays.com/schools</div></div>
-          <div class="disc-search">
-            <input class="disc-search-input" value="Surrey, boarding" readonly>
-            <div class="disc-search-btn">Search</div>
+      <div class="panel-body" style="padding:18px 20px 24px">
+        <div class="panel-mock" style="flex:1.2;display:flex;flex-direction:row;min-height:420px;background:#fff;padding:0">
+          <!-- LEFT: Dossier (55%) -->
+          <div class="dossier-pane" style="flex:1.22;border-right:1px solid var(--border)">
+            <div class="dossier-hdr">
+              <div class="dossier-kicker">Deep Research Dossier</div>
+              <div class="dossier-title">Queen Ethelburga's · York</div>
+            </div>
+            <div class="dossier-stats">
+              <div class="dossier-stat"><div class="dossier-stat-val"><em>34</em></div><div class="dossier-stat-lbl">pages of analysis</div></div>
+              <div class="dossier-stat"><div class="dossier-stat-val"><em>18</em></div><div class="dossier-stat-lbl">data tables</div></div>
+              <div class="dossier-stat"><div class="dossier-stat-val"><em>12,400+</em></div><div class="dossier-stat-lbl">words of research</div></div>
+              <div class="dossier-stat"><div class="dossier-stat-val"><em>22</em></div><div class="dossier-stat-lbl">primary sources</div></div>
+            </div>
+            <div class="toc-list" id="parents-toc">
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">01</span><span class="toc-label">Verified school overview</span><span class="toc-chip green">✓</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Co-educational independent boarding & day school. Founded 1912. 1,500 pupils ages 0–19. North Yorkshire campus, 220 acres. ISI inspected April 2024 (Excellent across all areas).</div></div>
+
+              <div class="toc-row open" onclick="toggleToc(this)"><span class="toc-num">02</span><span class="toc-label">Academic profile & outcomes</span><span class="toc-chip green">B+ mean</span></div>
+              <div class="toc-expand"><div class="toc-expand-text"><strong>A-Level mean grade: B+</strong>. 87% of cohort achieved ABB or above. 12 subjects offered. Sciences particularly strong — 42 pupils to Medicine over the past 3 years.</div>
+                <table class="toc-expand-table"><tr><th>Subject</th><th>A*–B</th><th>Cohort</th></tr><tr><td>Mathematics</td><td class="tier-1">94%</td><td>78</td></tr><tr><td>Chemistry</td><td class="tier-1">91%</td><td>62</td></tr><tr><td>Biology</td><td>88%</td><td>71</td></tr><tr><td>Economics</td><td>85%</td><td>54</td></tr></table>
+              </div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">03</span><span class="toc-label">GCSE results · grade distribution</span><span class="toc-chip green">8.2 avg</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Mean GCSE grade 8.2. 65% achieved 9–7 (A*/A equivalent). Top performers in Maths, English Lit, History.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">04</span><span class="toc-label">A-Level results · subject-by-subject</span><span class="toc-chip green">12 subjects</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Detailed breakdown across all 12 A-Level subjects with 3-year trend lines, comparing cohort performance to national averages.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">05</span><span class="toc-label">University destinations (UK + int'l)</span><span class="toc-chip green">85% RG</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">85% of 2024 leavers to Russell Group. 12% to Oxbridge. International destinations include Yale, MIT, McGill, ETH Zurich.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">06</span><span class="toc-label">Oxbridge & Russell Group analysis</span><span class="toc-chip green">12% Oxbridge</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">12% of cohort to Oxford or Cambridge. Top placement subjects: Medicine, Engineering, Natural Sciences, Law.</div></div>
+
+              <div class="toc-row open" onclick="toggleToc(this)"><span class="toc-num">07</span><span class="toc-label">Sports profile & competitive tier</span><span class="toc-chip green">Tier 1</span></div>
+              <div class="toc-expand">
+                <table class="toc-expand-table"><tr><th>Sport</th><th>Tier</th><th>Teams</th><th>Recent</th></tr><tr><td>Rugby</td><td class="tier-1">Tier 1</td><td>28</td><td>County champs '24</td></tr><tr><td>Cricket</td><td class="tier-1">Tier 1</td><td>18</td><td>Nat. schools final</td></tr><tr><td>Hockey</td><td class="tier-1">Tier 1</td><td>16</td><td>County finalists</td></tr><tr><td>Tennis</td><td>Tier 2</td><td>12</td><td>SE regional</td></tr></table>
+              </div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">08</span><span class="toc-label">Coaching staff & alumni athletes</span><span class="toc-chip green">3 internationals</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Director of Sport: ex-Saracens 1st XV. 14 specialist coaches. 3 alumni currently playing professional rugby & cricket.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">09</span><span class="toc-label">Facilities audit</span><span class="toc-chip green">Tier 1</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">25m indoor pool, 12 tennis courts, two astroturf pitches, 80-acre grounds, 3 dedicated science blocks, theatre (450 seats), music school.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">10</span><span class="toc-label">Pastoral care model</span><span class="toc-chip green">Excellent</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">House-based pastoral system. 8 boarding houses (4 boys, 4 girls). Each house has 2 resident tutors and a houseparent couple.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">11</span><span class="toc-label">Wellbeing team & ratios</span><span class="toc-chip green">1:90 ratio</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Full-time school counsellor (1 per 90 pupils). Mental health first-aid trained matrons in every boarding house. CAMHS-linked GP onsite weekly.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">12</span><span class="toc-label">Safeguarding record</span><span class="toc-chip green">Met</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">All ISI safeguarding standards met. DSL on staff, all teaching staff DBS-checked & Level 3 trained.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">13</span><span class="toc-label">Student community & nationalities</span><span class="toc-chip green">28 nationalities</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">28 nationalities represented. ~12% international student body. EAL support available for non-native English speakers.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">14</span><span class="toc-label">Fees & hidden extras</span><span class="toc-chip amber">£47k–£52k</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Boarding £47,250/yr. Day £29,400/yr. Music lessons £750/term extra. School trips £200–£2,000/yr.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">15</span><span class="toc-label">Scholarships & bursaries</span><span class="toc-chip green">Up to 100%</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Means-tested bursaries up to 100% of fees. Academic, music, art, drama, and sport scholarships available at 11+ and 13+.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">16</span><span class="toc-label">Admissions & entry requirements</span><span class="toc-chip green">11+, 13+, 16+</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Entry at 11+, 13+ (CE) and 16+. Pre-test for 13+. Average CE score 70%+. 16+ entry needs 8 GCSEs at 7+.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">17</span><span class="toc-label">Regulatory status & filings</span><span class="toc-chip green">Charity 312068</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Registered charity (No. 312068). Companies House filings up to date. ISC member.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">18</span><span class="toc-label">Financial health (3-year trend)</span><span class="toc-chip green">Surplus stable</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Operating surplus stable over 3 years. Reserves: £18M. No outstanding liabilities flagged.</div></div>
+
+              <div class="toc-row open" onclick="toggleToc(this)"><span class="toc-num">19</span><span class="toc-label">ISI inspection record</span><span class="toc-chip green">Excellent</span></div>
+              <div class="toc-expand"><blockquote class="toc-quote">"Pupils are exceptionally well supported by knowledgeable and caring staff. The quality of pupils' personal development is excellent."<span class="toc-quote-cite">— ISI Inspection Report, April 2024</span></blockquote></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">20</span><span class="toc-label">Parent-fit verdict (8 dimensions)</span><span class="toc-chip green">8.2/10</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Scored across 8 parent-fit dimensions: academic rigour, sport, pastoral, value, location, community, facilities, alumni network.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">21</span><span class="toc-label">5 pointed tour questions · with scripts</span><span class="toc-chip green">Ready</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">5 pre-prepared tour questions with the data behind each — designed to surface what brochures hide.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">22</span><span class="toc-label">Methodology & sources</span><span class="toc-chip green">22 sources</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Cross-checked against ISI reports, school prospectus, SOCS sport database, fees register, charity commission filings, and university destination data.</div></div>
+            </div>
           </div>
-          <div class="disc-chips">
-            <div class="chip on">Boarding</div><div class="chip on">Surrey</div>
-            <div class="chip">Day</div><div class="chip">Co-ed</div><div class="chip">Sport</div>
-          </div>
-          <div class="drag-hint">☝️ Drag any school below into the compare tray</div>
-          <div class="disc-list" id="disc-list">
-            <div class="school-card-drag" draggable="true" data-name="Epsom College" data-id="ep" ondragstart="startDrag(event,'ep','Epsom College')" ondragend="endDrag(event)" ondblclick="saveSchool(this,'ep')">
-              <div class="s-badge" style="background:#1B3252">EP</div>
-              <div class="s-info"><div class="s-name">Epsom College</div><div class="s-meta">Surrey · Boarding · Co-ed · 13–18</div></div>
-              <div class="s-tag">ISI Excellent</div>
-              <button class="save-btn" title="Double-click card to save">♡</button>
+
+          <!-- RIGHT: Verdict (45%) -->
+          <div class="verdict-pane" style="flex:1">
+            <div class="verdict-kicker">The one-minute verdict</div>
+            <div class="verdict-headline">Strong across the board — exceptional for the sporty, well-rounded co-ed family</div>
+            <div class="verdict-body">Queen Ethelburga's delivers a well-resourced, co-educational boarding experience on a 220-acre North Yorkshire campus. Academic results are strong without being pressurised. The sport programme is genuinely Tier 1. Pastoral care rated Excellent by ISI.</div>
+            <div class="verdict-lights">
+              <div class="vlight green"><div class="vlight-label">Academic</div><div class="vlight-value"><span class="vlight-dot"></span>B+ mean</div></div>
+              <div class="vlight green"><div class="vlight-label">Sport</div><div class="vlight-value"><span class="vlight-dot"></span>Tier 1</div></div>
+              <div class="vlight green"><div class="vlight-label">Pastoral</div><div class="vlight-value"><span class="vlight-dot"></span>Excellent</div></div>
+              <div class="vlight amber"><div class="vlight-label">Value</div><div class="vlight-value"><span class="vlight-dot"></span>Mid-range</div></div>
             </div>
-            <div class="school-card-drag" draggable="true" data-name="Reed's School" data-id="rs" ondragstart="startDrag(event,'rs',"Reed's School")" ondragend="endDrag(event)" ondblclick="saveSchool(this,'rs')">
-              <div class="s-badge" style="background:#34C3A0">RS</div>
-              <div class="s-info"><div class="s-name">Reed's School</div><div class="s-meta">Surrey · Day & Boarding · Boys · 11–18</div></div>
-              <div class="s-tag">ISI Excellent</div>
-              <button class="save-btn" title="Double-click card to save">♡</button>
-            </div>
-            <div class="school-card-drag" draggable="true" data-name="Cranleigh School" data-id="cr" ondragstart="startDrag(event,'cr','Cranleigh School')" ondragend="endDrag(event)" ondblclick="saveSchool(this,'cr')">
-              <div class="s-badge" style="background:#F5A623">CR</div>
-              <div class="s-info"><div class="s-name">Cranleigh School</div><div class="s-meta">Surrey · Full Boarding · Co-ed · 13–18</div></div>
-              <div class="s-tag">ISI Excellent</div>
-              <button class="save-btn" title="Double-click card to save">♡</button>
-            </div>
-            <div class="school-card-drag" draggable="true" data-name="Charterhouse" data-id="ch" ondragstart="startDrag(event,'ch','Charterhouse')" ondragend="endDrag(event)" ondblclick="saveSchool(this,'ch')">
-              <div class="s-badge" style="background:#8B5CF6">CH</div>
-              <div class="s-info"><div class="s-name">Charterhouse</div><div class="s-meta">Surrey · Full Boarding · Co-ed · 13–18</div></div>
-              <div class="s-tag">ISI Excellent</div>
-              <button class="save-btn" title="Double-click card to save">♡</button>
-            </div>
-          </div>
-          <!-- Compare tray -->
-          <div class="compare-tray">
-            <div class="tray-label">Compare</div>
-            <div class="tray-slots">
-              <div class="tray-slot" id="slot-0" ondragover="allowDrop(event,0)" ondragleave="leaveDrop(0)" ondrop="dropSchool(event,0)">Drop here</div>
-              <div class="tray-slot" id="slot-1" ondragover="allowDrop(event,1)" ondragleave="leaveDrop(1)" ondrop="dropSchool(event,1)">Drop here</div>
-              <div class="tray-slot" id="slot-2" ondragover="allowDrop(event,2)" ondragleave="leaveDrop(2)" ondrop="dropSchool(event,2)">Drop here</div>
-            </div>
-            <button class="compare-tray-btn" id="cmp-btn">Compare →</button>
+            <div class="vsplit"><div class="vsplit-label">✓ Best fit for</div><div class="vsplit-text">Sporty, well-rounded pupils seeking co-ed boarding on a spacious campus with strong pastoral support.</div></div>
+            <div class="vsplit warn"><div class="vsplit-label">— Harder fit for</div><div class="vsplit-text">Families seeking a high-pressure academic environment or single-sex school.</div></div>
+            <div class="verdict-qs-label">Top 3 tour questions</div>
+            <div class="verdict-q"><div class="verdict-q-cat">Academic</div><div class="verdict-q-text">"What % of Year 13 leavers go to Russell Group universities?"</div></div>
+            <div class="verdict-q"><div class="verdict-q-cat">Pastoral</div><div class="verdict-q-text">"How does the house system handle concerns for new boarders?"</div></div>
+            <div class="verdict-q"><div class="verdict-q-cat">Sport</div><div class="verdict-q-text">"Which sports offer county or national competition at U15?"</div></div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- P1: REPORTS -->
+    <!-- P1: ASK NANA (chat only — sources removed) -->
     <div class="panel-content" data-panel="parents-1">
       <div class="panel-header">
         <div>
-          <div class="panel-title">Deep reports — beyond the brochure</div>
-          <div class="panel-hint">Click any section to expand it</div>
+          <div class="panel-title">Ask Nana anything</div>
+          <div class="panel-hint">Click a suggested question · Or type your own</div>
         </div>
         <button class="pause-btn" onclick="togglePause('parents')">⏸</button>
       </div>
-      <div class="panel-body">
-        <div class="panel-copy">
-          <p>Every school gets a structured deep report: academics, ISI inspection findings, pastoral care, sports, fees, and more.</p>
-          <ul>
-            <li>ISI inspection highlights in plain English</li>
-            <li>Sports teams & fixtures data</li>
-            <li>Fees, bursaries & scholarships</li>
-            <li>Admissions & entry points</li>
-          </ul>
-        </div>
-        <div class="panel-mock">
-          <div class="chrome"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div><div class="url">nanasays.com/schools/epsom-college/report</div></div>
-          <div class="rep-header">
-            <div class="rep-school">Epsom College</div>
-            <div class="rep-badge">ISI: Excellent</div>
-          </div>
-          <div class="rep-stats">
-            <div class="rep-stat"><div class="rep-val">£<em>47k</em></div><div class="rep-lbl">Boarding / year</div></div>
-            <div class="rep-stat"><div class="rep-val"><em>900</em></div><div class="rep-lbl">Pupils</div></div>
-            <div class="rep-stat"><div class="rep-val"><em>12</em></div><div class="rep-lbl">Sports</div></div>
-          </div>
-          <div class="rep-sections">
-            <div class="rep-row" onclick="toggleRepRow(this)">
-              <span class="rep-row-icon">🎓</span><span class="rep-row-label">Academic profile</span><span class="rep-chip chip-good">Strong</span>
-            </div>
-            <div class="rep-expand">Strong A-Level results. Mean grade B+. 85% of leavers to Russell Group. Medicine and Sciences particularly strong.</div>
-
-            <div class="rep-row" onclick="toggleRepRow(this)">
-              <span class="rep-row-icon">🏉</span><span class="rep-row-label">Sports & teams</span><span class="rep-chip chip-good">12 sports</span>
-            </div>
-            <div class="rep-expand">Rugby, cricket, hockey, tennis, netball, swimming and more. SOCS data shows 28 rugby teams across age groups. Tier 1 in county fixtures.</div>
-
-            <div class="rep-row" onclick="toggleRepRow(this)">
-              <span class="rep-row-icon">🏠</span><span class="rep-row-label">Boarding & pastoral</span><span class="rep-chip chip-good">Excellent</span>
-            </div>
-            <div class="rep-expand">ISI 2024: "Pupils are exceptionally well supported by knowledgeable and caring staff." 8 boarding houses, co-ed.</div>
-
-            <div class="rep-row" onclick="toggleRepRow(this)">
-              <span class="rep-row-icon">💷</span><span class="rep-row-label">Bursaries available</span><span class="rep-chip chip-mid">Up to 100%</span>
-            </div>
-            <div class="rep-expand">Means-tested bursaries up to 100% of fees. Academic & sport scholarships also available — contact admissions by January.</div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- P2: NANA CHAT -->
-    <div class="panel-content" data-panel="parents-2">
-      <div class="panel-header">
-        <div>
-          <div class="panel-title">Ask Nana — honest answers, no brochure spin</div>
-          <div class="panel-hint">Click a suggested question below to try it</div>
-        </div>
-        <button class="pause-btn" onclick="togglePause('parents')">⏸</button>
-      </div>
-      <div class="panel-body">
-        <div class="panel-copy">
-          <p>Nana is your AI school advisor. Ask anything about a school and get a straight answer grounded in real data — not marketing.</p>
-          <ul>
-            <li>Backed by ISI reports & school data</li>
-            <li>No sales pitch — just honest insight</li>
-            <li>Ask about your child's specific needs</li>
-            <li>Available on every school page</li>
-          </ul>
-        </div>
-        <div class="panel-mock" style="display:flex;flex-direction:column;">
-          <div class="chrome"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div><div class="url">nanasays.com/schools/wycombe-abbey/report</div></div>
+      <div class="panel-body" style="padding:18px 20px 24px">
+        <div class="panel-mock" style="flex:1;display:flex;flex-direction:column;min-height:420px;background:#fff;padding:0">
           <div class="chat-header">
             <div class="nana-dot"></div>
             <div class="chat-nana-label">Nana · AI School Advisor</div>
-            <div class="chat-school-lbl">Wycombe Abbey</div>
+            <div class="chat-school-lbl" id="nana-school-lbl">Queen Ethelburga's</div>
           </div>
           <div class="chat-msgs" id="chat-msgs">
-            <div class="msg nana">Hi! I'm Nana. Ask me anything about Wycombe Abbey — fees, pastoral, arts, sport, fit for your child.</div>
+            <div class="msg nana">Hi! I'm Nana, your AI school advisor. I've read every source on Queen Ethelburga's — ISI report, prospectus, SOCS sports data, fees, university destinations. Ask me anything.</div>
           </div>
           <div class="hint-pills" id="hint-pills">
-            <div class="hint-pill" onclick="askNana(this,'Is it good for a shy artistic girl?')">Is it good for a shy artistic girl?</div>
-            <div class="hint-pill" onclick="askNana(this,'What are the boarding fees?')">What are the boarding fees?</div>
-            <div class="hint-pill" onclick="askNana(this,'How strong is the sport?')">How strong is the sport?</div>
+            <div class="hint-pill" onclick="askNanaSimple(this,'Is it good for a sporty boy?')">Is it good for a sporty boy?</div>
+            <div class="hint-pill" onclick="askNanaSimple(this,'What are the boarding fees?')">What are the boarding fees?</div>
+            <div class="hint-pill" onclick="askNanaSimple(this,'Is there EAL support?')">Is there EAL support?</div>
           </div>
           <div class="chat-input-row">
             <input class="chat-field" placeholder="Ask about this school…" onkeydown="if(event.key==='Enter')sendChat(this)">
@@ -576,31 +836,22 @@ html, body { font-family: var(--sans); background: var(--off); color: var(--body
       </div>
     </div>
 
-    <!-- P3: COMPARE (drag to reorder cols) -->
-    <div class="panel-content" data-panel="parents-3">
+    <!-- P2: COMPARE (drag to reorder cols) -->
+    <div class="panel-content" data-panel="parents-2">
       <div class="panel-header">
         <div>
-          <div class="panel-title">Compare schools side-by-side</div>
+          <div class="panel-title">Compare side by side</div>
           <div class="panel-hint">Drag column headers to reorder</div>
         </div>
         <button class="pause-btn" onclick="togglePause('parents')">⏸</button>
       </div>
-      <div class="panel-body">
-        <div class="panel-copy">
-          <p>Add up to 3 schools to your shortlist and compare them on the metrics that matter most.</p>
-          <ul>
-            <li>One-click add from any school page</li>
-            <li>Head-to-head on 12+ data points</li>
-            <li>Nana highlights the best fit</li>
-            <li>Save & share your comparison</li>
-          </ul>
-        </div>
-        <div class="panel-mock" style="display:flex;flex-direction:column;">
+      <div class="panel-body" style="padding:18px 20px 24px">
+        <div class="panel-mock" style="flex:1;display:flex;flex-direction:column;min-height:420px">
           <div class="chrome"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div><div class="url">nanasays.com/compare</div></div>
           <div class="cmp-wrap" id="cmp-table">
             <!-- built by JS -->
           </div>
-          <div class="cmp-winner">✦ Nana recommends <strong id="cmp-winner-name">Epsom College</strong> — earlier entry + lower fees for Year 7 joiners.</div>
+          <div class="cmp-winner">✦ Nana recommends <strong id="cmp-winner-name">Queen Ethelburga's</strong> — earlier entry + lower fees for Year 7 joiners.</div>
         </div>
       </div>
     </div>
@@ -608,8 +859,14 @@ html, body { font-family: var(--sans); background: var(--off); color: var(--body
   </div><!-- /car-parents -->
 
 
-  <!-- ══════ AGENTS CAROUSEL ══════ -->
-  <div id="car-agents" class="carousel-card" style="display:none">
+  <!-- ══════ SECTION 2: AGENTS ══════ -->
+  <div class="section-block">
+    <div class="section-eyebrow">🎓 For Education Agents</div>
+    <h2 class="section-headline">Your professional toolkit for <em>UK school placements</em></h2>
+    <p class="section-sub">Manage clients, share reports, and pull school intelligence in seconds.</p>
+  </div>
+
+  <div id="car-agents" class="carousel-card">
     <div class="tab-bar" id="tabs-agents">
       <button class="tab-btn active" data-tab="0" onclick="selTab('agents',0)">
         <span class="tab-icon">👥</span><span class="tab-label">Clients</span>
@@ -720,7 +977,7 @@ html, body { font-family: var(--sans); background: var(--off); color: var(--body
           <div class="share-body">
             <div class="share-report-box">
               <div class="share-report-icon">📋</div>
-              <div><div class="share-report-name">Epsom College — Full Report</div><div class="share-report-meta">12 sections · Updated April 2025 · ISI: Excellent</div></div>
+              <div><div class="share-report-name">Queen Ethelburga's — Full Report</div><div class="share-report-meta">12 sections · Updated April 2025 · ISI: Excellent</div></div>
             </div>
             <div class="share-client-box">
               <div class="share-client-lbl">Sending to</div>
@@ -786,13 +1043,11 @@ html, body { font-family: var(--sans); background: var(--off); color: var(--body
 
   </div><!-- /car-agents -->
 
-  <!-- ══════════════════════════════════════════
-       SITE WALKTHROUGH SECTION
-  ══════════════════════════════════════════ -->
-  <div style="margin-top:64px">
-    <div class="eyebrow">Live site demo</div>
-    <h2 class="headline" style="font-size:clamp(22px,3vw,36px);margin-bottom:10px">Browse the site — see how it works</h2>
-    <p class="sub" style="margin-bottom:32px">Click through the steps below to see exactly what you'd experience on nanasays.school — for free.</p>
+  <!-- ══════ SECTION 3: HOMEPAGE EMBED ══════ -->
+  <div class="section-block">
+    <div class="section-eyebrow">🏠 Embed on the homepage</div>
+    <h2 class="section-headline">Browse the site — <em>see how it works</em></h2>
+    <p class="section-sub">A 5-step interactive walkthrough showing parents exactly what they'll experience on nanasays.school.</p>
 
     <!-- Step indicators -->
     <div class="wt-steps" id="wt-steps"></div>
@@ -895,9 +1150,8 @@ html, body { font-family: var(--sans); background: var(--off); color: var(--body
 .wt-page.active {
   opacity:1; transform:translateX(0); pointer-events:auto;
 }
-.wt-page.exit-left {
-  opacity:0; transform:translateX(-30px);
-}
+.wt-page.exit-left { opacity:0; transform:translateX(-30px); }
+.wt-page.exit-right { opacity:0; transform:translateX(30px); }
 
 .wt-footer {
   display:flex; align-items:center; justify-content:space-between;
@@ -927,7 +1181,10 @@ html, body { font-family: var(--sans); background: var(--off); color: var(--body
   backdrop-filter:blur(10px);
 }
 .m-logo { display:flex; align-items:center; gap:7px; }
-.m-logo-icon { width:28px; height:28px; background:var(--navy); border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:13px; }
+.m-logo-icon { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; }
+.m-logo-icon svg { width:100%; height:100%; display:block; }
+/* Step icon SVGs */
+.wt-step-icon-svg { width:14px; height:14px; color:currentColor; vertical-align:middle; margin-right:3px; }
 .m-logo-text { font-family:var(--head); font-size:17px; font-weight:800; color:var(--navy); }
 .m-logo-text em { color:var(--teal); font-style:normal; }
 .m-nav-right { margin-left:auto; display:flex; align-items:center; gap:8px; }
@@ -1084,7 +1341,7 @@ html, body { font-family: var(--sans); background: var(--off); color: var(--body
 <script>
 // ─── STATE ────────────────────────────────────────────
 const S = {
-  parents: { active:0, paused:false, timer:null, count:4 },
+  parents: { active:0, paused:false, timer:null, count:3 },
   agents:  { active:0, paused:false, timer:null, count:4 },
   current: 'parents'
 }
@@ -1190,7 +1447,7 @@ function toggleRepRow(row) {
 
 // ─── COMPARE TABLE (drag cols) ────────────────────────
 const CMP_SCHOOLS = [
-  { name:'Epsom College', fees:'£47,250', isi:'Excellent', type:'Co-ed', entry:'11+, 13+', sports:'12' },
+  { name:"Queen Ethelburga's", fees:'£44,500', isi:'Excellent', type:'Co-ed', entry:'11+, 13+', sports:'14' },
   { name:'Cranleigh School', fees:'£52,350', isi:'Excellent', type:'Co-ed', entry:'13+ only', sports:'15' },
   { name:'Reed\'s School', fees:'£44,100', isi:'Excellent', type:'Boys', entry:'11+, 13+', sports:'10' },
 ]
@@ -1249,7 +1506,7 @@ function cmpDragEnd() { cmpDragIdx=null; buildCmpTable() }
 // ─── CLIENTS PANEL (pill drag) ────────────────────────
 const CLIENTS = [
   { id:'ta', name:'Tanaka Family', sub:'Son, 12 · Boarding · Surrey/Kent', color:'#F5A623', init:'TA',
-    schools:['Epsom College','Cranleigh','Reed\'s'] },
+    schools:["Queen Ethelburga's",'Cranleigh','Reed\'s'] },
   { id:'rm', name:'Rodriguez-Mora', sub:'Daughter, 10 · Girls\' boarding · Oxfordshire', color:'#8B5CF6', init:'RM',
     schools:['Wycombe Abbey','Headington'] },
   { id:'kp', name:'Kim-Park Family', sub:'Twins, 13 · Co-ed day · London', color:'#1B3252', init:'KP',
@@ -1354,147 +1611,138 @@ startTimer('parents')
 //  SITE WALKTHROUGH
 // ══════════════════════════════════════════════════════
 const WT_STEPS = [
-  { label:'Homepage',    icon:'🏠', url:'nanasays.school' },
-  { label:'Search',      icon:'🔍', url:'nanasays.school/?q=United+Kingdom' },
-  { label:'Directory',   icon:'📂', url:'nanasays.school/schools' },
-  { label:'School page', icon:'🏫', url:'nanasays.school/schools/epsom-college' },
-  { label:'Report + Nana', icon:'📋', url:'nanasays.school/schools/epsom-college/report' },
+  { label:'Homepage',     icon:'ic-globe',  url:'nanasays.school' },
+  { label:'Search',       icon:'ic-search', url:'nanasays.school/search' },
+  { label:'Country + Map', icon:'ic-map',   url:'nanasays.school/countries/united-kingdom' },
+  { label:'School page',   icon:'ic-school', url:'nanasays.school/schools/queen-ethelburgas-collegiate' },
+  { label:'Report + Nana', icon:'ic-nana',  url:'nanasays.school/schools/queen-ethelburgas-collegiate/report' },
+  { label:'Report Views',  icon:'ic-award', url:'nanasays.school/schools/queen-ethelburgas-collegiate/report#verdict' },
 ]
 
 const WT_PAGES = [
-  // PAGE 1 — Homepage
+  // PAGE 1 — Homepage (many countries)
   () => `
   <div class="m-nav">
-    <div class="m-logo"><div class="m-logo-icon">🧠</div><div class="m-logo-text">nana<em>says</em></div></div>
-    <div class="m-nav-right">
-      <div class="m-nav-pill">GBP</div>
-      <div class="m-nav-pill">EN</div>
-      <div class="m-nav-cta">For Schools</div>
-    </div>
+    <div class="m-logo"><div class="m-logo-icon"><svg viewBox="0 0 48 48"><use href="#ic-nana"/></svg></div><div class="m-logo-text">nana<em>says</em></div></div>
+    <div class="m-nav-right"><div class="m-nav-pill">GBP</div><div class="m-nav-pill">EN</div><div class="m-nav-cta">For Schools</div></div>
   </div>
-  <div class="m-hero">
-    <div class="m-hero-eyebrow">10,000+ schools · 100+ countries</div>
-    <div class="m-hero-h1">Find the right school for<br>your <em>child abroad</em></div>
-    <div class="m-hero-sub">Search, compare, and get honest AI guidance on international schools worldwide.</div>
+  <div class="m-hero" style="padding:36px 24px 30px">
+    <div class="m-hero-eyebrow">Trusted by international families worldwide</div>
+    <div class="m-hero-h1" style="font-size:26px">Find the right school for<br>your <em>child abroad</em></div>
+    <div class="m-hero-sub" style="margin-bottom:18px">10,000+ verified international schools across 166 countries — with honest AI guidance from Nana.</div>
     <div class="m-hero-search">
-      <input class="m-hero-input" id="wt-hero-input" placeholder="Search by school name, country, or type…" readonly>
-      <button class="m-hero-btn">Search</button>
+      <input class="m-hero-input" placeholder="Search by school name, country, or curriculum…" readonly>
+      <button class="m-hero-btn" onclick="wtNav(1)">Search</button>
     </div>
-    <div class="m-hero-proof">
-      <div class="m-proof-stat"><div class="m-proof-num">10,<em>000</em>+</div><div class="m-proof-label">Schools worldwide</div></div>
-      <div class="m-proof-stat"><div class="m-proof-num"><em>100</em>+</div><div class="m-proof-label">Countries</div></div>
+    <div class="m-hero-proof" style="margin-top:18px">
+      <div class="m-proof-stat"><div class="m-proof-num">10,<em>000</em>+</div><div class="m-proof-label">Schools</div></div>
+      <div class="m-proof-stat"><div class="m-proof-num"><em>166</em></div><div class="m-proof-label">Countries</div></div>
       <div class="m-proof-stat"><div class="m-proof-num"><em>64</em></div><div class="m-proof-label">Deep UK reports</div></div>
     </div>
   </div>
-  <div class="m-dest-section">
-    <div class="m-dest-label">Top destinations</div>
-    <div class="m-dest-grid">
-      <div class="m-dest-card" onclick="wtNav(1)"><span class="m-dest-flag">🇬🇧</span><div class="m-dest-name">United Kingdom</div><div class="m-dest-count">140 schools</div></div>
-      <div class="m-dest-card"><span class="m-dest-flag">🇸🇬</span><div class="m-dest-name">Singapore</div><div class="m-dest-count">86 schools</div></div>
-      <div class="m-dest-card"><span class="m-dest-flag">🇨🇭</span><div class="m-dest-name">Switzerland</div><div class="m-dest-count">54 schools</div></div>
-      <div class="m-dest-card"><span class="m-dest-flag">🇹🇭</span><div class="m-dest-name">Thailand</div><div class="m-dest-count">286 schools</div></div>
-    </div>
-    <div style="margin-top:10px;font-size:11px;font-weight:700;color:var(--teal-dk);text-align:center;cursor:pointer" onclick="wtNav(1)">👆 Click 🇬🇧 United Kingdom or hit Next → to search UK schools</div>
-  </div>`,
+  <div class="wt-section-header"><div class="wt-section-label">Popular destinations</div></div>
+  <div class="country-grid">
+    <div class="country-card-mini" onclick="wtNav(1)"><span class="cc-flag">🇬🇧</span><div class="cc-name">United Kingdom</div><div class="cc-count">140</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇸🇬</span><div class="cc-name">Singapore</div><div class="cc-count">86</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇨🇭</span><div class="cc-name">Switzerland</div><div class="cc-count">54</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇹🇭</span><div class="cc-name">Thailand</div><div class="cc-count">286</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇦🇪</span><div class="cc-name">UAE</div><div class="cc-count">142</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇲🇾</span><div class="cc-name">Malaysia</div><div class="cc-count">68</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇺🇸</span><div class="cc-name">United States</div><div class="cc-count">812</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇯🇵</span><div class="cc-name">Japan</div><div class="cc-count">94</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇨🇳</span><div class="cc-name">China</div><div class="cc-count">228</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇩🇪</span><div class="cc-name">Germany</div><div class="cc-count">72</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇫🇷</span><div class="cc-name">France</div><div class="cc-count">88</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇪🇸</span><div class="cc-name">Spain</div><div class="cc-count">110</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇮🇹</span><div class="cc-name">Italy</div><div class="cc-count">62</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇦🇺</span><div class="cc-name">Australia</div><div class="cc-count">156</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇨🇦</span><div class="cc-name">Canada</div><div class="cc-count">128</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇳🇿</span><div class="cc-name">New Zealand</div><div class="cc-count">42</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇿🇦</span><div class="cc-name">South Africa</div><div class="cc-count">58</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇧🇷</span><div class="cc-name">Brazil</div><div class="cc-count">74</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇮🇳</span><div class="cc-name">India</div><div class="cc-count">142</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇰🇷</span><div class="cc-name">South Korea</div><div class="cc-count">52</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇭🇰</span><div class="cc-name">Hong Kong</div><div class="cc-count">38</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇸🇦</span><div class="cc-name">Saudi Arabia</div><div class="cc-count">42</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇶🇦</span><div class="cc-name">Qatar</div><div class="cc-count">28</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇹🇼</span><div class="cc-name">Taiwan</div><div class="cc-count">32</div></div>
+  </div>
+  <div class="wt-section-header"><div class="wt-section-label">By region</div></div>
+  <div class="region-strip">
+    <div class="region-pill">Europe <em>2,400</em></div>
+    <div class="region-pill">Asia Pacific <em>3,100</em></div>
+    <div class="region-pill">Americas <em>1,800</em></div>
+    <div class="region-pill">Middle East <em>620</em></div>
+    <div class="region-pill">Africa <em>340</em></div>
+  </div>
+  <div style="padding:10px 16px 20px;font-size:11px;font-weight:700;color:var(--teal-dk);text-align:center" onclick="wtNav(1)">👆 Click 🇬🇧 United Kingdom or hit Next →</div>`,
 
-  // PAGE 2 — Search / typing animation
+  // PAGE 2 — Search (cycling typer + capabilities)
   () => `
   <div class="m-nav">
-    <div class="m-logo"><div class="m-logo-icon">🧠</div><div class="m-logo-text">nana<em>says</em></div></div>
-    <div class="m-nav-right">
-      <div class="m-nav-pill">GBP</div><div class="m-nav-pill">EN</div>
-      <div class="m-nav-cta">For Schools</div>
-    </div>
+    <div class="m-logo"><div class="m-logo-icon"><svg viewBox="0 0 48 48"><use href="#ic-nana"/></svg></div><div class="m-logo-text">nana<em>says</em></div></div>
+    <div class="m-nav-right"><div class="m-nav-pill">GBP</div><div class="m-nav-pill">EN</div><div class="m-nav-cta">For Schools</div></div>
   </div>
-  <div class="m-hero" style="padding:32px 28px 36px">
-    <div class="m-hero-h1" style="font-size:22px;margin-bottom:14px">Find the right school</div>
-    <div class="m-hero-search">
-      <div class="m-hero-input" style="padding:13px 16px;font-size:13px;color:var(--navy);font-weight:700" id="wt-typing-display">
+  <div class="m-hero" style="padding:54px 28px 30px">
+    <div class="m-hero-eyebrow">Search 10,000+ schools</div>
+    <div class="m-hero-h1" style="font-size:24px;margin-bottom:18px">What can you search for?</div>
+    <div class="m-hero-search" style="max-width:480px">
+      <div class="m-hero-input" style="padding:14px 18px;font-size:14px;color:var(--navy);font-weight:700;display:flex;align-items:center;text-align:left;min-height:46px">
         <span id="wt-typed"></span><span class="m-typing-cursor"></span>
       </div>
       <button class="m-hero-btn" onclick="wtNav(1)">Search</button>
     </div>
-    <div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,.4)">Searching for boarding schools in the United Kingdom…</div>
+    <div style="margin-top:14px;font-size:11px;color:rgba(255,255,255,.5);font-weight:600">By region · country · school name · curriculum · sport · fees</div>
   </div>
-  <div style="padding:20px 24px;background:var(--off)">
-    <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:12px">Quick filters</div>
-    <div style="display:flex;gap:7px;flex-wrap:wrap">
-      <div class="m-dir-pill on" style="background:var(--teal);color:var(--navy);border-color:var(--teal)">🇬🇧 United Kingdom</div>
-      <div class="m-dir-pill on" style="background:var(--teal);color:var(--navy);border-color:var(--teal)">Boarding</div>
-      <div class="m-dir-pill" style="border:1px solid var(--border);color:var(--muted);background:#fff">Boys</div>
-      <div class="m-dir-pill" style="border:1px solid var(--border);color:var(--muted);background:#fff">Girls</div>
-      <div class="m-dir-pill" style="border:1px solid var(--border);color:var(--muted);background:#fff">Co-ed</div>
-    </div>
-    <div style="margin-top:16px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;cursor:pointer" onclick="wtNav(1)">
-      <div style="width:34px;height:34px;background:var(--teal-bg);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px">🔍</div>
-      <div><div style="font-size:13px;font-weight:800;color:var(--navy)">140 UK schools found</div><div style="font-size:11px;color:var(--muted);margin-top:1px">Click to browse the full directory →</div></div>
-    </div>
+  <div class="wt-section-header"><div class="wt-section-label">What's in the database</div></div>
+  <div class="cap-grid">
+    <div class="cap-badge"><span class="cap-icon">🌍</span><div class="cap-text">166 Countries</div></div>
+    <div class="cap-badge"><span class="cap-icon">🏫</span><div class="cap-text">10,000+ Schools</div></div>
+    <div class="cap-badge"><span class="cap-icon">🇬🇧</span><div class="cap-text">64 Deep UK Reports</div></div>
+    <div class="cap-badge"><span class="cap-icon">🏉</span><div class="cap-text">Sports filters</div></div>
+    <div class="cap-badge"><span class="cap-icon">🎓</span><div class="cap-text">Curriculum filters</div></div>
+    <div class="cap-badge"><span class="cap-icon">💷</span><div class="cap-text">Fee range filter</div></div>
+    <div class="cap-badge"><span class="cap-icon">🏠</span><div class="cap-text">Boarding type</div></div>
+    <div class="cap-badge"><span class="cap-icon">👥</span><div class="cap-text">Gender filter</div></div>
+    <div class="cap-badge"><span class="cap-icon">📋</span><div class="cap-text">ISI rating</div></div>
   </div>`,
 
-  // PAGE 3 — Directory
+  // PAGE 3 — Country page with UK map
   () => `
   <div class="m-nav">
-    <div class="m-logo"><div class="m-logo-icon">🧠</div><div class="m-logo-text">nana<em>says</em></div></div>
+    <div class="m-logo"><div class="m-logo-icon"><svg viewBox="0 0 48 48"><use href="#ic-nana"/></svg></div><div class="m-logo-text">nana<em>says</em></div></div>
     <div class="m-nav-right"><div class="m-nav-pill">GBP</div><div class="m-nav-cta">For Schools</div></div>
   </div>
-  <div class="m-dir-header">
-    <div class="m-dir-h1">UK Independent Schools</div>
-    <div class="m-dir-sub">140 schools with deep research reports · free to browse</div>
+  <div class="m-dir-header" style="padding:22px 24px 16px">
+    <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,.5);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px">🇬🇧 Country profile</div>
+    <div class="m-dir-h1" style="font-size:20px">United Kingdom</div>
+    <div class="m-dir-sub">140 independent schools · deep research reports · ISI inspection data</div>
   </div>
-  <div class="m-dir-controls">
-    <input class="m-dir-search-box" value="Boarding Surrey" readonly>
-    <div class="m-dir-pill on">Boarding</div>
-    <div class="m-dir-pill on">Surrey</div>
-    <div class="m-dir-pill">Boys</div>
-    <div class="m-dir-pill">Girls</div>
-  </div>
-  <div class="m-dir-results-bar">Showing 12 of 140 schools</div>
-  <div class="m-dir-grid">
-    <div class="m-dir-card hl" onclick="wtNav(1)" title="Click to view Epsom College">
-      <div class="m-dir-card-name">Epsom College</div>
-      <div class="m-dir-card-city">📍 Epsom, Surrey</div>
-      <div class="m-dir-card-tags">
-        <span class="m-dir-tag">Boarding</span><span class="m-dir-tag">Co-ed</span>
-        <span class="m-dir-tag sport">🏉 Rugby</span><span class="m-dir-tag sport">🎾 Tennis</span>
-      </div>
-    </div>
-    <div class="m-dir-card">
-      <div class="m-dir-card-name">Reed's School</div>
-      <div class="m-dir-card-city">📍 Cobham, Surrey</div>
-      <div class="m-dir-card-tags"><span class="m-dir-tag">Boarding</span><span class="m-dir-tag">Boys</span><span class="m-dir-tag sport">🏏 Cricket</span></div>
-    </div>
-    <div class="m-dir-card">
-      <div class="m-dir-card-name">Cranleigh School</div>
-      <div class="m-dir-card-city">📍 Cranleigh, Surrey</div>
-      <div class="m-dir-card-tags"><span class="m-dir-tag">Full Boarding</span><span class="m-dir-tag">Co-ed</span><span class="m-dir-tag sport">🏊 Swimming</span></div>
-    </div>
-    <div class="m-dir-card">
-      <div class="m-dir-card-name">Charterhouse</div>
-      <div class="m-dir-card-city">📍 Godalming, Surrey</div>
-      <div class="m-dir-card-tags"><span class="m-dir-tag">Boarding</span><span class="m-dir-tag">Co-ed</span><span class="m-dir-tag sport">⚽ Football</span></div>
-    </div>
-    <div class="m-dir-card">
-      <div class="m-dir-card-name">St Catherine's Bramley</div>
-      <div class="m-dir-card-city">📍 Bramley, Surrey</div>
-      <div class="m-dir-card-tags"><span class="m-dir-tag">Day & Boarding</span><span class="m-dir-tag">Girls</span><span class="m-dir-tag sport">🏑 Hockey</span></div>
-    </div>
-    <div class="m-dir-card">
-      <div class="m-dir-card-name">Ewell Castle School</div>
-      <div class="m-dir-card-city">📍 Ewell, Surrey</div>
-      <div class="m-dir-card-tags"><span class="m-dir-tag">Day</span><span class="m-dir-tag">Co-ed</span></div>
+  <div style="padding:14px 16px 0;background:var(--off)">
+    <!-- Real Leaflet map (matches /countries/[slug] page) -->
+    <div id="wt-leaflet-map" style="height:300px;width:100%;background:#f0f4f8;border-radius:12px;border:1px solid var(--border);position:relative;overflow:hidden">
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted);font-weight:700">Loading map…</div>
     </div>
   </div>
-  <div style="padding:6px 24px 16px;font-size:11px;font-weight:700;color:var(--teal-dk);text-align:center;background:var(--off)">👆 Click Epsom College to view its full profile</div>`,
+  <div class="wt-section-header" style="background:var(--off)"><div class="wt-section-label">Schools by region</div></div>
+  <div class="region-grid">
+    <div class="region-card"><div class="region-name">SE England</div><div class="region-count">52</div></div>
+    <div class="region-card"><div class="region-name">Home Counties</div><div class="region-count">28</div></div>
+    <div class="region-card"><div class="region-name">Midlands</div><div class="region-count">18</div></div>
+    <div class="region-card"><div class="region-name">North</div><div class="region-count">22</div></div>
+    <div class="region-card"><div class="region-name">Scotland & Wales</div><div class="region-count">20</div></div>
+  </div>
+  <div style="padding:0 16px 16px;font-size:11px;font-weight:700;color:var(--teal-dk);text-align:center;background:var(--off);cursor:pointer" onclick="wtNav(1)">👆 Click a region or hit Next → to view a school report</div>`,
 
-  // PAGE 4 — School profile
+  // PAGE 4 — School detail page (free overview)
   () => `
   <div class="m-nav">
-    <div class="m-logo"><div class="m-logo-icon">🧠</div><div class="m-logo-text">nana<em>says</em></div></div>
+    <div class="m-logo"><div class="m-logo-icon"><svg viewBox="0 0 48 48"><use href="#ic-nana"/></svg></div><div class="m-logo-text">nana<em>says</em></div></div>
     <div class="m-nav-right"><div class="m-nav-pill">GBP</div><div class="m-nav-cta">For Schools</div></div>
   </div>
   <div class="m-school-hero">
-    <div class="m-school-flag">🇬🇧 United Kingdom · Surrey</div>
-    <div class="m-school-name">Epsom College</div>
+    <div class="m-school-flag">🇬🇧 United Kingdom · York</div>
+    <div class="m-school-name">Queen Ethelburga's</div>
     <div class="m-school-tags-row">
       <span class="m-school-tag">Co-ed</span>
       <span class="m-school-tag">Boarding</span>
@@ -1508,68 +1756,178 @@ const WT_PAGES = [
     <div class="m-school-tab">Fees</div>
     <div class="m-school-tab">Admissions</div>
   </div>
-  <div class="m-school-body">
-    <div class="m-school-grid">
-      <div class="m-school-stat-card"><div class="m-school-stat-val">£<em>47k</em></div><div class="m-school-stat-lbl">Boarding fees / year</div></div>
-      <div class="m-school-stat-card"><div class="m-school-stat-val"><em>900</em></div><div class="m-school-stat-lbl">Pupils</div></div>
-      <div class="m-school-stat-card"><div class="m-school-stat-val"><em>12</em></div><div class="m-school-stat-lbl">Sports offered</div></div>
-      <div class="m-school-stat-card"><div class="m-school-stat-val"><em>8</em></div><div class="m-school-stat-lbl">Boarding houses</div></div>
+  <div class="m-school-body" style="padding:14px 20px;max-height:300px;overflow-y:auto">
+    <div class="m-school-grid" style="gap:8px;margin-bottom:10px">
+      <div class="m-school-stat-card" style="padding:10px"><div class="m-school-stat-val">£<em>47k</em></div><div class="m-school-stat-lbl">Boarding fees / year</div></div>
+      <div class="m-school-stat-card" style="padding:10px"><div class="m-school-stat-val"><em>900</em></div><div class="m-school-stat-lbl">Pupils</div></div>
+      <div class="m-school-stat-card" style="padding:10px"><div class="m-school-stat-val"><em>12</em></div><div class="m-school-stat-lbl">Sports offered</div></div>
+      <div class="m-school-stat-card" style="padding:10px"><div class="m-school-stat-val"><em>8</em></div><div class="m-school-stat-lbl">Boarding houses</div></div>
     </div>
-    <div class="m-school-section">
+    <div class="m-school-section" style="padding:11px;margin-bottom:8px">
       <div class="m-school-sec-label">About</div>
-      <div class="m-school-sec-text">Epsom College is a leading co-educational boarding and day school in Surrey. Founded in 1855, it offers a broad curriculum with strong pastoral care, excellent sports facilities, and a vibrant creative arts programme.</div>
+      <div class="m-school-sec-text">Co-educational independent boarding & day school in North Yorkshire. Founded 1912. 220-acre campus, strong pastoral care, excellent sport, equestrian and aviation programmes. ISI Excellent.</div>
     </div>
-    <div class="m-nana-teaser" onclick="wtNav(1)" style="cursor:pointer">
-      <div class="m-nana-icon">🧠</div>
+    <div class="m-school-section" style="padding:11px;margin-bottom:8px">
+      <div class="m-school-sec-label">Quick facts</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+        <span style="font-size:10px;font-weight:700;color:var(--navy);background:var(--teal-bg);padding:3px 8px;border-radius:100px">🎓 Russell Group 85%</span>
+        <span style="font-size:10px;font-weight:700;color:var(--navy);background:var(--teal-bg);padding:3px 8px;border-radius:100px">🏉 Tier 1 Rugby</span>
+        <span style="font-size:10px;font-weight:700;color:var(--navy);background:var(--teal-bg);padding:3px 8px;border-radius:100px">💷 Bursaries up to 100%</span>
+      </div>
+    </div>
+    <div class="m-nana-teaser" onclick="wtNav(1)" style="cursor:pointer;padding:12px">
+      <div class="m-nana-icon">📋</div>
       <div class="m-nana-text">
-        <strong>Ask Nana about Epsom College</strong>
-        <span>Get honest AI answers — fees, fit, pastoral, sport</span>
+        <strong>Want the full picture?</strong>
+        <span>34-page deep report · 22 sections · ISI quotes · Ask Nana anything</span>
       </div>
       <button class="m-nana-btn">Open report →</button>
     </div>
   </div>`,
 
-  // PAGE 5 — Report + Nana
+  // PAGE 5 — School report + Nana split
   () => `
-  <div class="m-nav" style="position:relative">
-    <div class="m-logo"><div class="m-logo-icon">🧠</div><div class="m-logo-text">nana<em>says</em></div></div>
+  <div class="m-nav">
+    <div class="m-logo"><div class="m-logo-icon"><svg viewBox="0 0 48 48"><use href="#ic-nana"/></svg></div><div class="m-logo-text">nana<em>says</em></div></div>
     <div class="m-nav-right"><div class="m-nav-pill">GBP</div><div class="m-nav-cta">For Schools</div></div>
   </div>
   <div class="m-report-layout" style="height:calc(100% - 52px)">
     <div class="m-report-main">
-      <div class="m-report-hdr">
-        <div class="m-report-eyebrow">Deep school report</div>
-        <div class="m-report-school">Epsom College</div>
+      <div class="rep-nav">
+        <div class="rep-nav-tab active">Overview</div>
+        <div class="rep-nav-tab">Academic</div>
+        <div class="rep-nav-tab">Sport</div>
+        <div class="rep-nav-tab">Pastoral</div>
+        <div class="rep-nav-tab">Fees</div>
+        <div class="rep-nav-tab">ISI</div>
+        <div class="rep-nav-tab">Verdict</div>
+      </div>
+      <div class="m-report-hdr" style="padding:16px 18px 12px">
+        <div class="m-report-eyebrow">Deep school report · 34 pages</div>
+        <div class="m-report-school" style="font-size:17px">Queen Ethelburga's</div>
       </div>
       <div class="m-report-stats">
-        <div class="m-rep-stat"><div class="m-rep-val">£<em>47k</em></div><div class="m-rep-lbl">Boarding / yr</div></div>
+        <div class="m-rep-stat"><div class="m-rep-val">£<em>47k</em></div><div class="m-rep-lbl">Boarding/yr</div></div>
         <div class="m-rep-stat"><div class="m-rep-val"><em>900</em></div><div class="m-rep-lbl">Pupils</div></div>
         <div class="m-rep-stat"><div class="m-rep-val"><em>ISI ✓</em></div><div class="m-rep-lbl">Excellent</div></div>
       </div>
-      <div class="m-report-sections">
-        <div class="m-rep-row"><span class="m-rep-icon">🎓</span><span class="m-rep-label">Academic profile</span><span class="m-rep-chip">Strong</span></div>
-        <div class="m-rep-row"><span class="m-rep-icon">🏉</span><span class="m-rep-label">Sports & teams</span><span class="m-rep-chip">12 sports</span></div>
-        <div class="m-rep-row"><span class="m-rep-icon">🏠</span><span class="m-rep-label">Boarding & pastoral</span><span class="m-rep-chip">Excellent</span></div>
-        <div class="m-rep-row"><span class="m-rep-icon">💷</span><span class="m-rep-label">Fees & bursaries</span><span class="m-rep-chip">Up to 100%</span></div>
-        <div class="m-rep-row"><span class="m-rep-icon">📄</span><span class="m-rep-label">ISI inspection findings</span><span class="m-rep-chip">2024 report</span></div>
+      <div style="padding:10px 14px 14px">
+        <div class="isi-callout"><strong>ISI April 2024:</strong> "Pupils are exceptionally well supported. The quality of personal development is excellent."</div>
+        <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin:8px 0 6px">Sports tier breakdown</div>
+        <table class="sport-tier-table">
+          <tr><th>Sport</th><th>Tier</th><th>Teams</th></tr>
+          <tr><td>Rugby</td><td class="tier-1">Tier 1</td><td>28</td></tr>
+          <tr><td>Cricket</td><td class="tier-1">Tier 1</td><td>18</td></tr>
+          <tr><td>Hockey</td><td class="tier-1">Tier 1</td><td>16</td></tr>
+          <tr><td>Tennis</td><td>Tier 2</td><td>12</td></tr>
+        </table>
+        <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin:10px 0 6px">Fees breakdown</div>
+        <div class="fees-mini">
+          <div class="fees-mini-cell"><div class="fees-mini-val">£<em>29k</em></div><div class="fees-mini-lbl">Day</div></div>
+          <div class="fees-mini-cell"><div class="fees-mini-val">£<em>47k</em></div><div class="fees-mini-lbl">Boarding</div></div>
+          <div class="fees-mini-cell"><div class="fees-mini-val">£<em>40k</em></div><div class="fees-mini-lbl">Weekly Flexi</div></div>
+        </div>
       </div>
     </div>
-    <div class="m-nana-panel">
+    <div class="m-nana-panel" style="width:42%">
       <div class="m-nana-panel-hdr">
         <div class="m-nana-panel-dot"></div>
         <div class="m-nana-panel-label">Nana · AI Advisor</div>
       </div>
       <div class="m-nana-msgs">
-        <div class="m-nmsg nana">Hi! I've read the full Epsom College profile. Ask me anything — fees, sport, pastoral, fit for your child.</div>
+        <div class="m-nmsg nana">Hi! I've read all 6 sources on Queen Ethelburga's. Ask me anything.</div>
         <div class="m-nmsg user">Is it good for a sporty boy?</div>
-        <div class="m-nmsg nana"><strong>Yes — very strong.</strong> 12 sports, county-level fixtures in rugby & cricket. Tier 1 SOCS ranking. ISI praised the "exceptional" PE provision.</div>
-        <div class="m-nmsg user">Are bursaries available?</div>
-        <div class="m-nmsg nana">Yes — means-tested up to <strong>100% of fees</strong>. Academic and sport scholarships also available. Deadline is usually January for September entry.</div>
+        <div class="m-nmsg nana"><strong>Yes — very strong.</strong> 12 sports, county-level fixtures in rugby & cricket. SOCS Tier 1 ranking. ISI praised the "exceptional" PE provision.</div>
+        <div class="m-nmsg user">Bursaries available?</div>
+        <div class="m-nmsg nana">Yes — means-tested up to <strong>100% of fees</strong>. Academic & sport scholarships at 11+ and 13+. Apply by January.</div>
       </div>
       <div class="m-nana-input-row">
         <input class="m-nana-field" placeholder="Ask Nana…" readonly>
         <button class="m-nana-send">↑</button>
       </div>
+    </div>
+  </div>`,
+
+  // PAGE 6 — Report Views (Verdict / Compare / Report tabs)
+  () => `
+  <div class="m-nav">
+    <div class="m-logo"><div class="m-logo-icon"><svg viewBox="0 0 48 48"><use href="#ic-nana"/></svg></div><div class="m-logo-text">nana<em>says</em></div></div>
+    <div class="m-nav-right"><div class="m-nav-pill">GBP</div><div class="m-nav-cta">For Schools</div></div>
+  </div>
+  <div style="display:flex;flex-direction:column;height:calc(100% - 52px);background:var(--off)">
+    <div style="background:var(--navy);padding:14px 16px">
+      <div style="font-size:10px;font-weight:800;color:var(--teal);letter-spacing:.15em;text-transform:uppercase;margin-bottom:4px">Deep school report</div>
+      <div style="font-family:var(--head);font-size:18px;font-weight:900;color:#fff">Queen Ethelburga's — 3 ways to read it</div>
+    </div>
+    <div class="view-tabs-row">
+      <button class="view-tab" data-vtab="report" onclick="switchReportView('report')">📋 Report<span class="vtab-pulse"></span></button>
+      <button class="view-tab active" data-vtab="verdict" onclick="switchReportView('verdict')">⭐ Verdict</button>
+      <button class="view-tab" data-vtab="compare" onclick="switchReportView('compare')">⚖️ Compare<span class="vtab-pulse"></span></button>
+    </div>
+    <div class="view-content">
+
+      <!-- VERDICT VIEW (default) -->
+      <div class="view-pane show" data-vpane="verdict">
+        <div style="background:var(--navy);border-radius:12px;padding:14px 16px;color:#fff">
+          <div class="verdict-kicker">The one-minute verdict</div>
+          <div class="verdict-headline">Strong across the board — exceptional for sporty co-ed family</div>
+          <div class="verdict-body">Well-resourced co-ed boarding in North Yorkshire. Strong academics without pressure. Tier 1 sport. ISI Excellent pastoral.</div>
+          <div class="verdict-lights">
+            <div class="vlight green"><div class="vlight-label">Academic</div><div class="vlight-value"><span class="vlight-dot"></span>B+ mean</div></div>
+            <div class="vlight green"><div class="vlight-label">Sport</div><div class="vlight-value"><span class="vlight-dot"></span>Tier 1</div></div>
+            <div class="vlight green"><div class="vlight-label">Pastoral</div><div class="vlight-value"><span class="vlight-dot"></span>Excellent</div></div>
+            <div class="vlight amber"><div class="vlight-label">Value</div><div class="vlight-value"><span class="vlight-dot"></span>Mid-range</div></div>
+          </div>
+          <div class="vsplit"><div class="vsplit-label">✓ Best fit for</div><div class="vsplit-text">Sporty, well-rounded pupils seeking co-ed boarding in North Yorkshire.</div></div>
+          <div class="vsplit warn"><div class="vsplit-label">— Harder fit for</div><div class="vsplit-text">Families seeking high-pressure or single-sex environment.</div></div>
+          <div class="verdict-qs-label">Top 3 tour questions</div>
+          <div class="verdict-q"><div class="verdict-q-cat">Academic</div><div class="verdict-q-text">"What % of Year 13 leavers go to Russell Group?"</div></div>
+          <div class="verdict-q"><div class="verdict-q-cat">Pastoral</div><div class="verdict-q-text">"How does the house system handle new boarders?"</div></div>
+          <div class="verdict-q"><div class="verdict-q-cat">Sport</div><div class="verdict-q-text">"Which sports compete at U15 county level?"</div></div>
+        </div>
+      </div>
+
+      <!-- COMPARE VIEW -->
+      <div class="view-pane" data-vpane="compare">
+        <div style="background:#fff;border-radius:10px;border:1px solid var(--border);overflow:hidden">
+          <div style="display:grid;grid-template-columns:120px repeat(3,1fr);gap:1px;background:var(--border)">
+            <div style="background:var(--off);padding:8px 10px;font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em"></div>
+            <div style="background:var(--navy);color:#fff;font-family:var(--head);font-size:11px;font-weight:900;text-align:center;padding:8px">Queen E</div>
+            <div style="background:var(--navy);color:#fff;font-family:var(--head);font-size:11px;font-weight:900;text-align:center;padding:8px">Cranleigh</div>
+            <div style="background:var(--navy);color:#fff;font-family:var(--head);font-size:11px;font-weight:900;text-align:center;padding:8px">Reed's</div>
+            ${[
+              ['ISI Rating','Excellent','Excellent','Excellent', 'all'],
+              ['Boarding Fees','£47,250','£52,350','£44,100', 'reeds'],
+              ['Type','Co-ed','Co-ed','Boys', null],
+              ['Entry Age','11+, 13+','13+ only','11+, 13+', 'epsom_reeds'],
+              ['Pupils','900','675','750', null],
+              ['Sport Tier','Tier 1','Tier 1','Tier 2', 'epsom_cranleigh'],
+              ['Sixth Form','Mixed','Mixed','Mixed', null],
+              ['Bursaries','100%','75%','50%', 'epsom'],
+            ].map((r,i) => `
+              <div style="background:${i%2?'var(--off)':'#fff'};padding:7px 10px;font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">${r[0]}</div>
+              <div style="background:${i%2?'var(--off)':'#fff'};padding:7px 10px;font-size:11px;font-weight:${r[4]==='epsom'||r[4]==='all'||r[4]==='epsom_reeds'||r[4]==='epsom_cranleigh'?'900':'700'};color:${r[4]==='epsom'||r[4]==='epsom_reeds'||r[4]==='epsom_cranleigh'?'var(--teal-dk)':'var(--navy)'};text-align:center">${r[1]}</div>
+              <div style="background:${i%2?'var(--off)':'#fff'};padding:7px 10px;font-size:11px;font-weight:${r[4]==='all'||r[4]==='epsom_cranleigh'?'900':'700'};color:${r[4]==='epsom_cranleigh'?'var(--teal-dk)':'var(--navy)'};text-align:center">${r[2]}</div>
+              <div style="background:${i%2?'var(--off)':'#fff'};padding:7px 10px;font-size:11px;font-weight:${r[4]==='reeds'||r[4]==='all'||r[4]==='epsom_reeds'?'900':'700'};color:${r[4]==='reeds'||r[4]==='epsom_reeds'?'var(--teal-dk)':'var(--navy)'};text-align:center">${r[3]}</div>
+            `).join('')}
+          </div>
+        </div>
+        <div style="background:var(--teal-bg);border:1px solid #c4ede3;border-radius:10px;padding:11px 14px;margin-top:10px;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--teal-dk);font-weight:700">
+          <span style="font-size:14px">✦</span>
+          <span>Nana recommends <strong>Queen Ethelburga's</strong> — strongest fit for a Year 9 joiner prioritising sport + pastoral.</span>
+        </div>
+      </div>
+
+      <!-- REPORT VIEW (full TOC) -->
+      <div class="view-pane" data-vpane="report">
+        <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px">22 sections of research</div>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          ${['Verified school overview','Academic profile & outcomes','GCSE results · grade distribution','A-Level results · subject-by-subject','University destinations','Oxbridge & Russell Group analysis','Sports profile & competitive tier','Coaching staff & alumni athletes','Facilities audit','Pastoral care model','Wellbeing team & ratios','Safeguarding record','Student community & nationalities','Fees & hidden extras','Scholarships & bursaries','Admissions & entry requirements','Regulatory status & filings','Financial health (3-year)','ISI inspection record','Parent-fit verdict (8 dim)','5 pointed tour questions','Methodology & sources'].map((label,i) => `
+            <div class="toc-row"><span class="toc-num">${String(i+1).padStart(2,'0')}</span><span class="toc-label">${label}</span><span class="toc-chip green">✓</span></div>
+          `).join('')}
+        </div>
+      </div>
+
     </div>
   </div>`,
 ]
@@ -1581,14 +1939,17 @@ function buildWtSteps() {
   wrap.innerHTML = WT_STEPS.map((s,i) => `
     <div class="wt-step-dot ${i===0?'active':''}" data-wi="${i}" onclick="wtGoTo(${i})">
       <div class="wt-dot-circle">${i < wtCurrent ? '✓' : i+1}</div>
-      <div class="wt-dot-label">${s.icon} ${s.label}</div>
+      <div class="wt-dot-label"><svg class="wt-step-icon-svg"><use href="#${s.icon}"/></svg>${s.label}</div>
     </div>`).join('')
 }
 
 function renderWtPage(idx, dir=1) {
   const vp = document.getElementById('wt-viewport')
   const old = vp.querySelector('.wt-page.active')
-  if (old) { old.classList.add(dir>0?'exit-left':''); setTimeout(()=>old.remove(),300) }
+  if (old) {
+    old.classList.add(dir>0 ? 'exit-left' : 'exit-right')
+    setTimeout(()=>old.remove(),300)
+  }
 
   const page = document.createElement('div')
   page.className = 'wt-page'
@@ -1613,8 +1974,10 @@ function renderWtPage(idx, dir=1) {
   document.getElementById('wt-next-btn').textContent = idx===WT_STEPS.length-1 ? '✓ Done' : 'Next →'
   document.getElementById('wt-step-label').textContent = `Step ${idx+1} of ${WT_STEPS.length} — ${WT_STEPS[idx].label}`
 
-  // typing animation on step 2
-  if (idx===1) startTyping('United Kingdom boarding schools')
+  // step-specific behaviour
+  if (idx===1) startCyclingTyper()
+  else stopCyclingTyper()
+  if (idx===2) initLeafletMap()
 }
 
 function wtNav(dir) {
@@ -1628,22 +1991,188 @@ function wtGoTo(idx, dir) {
   renderWtPage(idx, dir2)
 }
 
-let typingTimer = null
-function startTyping(text) {
+// ── Cycling search typer (Walkthrough Step 2) ──
+const SEARCH_TERMS = [
+  'Rugby boarding schools in Surrey',
+  'Singapore',
+  'Wycombe Abbey',
+  'IB schools in Switzerland',
+]
+let typerState = { running:false, termIdx:0, charIdx:0, mode:'typing', timer:null }
+function startCyclingTyper() {
+  stopCyclingTyper()
+  typerState.running = true
+  typerState.termIdx = 0
+  typerState.charIdx = 0
+  typerState.mode = 'typing'
+  typerTick()
+}
+function stopCyclingTyper() {
+  typerState.running = false
+  if (typerState.timer) { clearTimeout(typerState.timer); typerState.timer = null }
+}
+function typerTick() {
+  if (!typerState.running) return
   const el = document.getElementById('wt-typed')
-  if (!el) return
-  let i=0; el.textContent=''
-  clearInterval(typingTimer)
-  typingTimer = setInterval(()=>{
-    if (!document.getElementById('wt-typed')) { clearInterval(typingTimer); return }
-    if (i>=text.length) { clearInterval(typingTimer); return }
-    el.textContent += text[i++]
-  }, 60)
+  if (!el) { stopCyclingTyper(); return }
+  const term = SEARCH_TERMS[typerState.termIdx]
+  if (typerState.mode === 'typing') {
+    if (typerState.charIdx < term.length) {
+      el.textContent = term.substring(0, ++typerState.charIdx)
+      typerState.timer = setTimeout(typerTick, 45)
+    } else {
+      typerState.mode = 'pausing'
+      typerState.timer = setTimeout(typerTick, 1200)
+    }
+  } else if (typerState.mode === 'pausing') {
+    typerState.mode = 'erasing'
+    typerTick()
+  } else if (typerState.mode === 'erasing') {
+    if (typerState.charIdx > 0) {
+      el.textContent = term.substring(0, --typerState.charIdx)
+      typerState.timer = setTimeout(typerTick, 25)
+    } else {
+      typerState.termIdx = (typerState.termIdx + 1) % SEARCH_TERMS.length
+      typerState.mode = 'typing'
+      typerState.timer = setTimeout(typerTick, 350)
+    }
+  }
+}
+
+// ── Real Leaflet map (Walkthrough Step 3) — matches /countries/[slug] page ──
+let leafletMap = null
+const UK_SCHOOLS = [
+  { name: "Queen Ethelburga's",    city: 'York, N. Yorkshire',   lat: 54.005, lng: -1.268, slug: 'queen-ethelburgas-collegiate' },
+  { name: 'Epsom College',         city: 'Epsom, Surrey',        lat: 51.331, lng: -0.265, slug: 'epsom-college' },
+  { name: "Reed's School",         city: 'Cobham, Surrey',       lat: 51.328, lng: -0.408, slug: 'reeds-school' },
+  { name: 'Cranleigh School',      city: 'Cranleigh, Surrey',    lat: 51.143, lng: -0.487, slug: 'cranleigh-school' },
+  { name: 'Charterhouse',          city: 'Godalming, Surrey',    lat: 51.187, lng: -0.612, slug: 'charterhouse' },
+  { name: 'Eton College',          city: 'Windsor, Berkshire',   lat: 51.487, lng: -0.610, slug: 'eton-college' },
+  { name: 'Harrow School',         city: 'Harrow, London',       lat: 51.572, lng: -0.337, slug: 'harrow-school' },
+  { name: 'Wycombe Abbey',         city: 'High Wycombe, Bucks',  lat: 51.624, lng: -0.751, slug: 'wycombe-abbey' },
+  { name: 'King\'s College School', city: 'Wimbledon, London',   lat: 51.422, lng: -0.214, slug: 'kings-college-school' },
+  { name: 'Wellington College',    city: 'Crowthorne, Berks',    lat: 51.388, lng: -0.787, slug: 'wellington-college' },
+  { name: 'Sherborne Girls',       city: 'Sherborne, Dorset',    lat: 50.948, lng: -2.516, slug: 'sherborne-girls' },
+  { name: 'Cheltenham Ladies',     city: 'Cheltenham, Glos',     lat: 51.900, lng: -2.077, slug: 'cheltenham-ladies' },
+  { name: 'Sedbergh School',       city: 'Sedbergh, Cumbria',    lat: 54.323, lng: -2.527, slug: 'sedbergh-school' },
+  { name: 'Fettes College',        city: 'Edinburgh',            lat: 55.964, lng: -3.214, slug: 'fettes-college' },
+  { name: 'The King\'s School',    city: 'Canterbury, Kent',     lat: 51.279, lng:  1.082, slug: 'kings-school-canterbury' },
+  { name: 'St Catherine\'s',       city: 'Bramley, Surrey',      lat: 51.190, lng: -0.560, slug: 'st-catherines' },
+]
+function initLeafletMap() {
+  const container = document.getElementById('wt-leaflet-map')
+  if (!container || typeof L === 'undefined') return
+
+  // Clean up existing map
+  if (leafletMap) { try { leafletMap.remove() } catch(e){} ; leafletMap = null }
+  if (container._leaflet_id) delete container._leaflet_id
+  container.innerHTML = ''
+
+  // Init map (centered on UK)
+  leafletMap = L.map(container, {
+    center: [54.0, -2.5],
+    zoom: 5,
+    scrollWheelZoom: false,
+    zoomControl: true,
+  })
+
+  // Same CartoDB light tiles as country page
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap contributors © CARTO',
+    subdomains: 'abcd',
+    maxZoom: 19,
+  }).addTo(leafletMap)
+
+  // Add school pins (teal, same style as CountryMap.tsx). First entry = featured.
+  let featuredMarker = null
+  UK_SCHOOLS.forEach((s, i) => {
+    const featured = i === 0
+    const size = featured ? 18 : 13
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:#34C3A0;border:${featured?3:2.5}px solid #fff;box-shadow:0 2px 8px rgba(27,50,82,0.35)${featured?', 0 0 0 4px rgba(52,195,160,.25)':''};cursor:pointer;"></div>`,
+      iconSize: [size, size],
+      iconAnchor: [size/2, size/2],
+    })
+    const marker = L.marker([s.lat, s.lng], { icon }).addTo(leafletMap)
+    marker.bindPopup(`
+      <div style="padding:8px 10px;font-family:'Nunito Sans',sans-serif;min-width:160px;">
+        ${featured ? '<div style="font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#239C80;margin-bottom:3px;">★ Featured</div>' : ''}
+        <div style="font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;color:#1B3252;line-height:1.3;margin-bottom:3px;">${s.name}</div>
+        <div style="font-size:11px;color:#6B7280;margin-bottom:8px;">${s.city}</div>
+        <a href="/schools/${s.slug}" style="display:block;text-align:center;padding:7px 12px;background:#1B3252;color:#fff;border-radius:7px;font-size:12px;font-weight:700;text-decoration:none;">View profile →</a>
+      </div>`, { maxWidth: 220 })
+    marker.on('mouseover', function () { this.openPopup() })
+    if (featured) featuredMarker = marker
+  })
+  // Auto-open the featured popup once the map settles
+  setTimeout(() => { if (featuredMarker) featuredMarker.openPopup() }, 600)
+
+  // Force a resize tick after the page transition
+  setTimeout(() => { if (leafletMap) leafletMap.invalidateSize() }, 320)
+}
+
+// ── 22-row TOC expand (Parents Tab 2) ──
+function toggleToc(row) {
+  const wasOpen = row.classList.contains('open')
+  // close all in same list
+  const list = row.parentElement
+  list.querySelectorAll('.toc-row.open').forEach(r => r.classList.remove('open'))
+  if (!wasOpen) row.classList.add('open')
+}
+
+// ── Ask Nana (chat-only, no sources panel) ──
+function askNanaSimple(pillEl, q) {
+  if (pillEl) pillEl.remove()
+  appendMsg('user', q)
+  const typing = appendTyping()
+  setTimeout(() => {
+    typing.remove()
+    const answers = {
+      'Is it good for a sporty boy?': '<strong>Yes — very strong.</strong> 12 sports, county-level fixtures in rugby & cricket. SOCS Tier 1. ISI praised the "exceptional" PE provision.',
+      'What are the boarding fees?': '<strong>£47,250/year</strong> (2024–25). Day option £29,400/yr. Bursaries available up to 100% — means-tested.',
+      'Is there EAL support?': '<strong>Yes.</strong> ~12% international intake across 28 nationalities. Dedicated EAL provision referenced in prospectus and ISI report.',
+    }
+    appendMsg('nana', answers[q] || "Based on the ISI report and school data — yes, this is one of Queen Ethelburga's strengths.")
+  }, 1400)
+}
+
+// ── Context toggle (Homepage vs School page) ──
+const CTX_COPY = {
+  home: {
+    eyebrow: 'Full access membership',
+    headline: 'Unlock <em>any UK school report</em>',
+    cancel: 'Cancel anytime · 7-day free trial',
+    cta: 'Start free trial →',
+  },
+  school: {
+    eyebrow: 'Unlock this school',
+    headline: 'Read the full <em>Queen Ethelburga's</em> dossier',
+    cancel: 'Includes all 64 UK schools · cancel anytime',
+    cta: 'Unlock Queen Ethelburga's →',
+  },
+}
+function switchCtx(ctx) {
+  document.querySelectorAll('.ctx-btn').forEach(b => b.classList.toggle('active', b.dataset.ctx === ctx))
+  const c = CTX_COPY[ctx]
+  document.getElementById('pc-eyebrow').textContent = c.eyebrow
+  document.getElementById('pc-headline').innerHTML = c.headline
+  document.getElementById('pc-cancel').textContent = c.cancel
+  document.getElementById('pc-cta-btn').textContent = c.cta
+}
+
+// ── View tabs switcher (Walkthrough Step 5) ──
+function switchReportView(view) {
+  document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.vtab === view))
+  document.querySelectorAll('.view-pane').forEach(p => p.classList.toggle('show', p.dataset.vpane === view))
 }
 
 // Init walkthrough
 buildWtSteps()
 renderWtPage(0)
+
+// Start agents carousel timer too (since both are now visible)
+startTimer('agents')
 </script>
 </body>
 </html>

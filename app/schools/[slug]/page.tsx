@@ -39,6 +39,7 @@ import AdmissionsSection from '@/components/report/AdmissionsSection'
 import LocationSection  from '@/components/report/LocationSection'
 import FeesSection      from '@/components/report/FeesSection'
 import NanaDemoTeaser from '@/components/school/NanaDemoTeaser'
+import SchoolFeatureEmbed from '@/components/school/SchoolFeatureEmbed'
 import { getDemoQuestions } from '@/lib/demo-questions'
 import NanaHandleLocked from '@/components/nana/NanaHandleLocked'
 import './report/report.css'
@@ -1641,6 +1642,9 @@ export default async function SchoolPage({ params, searchParams }: Props) {
             sourceCount={sdSourceCount}
             tourQuestions={sdTourQuestions}
           />
+
+          {/* FEATURE CAROUSEL EMBED — interactive Reports/Ask Nana/Compare + pricing card */}
+          <SchoolFeatureEmbed schoolName={school.name} ctaHref={`/checkout?slug=${params.slug}`} />
 
           {/* WHY CHOOSE */}
           {school.unique_selling_points && (
