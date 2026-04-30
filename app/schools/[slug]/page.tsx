@@ -1840,7 +1840,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
                 {school.waitlist && (
                   <div style={{ background: 'var(--off)', border: '1px solid var(--border)', borderRadius: 10, padding: 20, gridColumn: '1 / -1' }}>
                     <div style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 10 }}>{t('school_admissions_waitlist_policy')}</div>
-                    <p style={{ fontSize: 18, color: '#334', lineHeight: 1.9, margin: 0 }}>{school.waitlist}</p>
+                    <p style={{ fontSize: 15, color: 'var(--body)', lineHeight: 1.7, margin: 0 }}>{school.waitlist}</p>
                   </div>
                 )}
               </div>
@@ -1887,7 +1887,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
             <Section>
               <SectionTitle>{t('school_section_school_day')}</SectionTitle>
               <div style={{ background: 'var(--off)', border: '1px solid var(--border)', borderRadius: 10, padding: 22 }}>
-                <p style={{ fontSize: 18, color: '#334', lineHeight: 1.9, margin: 0 }}>{school.school_day_structure}</p>
+                <p style={{ fontSize: 15, color: 'var(--body)', lineHeight: 1.7, margin: 0 }}>{school.school_day_structure}</p>
               </div>
             </Section>
           )}
@@ -1900,7 +1900,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
                 {school.house_system && (
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>House System</div>
-                    <p style={{ fontSize: 18, color: '#334', lineHeight: 1.9, margin: 0 }}>{school.house_system}</p>
+                    <p style={{ fontSize: 15, color: 'var(--body)', lineHeight: 1.7, margin: 0 }}>{school.house_system}</p>
                   </div>
                 )}
                 {school.house_names?.length ? (
@@ -1921,13 +1921,13 @@ export default async function SchoolPage({ params, searchParams }: Props) {
                 {school.uniform_requirement && (
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Uniform</div>
-                    <p style={{ fontSize: 18, color: '#334', lineHeight: 1.9, margin: 0 }}>{school.uniform_requirement}</p>
+                    <p style={{ fontSize: 15, color: 'var(--body)', lineHeight: 1.7, margin: 0 }}>{school.uniform_requirement}</p>
                   </div>
                 )}
                 {school.food_options && (
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Food &amp; Dining</div>
-                    <p style={{ fontSize: 18, color: '#334', lineHeight: 1.9, margin: 0 }}>{school.food_options}</p>
+                    <p style={{ fontSize: 15, color: 'var(--body)', lineHeight: 1.7, margin: 0 }}>{school.food_options}</p>
                   </div>
                 )}
                 {school.clubs?.length ? (
@@ -1989,13 +1989,13 @@ export default async function SchoolPage({ params, searchParams }: Props) {
                 {school.mental_wellbeing && (
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Pastoral &amp; Mental Health</div>
-                    <p style={{ fontSize: 18, color: '#334', lineHeight: 1.9, margin: 0 }}>{school.mental_wellbeing}</p>
+                    <p style={{ fontSize: 15, color: 'var(--body)', lineHeight: 1.7, margin: 0 }}>{school.mental_wellbeing}</p>
                   </div>
                 )}
                 {school.safeguarding && (
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Safeguarding &amp; Child Protection</div>
-                    <p style={{ fontSize: 18, color: '#334', lineHeight: 1.9, margin: 0 }}>{school.safeguarding}</p>
+                    <p style={{ fontSize: 15, color: 'var(--body)', lineHeight: 1.7, margin: 0 }}>{school.safeguarding}</p>
                   </div>
                 )}
               </div>
@@ -2006,11 +2006,11 @@ export default async function SchoolPage({ params, searchParams }: Props) {
           {(school.nationalities_count || school.age_min != null || school.gender_split || school.stages?.length) && (
             <Section>
               <SectionTitle>{t('school_section_demographics')}</SectionTitle>
-              <div className="ns-scorecard-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+              <div className="ns-scorecard-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, alignItems: 'start' }}>
                 {school.gender_split && (
                   <div style={{ background: 'var(--off)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 16px' }}>
-                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 14 }}>School Type</div>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--navy)', fontFamily: 'var(--font-nunito), Nunito, sans-serif' }}>{school.gender_split}</div>
+                    <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--muted)', marginBottom: 10 }}>School Type</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--navy)', fontFamily: 'var(--font-nunito), Nunito, sans-serif', textTransform: 'capitalize' }}>{school.gender_split}</div>
                   </div>
                 )}
                 {school.age_min != null && school.age_max != null && (
@@ -2094,31 +2094,31 @@ export default async function SchoolPage({ params, searchParams }: Props) {
                 {school.governance && (
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Governance &amp; Ownership</div>
-                    <p style={{ fontSize: 18, color: '#334', lineHeight: 1.9, margin: 0 }}>{school.governance}</p>
+                    <p style={{ fontSize: 15, color: 'var(--body)', lineHeight: 1.7, margin: 0 }}>{school.governance}</p>
                   </div>
                 )}
                 {school.religious_affiliation && (
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Religious Affiliation</div>
-                    <p style={{ fontSize: 18, color: '#334', lineHeight: 1.9, margin: 0 }}>{school.religious_affiliation}</p>
+                    <p style={{ fontSize: 15, color: 'var(--body)', lineHeight: 1.7, margin: 0 }}>{school.religious_affiliation}</p>
                   </div>
                 )}
                 {school.awards && (
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Awards &amp; Recognition</div>
-                    <p style={{ fontSize: 18, color: '#334', lineHeight: 1.9, margin: 0 }}>{school.awards}</p>
+                    <p style={{ fontSize: 15, color: 'var(--body)', lineHeight: 1.7, margin: 0 }}>{school.awards}</p>
                   </div>
                 )}
                 {school.alumni_notable && (
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Notable Alumni</div>
-                    <p style={{ fontSize: 18, color: '#334', lineHeight: 1.9, margin: 0 }}>{school.alumni_notable}</p>
+                    <p style={{ fontSize: 15, color: 'var(--body)', lineHeight: 1.7, margin: 0 }}>{school.alumni_notable}</p>
                   </div>
                 )}
                 {school.thai_community && (
                   <div>
                     <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 10 }}>Thai Community</div>
-                    <p style={{ fontSize: 18, color: '#334', lineHeight: 1.9, margin: 0 }}>{school.thai_community}</p>
+                    <p style={{ fontSize: 15, color: 'var(--body)', lineHeight: 1.7, margin: 0 }}>{school.thai_community}</p>
                   </div>
                 )}
               </div>

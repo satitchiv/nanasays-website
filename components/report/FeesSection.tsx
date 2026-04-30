@@ -116,12 +116,7 @@ export default function FeesSection({
                 <tr key={i}>
                   <td>{row.phase || '—'}</td>
                   <td>{fmt(row.per_term, prefix)}</td>
-                  <td>
-                    {fmt(row.per_year, prefix)}
-                    {row.source === 'computed' && (
-                      <small style={{ color: 'var(--muted)', marginLeft: 4 }}>(computed)</small>
-                    )}
-                  </td>
+                  <td>{fmt(row.per_year, prefix)}</td>
                 </tr>
               ))}
             </tbody>
@@ -134,21 +129,22 @@ export default function FeesSection({
                 <thead>
                   <tr>
                     <th>Item</th>
-                    <th>Per term</th>
-                    <th>Per year</th>
+                    <th>Frequency</th>
+                    <th>Amount</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {normalized!.compulsory_extras!.map((e, i) => (
-                    <tr key={i}>
-                      <td>
-                        {e.name || '—'}
-                        {e.notes && <><br /><small style={{ color: 'var(--muted)' }}>{e.notes}</small></>}
-                      </td>
-                      <td>{fmt(e.per_term, prefix)}</td>
-                      <td>{fmt(e.per_year, prefix)}</td>
-                    </tr>
-                  ))}
+                  {normalized!.compulsory_extras!.map((e, i) => {
+                    const isOneTime = /one.?time|non.?refundable/i.test(e.notes || '')
+                    const amount = e.per_year ?? e.per_term
+                    return (
+                      <tr key={i}>
+                        <td>{e.name || '—'}</td>
+                        <td><small style={{ color: 'var(--muted)' }}>{isOneTime ? 'One-time' : (e.per_year ? 'Per year' : 'Per term')}</small></td>
+                        <td>{fmt(amount, prefix)}</td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </>
