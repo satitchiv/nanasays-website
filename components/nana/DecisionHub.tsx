@@ -16,12 +16,28 @@ interface ParsedSections {
   you_might_also_ask?: string
 }
 
+interface SourceUsed {
+  section_id: string
+  section_label: string
+  source_url: string
+  source_type: string
+}
+
 interface ParsedAnswer {
   sections: ParsedSections
   confidence: 'high' | 'medium' | 'low' | 'none'
   follow_ups?: string[]
   tour_question?: string | null
   tour_target?: string | null
+  sources_used?: SourceUsed[]
+  recommended_schools?: RecommendedSchool[]
+}
+
+interface RecommendedSchool {
+  slug: string
+  name: string
+  why: string
+  concern?: string
 }
 
 interface ResearchMessage {
@@ -52,15 +68,43 @@ interface ShortlistedSchool {
   school_name: string
   fees_min?: number | null
   fees_max?: number | null
+  fees_currency?: string | null
+}
+
+interface ExamResults {
+  a_level?: { pct_a_star?: number | null; pct_a_star_a?: number | null; notes?: string | null } | null
+  gcse?: { pct_7_to_9?: number | null; pct_9?: number | null; notes?: string | null } | null
+}
+
+interface FeeRow {
+  phase: string
+  per_year?: number | null
+  per_term?: number | null
+}
+
+interface VerdictLight {
+  label: string
+  value: string
+  status: 'green' | 'amber' | 'red'
+}
+
+interface ReportVerdict {
+  lights?: VerdictLight[]
+  headline?: string
+  best_fit_for?: string
+  harder_fit_for?: string
 }
 
 interface SchoolStructuredData {
   school_slug: string
-  exam_results?: Record<string, unknown> | null
-  fees?: Record<string, unknown> | null
+  exam_results?: ExamResults | null
+  fees_by_grade?: { rows?: FeeRow[]; currency?: string } | null
+  fees_min?: number | null
+  fees_max?: number | null
+  fees_currency?: string | null
   sports_profile?: Record<string, unknown> | null
-  isi_inspection?: Record<string, unknown> | null
-  school_overview?: Record<string, unknown> | null
+  report_verdict?: ReportVerdict | null
+  university_destinations?: Record<string, unknown> | null
 }
 
 interface ParentProfile {
@@ -101,9 +145,19 @@ function extractStreamingField(buf: string, key: string): string {
 }
 
 /** Very simple inline markdown: bold, line breaks */
-function renderMd(text: string): React.ReactNode[] {
-  if (!text) return []
-  return text.split('\n').map((line, i) => {
+function renderMd(text: unknown): React.ReactNode[] {
+  let str: string
+  if (typeof text === 'string') {
+    str = text
+  } else if (Array.isArray(text)) {
+    str = text.map(item => `• ${typeof item === 'string' ? item : JSON.stringify(item)}`).join('\n')
+  } else if (text != null) {
+    str = JSON.stringify(text)
+  } else {
+    str = ''
+  }
+  if (!str) return []
+  return str.split('\n').map((line, i) => {
     const parts = line.split(/(\*\*[^*]+\*\*)/g)
     return (
       <span key={i}>
@@ -112,13 +166,13 @@ function renderMd(text: string): React.ReactNode[] {
             ? <strong key={j}>{p.slice(2, -2)}</strong>
             : <span key={j}>{p}</span>
         )}
-        {i < text.split('\n').length - 1 && <br />}
+        {i < str.split('\n').length - 1 && <br />}
       </span>
     )
   })
 }
 
-// ── Placeholder check card data ───────────────────────────────────────────────
+// ── Check card data ───────────────────────────────────────────────────────────
 
 interface CheckCard {
   id: string
@@ -135,88 +189,99 @@ interface CheckCard {
   source?: string
 }
 
-function getPlaceholderChecks(priority: string | null | undefined): CheckCard[] {
-  const topPriority = priority || 'Academic ambition'
-  return [
-    {
-      id: 'fees',
-      color: 'green',
-      icon: '✓',
-      title: 'Fees within range',
-      evidence: 'Full boarding: £44,880/yr — within typical threshold',
-      whatWeKnow: [
-        'Full boarding: £44,880/year (2024–25)',
-        'Weekly boarding also available at £41,200/year',
-        'Fees rising ~6% year-on-year over 3 years',
-      ],
-      whatThisMeans: 'Fees sit within a reasonable range. Weekly boarding gives extra headroom.',
-      tradeoff: 'At 6%/yr, fees reach ~£53,000 by Year 3. Extras — trips, music, laundry — commonly add 8–12% on top. Ask for a cost-of-attendance estimate, not just the published rate.',
-      whatWeDontKnow: 'Whether bursaries are available for Year 9 entry or typical award sizes.',
-      tourQuestion: 'Can you give a full cost-of-attendance estimate including typical extras, and your policy on fee increases during a child\'s time at the school?',
-      tourTarget: 'Ask: Bursar or admissions',
-      source: 'Fees page · School website',
-    },
-    {
-      id: 'financial-health',
-      color: 'green',
-      icon: '✓',
-      title: 'Financial health',
-      evidence: 'Charity Commission data available · ISI inspection on record',
-      whatWeKnow: [
-        'Charity Commission accounts filed (most recent year)',
-        'Net assets and income on record',
-        'ISI inspection completed',
-      ],
-      tradeoff: undefined,
-      tourQuestion: 'Has the school taken on any new debt or capital commitments in the past two years?',
-      tourTarget: 'Ask: Bursar',
-      source: 'Charity Commission · ISI',
-    },
-    {
-      id: 'boarding',
-      color: 'green',
-      icon: '✓',
-      title: 'Boarding type matches',
-      evidence: 'Full and weekly boarding confirmed',
-      whatWeKnow: [
-        'Multiple boarding options available',
-        'Weekly boarding — home Friday evening',
-        'Co-ed and single-sex houses',
-      ],
-      tourQuestion: 'What is the typical mix of full and weekly boarders, and how does that affect weekend culture?',
-      tourTarget: 'Ask: Head of boarding',
-      source: 'Admissions · School website',
-    },
-    {
-      id: 'academic',
-      color: topPriority === 'Academic ambition' ? 'amber' : 'green',
-      icon: topPriority === 'Academic ambition' ? '!' : '✓',
-      title: 'Academic performance',
-      evidence: 'A-level results on record · Oxbridge data available',
-      whatWeKnow: [
-        'A-level results published for most recent year',
-        'GCSE results available',
-        'Oxbridge destinations on record',
-      ],
-      tradeoff: topPriority === 'Academic ambition'
-        ? 'Academic ambition is your top priority — check whether Oxbridge placement rate meets your expectations for a school at this fee level.'
-        : undefined,
-      tourQuestion: 'What were your Oxbridge and Russell Group outcomes by subject last year, and what structured support exists for competitive applications?',
-      tourTarget: 'Ask: Head of sixth form',
-      source: 'Results · School website',
-    },
-    {
-      id: 'sport',
+function lightToColor(status: string): CheckCard['color'] {
+  if (status === 'green') return 'green'
+  if (status === 'amber') return 'amber'
+  return 'grey'
+}
+function lightToIcon(status: string): CheckCard['icon'] {
+  if (status === 'green') return '✓'
+  if (status === 'amber') return '!'
+  return '—'
+}
+
+function getRealChecks(
+  school: ShortlistedSchool,
+  sData: SchoolStructuredData | undefined,
+): CheckCard[] {
+  const cards: CheckCard[] = []
+
+  // ── Fees card ──────────────────────────────────────────────────────────────
+  const feeRows = sData?.fees_by_grade?.rows ?? []
+  const boardingRow = feeRows.find(r => r.phase?.toLowerCase().includes('boarding'))
+  const cur = sData?.fees_currency ?? school.fees_currency ?? 'GBP'
+  const sym = cur === 'GBP' ? '£' : cur + ' '
+  const feeEvidence = boardingRow?.per_year
+    ? `Full boarding: ${sym}${boardingRow.per_year.toLocaleString()}/yr`
+    : school.fees_min
+    ? `From ${sym}${school.fees_min.toLocaleString()}/yr`
+    : 'Fees not published'
+  const feeKnow = feeRows.length > 0
+    ? feeRows.map(r => `${r.phase}: ${sym}${(r.per_year ?? 0).toLocaleString()}/yr`)
+    : school.fees_min
+    ? [`From ${sym}${school.fees_min.toLocaleString()}/yr`]
+    : []
+
+  cards.push({
+    id: 'fees',
+    color: school.fees_min ? 'green' : 'grey',
+    icon: school.fees_min ? '✓' : '—',
+    title: 'Fees within range',
+    evidence: feeEvidence,
+    whatWeKnow: feeKnow,
+    tradeoff: 'Extras — trips, music, laundry — commonly add 8–12% on top of published fees. Ask for a cost-of-attendance estimate.',
+    tourQuestion: "Can you give a full cost-of-attendance estimate including typical extras, and your policy on fee increases during a child's time at the school?",
+    tourTarget: 'Ask: Bursar or admissions',
+  })
+
+  // ── Lights from report_verdict ─────────────────────────────────────────────
+  const lights = sData?.report_verdict?.lights ?? []
+  for (const light of lights) {
+    const id = light.label.toLowerCase().replace(/\s+/g, '-')
+    const card: CheckCard = {
+      id,
+      color: lightToColor(light.status),
+      icon: lightToIcon(light.status),
+      title: light.label,
+      evidence: light.value,
+    }
+    // Enrich academic strength with real exam data
+    if (id === 'academic-strength') {
+      const al = sData?.exam_results?.a_level
+      const gc = sData?.exam_results?.gcse
+      const know: string[] = []
+      if (al?.pct_a_star_a != null) know.push(`A*–A at A-level: ${al.pct_a_star_a}%`)
+      if (al?.pct_a_star != null)   know.push(`A* at A-level: ${al.pct_a_star}%`)
+      if (al?.notes)                know.push(al.notes.slice(0, 120))
+      if (gc?.pct_7_to_9 != null)   know.push(`Grades 7–9 at GCSE: ${gc.pct_7_to_9}%`)
+      if (gc?.notes)                know.push(gc.notes.slice(0, 120))
+      if (know.length) card.whatWeKnow = know
+      card.tourQuestion = 'What were your Oxbridge and Russell Group outcomes by subject last year, and what structured support exists for competitive applications?'
+      card.tourTarget = 'Ask: Head of sixth form'
+    }
+    if (id === 'financial-health') {
+      card.tourQuestion = 'Has the school taken on any new debt or capital commitments in the past two years?'
+      card.tourTarget = 'Ask: Bursar'
+    }
+    if (id === 'safeguarding') {
+      card.tourQuestion = 'How is safeguarding reported to parents, and what is the process if a concern is raised?'
+      card.tourTarget = 'Ask: Head of boarding or DSL'
+    }
+    cards.push(card)
+  }
+
+  // ── Fallback if no lights ──────────────────────────────────────────────────
+  if (lights.length === 0) {
+    cards.push({
+      id: 'data',
       color: 'grey',
       icon: '—',
-      title: 'Sport provision',
-      evidence: 'Limited data — sport-specific rankings not yet in our database',
-      whatWeDontKnow: 'Detailed sports fixture data and team rankings not yet available for this school.',
-      tourQuestion: 'What proportion of Year 9 entrants make a school sports team in their first year, and what does the development pathway look like?',
-      tourTarget: 'Ask: Director of sport',
-      source: undefined,
-    },
-  ]
+      title: 'Detailed checks',
+      evidence: 'Full report data not yet generated for this school',
+    })
+  }
+
+  return cards
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -299,18 +364,21 @@ function CheckCardRow({
 function VerdictView({
   activeSchool,
   shortlist,
+  structuredData,
   profile,
   onChangeSchool,
   onOpenModal,
 }: {
   activeSchool: ShortlistedSchool | null
   shortlist: ShortlistedSchool[]
+  structuredData: SchoolStructuredData[]
   profile: ParentProfile | null
   onChangeSchool: () => void
   onOpenModal: () => void
 }) {
   const [expandedCardId, setExpandedCardId] = useState<string | null>('fees')
-  const checks = getPlaceholderChecks(profile?.top_priority)
+  const sData = structuredData.find(d => d.school_slug === activeSchool?.school_slug)
+  const checks = activeSchool ? getRealChecks(activeSchool, sData) : []
   const greenCount = checks.filter(c => c.color === 'green').length
   const amberCount = checks.filter(c => c.color === 'amber').length
   const greyCount  = checks.filter(c => c.color === 'grey').length
@@ -377,9 +445,10 @@ function VerdictView({
       <div className="dh-honest-read">
         <p className="dh-honest-read-eyebrow">Nana&apos;s honest read</p>
         <p className="dh-honest-read-body">
-          {activeSchool
-            ? `${activeSchool.school_name} appears financially sound and the boarding setup fits your profile. The key things to push on: academic results versus your ambitions, and sport provision (limited data in our database). Ask Nana in the panel on the right to dig deeper on any specific question.`
-            : 'Add schools to your shortlist to see a personalised verdict. Once you have schools shortlisted, Nana will stress-test them against your priorities.'}
+          {sData?.report_verdict?.headline
+            ?? (activeSchool
+              ? `Ask Nana in the panel on the right to dig deeper on any specific question about ${activeSchool.school_name}.`
+              : 'Add schools to your shortlist to see a personalised verdict.')}
         </p>
       </div>
     </div>
@@ -414,40 +483,48 @@ function CompareView({
 
   function hasDeepData(slug: string): boolean {
     const d = getStructured(slug)
-    return !!(d?.exam_results || d?.isi_inspection || d?.sports_profile)
+    return !!(d?.exam_results || d?.report_verdict || d?.sports_profile)
   }
 
-  function getExamResult(slug: string, key: string): string {
+  function getALevel(slug: string): string {
     const d = getStructured(slug)
-    if (!d?.exam_results) return '—'
-    const er = d.exam_results as Record<string, unknown>
-    const val = er[key]
-    return val != null ? String(val) : '—'
+    const al = d?.exam_results?.a_level
+    if (!al) return '—'
+    if (al.pct_a_star_a != null) return `${al.pct_a_star_a}% A*–A`
+    if (al.notes) return al.notes.slice(0, 35)
+    return '—'
   }
 
-  function getISIRating(slug: string): string {
+  function getGCSE(slug: string): string {
     const d = getStructured(slug)
-    if (!d?.isi_inspection) return '—'
-    const ins = d.isi_inspection as Record<string, unknown>
-    const overall = ins.overall_judgement ?? ins.overall ?? ins.rating ?? ins.outcome
-    return overall ? String(overall) : '—'
+    const gc = d?.exam_results?.gcse
+    if (!gc) return '—'
+    if (gc.pct_7_to_9 != null) return `${gc.pct_7_to_9}% 7–9`
+    if (gc.notes) return gc.notes.slice(0, 35)
+    return '—'
+  }
+
+  function getSafeguarding(slug: string): string {
+    const d = getStructured(slug)
+    const lights = d?.report_verdict?.lights ?? []
+    const safe = lights.find(l => l.label === 'Safeguarding')
+    return safe?.value ?? '—'
+  }
+
+  function getFinancialHealth(slug: string): string {
+    const d = getStructured(slug)
+    const lights = d?.report_verdict?.lights ?? []
+    const fin = lights.find(l => l.label === 'Financial health')
+    return fin?.value ?? '—'
   }
 
   function getBoardingFees(school: ShortlistedSchool): string {
-    if (school.fees_min) return `£${school.fees_min.toLocaleString()}/yr`
     const d = getStructured(school.school_slug)
-    if (!d?.fees) return '—'
-    const fees = d.fees as Record<string, unknown>
-    const boarding = fees.boarding_annual ?? fees.boarding ?? fees.full_boarding
-    return boarding ? `£${boarding}` : '—'
-  }
-
-  function getSportRanking(slug: string): string {
-    const d = getStructured(slug)
-    if (!d?.sports_profile) return '—'
-    const sp = d.sports_profile as Record<string, unknown>
-    const football = sp.football as Record<string, unknown> | undefined
-    if (football?.ranking) return `${football.ranking}th (football)`
+    const boardingRow = d?.fees_by_grade?.rows?.find(r => r.phase?.toLowerCase().includes('boarding'))
+    const cur = d?.fees_currency ?? 'GBP'
+    const sym = cur === 'GBP' ? '£' : cur + ' '
+    if (boardingRow?.per_year) return `${sym}${boardingRow.per_year.toLocaleString()}/yr`
+    if (school.fees_min) return `${sym}${school.fees_min.toLocaleString()}/yr`
     return '—'
   }
 
@@ -456,22 +533,14 @@ function CompareView({
 
   if (priorities.includes('Academic ambition')) {
     rows.push(
-      { label: 'A*–B at A-level', getValue: s => getExamResult(s.school_slug, 'a_level_ab_percent') },
-      { label: 'Oxbridge places', getValue: s => getExamResult(s.school_slug, 'oxbridge_places') },
-    )
-  }
-  if (priorities.includes('Sport')) {
-    rows.push(
-      { label: 'Football ranking', getValue: s => getSportRanking(s.school_slug) },
-    )
-  }
-  if (priorities.includes('Boarding') || priorities.includes('Budget')) {
-    rows.push(
-      { label: 'Boarding fees/year', getValue: s => getBoardingFees(s) },
+      { label: 'A*–A at A-level', getValue: s => getALevel(s.school_slug) },
+      { label: 'Grades 7–9 at GCSE', getValue: s => getGCSE(s.school_slug) },
     )
   }
   rows.push(
-    { label: 'ISI rating', getValue: s => getISIRating(s.school_slug) },
+    { label: 'Boarding fees/year', getValue: s => getBoardingFees(s) },
+    { label: 'Safeguarding', getValue: s => getSafeguarding(s.school_slug) },
+    { label: 'Financial health', getValue: s => getFinancialHealth(s.school_slug) },
   )
 
   const displaySchools = shortlist.slice(0, 5)
@@ -656,6 +725,51 @@ function ProfileModal({
   )
 }
 
+// ── Helpers: confidence badge + source pills ──────────────────────────────────
+
+function ConfidenceBadge({ level }: { level: string }) {
+  const map: Record<string, [string, string]> = {
+    high:   ['dh-conf--high',   'High confidence'],
+    medium: ['dh-conf--medium', 'Medium confidence'],
+    low:    ['dh-conf--low',    'Low confidence'],
+    none:   ['dh-conf--none',   'No data'],
+  }
+  const [cls, label] = map[level] ?? ['', level]
+  return <span className={`dh-conf-badge ${cls}`}>{label}</span>
+}
+
+function isSafeUrl(url: string): boolean {
+  try { const u = new URL(url); return u.protocol === 'https:' || u.protocol === 'http:' }
+  catch { return false }
+}
+
+function CandidateCard({ c, inList, onAdd }: { c: RecommendedSchool; inList: boolean; onAdd: () => void }) {
+  return (
+    <div className="dh-candidate-card">
+      <p className="dh-candidate-name">{c.name}</p>
+      <p className="dh-candidate-why">{c.why}</p>
+      {c.concern && <p className="dh-candidate-concern">⚠ {c.concern}</p>}
+      {inList
+        ? <span className="dh-candidate-added">✓ In your shortlist</span>
+        : <button className="dh-candidate-add" onClick={onAdd}>Add to shortlist +</button>}
+    </div>
+  )
+}
+
+function buildOpeningBriefing(
+  shortlist: ShortlistedSchool[],
+  profile: ParentProfile | null,
+  activeSchool: ShortlistedSchool | null,
+): string {
+  if (shortlist.length === 0)
+    return 'Ask me to find schools — best for sport, boarding near London, under a specific budget.'
+  const parts: string[] = [`I've looked at your ${shortlist.length} school${shortlist.length > 1 ? 's' : ''}.`]
+  if (profile?.top_priority) parts.push(`Your top priority is ${profile.top_priority.toLowerCase()}.`)
+  if (activeSchool) parts.push(`I'm focused on ${activeSchool.school_name} — ask me anything specific.`)
+  else parts.push('Ask me anything — fees, results, pastoral care, how they compare.')
+  return parts.join(' ')
+}
+
 // ── Chat message rendering ────────────────────────────────────────────────────
 
 function NanaMsgBubble({
@@ -687,6 +801,8 @@ function NanaMsgBubble({
         </>
       )}
 
+      {!isStreaming && parsed?.confidence && <ConfidenceBadge level={parsed.confidence} />}
+
       {showSkeleton && (
         <div className="dh-skeleton">
           <div className="dh-skeleton-line dh-skeleton-line--80" />
@@ -699,6 +815,13 @@ function NanaMsgBubble({
         <p className="dh-msg-nana-prose">{renderMd(s.confirmed_facts)}</p>
       )}
 
+      {!isStreaming && s.what_this_means && s.what_this_means !== 'Nothing to flag here.' && (
+        <div className="dh-ans-section">
+          <p className="dh-msg-nana-eyebrow">What this means</p>
+          <p className="dh-msg-nana-prose">{renderMd(s.what_this_means)}</p>
+        </div>
+      )}
+
       {!isStreaming && s.tradeoff && s.tradeoff !== 'Nothing to flag here.' && (
         <div className="dh-msg-nana-tradeoff">
           <p className="dh-msg-nana-tradeoff-label">⚠ Watch out</p>
@@ -706,10 +829,30 @@ function NanaMsgBubble({
         </div>
       )}
 
+      {!isStreaming && s.what_we_dont_know && s.what_we_dont_know !== 'Nothing to flag here.' && (
+        <div className="dh-ans-section dh-ans-section--dim">
+          <p className="dh-msg-nana-eyebrow">What we don&apos;t know</p>
+          <p className="dh-msg-nana-prose">{renderMd(s.what_we_dont_know)}</p>
+        </div>
+      )}
+
       {!isStreaming && parsed?.tour_question && (
         <div className="dh-msg-nana-tour">
           <p className="dh-msg-nana-tour-label">Tour question</p>
           <p className="dh-msg-nana-tour-q">&ldquo;{parsed.tour_question}&rdquo;</p>
+        </div>
+      )}
+
+      {!isStreaming && parsed?.sources_used && parsed.sources_used.length > 0 && (
+        <div className="dh-sources">
+          {parsed.sources_used
+            .filter(s => s.source_url && s.section_label && isSafeUrl(s.source_url))
+            .slice(0, 6)
+            .map((s, i) => (
+              <a key={i} href={s.source_url} target="_blank" rel="noopener noreferrer" className="dh-source-pill dh-source-pill--chat">
+                {s.section_label.slice(0, 40)} ↗
+              </a>
+            ))}
         </div>
       )}
 
@@ -739,10 +882,29 @@ export function DecisionHub({
   const [reportName, setReportName] = useState(shortlist[0]?.school_name ?? '')
   const [showProfileModal, setShowProfileModal] = useState(false)
 
-  const activeSchool = shortlist[activeSchoolIdx] ?? null
+  // F6: local shortlist state — updates live without page reload
+  const [localShortlist, setLocalShortlist] = useState<ShortlistedSchool[]>(shortlist)
+
+  const activeSchool = localShortlist[activeSchoolIdx] ?? null
 
   function cycleSchool() {
-    setActiveSchoolIdx(prev => (prev + 1) % Math.max(shortlist.length, 1))
+    setActiveSchoolIdx(prev => (prev + 1) % Math.max(localShortlist.length, 1))
+  }
+
+  async function addToShortlist(slug: string, name: string) {
+    // Check closure value — avoids queued-updater timing issue with wasNew flag
+    if (localShortlist.some(s => s.school_slug === slug)) return
+    setLocalShortlist(prev => [...prev, { school_slug: slug, school_name: name, fees_min: null, fees_max: null }])
+    try {
+      const res = await fetch('/api/shortlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug }),
+      })
+      if (!res.ok) setLocalShortlist(prev => prev.filter(s => s.school_slug !== slug))
+    } catch {
+      setLocalShortlist(prev => prev.filter(s => s.school_slug !== slug))
+    }
   }
 
   function openReport(slug: string, name: string) {
@@ -769,6 +931,15 @@ export function DecisionHub({
   const [activeParsed, setActiveParsed] = useState<ParsedAnswer | null>(null)
   const [activeShareToken, setActiveShareToken] = useState<string | undefined>()
   const [devilsAdvocate, setDevilsAdvocate] = useState(false)
+  const [candidates, setCandidates] = useState<RecommendedSchool[]>([])
+  const [showTooltip, setShowTooltip] = useState(false)
+
+  useEffect(() => {
+    if (!localStorage.getItem('nana-dh-visited')) {
+      setShowTooltip(true)
+      localStorage.setItem('nana-dh-visited', '1')
+    }
+  }, [])
 
   const abortRef   = useRef<AbortController | null>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
@@ -795,6 +966,7 @@ export function DecisionHub({
     setActiveParsed(null)
     setActiveShareToken(undefined)
     setQuestion('')
+    setCandidates([])
 
     try {
       const res = await fetch('/api/nana-research', {
@@ -804,6 +976,9 @@ export function DecisionHub({
           question: q,
           sessionId: session?.id,
           devilsAdvocate,
+          activeTab,
+          activeSchoolSlug: activeSchool?.school_slug ?? null,
+          shortlistSlugs: localShortlist.map(s => s.school_slug),
         }),
         signal: ac.signal,
       })
@@ -869,6 +1044,22 @@ export function DecisionHub({
                   createdAt: new Date().toISOString(),
                 }])
               }
+              // F5: react to ui_intent — auto-switch left pane tab silently
+              // localShortlist is captured at ask() call time via useCallback deps — correct semantics
+              {
+                const intent = evt.uiIntent as any
+                if (intent?.action === 'show_verdict' && intent.schoolSlug) {
+                  const idx = localShortlist.findIndex(s => s.school_slug === intent.schoolSlug)
+                  if (idx >= 0) { setActiveSchoolIdx(idx); setActiveTab('verdict') }
+                } else if (intent?.action === 'show_compare') {
+                  const allInList = (intent.schoolSlugs as string[]).every(
+                    (slug: string) => localShortlist.some(s => s.school_slug === slug)
+                  )
+                  if (allInList) setActiveTab('compare')
+                } else if (intent?.action === 'show_candidates' && intent.candidates) {
+                  setCandidates(intent.candidates)
+                }
+              }
               break
 
             case 'summary_generating':
@@ -888,7 +1079,7 @@ export function DecisionHub({
     } finally {
       setIsStreaming(false)
     }
-  }, [question, isStreaming, session, devilsAdvocate])
+  }, [question, isStreaming, session, devilsAdvocate, activeTab, activeSchool, localShortlist])
 
   function stopStream() {
     abortRef.current?.abort()
@@ -914,14 +1105,11 @@ export function DecisionHub({
     inputRef.current?.focus()
   }
 
-  const starterChips = [
-    'What would you ask at the open day?',
-    'Any red flags I should know?',
-    'Compare fees across my shortlist',
-  ]
+  const starterChips = localShortlist.length === 0
+    ? ['Best schools for competitive football', 'Top boarding near London under £40k', 'Best schools for art and drama']
+    : ['What would you ask at the open day?', 'Any red flags I should know?', 'Compare fees across my shortlist']
 
-  // The active school name for header
-  const headerSchoolName = activeSchool?.school_name ?? (shortlist[0]?.school_name ?? '')
+  const headerSchoolName = activeSchool?.school_name ?? (localShortlist[0]?.school_name ?? '')
 
   return (
     <div className="dh-shell">
@@ -968,7 +1156,8 @@ export function DecisionHub({
           {activeTab === 'verdict' && (
             <VerdictView
               activeSchool={activeSchool}
-              shortlist={shortlist}
+              shortlist={localShortlist}
+              structuredData={structuredData}
               profile={profile}
               onChangeSchool={cycleSchool}
               onOpenModal={() => setShowProfileModal(true)}
@@ -976,7 +1165,7 @@ export function DecisionHub({
           )}
           {activeTab === 'compare' && (
             <CompareView
-              shortlist={shortlist}
+              shortlist={localShortlist}
               structuredData={structuredData}
               profile={profile}
               onOpenModal={() => setShowProfileModal(true)}
@@ -1002,20 +1191,22 @@ export function DecisionHub({
                 {devilsAdvocate ? '👿 Second opinion ON' : 'Second opinion'}
               </button>
             </div>
-            <p className="dh-chat-nana-sub">Ask anything — answers update the verdict and comparison on the left</p>
+            <p className="dh-chat-nana-sub">Ask anything about any UK independent school</p>
           </div>
 
           <div className="dh-chat-messages">
-            {/* Opening placeholder message */}
+            {/* F1: Smart empty state — Discovery mode or Opening briefing */}
             {messages.length === 0 && !isStreaming && (
               <div className="dh-msg-nana">
-                <p className="dh-msg-nana-eyebrow">Opening verdict</p>
-                <p className="dh-msg-nana-lead">
-                  {activeSchool
-                    ? `I've looked at ${activeSchool.school_name}. Ask me anything specific — fees, results, boarding life, sport, how it compares to your other shortlisted schools.`
-                    : 'Add schools to your shortlist to get a personalised verdict. I can compare, stress-test, and answer specific questions about any UK independent school.'}
+                <p className="dh-msg-nana-eyebrow">
+                  {localShortlist.length === 0 ? 'Discovery mode' : 'Opening briefing'}
                 </p>
-                <p className="dh-msg-affordance">↻ Verdict shown on the left</p>
+                <p className="dh-msg-nana-lead">
+                  {buildOpeningBriefing(localShortlist, profile, activeSchool)}
+                </p>
+                {localShortlist.length === 0 && (
+                  <a href="/schools" className="dh-msg-affordance">Browse the directory →</a>
+                )}
               </div>
             )}
 
@@ -1039,6 +1230,21 @@ export function DecisionHub({
               </div>
             )}
 
+            {/* F7: Candidate cards — shown after recommendation questions */}
+            {candidates.length > 0 && !isStreaming && (
+              <div className="dh-candidates-section">
+                <p className="dh-msg-nana-eyebrow">Schools Nana suggests</p>
+                {candidates.map(c => (
+                  <CandidateCard
+                    key={c.slug}
+                    c={c}
+                    inList={localShortlist.some(s => s.school_slug === c.slug)}
+                    onAdd={() => addToShortlist(c.slug, c.name)}
+                  />
+                ))}
+              </div>
+            )}
+
             <div ref={chatEndRef} />
           </div>
 
@@ -1050,6 +1256,14 @@ export function DecisionHub({
               </button>
             ))}
           </div>
+
+          {/* F1: First-visit tooltip */}
+          {showTooltip && (
+            <div className="dh-tooltip" onClick={() => setShowTooltip(false)}>
+              Ask Nana a question — schools she mentions appear on the left for comparison
+              <button className="dh-tooltip-close" onClick={e => { e.stopPropagation(); setShowTooltip(false) }}>✕</button>
+            </div>
+          )}
 
           {/* Input bar */}
           <div className="dh-chat-input-bar">

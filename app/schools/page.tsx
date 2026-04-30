@@ -8,7 +8,7 @@ import './schools.css'
 export const metadata: Metadata = {
   title: 'UK Independent Schools Directory | Nanasays',
   description: 'Browse 140 UK independent schools with deep research reports. Filter by boarding, sport, and more. Free to browse — unlock the full report for £39.',
-  alternates: { canonical: 'https://nanasays.com/schools' },
+  alternates: { canonical: 'https://nanasays.school/schools' },
 }
 
 export const revalidate = 3600

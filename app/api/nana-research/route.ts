@@ -83,8 +83,14 @@ export async function POST(req: NextRequest) {
 
   const incomingSessionId: string | null = typeof body?.sessionId === 'string' ? body.sessionId : null
   const devilsAdvocate = body?.devilsAdvocate === true
-  const parentContext  = profile ? buildParentContext(profile) : null
   const shareToken     = crypto.randomUUID()
+
+  // F2: context sent by client
+  const activeTab: string | null        = typeof body?.activeTab === 'string' ? body.activeTab : null
+  const activeSchoolSlug: string | null = typeof body?.activeSchoolSlug === 'string' ? body.activeSchoolSlug : null
+  const shortlistSlugs: string[]        = Array.isArray(body?.shortlistSlugs)
+    ? body.shortlistSlugs.filter((s: unknown) => typeof s === 'string').slice(0, 10)
+    : []
 
   // ── Session setup ──
   let sessionId: string
@@ -115,8 +121,54 @@ export async function POST(req: NextRequest) {
     sessionId = newSess.id
   }
 
+  // F4: conversation memory — last 3 Q&A pairs (~300 tokens, in user message so cache stays warm)
+  let historyContext: string | null = null
+  {
+    const { data: recentMsgs } = await supabase
+      .from('research_session_messages')
+      .select('question, parsed_answer')
+      .eq('session_id', sessionId)
+      .order('created_at', { ascending: false })
+      .limit(3)
+
+    if (recentMsgs?.length) {
+      const pairs = recentMsgs.reverse().map(m => {
+        const a = (m.parsed_answer as any)?.sections?.short_answer ?? ''
+        return `Q: ${(m.question as string).slice(0, 100)} / A: ${a.slice(0, 120)}${a.length > 120 ? '…' : ''}`
+      }).join('\n')
+      historyContext = `Recent conversation:\n${pairs}`
+    }
+  }
+
+  const rawParentContext = profile ? buildParentContext(profile) : null
+  const parentContext = [rawParentContext, historyContext].filter(Boolean).join('\n') || null
+
+  // F3: context-aware routing
+  // F3: compareKw uses word boundaries + broader intent terms
+  const compareKw = /\b(compare|comparison|shortlist|my schools|my options|vs|versus|between|which (one|school|of these))\b/i
+  // globalKw: never seed single-school for "which/best" discovery questions
+  const globalKw = /\b(which|best|recommend|suggest|find|options|schools|better)\b/i
+
   // ── Route to correct brain function ──
-  const mentionedSlugs: string[] = await detectMentionedSlugs(supabase, question)
+  let mentionedSlugs: string[] = await detectMentionedSlugs(supabase, question)
+
+  // "Compare my shortlist" with no explicit school names → use shortlist directly
+  if (compareKw.test(question) && shortlistSlugs.length >= 2 && mentionedSlugs.length === 0) {
+    mentionedSlugs = shortlistSlugs
+  }
+
+  // "Any red flags?" on Verdict tab with no school named → answer about active school
+  // Only for clearly local questions — exclude global/comparison intents
+  if (
+    activeTab === 'verdict' &&
+    activeSchoolSlug &&
+    mentionedSlugs.length === 0 &&
+    !compareKw.test(question) &&
+    !globalKw.test(question)
+  ) {
+    mentionedSlugs = [activeSchoolSlug]
+  }
+
   const mode = mentionedSlugs.length === 0 ? 'global'
     : mentionedSlugs.length === 1          ? 'single'
     : 'multi'
@@ -151,7 +203,8 @@ export async function POST(req: NextRequest) {
           if (ac.signal.aborted) break
           if ((event as any)?.type === 'final') {
             finalPayload = (event as any).payload
-            send({ ...event as object, shareToken })
+            const uiIntent = computeUiIntent(mode, mentionedSlugs, finalPayload?.parsed)
+            send({ ...event as object, shareToken, uiIntent })
           } else {
             send(event)
           }
@@ -244,6 +297,14 @@ export async function POST(req: NextRequest) {
       'X-Accel-Buffering': 'no',
     },
   })
+}
+
+function computeUiIntent(mode: string, slugs: string[], parsed: any): Record<string, unknown> {
+  if (mode === 'single') return { action: 'show_verdict', schoolSlug: slugs[0] }
+  if (mode === 'multi')  return { action: 'show_compare', schoolSlugs: slugs }
+  const recs = parsed?.recommended_schools
+  if (Array.isArray(recs) && recs.length > 0) return { action: 'show_candidates', candidates: recs }
+  return { action: 'none' }
 }
 
 function jsonError(status: number, message: string): Response {

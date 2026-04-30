@@ -452,15 +452,16 @@ function ParsedAnswer({ parsed }: { parsed: any }) {
   )
 }
 
-function Section({ label, body, amber, bold }: { label: string; body?: string; amber?: boolean; bold?: boolean }) {
-  if (!body || body.trim() === 'Nothing to flag here') return null
+function Section({ label, body, amber, bold }: { label: string; body?: unknown; amber?: boolean; bold?: boolean }) {
+  const bodyStr = typeof body === 'string' ? body : body != null ? JSON.stringify(body) : ''
+  if (!bodyStr || bodyStr.trim() === 'Nothing to flag here') return null
   return (
     <div style={{ marginBottom: 14 }}>
       <div style={{ fontSize: 10, fontWeight: 800, color: amber ? '#D97706' : '#34C3A0', textTransform: 'uppercase', letterSpacing: '0.18em', marginBottom: 6 }}>{label}</div>
       <div style={{
         fontSize: bold ? 15 : 13, color: bold ? '#1B3252' : '#1f2937', lineHeight: 1.55, whiteSpace: 'pre-wrap',
         ...(amber ? { background: '#FFFBEB', borderLeft: '3px solid #D97706', padding: '10px 12px', borderRadius: 4 } : {}),
-      }}>{body}</div>
+      }}>{bodyStr}</div>
     </div>
   )
 }

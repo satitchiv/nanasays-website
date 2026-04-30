@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
+import { sendWelcomeEmail } from '@/lib/email'
 
 const ALLOWED_EXACT = new Set(['/my-reports', '/unlock', '/portal'])
 const ALLOWED_PREFIXES = ['/schools/']
@@ -44,6 +45,13 @@ export async function GET(req: NextRequest) {
   const { error } = await supabase.auth.exchangeCodeForSession(code)
   if (error) {
     return NextResponse.redirect(`${siteUrl}/login?error=auth`)
+  }
+
+  // Send welcome email on first sign-up (created_at within 2 min = new user)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user?.email && user.created_at) {
+    const isNew = new Date(user.created_at).getTime() > Date.now() - 2 * 60 * 1000
+    if (isNew) sendWelcomeEmail(user.email) // fire-and-forget — never blocks redirect
   }
 
   return NextResponse.redirect(`${siteUrl}${next}`)

@@ -1,0 +1,53 @@
+Pre-build plan review.
+
+I'm about to implement a "Generate Thai caption" feature for our
+admin content queue. The plan is in 00-plan.md. I want your
+pre-build sanity check before I write a line of code, so I can
+correct the approach up front rather than refactoring after
+building the wrong thing.
+
+Attached as context (read-only reference, not for re-review):
+  01-reference-claude-album-brief.js — how we currently call Claude
+    CLI for album copy. The translator should use the same CLI path,
+    model env var (SOCIAL_CLAUDE_MODEL), and backend toggle.
+  02-reference-generate-route.ts — how the existing admin API route
+    spawns a CLI child process. The new translate-caption API route
+    will mirror this shape exactly.
+  03-reference-approve-route.ts — simpler admin route showing the
+    verifyAdmin + supabaseService pattern.
+
+Questions I want answered:
+
+  1. Prompt design — is the prompt in "Translation prompt" section of
+     the plan likely to produce high-quality parent-friendly Thai,
+     given Claude's typical behavior? Any known failure modes I've
+     missed? (Dropping English proper nouns, over-formal register,
+     adding emojis the source didn't have, etc.)
+
+  2. Data model — three columns (copy_th + copy_th_generated_at +
+     copy_th_model) vs a single JSONB "translations" column. Which
+     ages better if we later add other languages (Chinese, Japanese)?
+
+  3. Concurrency — user mashes the button twice while the first
+     Claude call is in-flight. Two child processes run against the
+     same post_id. Is the "last write wins" behavior acceptable, or
+     should we add an in-flight lock? (We're the only admin, so
+     race windows are narrow but real.)
+
+  4. Spawn pattern vs. direct import — the plan spawns
+     translate-caption.js as a child process from the Next.js route.
+     Could I instead import a pure function directly from a module
+     (say, import { translateCaption } from '@/lib/translate') and
+     skip the child process? Pros/cons?
+
+  5. Error surfacing — the Claude CLI can fail silently (returns
+     empty stdout) or with a cryptic stderr. What's the most robust
+     way to distinguish "Thai translation succeeded" vs "Claude
+     silently returned garbage"? Check for non-Thai characters in
+     the output? Length sanity check? Both?
+
+  6. Anything obvious I'm missing that'll bite me in production.
+
+Format your findings the usual way: numbered, severity order,
+file:line references if applicable. If the plan is basically sound
+and I should just build it, say so plainly so I can move on.

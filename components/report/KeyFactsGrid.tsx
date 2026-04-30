@@ -90,7 +90,7 @@ export default function KeyFactsGrid(props: Props) {
           <div className="kf-cell">
             <div className="kf-label">Fees</div>
             <div className="kf-value">
-              <FeeText min={feesMin ?? 0} max={feesMax ?? feesMin ?? 0} originalCurrency={feesCurrency ?? 'GBP'} />
+              <FeeText feesUsdMin={feesMin ?? 0} feesUsdMax={feesMax ?? feesMin ?? 0} feesOriginal={feesCurrency ?? 'GBP'} />
               {' '}<small>/ year</small>
             </div>
           </div>

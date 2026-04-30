@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Rugby section — 6-school comparison</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@300;400;500;600;700&family=Crimson+Text:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --navy:#1B3252;--navy-d:#0f2238;
+  --teal:#34C3A0;--teal-dk:#239C80;--teal-bg:#E8FAF6;
+  --border:#E5E7EB;--muted:#6B7280;--off:#F6F8FA;--text:#1f2937;
+}
+body{font-family:'Nunito Sans',sans-serif;background:var(--off);color:var(--text);line-height:1.65}
+.page{max-width:920px;margin:0 auto;padding:40px 24px 120px}
+
+/* intro */
+.intro{padding:20px 0 36px;border-bottom:2px solid var(--border);margin-bottom:40px}
+.eyebrow{font-size:11px;font-weight:900;color:var(--teal-dk);letter-spacing:.18em;text-transform:uppercase;margin-bottom:10px}
+.intro h1{font-family:'Nunito',sans-serif;font-weight:900;font-size:28px;color:var(--navy);margin-bottom:8px;letter-spacing:-.02em}
+.intro p{font-size:15px;color:var(--text);max-width:720px;line-height:1.65}
+.toc{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+.toc a{background:#fff;border:1px solid var(--border);border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700;color:var(--navy);text-decoration:none}
+
+/* school wrapper */
+.school{margin-bottom:64px;scroll-margin-top:24px}
+.school-header{background:var(--navy);color:#fff;border-radius:12px 12px 0 0;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.school-name{font-family:'Nunito',sans-serif;font-weight:900;font-size:20px}
+.school-tier-badge{padding:5px 14px;border-radius:999px;font-size:13px;font-weight:700}
+.tier-elite  {background:#FDE68A;color:#92400E}
+.tier-strong {background:#A7F3D0;color:#065F46}
+.tier-rec    {background:#F3F4F6;color:#4B5563}
+
+/* report-page block shell */
+.report-page{background:#fff;border:1px solid var(--border);border-top:none;border-radius:0 0 12px 12px;padding:28px}
+.block-title{font-family:'Nunito',sans-serif;font-weight:900;font-size:22px;color:var(--navy);letter-spacing:-.01em;margin-bottom:14px}
+.block-sub{font-family:'Nunito',sans-serif;font-weight:800;font-size:16px;color:var(--navy);margin:20px 0 8px}
+
+/* meta strip */
+.insp-meta-strip{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:18px}
+.insp-meta-item{display:flex;flex-direction:column;gap:3px}
+.insp-meta-label{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+.insp-meta-value{font-size:14px;font-weight:600;color:var(--navy)}
+
+/* summary box */
+.insp-summary-box{background:#F8FAFC;border-left:3px solid var(--teal);border-radius:6px;padding:14px 16px;margin:0 0 18px}
+.insp-summary-label{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;color:var(--teal-dk);margin-bottom:6px}
+.insp-summary-text{font-size:14px;color:var(--navy);line-height:1.6}
+
+/* ── rugby-specific ── */
+.rugby-badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:13px;font-weight:600;line-height:1.4}
+.rugby-badge.tier-elite  {background:#FDE68A;color:#92400E}
+.rugby-badge.tier-strong {background:#A7F3D0;color:#065F46}
+.rugby-badge.tier-rec    {background:#F3F4F6;color:#4B5563}
+.rugby-badge-rfu         {display:inline-block;padding:4px 10px;border-radius:999px;font-size:13px;font-weight:600;background:#DBEAFE;color:#1E40AF}
+.rugby-badge-schol       {display:inline-block;padding:4px 10px;border-radius:999px;font-size:13px;font-weight:600;background:#FEE2E2;color:#991B1B}
+
+.rugby-dmt-card{background:linear-gradient(135deg,#1B3252,#0f2238);border-radius:14px;padding:20px 24px;margin:0 0 20px;color:#fff}
+.rugby-dmt-header{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:14px}
+.rugby-dmt-label{font-size:11px;font-weight:900;letter-spacing:.14em;text-transform:uppercase;color:#34C3A0}
+.rugby-dmt-status{font-size:11px;font-weight:600;color:rgba(255,255,255,.5);background:rgba(255,255,255,.1);padding:2px 8px;border-radius:999px}
+.rugby-dmt-season-inline{font-weight:700;color:rgba(255,255,255,.75);font-size:12px}
+.rugby-dmt-stats{display:flex;gap:32px;flex-wrap:wrap;margin-bottom:12px}
+.rugby-dmt-stat{text-align:left}
+.rugby-dmt-num{font-family:'Crimson Text',serif;font-size:38px;font-weight:600;color:#fff;line-height:1}
+.rugby-dmt-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,.55);font-weight:600;margin-top:4px}
+.rugby-dmt-history{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 14px}
+.rugby-dmt-history-pill{display:flex;flex-direction:column;align-items:center;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:6px 12px;min-width:64px}
+.rugby-dmt-history-pill.current{background:rgba(52,195,160,.2);border-color:rgba(52,195,160,.5)}
+.rugby-dmt-history-pill.avg{background:rgba(255,255,255,.04);border-style:dashed}
+.rugby-dmt-history-season{font-size:10px;font-weight:700;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.04em;line-height:1}
+.rugby-dmt-history-rank{font-family:'Crimson Text',serif;font-size:22px;font-weight:600;color:#fff;line-height:1.2;margin-top:2px}
+.rugby-dmt-history-live{font-size:9px;font-weight:700;color:#34C3A0;text-transform:uppercase;letter-spacing:.06em}
+.rugby-dmt-note{font-size:13px;color:rgba(255,255,255,.7);line-height:1.55;border-top:1px solid rgba(255,255,255,.12);padding-top:12px;margin-top:4px}
+
+.rugby-programmes{display:flex;gap:14px;flex-wrap:wrap;margin:10px 0 18px}
+.rugby-prog-block{flex:1;min-width:200px;padding:14px 16px;background:#F8FAFC;border:1px solid var(--border);border-radius:10px}
+.rugby-prog-block--girls{background:#FDF4FF;border-color:#E9D5FF}
+.rugby-prog-gender{font-size:11px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:8px}
+.rugby-prog-formats,.rugby-prog-comps{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:6px}
+.rugby-format-pill{padding:3px 10px;border-radius:999px;font-size:12px;font-weight:700;background:var(--navy);color:#fff}
+.rugby-comp-pill{padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;background:#E8FAF6;color:#065F46;border:1px solid #A7F3D0}
+
+.rugby-list{margin:8px 0 16px;padding-left:20px}
+.rugby-list li{margin-bottom:6px;line-height:1.55;color:var(--navy)}
+.rugby-muted{color:var(--muted);font-size:14px}
+.rugby-tag{display:inline-block;margin-left:8px;padding:1px 8px;background:var(--teal);color:#fff;font-size:11px;font-weight:600;border-radius:4px;text-transform:uppercase;letter-spacing:.05em}
+.rugby-coach-count{font-size:13px;color:var(--muted);margin:-8px 0 14px}
+
+.rugby-facility-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin:10px 0 14px}
+.rugby-facility-item{background:#F8FAFC;border:1px solid var(--border);border-radius:10px;padding:14px 16px;text-align:center}
+.rugby-facility-num{font-family:'Crimson Text',serif;font-size:32px;font-weight:600;color:var(--navy);line-height:1}
+.rugby-facility-lbl{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;margin-top:6px}
+.rugby-facility-note{margin:-6px 0 14px;font-size:13px;color:var(--muted)}
+
+.rugby-cup-list{list-style:none;padding:0;margin:8px 0 16px}
+.rugby-cup-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:8px 0;border-bottom:1px solid var(--border)}
+.rugby-cup-row:last-child{border-bottom:none}
+.rugby-cup-tournament{font-weight:600;color:var(--navy);min-width:160px}
+.rugby-cup-division{font-size:13px;color:var(--muted)}
+.rugby-cup-year{color:var(--muted);font-size:14px}
+.rugby-cup-result{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;text-transform:capitalize}
+.rugby-cup-result.cup-winner  {background:#FDE68A;color:#78350F}
+.rugby-cup-result.cup-finalist{background:#DBEAFE;color:#1E40AF}
+
+.rugby-pathway-box{color:var(--navy);line-height:1.6;margin:8px 0 16px;padding:14px 16px;background:#F8FAFC;border-left:3px solid var(--teal);border-radius:6px;font-size:15px}
+
+/* SOCS rankings */
+.rugby-socs-grid{display:flex;gap:12px;flex-wrap:wrap;margin:10px 0 18px}
+.rugby-socs-block{flex:1;min-width:160px;background:#0f2238;border-radius:10px;padding:14px 16px}
+.rugby-socs-label{font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.1em;color:#34C3A0;margin-bottom:10px}
+.rugby-socs-pills{display:flex;flex-direction:column;gap:6px}
+.rugby-socs-pill{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.rugby-socs-season{font-size:11px;color:rgba(255,255,255,.5);font-weight:600;min-width:38px}
+.rugby-socs-rank{font-size:14px;font-weight:700;color:#fff}
+.rugby-socs-total{font-size:11px;color:rgba(255,255,255,.35)}
+.rugby-socs-live{font-size:9px;font-weight:700;color:#34C3A0;text-transform:uppercase;letter-spacing:.06em;margin-left:4px}
+
+.rugby-details{margin-top:16px;border-top:1px solid var(--border);padding-top:12px}
+.rugby-details>summary{cursor:pointer;font-weight:600;color:var(--navy);font-size:14px;padding:4px 0}
+.rugby-details>summary:hover{color:var(--teal)}
+.rugby-reasoning{color:var(--muted);line-height:1.6;margin-top:8px;font-size:14px}
+.rugby-sources{margin-top:10px;padding-left:20px;font-size:13px}
+.rugby-sources li{margin-bottom:4px}
+.rugby-sources a{color:var(--teal);word-break:break-all}
+
+@media(max-width:640px){
+  .rugby-facility-grid{grid-template-columns:repeat(2,1fr)}
+  .rugby-programmes{flex-direction:column}
+}
+
+/* Competition glossary */
+.comp-glossary{background:#fff;border:1px solid var(--border);border-radius:16px;padding:28px 32px;margin-bottom:48px}
+.comp-glossary h2{font-family:'Nunito',sans-serif;font-weight:900;font-size:20px;color:var(--navy);margin-bottom:20px;letter-spacing:-.01em}
+.comp-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.comp-card{border-radius:12px;padding:18px 20px;border:1px solid var(--border)}
+.comp-card-top{display:flex;align-items:flex-start;gap:12px;margin-bottom:10px}
+.comp-icon{font-size:28px;line-height:1;flex-shrink:0}
+.comp-name{font-family:'Nunito',sans-serif;font-weight:900;font-size:15px;color:var(--navy);line-height:1.2}
+.comp-abbr{font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.08em;text-transform:uppercase;margin-top:2px}
+.comp-importance{display:inline-block;padding:2px 9px;border-radius:999px;font-size:11px;font-weight:700;margin-bottom:8px}
+.imp-tier1{background:#FDE68A;color:#92400E}
+.imp-tier2{background:#A7F3D0;color:#065F46}
+.imp-tier3{background:#E0E7FF;color:#3730A3}
+.comp-desc{font-size:13px;color:var(--text);line-height:1.6}
+.comp-card.dmt{background:linear-gradient(135deg,#1B3252,#0f2238);border-color:#0f2238}
+.comp-card.dmt .comp-name,.comp-card.dmt .comp-desc{color:#fff}
+.comp-card.dmt .comp-abbr{color:rgba(255,255,255,.5)}
+.comp-card.cup{background:linear-gradient(135deg,#fffbeb,#fef3c7);border-color:#fde68a}
+.comp-card.socs-perf{background:#f8fafc}
+.comp-card.socs-ac{background:#f8fafc}
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="intro">
+  <div class="eyebrow">Nanasays · Rugby section</div>
+  <h1>RugbySection — 6-school comparison</h1>
+  <p>Rankings sourced directly from schoolsrugby.co.uk — no AI involved. School programme details extracted from each school's own website chunks. DMT history covers 5 seasons; SOCS leagues cover 3 seasons.</p>
+  <div class="toc">
+    <a href="#glossary">What the competitions mean</a>
+    <a href="#millfield">Millfield · elite</a>
+    <a href="#epsom">Epsom · elite</a>
+    <a href="#wellington">Wellington · elite</a>
+    <a href="#uppingham">Uppingham · strong</a>
+    <a href="#reeds">Reed's · standard</a>
+    <a href="#wells">Wells Cathedral · standard</a>
+  </div>
+</header>
+
+<!-- Competition glossary -->
+<div class="comp-glossary" id="glossary">
+  <h2>What the competitions and rankings mean</h2>
+  <div class="comp-cards">
+
+    <div class="comp-card dmt">
+      <div class="comp-card-top">
+        <div class="comp-icon">🏆</div>
+        <div>
+          <div class="comp-name">Daily Mail Trophy</div>
+          <div class="comp-abbr">DMT · schoolsrugby.co.uk</div>
+        </div>
+      </div>
+      <span class="comp-importance imp-tier1">Most important ranking</span>
+      <p class="comp-desc">The definitive national merit table for school rugby in England. Schools' 1st XV results are fed into a points algorithm that accounts for opponent strength — so beating a highly-ranked school earns more merit points than beating a weaker one. 147–157 schools ranked each season. <strong style="color:#34C3A0">A top-30 rank means your school's 1st XV is among the best in the country.</strong> Run since 2013 in partnership with the Daily Mail.</p>
+    </div>
+
+    <div class="comp-card cup">
+      <div class="comp-card-top">
+        <div class="comp-icon">🥇</div>
+        <div>
+          <div class="comp-name">Continental Tyres Schools Cup</div>
+          <div class="comp-abbr">RFU · Twickenham final</div>
+        </div>
+      </div>
+      <span class="comp-importance imp-tier1">Most prestigious knockout cup</span>
+      <p class="comp-desc">The RFU's national knockout cup for school rugby — the equivalent of an FA Cup for schools. Finals are played at Allianz Stadium, Twickenham. Reaching the final or winning is a strong signal of elite-level rugby. Previously known as the Daily Mail Cup and NatWest Schools Cup. Epsom College reached the 2026 final (lost 20–36 to Northampton School for Boys).</p>
+    </div>
+
+    <div class="comp-card socs-perf">
+      <div class="comp-card-top">
+        <div class="comp-icon">📊</div>
+        <div>
+          <div class="comp-name">SOCS Performance League</div>
+          <div class="comp-abbr">SOCS · Boys U18A</div>
+        </div>
+      </div>
+      <span class="comp-importance imp-tier2">Useful secondary signal</span>
+      <p class="comp-desc">A merit ranking run by SOCS (the school sports results platform used by most UK independent schools). Covers 300–340 schools — broader than DMT. Useful for spotting schools that are improving or that DMT hasn't picked up yet. A top-50 SOCS Performance rank alongside a mid-DMT rank often means a school is on the rise. Wells Cathedral's current #7 SOCS Performance rank (2025-26) is a flag worth watching.</p>
+    </div>
+
+    <div class="comp-card socs-ac">
+      <div class="comp-card-top">
+        <div class="comp-icon">📈</div>
+        <div>
+          <div class="comp-name">SOCS All Comers League</div>
+          <div class="comp-abbr">SOCS · Boys U18A</div>
+        </div>
+      </div>
+      <span class="comp-importance imp-tier3">Broadest picture</span>
+      <p class="comp-desc">The widest ranking — 400–550 schools including state schools and lower-division independents. Because it includes state schools (which can be very strong), rankings here are harder to interpret directly, but a top-10 rank is a genuinely outstanding signal. Millfield's #2 All Comers rank in 2024-25 and #7 this season confirms their elite status extends well beyond the independent school bubble.</p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ MILLFIELD ═══════════════════════════════════════ -->
+<div class="school" id="millfield">
+  <div class="school-header">
+    <span class="school-name">Millfield School</span>
+    <span class="school-tier-badge tier-elite">national-elite · DMT #5 of 147 (2024–25)</span>
+  </div>
+  <div class="report-page">
+    <h2 class="block-title">🏉 Rugby programme</h2>
+
+    <div class="insp-meta-strip rugby-strip">
+      <div class="insp-meta-item">
+        <span class="insp-meta-label">Tier</span>
+        <span class="rugby-badge tier-elite">National elite</span>
+      </div>
+      <div class="insp-meta-item">
+        <span class="insp-meta-label">Programme</span>
+        <span class="insp-meta-value">Major Sport</span>
+      </div>
+      <div class="insp-meta-item">
+        <span class="insp-meta-label">Teams</span>
+        <span class="insp-meta-value">3</span>
+      </div>
+      <div class="insp-meta-item">
+        <span class="rugby-badge-rfu">RFU Schools Cup</span>
+      </div>
+    </div>
+
+    <div class="rugby-dmt-card">
+      <div class="rugby-dmt-header">
+        <span class="rugby-dmt-label">Daily Mail Trophy</span>
+        <span class="rugby-dmt-status">Live — in season</span>
+      </div>
+      <div class="rugby-dmt-stats">
+        <div class="rugby-dmt-stat">
+          <div class="rugby-dmt-num">15</div>
+          <div class="rugby-dmt-lbl">Rank of 157 · <span class="rugby-dmt-season-inline">2025–26</span></div>
+        </div>
+        <div class="rugby-dmt-stat">
+          <div class="rugby-dmt-num">Top 10%</div>
+          <div class="rugby-dmt-lbl">Nationally</div>
+        </div>
+      </div>
+      <div class="rugby-dmt-history">
+        <div class="rugby-dmt-history-pill current">
+          <span class="rugby-dmt-history-season">25–26</span>
+          <span class="rugby-dmt-history-rank">#15</span>
+          <span class="rugby-dmt-history-live">live</span>
+        </div>
+        <div class="rugby-dmt-history-pill">
+          <span class="rugby-dmt-history-season">24–25</span>
+          <span class="rugby-dmt-history-rank">#5</span>
+        </div>
+        <div class="rugby-dmt-history-pill">
+          <span class="rugby-dmt-history-season">23–24</span>
+          <span class="rugby-dmt-history-rank">#19</span>
+        </div>
+        <div class="rugby-dmt-history-pill">
+          <span class="rugby-dmt-history-season">22–23</span>
+          <span class="rugby-dmt-history-rank">#6</span>
+        </div>
+        <div class="rugby-dmt-history-pill">
+          <span class="rugby-dmt-history-season">21–22</span>
+          <span class="rugby-dmt-history-rank">#4</span>
+        </div>
+        <div class="rugby-dmt-history-pill avg">
+          <span class="rugby-dmt-history-season">3yr avg</span>
+          <span class="rugby-dmt-history-rank">#10</span>
+        </div>
+      </div>
+      <p class="rugby-dmt-note">Consistently top-10 nationally — 4th and 5th in back-to-back seasons 2021-22 and 2024-25. SOCS All Comers ranked #2 nationally in 2024-25.</p>
+    </div>
+    <div class="rugby-socs-grid">
+      <div class="rugby-socs-block">
+        <div class="rugby-socs-label">SOCS Performance</div>
+        <div class="rugby-socs-pills">
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">25–26</span><span class="rugby-socs-rank">#106</span><span class="rugby-socs-total">/ 305</span><span class="rugby-socs-live">live</span></div>
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">24–25</span><span class="rugby-socs-rank">#66</span><span class="rugby-socs-total">/ 332</span></div>
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">23–24</span><span class="rugby-socs-rank">#76</span><span class="rugby-socs-total">/ 338</span></div>
+        </div>
+      </div>
+      <div class="rugby-socs-block">
+        <div class="rugby-socs-label">SOCS All Comers</div>
+        <div class="rugby-socs-pills">
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">25–26</span><span class="rugby-socs-rank">#7</span><span class="rugby-socs-total">/ 414</span><span class="rugby-socs-live">live</span></div>
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">24–25</span><span class="rugby-socs-rank">#2</span><span class="rugby-socs-total">/ 470</span></div>
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">23–24</span><span class="rugby-socs-rank">#33</span><span class="rugby-socs-total">/ 550</span></div>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="block-sub">Programmes</h3>
+    <div class="rugby-programmes">
+      <div class="rugby-prog-block">
+        <div class="rugby-prog-gender">Boys</div>
+        <div class="rugby-prog-formats">
+          <span class="rugby-format-pill">15s</span>
+          <span class="rugby-format-pill">7s</span>
+        </div>
+        <div class="rugby-prog-comps">
+          <span class="rugby-comp-pill">Daily Mail Trophy</span>
+          <span class="rugby-comp-pill">St Joseph's Rugby Festival</span>
+          <span class="rugby-comp-pill">World Schools Festival</span>
+        </div>
+      </div>
+      <div class="rugby-prog-block rugby-prog-block--girls">
+        <div class="rugby-prog-gender">Girls</div>
+        <div class="rugby-prog-formats">
+          <span class="rugby-format-pill">15s</span>
+          <span class="rugby-format-pill">7s</span>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="block-sub">Coaching</h3>
+    <ul class="rugby-list">
+      <li><strong>John Mallett</strong> — Director of Rugby<span class="rugby-muted"> · ex-Bath and England player</span><span class="rugby-tag">Full-time</span></li>
+    </ul>
+    <p class="rugby-coach-count">18 dedicated coaches in total</p>
+
+    <h3 class="block-sub">Facilities</h3>
+    <p class="rugby-facility-note">Sir Gareth Edwards Pitch is flagship rugby pitch; campus spans 200 acres with extensive sports facilities.</p>
+
+    <h3 class="block-sub">Competitive record</h3>
+    <ul class="rugby-cup-list">
+      <li class="rugby-cup-row">
+        <span class="rugby-cup-tournament">St Joseph's Rugby Festival</span>
+        <span class="rugby-cup-year">2022</span>
+        <span class="rugby-cup-result cup-winner">winner</span>
+      </li>
+    </ul>
+
+    <h3 class="block-sub">Alumni &amp; pathway</h3>
+    <ul class="rugby-list">
+      <li><strong>Sir Gareth Edwards CBE</strong> — Wales and British &amp; Irish Lions legend; flagship pitch named after him <span class="rugby-muted">(1964–1966)</span></li>
+      <li><strong>Chris Robshaw</strong> — England captain; Harlequins</li>
+      <li><strong>Jonathan Joseph</strong> — Senior England cap; Bath</li>
+      <li><strong>Mako Vunipola</strong> — Senior England prop</li>
+      <li><strong>Huw Jones</strong> — Senior Scotland cap; Glasgow <span class="rugby-muted">(2007–2012)</span></li>
+      <li><strong>Adam Hastings</strong> — Senior Scotland cap; Glasgow</li>
+      <li><strong>Steffan Emanuel</strong> — Cardiff Rugby (URC) professional contract</li>
+      <li><strong>Oliver Burrows</strong> — Exeter Chiefs academy; England U18/U20</li>
+      <li><strong>Will Joseph</strong> — London Irish Senior Academy</li>
+      <li><strong>Ed Jackson</strong> — former professional player <span class="rugby-muted">(2002–2007)</span></li>
+    </ul>
+    <div class="rugby-pathway-box">Strong: recent Premiership/URC academy contracts (Exeter Chiefs, London Irish, Cardiff Rugby); six former students selected for 2025 Six Nations across multiple nations.</div>
+
+    <details class="rugby-details">
+      <summary>Why this tier?</summary>
+      <p class="rugby-reasoning">Millfield ranks 5th nationally in Boys U18A Daily Mail Trophy (2024-25 final snapshot: rank 5/147 = 3.4th percentile), placing it in top tier; supplemented by consistent pipeline to senior internationals (Robshaw captained England, Huw Jones and Adam Hastings play for Scotland, Jonathan Joseph for England).</p>
+    </details>
+    <details class="rugby-details">
+      <summary>Sources · last refreshed 27/04/2026</summary>
+      <ul class="rugby-sources">
+        <li><a href="https://www.millfieldschool.com/senior-13-16/sport/sports-a-z/rugby">millfieldschool.com/rugby</a></li>
+        <li><a href="https://www.millfieldschool.com/discover-brilliance/old-millfieldians/notable-alumni">millfieldschool.com/notable-alumni</a></li>
+      </ul>
+    </details>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ EPSOM ═══════════════════════════════════════ -->
+<div class="school" id="epsom">
+  <div class="school-header">
+    <span class="school-name">Epsom College</span>
+    <span class="school-tier-badge tier-elite">national-elite · DMT #8 of 157 (2025–26 live)</span>
+  </div>
+  <div class="report-page">
+    <h2 class="block-title">🏉 Rugby programme</h2>
+
+    <div class="insp-meta-strip rugby-strip">
+      <div class="insp-meta-item">
+        <span class="insp-meta-label">Tier</span>
+        <span class="rugby-badge tier-elite">National elite</span>
+      </div>
+      <div class="insp-meta-item">
+        <span class="insp-meta-label">Programme</span>
+        <span class="insp-meta-value">Major Sport</span>
+      </div>
+      <div class="insp-meta-item">
+        <span class="insp-meta-label">Teams</span>
+        <span class="insp-meta-value">32 boys · 1 girls</span>
+      </div>
+      <div class="insp-meta-item">
+        <span class="rugby-badge-rfu">RFU Schools Cup</span>
+      </div>
+      <div class="insp-meta-item">
+        <span class="rugby-badge-schol">Scholarship available</span>
+      </div>
+    </div>
+
+    <div class="rugby-dmt-card">
+      <div class="rugby-dmt-header">
+        <span class="rugby-dmt-label">Daily Mail Trophy</span>
+        <span class="rugby-dmt-status">Live — in season</span>
+      </div>
+      <div class="rugby-dmt-stats">
+        <div class="rugby-dmt-stat">
+          <div class="rugby-dmt-num">8</div>
+          <div class="rugby-dmt-lbl">Rank of 157 · <span class="rugby-dmt-season-inline">2025–26</span></div>
+        </div>
+        <div class="rugby-dmt-stat">
+          <div class="rugby-dmt-num">Top 5%</div>
+          <div class="rugby-dmt-lbl">Nationally</div>
+        </div>
+      </div>
+      <div class="rugby-dmt-history">
+        <div class="rugby-dmt-history-pill current">
+          <span class="rugby-dmt-history-season">25–26</span>
+          <span class="rugby-dmt-history-rank">#8</span>
+          <span class="rugby-dmt-history-live">live</span>
+        </div>
+        <div class="rugby-dmt-history-pill">
+          <span class="rugby-dmt-history-season">24–25</span>
+          <span class="rugby-dmt-history-rank">#15</span>
+        </div>
+        <div class="rugby-dmt-history-pill">
+          <span class="rugby-dmt-history-season">23–24</span>
+          <span class="rugby-dmt-history-rank">#35</span>
+        </div>
+        <div class="rugby-dmt-history-pill">
+          <span class="rugby-dmt-history-season">22–23</span>
+          <span class="rugby-dmt-history-rank">#54</span>
+        </div>
+        <div class="rugby-dmt-history-pill">
+          <span class="rugby-dmt-history-season">21–22</span>
+          <span class="rugby-dmt-history-rank">#14</span>
+        </div>
+        <div class="rugby-dmt-history-pill avg">
+          <span class="rugby-dmt-history-season">3yr avg</span>
+          <span class="rugby-dmt-history-rank">#35</span>
+        </div>
+      </div>
+      <p class="rugby-dmt-note">Strong upward trajectory — from #54 in 2022-23 to #8 this season. Schools Cup runner-up 2026 confirms elite status despite recent DMT rebuild.</p>
+    </div>
+    <div class="rugby-socs-grid">
+      <div class="rugby-socs-block">
+        <div class="rugby-socs-label">SOCS Performance</div>
+        <div class="rugby-socs-pills">
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">25–26</span><span class="rugby-socs-rank">#19</span><span class="rugby-socs-total">/ 305</span><span class="rugby-socs-live">live</span></div>
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">24–25</span><span class="rugby-socs-rank">#80</span><span class="rugby-socs-total">/ 332</span></div>
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">23–24</span><span class="rugby-socs-rank">#143</span><span class="rugby-socs-total">/ 338</span></div>
+        </div>
+      </div>
+      <div class="rugby-socs-block">
+        <div class="rugby-socs-label">SOCS All Comers</div>
+        <div class="rugby-socs-pills">
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">25–26</span><span class="rugby-socs-rank">#13</span><span class="rugby-socs-total">/ 414</span><span class="rugby-socs-live">live</span></div>
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">24–25</span><span class="rugby-socs-rank">#93</span><span class="rugby-socs-total">/ 470</span></div>
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">23–24</span><span class="rugby-socs-rank">#184</span><span class="rugby-socs-total">/ 550</span></div>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="block-sub">Programmes</h3>
+    <div class="rugby-programmes">
+      <div class="rugby-prog-block">
+        <div class="rugby-prog-gender">Boys</div>
+        <div class="rugby-prog-formats">
+          <span class="rugby-format-pill">15s</span>
+          <span class="rugby-format-pill">7s</span>
+        </div>
+        <div class="rugby-prog-comps">
+          <span class="rugby-comp-pill">Continental Tyres Schools Cup</span>
+          <span class="rugby-comp-pill">Daily Mail Trophy</span>
+        </div>
+      </div>
+      <div class="rugby-prog-block rugby-prog-block--girls">
+        <div class="rugby-prog-gender">Girls</div>
+        <div class="rugby-prog-formats">
+          <span class="rugby-format-pill">7s</span>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="block-sub">Coaching</h3>
+    <ul class="rugby-list">
+      <li><strong>Paul Burke</strong> — Director of Rugby<span class="rugby-muted"> · ex-Ireland international fly-half; European Challenge Cup, Premiership experience</span></li>
+      <li><strong>L Cothill</strong> — Boys 1st XV Assistant Coach</li>
+      <li><strong>G Barrett</strong> — Boys 1st XV &amp; U16A Coach</li>
+    </ul>
+    <p class="rugby-coach-count">20 dedicated coaches in total</p>
+
+    <h3 class="block-sub">Facilities</h3>
+    <div class="rugby-facility-grid">
+      <div class="rugby-facility-item">
+        <div class="rugby-facility-num">15</div>
+        <div class="rugby-facility-lbl">Rugby &amp; football pitches</div>
+      </div>
+    </div>
+    <p class="rugby-facility-note">72-acre campus; named links with Harlequins and London Irish.</p>
+
+    <h3 class="block-sub">Competitive record</h3>
+    <ul class="rugby-cup-list">
+      <li class="rugby-cup-row">
+        <span class="rugby-cup-tournament">Continental Tyres Schools Cup</span>
+        <span class="rugby-cup-division">U18 Cup</span>
+        <span class="rugby-cup-year">2026</span>
+        <span class="rugby-cup-result cup-finalist">runner-up</span>
+      </li>
+    </ul>
+
+    <h3 class="block-sub">Alumni &amp; pathway</h3>
+    <div class="rugby-pathway-box">Alumni pipeline to Harlequins and London Irish confirmed. Director of Rugby is ex-Ireland international. No current named Premiership academy contracts publicly visible.</div>
+
+    <details class="rugby-details">
+      <summary>Why this tier?</summary>
+      <p class="rugby-reasoning">Reached Continental Tyres Schools Cup U18 Cup final as runner-up in 2026, meeting the elite criterion of semi-finalist or better in last 5 years. Confirmed by continental-tyres-schools-cup.json (Northampton School for Boys 36–20 Epsom College, Allianz Stadium Twickenham).</p>
+    </details>
+    <details class="rugby-details">
+      <summary>Sources · last refreshed 27/04/2026</summary>
+      <ul class="rugby-sources">
+        <li><a href="https://www.epsomcollege.org.uk/learning/sport/">epsomcollege.org.uk/sport</a></li>
+        <li><a href="https://www.epsomcollegesport.org.uk/Contact.asp?Id=109">epsomcollegesport.org.uk</a></li>
+      </ul>
+    </details>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ WELLINGTON ═══════════════════════════════════════ -->
+<div class="school" id="wellington">
+  <div class="school-header">
+    <span class="school-name">Wellington College</span>
+    <span class="school-tier-badge tier-elite">national-elite · DMT #3 of 157 (2025–26)</span>
+  </div>
+  <div class="report-page">
+    <h2 class="block-title">🏉 Rugby programme</h2>
+
+    <div class="insp-meta-strip rugby-strip">
+      <div class="insp-meta-item">
+        <span class="insp-meta-label">Tier</span>
+        <span class="rugby-badge tier-elite">National elite</span>
+      </div>
+    </div>
+
+    <div class="rugby-dmt-card">
+      <div class="rugby-dmt-header">
+        <span class="rugby-dmt-label">Daily Mail Trophy</span>
+        <span class="rugby-dmt-status">Live — in season</span>
+      </div>
+      <div class="rugby-dmt-stats">
+        <div class="rugby-dmt-stat">
+          <div class="rugby-dmt-num">3</div>
+          <div class="rugby-dmt-lbl">Rank of 157 · <span class="rugby-dmt-season-inline">2025–26</span></div>
+        </div>
+        <div class="rugby-dmt-stat">
+          <div class="rugby-dmt-num">Top 2%</div>
+          <div class="rugby-dmt-lbl">Nationally</div>
+        </div>
+      </div>
+      <!-- Year-by-year history -->
+      <div class="rugby-dmt-history">
+        <div class="rugby-dmt-history-pill current">
+          <span class="rugby-dmt-history-season">25–26</span>
+          <span class="rugby-dmt-history-rank">#3</span>
+          <span class="rugby-dmt-history-live">live</span>
+        </div>
+        <div class="rugby-dmt-history-pill">
+          <span class="rugby-dmt-history-season">24–25</span>
+          <span class="rugby-dmt-history-rank">#18</span>
+        </div>
+        <div class="rugby-dmt-history-pill">
+          <span class="rugby-dmt-history-season">23–24</span>
+          <span class="rugby-dmt-history-rank">#7</span>
+        </div>
+        <div class="rugby-dmt-history-pill">
+          <span class="rugby-dmt-history-season">22–23</span>
+          <span class="rugby-dmt-history-rank">#26</span>
+        </div>
+        <div class="rugby-dmt-history-pill">
+          <span class="rugby-dmt-history-season">21–22</span>
+          <span class="rugby-dmt-history-rank">#6</span>
+        </div>
+        <div class="rugby-dmt-history-pill avg">
+          <span class="rugby-dmt-history-season">3yr avg</span>
+          <span class="rugby-dmt-history-rank">#17</span>
+        </div>
+      </div>
+      <p class="rugby-dmt-note">Consistently top-10 nationally — ranked 3rd, 6th, 7th in 3 of the last 5 seasons. 2024-25 (rank 18) was an outlier year.</p>
+    </div>
+    <div class="rugby-socs-grid">
+      <div class="rugby-socs-block">
+        <div class="rugby-socs-label">SOCS Performance</div>
+        <div class="rugby-socs-pills">
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">25–26</span><span class="rugby-socs-rank">#15</span><span class="rugby-socs-total">/ 305</span><span class="rugby-socs-live">live</span></div>
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">24–25</span><span class="rugby-socs-rank">#109</span><span class="rugby-socs-total">/ 332</span></div>
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">23–24</span><span class="rugby-socs-rank">#27</span><span class="rugby-socs-total">/ 338</span></div>
+        </div>
+      </div>
+      <div class="rugby-socs-block">
+        <div class="rugby-socs-label">SOCS All Comers</div>
+        <div class="rugby-socs-pills">
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">25–26</span><span class="rugby-socs-rank">#22</span><span class="rugby-socs-total">/ 414</span><span class="rugby-socs-live">live</span></div>
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">24–25</span><span class="rugby-socs-rank">#89</span><span class="rugby-socs-total">/ 470</span></div>
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">23–24</span><span class="rugby-socs-rank">#68</span><span class="rugby-socs-total">/ 550</span></div>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="block-sub">Programmes</h3>
+    <div class="rugby-programmes">
+      <div class="rugby-prog-block">
+        <div class="rugby-prog-gender">Boys</div>
+        <div class="rugby-prog-formats">
+          <span class="rugby-format-pill">15s</span>
+          <span class="rugby-format-pill">7s</span>
+        </div>
+        <div class="rugby-prog-comps">
+          <span class="rugby-comp-pill">Daily Mail Trophy</span>
+          <span class="rugby-comp-pill">TSC 7s</span>
+          <span class="rugby-comp-pill">Eltham 7s</span>
+          <span class="rugby-comp-pill">All England 7s</span>
+          <span class="rugby-comp-pill">QE Barnett 7s</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="insp-summary-box">
+      <div class="insp-summary-label">Programme summary</div>
+      <p class="insp-summary-text">Boys' 1st XV proved competitive nationally via DMT rank 18; secondary 7s programme active across U14–U18 age groups. Girls' rugby not mentioned. No Schools Cup results, coaching staff, facilities detail, or safety protocols documented in provided content. Single-player (England U18) pathway indicator is limited evidence of elite development infrastructure.</p>
+    </div>
+
+    <h3 class="block-sub">Current pathway players</h3>
+    <ul class="rugby-list">
+      <li><strong>Ben (Pn)</strong><span class="rugby-muted"> · 2025–2026 · senior_international_pipeline</span></li>
+    </ul>
+
+    <details class="rugby-details">
+      <summary>Why this tier?</summary>
+      <p class="rugby-reasoning">DMT rank 18 of 147 (percentile 0.122) meets national-strong threshold of rank ≤ 30; 1st XV is measurably competitive at national level.</p>
+    </details>
+    <details class="rugby-details">
+      <summary>Sources · last refreshed 27/04/2026</summary>
+      <ul class="rugby-sources">
+        <li><a href="https://www.wellingtoncollege.org.uk/sports-report/">wellingtoncollege.org.uk/sports-report</a></li>
+        <li><a href="https://schoolsrugby.co.uk/leagues/daily-mail-trophy/2024-2025/rugby-union/boys-u18a">schoolsrugby.co.uk DMT 2024-25</a></li>
+      </ul>
+    </details>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ UPPINGHAM ═══════════════════════════════════════ -->
+<div class="school" id="uppingham">
+  <div class="school-header">
+    <span class="school-name">Uppingham School</span>
+    <span class="school-tier-badge tier-strong">national-strong · DMT #30 of 147 (2024–25)</span>
+  </div>
+  <div class="report-page">
+    <h2 class="block-title">🏉 Rugby programme</h2>
+
+    <div class="insp-meta-strip rugby-strip">
+      <div class="insp-meta-item">
+        <span class="insp-meta-label">Tier</span>
+        <span class="rugby-badge tier-strong">National strong</span>
+      </div>
+      <div class="insp-meta-item">
+        <span class="insp-meta-label">Programme</span>
+        <span class="insp-meta-value">Major Sport</span>
+      </div>
+      <div class="insp-meta-item">
+        <span class="insp-meta-label">Teams</span>
+        <span class="insp-meta-value">16</span>
+      </div>
+      <div class="insp-meta-item">
+        <span class="rugby-badge-rfu">RFU Schools Cup</span>
+      </div>
+    </div>
+
+    <div class="rugby-dmt-card">
+      <div class="rugby-dmt-header">
+        <span class="rugby-dmt-label">Daily Mail Trophy</span>
+        <span class="rugby-dmt-status">Live — in season</span>
+      </div>
+      <div class="rugby-dmt-stats">
+        <div class="rugby-dmt-stat">
+          <div class="rugby-dmt-num">81</div>
+          <div class="rugby-dmt-lbl">Rank of 157 · <span class="rugby-dmt-season-inline">2025–26</span></div>
+        </div>
+        <div class="rugby-dmt-stat">
+          <div class="rugby-dmt-num">Top 52%</div>
+          <div class="rugby-dmt-lbl">Nationally</div>
+        </div>
+      </div>
+      <div class="rugby-dmt-history">
+        <div class="rugby-dmt-history-pill current">
+          <span class="rugby-dmt-history-season">25–26</span>
+          <span class="rugby-dmt-history-rank">#81</span>
+          <span class="rugby-dmt-history-live">live</span>
+        </div>
+        <div class="rugby-dmt-history-pill">
+          <span class="rugby-dmt-history-season">24–25</span>
+          <span class="rugby-dmt-history-rank">#30</span>
+        </div>
+        <div class="rugby-dmt-history-pill">
+          <span class="rugby-dmt-history-season">23–24</span>
+          <span class="rugby-dmt-history-rank">#103</span>
+        </div>
+        <div class="rugby-dmt-history-pill">
+          <span class="rugby-dmt-history-season">22–23</span>
+          <span class="rugby-dmt-history-rank">#124</span>
+        </div>
+        <div class="rugby-dmt-history-pill">
+          <span class="rugby-dmt-history-season">21–22</span>
+          <span class="rugby-dmt-history-rank">#99</span>
+        </div>
+        <div class="rugby-dmt-history-pill avg">
+          <span class="rugby-dmt-history-season">3yr avg</span>
+          <span class="rugby-dmt-history-rank">#71</span>
+        </div>
+      </div>
+      <p class="rugby-dmt-note">2024-25 (rank 30) was their best DMT season in 5 years, supported by strong coaching appointments (Dr Andrew Hall 2021, Ian Smith 2023). Current season mid-table.</p>
+    </div>
+    <div class="rugby-socs-grid">
+      <div class="rugby-socs-block">
+        <div class="rugby-socs-label">SOCS Performance</div>
+        <div class="rugby-socs-pills">
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">25–26</span><span class="rugby-socs-rank">#152</span><span class="rugby-socs-total">/ 305</span><span class="rugby-socs-live">live</span></div>
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">24–25</span><span class="rugby-socs-rank">#105</span><span class="rugby-socs-total">/ 332</span></div>
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">23–24</span><span class="rugby-socs-rank">#257</span><span class="rugby-socs-total">/ 338</span></div>
+        </div>
+      </div>
+      <div class="rugby-socs-block">
+        <div class="rugby-socs-label">SOCS All Comers</div>
+        <div class="rugby-socs-pills">
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">25–26</span><span class="rugby-socs-rank">#116</span><span class="rugby-socs-total">/ 414</span><span class="rugby-socs-live">live</span></div>
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">24–25</span><span class="rugby-socs-rank">#136</span><span class="rugby-socs-total">/ 470</span></div>
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">23–24</span><span class="rugby-socs-rank">#265</span><span class="rugby-socs-total">/ 550</span></div>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="block-sub">Coaching</h3>
+    <ul class="rugby-list">
+      <li><strong>Dr Andrew Hall</strong> — Director of Rugby<span class="rugby-muted"> · ex-Scotland international; former Head Coach Hong Kong Rugby Team (2012+); completing PhD in High Performance Cultures</span><span class="rugby-tag">Full-time</span><span class="rugby-muted"> (appointed 2021)</span></li>
+      <li><strong>Ian Smith</strong> — Senior Rugby Coach<span class="rugby-muted"> · 331 appearances for Leicester Tigers 1977–91; 3× John Player Cup winner; coached England Students to first Grand Slam</span></li>
+    </ul>
+
+    <h3 class="block-sub">Academy zone</h3>
+    <div class="rugby-pathway-box"><strong>Leicester Tigers</strong> — Designated Leicester Tigers 'Good to Great School' with close links to Leicester Tigers and Northampton Saints Developing Players programmes.</div>
+
+    <h3 class="block-sub">Facilities</h3>
+    <div class="rugby-facility-grid">
+      <div class="rugby-facility-item">
+        <div class="rugby-facility-num">9</div>
+        <div class="rugby-facility-lbl">Pitches (winter)</div>
+      </div>
+      <div class="rugby-facility-item">
+        <div class="rugby-facility-num">3</div>
+        <div class="rugby-facility-lbl">Dedicated pitches</div>
+      </div>
+      <div class="rugby-facility-item">
+        <div class="rugby-facility-num">✓</div>
+        <div class="rugby-facility-lbl">S&amp;C gym</div>
+      </div>
+    </div>
+    <p class="rugby-facility-note">3 full-size pitches at Leicester Playing Fields dedicated to rugby autumn/spring terms; bespoke gym for rugby strength training.</p>
+
+    <details class="rugby-details">
+      <summary>Why this tier?</summary>
+      <p class="rugby-reasoning">Uppingham ranks 30th in Daily Mail Trophy 2024-25 final snapshot with 20.4th percentile among 147 ranked U18A teams; meets both national-strong thresholds (rank ≤30, percentile ≤0.25); 16 visible teams and explicit entry to Schools Cup and National Schools 7s.</p>
+    </details>
+    <details class="rugby-details">
+      <summary>Sources · last refreshed 27/04/2026</summary>
+      <ul class="rugby-sources">
+        <li><a href="https://www.uppingham.co.uk/life/sports/rugby">uppingham.co.uk/rugby</a></li>
+        <li><a href="https://www.uppingham.co.uk/news/2021-05-05/new-director-of-rugby-appointed">uppingham.co.uk — Andrew Hall appointment</a></li>
+        <li><a href="https://www.uppingham.co.uk/news/2023-06-07/ian-smith-apointed-senior-rugby-coach">uppingham.co.uk — Ian Smith appointment</a></li>
+      </ul>
+    </details>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ REED'S ═══════════════════════════════════════ -->
+<div class="school" id="reeds">
+  <div class="school-header">
+    <span class="school-name">Reed's School</span>
+    <span class="school-tier-badge tier-rec">standard · not in DMT top 147</span>
+  </div>
+  <div class="report-page">
+    <h2 class="block-title">🏉 Rugby programme</h2>
+
+    <div class="insp-meta-strip rugby-strip">
+      <div class="insp-meta-item">
+        <span class="insp-meta-label">Tier</span>
+        <span class="rugby-badge tier-rec">Standard</span>
+      </div>
+      <div class="insp-meta-item">
+        <span class="insp-meta-label">Programme</span>
+        <span class="insp-meta-value">Major Team Sport</span>
+      </div>
+      <div class="insp-meta-item">
+        <span class="insp-meta-label">Teams</span>
+        <span class="insp-meta-value">20</span>
+      </div>
+      <div class="insp-meta-item">
+        <span class="rugby-badge-schol">Scholarship available</span>
+      </div>
+    </div>
+
+    <div class="rugby-socs-grid">
+      <div class="rugby-socs-block" style="opacity:.5">
+        <div class="rugby-socs-label">Daily Mail Trophy</div>
+        <div class="rugby-socs-pills">
+          <div class="rugby-socs-pill"><span class="rugby-socs-season" style="color:rgba(255,255,255,.4)">Not ranked in DMT or SOCS leagues (2021–26)</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="insp-summary-box">
+      <div class="insp-summary-label">Programme summary</div>
+      <p class="insp-summary-text">Reed's has 20 verified rugby teams (U12–1st XV) with professional coaching including Danny Care, but absent from DMT top-50 (2024-25). Fits standard tier: established programme with strong infrastructure and historic reputation (rugby introduced 1924) but no elite national signals. Girls' rugby not offered.</p>
+    </div>
+
+    <h3 class="block-sub">Coaching</h3>
+    <ul class="rugby-list">
+      <li><strong>Thomas Street</strong> — Head of Rugby</li>
+      <li><strong>Will Davis</strong> — Head Rugby Coach</li>
+      <li><strong>Harry Green</strong> — Rugby Coach</li>
+      <li><strong>Danny Care</strong> — Professional Rugby Coach<span class="rugby-muted"> · Ex-England international</span></li>
+    </ul>
+
+    <h3 class="block-sub">Facilities</h3>
+    <div class="rugby-facility-grid">
+      <div class="rugby-facility-item">
+        <div class="rugby-facility-num">2</div>
+        <div class="rugby-facility-lbl">Floodlit astroturfs</div>
+      </div>
+      <div class="rugby-facility-item">
+        <div class="rugby-facility-num">✓</div>
+        <div class="rugby-facility-lbl">S&amp;C gym</div>
+      </div>
+    </div>
+    <p class="rugby-facility-note">Expansive rugby and cricket pitches; 2 floodlit astroturf pitches.</p>
+
+    <h3 class="block-sub">Alumni &amp; pathway</h3>
+    <ul class="rugby-list">
+      <li><strong>Alex Corbisiero</strong> — England senior international; London Irish <span class="rugby-muted">(2002)</span></li>
+      <li><strong>Jack Kenningham</strong> — Harlequins FC <span class="rugby-muted">(2018)</span></li>
+      <li><strong>Paul Brown</strong> — Exeter Chiefs; England U18s <span class="rugby-muted">(2020)</span></li>
+      <li><strong>Theo Vukasinovic</strong> — Wasps; now U16A coach at Reed's <span class="rugby-muted">(2014)</span></li>
+      <li><strong>Yiannis Loizios</strong> — Cyprus international; Rotherham Tigers <span class="rugby-muted">(2013)</span></li>
+    </ul>
+    <div class="rugby-pathway-box">Past alumni pathway to Premiership (Exeter Chiefs, Harlequins, Wasps 2013–2020). Theo Vukasinovic (Wasps 2014) now coaches U16A. No current academy contracts publicly named.</div>
+
+    <h3 class="block-sub">Scholarship</h3>
+    <div class="rugby-pathway-box">Sports Scholarships available at 11+, 13+, and Sixth Form for rugby (Major Team Sport, alongside cricket and hockey). Candidates expected to show county or national level potential.</div>
+
+    <details class="rugby-details">
+      <summary>Why this tier?</summary>
+      <p class="rugby-reasoning">Reed's has 20 verified rugby teams (U12–1st XV) with professional coaching including Danny Care, but absent from DMT top-50 (2024-25 snapshot, 147 teams) and not listed in Schools Cup wins. Fits standard tier: established programme with strong infrastructure and historic reputation but no elite national signals.</p>
+    </details>
+    <details class="rugby-details">
+      <summary>Sources · last refreshed 27/04/2026</summary>
+      <ul class="rugby-sources">
+        <li><a href="https://www.reeds.surrey.sch.uk/3022/staff-list">reeds.surrey.sch.uk/staff-list</a></li>
+        <li><a href="https://www.reeds.surrey.sch.uk/701/or-hall-of-fame">reeds.surrey.sch.uk/hall-of-fame</a></li>
+        <li><a href="https://www.reeds.surrey.sch.uk/634/scholarships">reeds.surrey.sch.uk/scholarships</a></li>
+      </ul>
+    </details>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ WELLS ═══════════════════════════════════════ -->
+<div class="school" id="wells">
+  <div class="school-header">
+    <span class="school-name">Wells Cathedral School</span>
+    <span class="school-tier-badge tier-rec">standard · SOCS Performance #7 (2025–26 live)</span>
+  </div>
+  <div class="report-page">
+    <h2 class="block-title">🏉 Rugby programme</h2>
+
+    <div class="insp-meta-strip rugby-strip">
+      <div class="insp-meta-item">
+        <span class="insp-meta-label">Tier</span>
+        <span class="rugby-badge tier-rec">Standard</span>
+      </div>
+      <div class="insp-meta-item">
+        <span class="insp-meta-label">Programme</span>
+        <span class="insp-meta-value">Major Sport</span>
+      </div>
+      <div class="insp-meta-item">
+        <span class="insp-meta-label">Teams</span>
+        <span class="insp-meta-value">9</span>
+      </div>
+      <div class="insp-meta-item">
+        <span class="rugby-badge-rfu">RFU Schools Cup</span>
+      </div>
+      <div class="insp-meta-item">
+        <span class="rugby-badge-schol">Scholarship available</span>
+      </div>
+    </div>
+
+    <div class="rugby-socs-grid">
+      <div class="rugby-socs-block">
+        <div class="rugby-socs-label">SOCS Performance</div>
+        <div class="rugby-socs-pills">
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">25–26</span><span class="rugby-socs-rank">#7</span><span class="rugby-socs-total">/ 305</span><span class="rugby-socs-live">live</span></div>
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">24–25</span><span class="rugby-socs-rank">#155</span><span class="rugby-socs-total">/ 332</span></div>
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">23–24</span><span class="rugby-socs-rank">#312</span><span class="rugby-socs-total">/ 338</span></div>
+        </div>
+      </div>
+      <div class="rugby-socs-block">
+        <div class="rugby-socs-label">SOCS All Comers</div>
+        <div class="rugby-socs-pills">
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">25–26</span><span class="rugby-socs-rank">#32</span><span class="rugby-socs-total">/ 414</span><span class="rugby-socs-live">live</span></div>
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">24–25</span><span class="rugby-socs-rank">#180</span><span class="rugby-socs-total">/ 470</span></div>
+          <div class="rugby-socs-pill"><span class="rugby-socs-season">23–24</span><span class="rugby-socs-rank">#417</span><span class="rugby-socs-total">/ 550</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="insp-summary-box">
+      <div class="insp-summary-label">Programme summary</div>
+      <p class="insp-summary-text">Wells Cathedral School runs a verified multi-team boys' rugby programme (1st XV + U15–U8A) with consistent regional fixtures but no DMT ranking, Schools Cup appearance, or academy pathway visibility. Strong south-west regional circuit including Millfield, Blundell's, Dauntsey's, Monkton Combe, Prior Park.</p>
+    </div>
+
+    <h3 class="block-sub">Programmes</h3>
+    <div class="rugby-programmes">
+      <div class="rugby-prog-block">
+        <div class="rugby-prog-gender">Boys</div>
+        <div class="rugby-prog-formats">
+          <span class="rugby-format-pill">15s</span>
+          <span class="rugby-format-pill">7s</span>
+        </div>
+        <div class="rugby-prog-comps">
+          <span class="rugby-comp-pill">Continental Tyres Schools Cup</span>
+          <span class="rugby-comp-pill">Rosslyn Park National Schools 7s</span>
+        </div>
+      </div>
+    </div>
+
+    <h3 class="block-sub">Coaching</h3>
+    <ul class="rugby-list">
+      <li><strong>Dan Meehan</strong> — Head of Rugby; 1st XV &amp; U14A coach</li>
+      <li><strong>Brian Ashton</strong> — Sports Mentor (consulting)<span class="rugby-muted"> · Former England Rugby Head Coach (visiting advisor; not full-time staff)</span></li>
+    </ul>
+
+    <h3 class="block-sub">Facilities</h3>
+    <div class="rugby-facility-grid">
+      <div class="rugby-facility-item">
+        <div class="rugby-facility-num">2</div>
+        <div class="rugby-facility-lbl">Pitches (winter)</div>
+      </div>
+      <div class="rugby-facility-item">
+        <div class="rugby-facility-num">✓</div>
+        <div class="rugby-facility-lbl">S&amp;C gym</div>
+      </div>
+    </div>
+    <p class="rugby-facility-note">Two full-size pitches suitable for rugby, football, cricket and athletics.</p>
+
+    <h3 class="block-sub">Scholarship</h3>
+    <div class="rugby-pathway-box">Non-means-tested sports award available; criteria: county or equivalent representative honours in at least one major sport, and A-team standard in at least two major sports. Rugby explicitly listed.</div>
+
+    <details class="rugby-details">
+      <summary>Why this tier?</summary>
+      <p class="rugby-reasoning">Wells Cathedral School runs a verified multi-team boys' rugby programme with consistent regional fixtures but no DMT ranking, Schools Cup appearance, or academy pathway visibility; default to standard tier.</p>
+    </details>
+    <details class="rugby-details">
+      <summary>Sources · last refreshed 27/04/2026</summary>
+      <ul class="rugby-sources">
+        <li><a href="https://sport.wells.cathedral.school/Fixtures_Teams.asp?Id=262&S=20252026&SID=24">sport.wells.cathedral.school</a></li>
+        <li><a href="https://wells.cathedral.school/senior-school-sport/">wells.cathedral.school/sport</a></li>
+      </ul>
+    </details>
+  </div>
+</div>
+
+</div><!-- /page -->
+</body>
+</html>

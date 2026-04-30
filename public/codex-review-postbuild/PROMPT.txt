@@ -1,0 +1,124 @@
+Post-build review — Thai caption feature is now implemented and
+manually tested. This is the gate before commit + push. Your
+pre-build review on this feature already passed (see sibling
+folder codex-review/ for that context if useful).
+
+What to review:
+
+  01-translate-caption.js
+      New CLI + module. `node translate-caption.js --post=<uuid>`
+      loads copy_en, calls Claude, validates the output, and
+      writes copy_th + copy_th_generated_at + copy_th_model back
+      to the row. Also importable as ES module
+      (translateCaption, buildPrompt, validateTranslation).
+
+  02-translate-caption-route.ts
+      POST /admin/content/api/post/[id]/translate-caption
+      Admin-authed Next.js route that spawns the CLI, returns the
+      saved copy_th. Mirrors api/generate/route.ts.
+
+  03-caption-route.ts
+      PATCH /admin/content/api/post/[id]/caption
+      Saves hand-edits to copy_en and/or copy_th from the detail
+      page's inline textareas.
+
+  04-thai-caption.sql
+      Idempotent migration adding the three copy_th columns to
+      social_posts. Already applied to the live Supabase DB
+      (verified — 3 rows currently have copy_th).
+
+  05-diff-detail-page.patch
+      Admin detail page (/admin/content/[id]) — biggest diff.
+      Adds inline EN/TH caption editors with dirty-tracking +
+      "Save changes" button, a Thai Generate/Regenerate button
+      with timestamp, and a relativeTime helper.
+
+  06-diff-queue-page.patch
+      Queue card — 🇹🇭 Generate / 🔄 Regenerate Thai button per
+      card with spinner. TH preview renders under EN when present.
+
+  07-diff-admin-nav.patch
+      Admin layout — Plan tab promoted to first-class; Schedule /
+      Design / Layout show muted "SOON" pills so we don't click
+      into them by reflex. Plan page's local tab nav removed
+      (now inherits from layout).
+
+Intent + background:
+
+  The NanaSays admin queues Instagram/Facebook carousel posts for
+  Bangkok international schools. Each post has an English caption.
+  Thai translation was opt-in (button click, not auto) to avoid
+  burning Claude calls on drafts that get rejected.
+
+  During build, the first prompt produced Thai that felt too
+  editorial — the user asked for a warmer "parent-to-parent on
+  Facebook" register. After two iterations of the prompt + adding
+  a hard requirement that Thai captions MUST end with a polite
+  particle (ค่ะ / ค่า / คะ / นะคะ / นะค่ะ), the output now sounds
+  like a Thai mum sharing tips in a LINE group.
+
+  First pass of the validator was too strict (only allowed ค่ะ/
+  ค่า/นะคะ/นะค่ะ, not standalone คะ) — it rejected a legitimate
+  suggestion-close "ลองเปิดดูสิคะ". Already fixed; worth
+  confirming the current regex is correct and doesn't false-positive
+  on incidental คะ substrings elsewhere in the caption.
+
+Questions I want answered:
+
+  1. **Validation regex correctness** — the polite-particle
+     validator strips trailing hashtags/URLs/punctuation/emoji
+     before checking for ค่ะ|ค่า|คะ|นะคะ|นะค่ะ at end. Any edge
+     cases where this false-negatives (valid caption rejected) or
+     false-positives (caption sneaks through without a particle)?
+     Specifically worried about: captions whose trailing hashtag
+     run has unusual whitespace, captions where the particle is
+     followed by a closing emoji, multi-paragraph captions where
+     a middle paragraph contains คะ but the last doesn't.
+
+  2. **Child-process spawn pattern** — the translate-caption API
+     route spawns node as a child process. Is error surfacing
+     robust? We read stderr for a message if exit code != 0,
+     but if the CLI crashes hard (uncaught throw), the UI shows
+     a cryptic "Translator exited -1". Worth tightening?
+
+  3. **Caption save race condition** — the detail page has EN
+     and TH textareas. If the user is mid-edit in EN, clicks
+     Regenerate Thai, the route reads copy_en from the DB (their
+     unsaved edit isn't there yet). The UI guards this with
+     "Save your English edit first, then translate" but the
+     guard is client-side only. Is that acceptable, or should
+     the API route also check?
+
+  4. **handleTranslate auth flow** — the detail page's
+     handleTranslate() fetches a session, attaches Bearer token.
+     If session is expired, we fetch anyway and let the route
+     return 401. Is this the right pattern, or should we refresh
+     the session first?
+
+  5. **Dirty-state tracking** — `dirty = draftEn !== (post.copy_en || '') || draftTh !== (post.copy_th || '')`
+     — this relies on the post state being refreshed after every
+     save (via `await load()`). If load() races with another
+     user action, could dirty ever flicker incorrectly?
+
+  6. **Migration idempotency** — the SQL uses `add column if not
+     exists`. Already applied. Anything wrong with it for when
+     we replay on a branch/preview DB?
+
+  7. **Prompt drift risk** — the translate-caption.js prompt is
+     now ~30 lines of voice + preservation rules. If Claude ever
+     starts ignoring a rule (e.g. forgetting to preserve a URL),
+     the validator will catch some cases (URL regex) but not
+     others (tone drift). Is there a lightweight regression test
+     I should add, e.g. a fixture EN caption + expected structural
+     properties of the TH output?
+
+  8. **Anything obvious I'm missing that'll bite in production.**
+
+Known blind spots you can skip (I'll verify elsewhere):
+  - UI visual polish (I'll browser-test on the Tailscale dev URL)
+  - Real-data migration test (already applied + verified via DB query)
+  - Performance (translation is ~30s one-off, not a hot path)
+
+Format your findings the usual way: numbered, severity order,
+file:line references. If the implementation is basically sound
+and I should just commit, say so plainly so I can move on.

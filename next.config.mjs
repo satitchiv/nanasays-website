@@ -2,6 +2,14 @@
 const nextConfig = {
   allowedDevOrigins: ['192.168.1.143', '100.100.120.57'],
   transpilePackages: ['react-google-recaptcha'],
+  webpack(config, { dev }) {
+    if (dev) {
+      // Prevents chunk ID instability in dev mode when new CSS-importing
+      // client components are added (was causing MODULE_NOT_FOUND crashes).
+      config.optimization.moduleIds = 'deterministic'
+    }
+    return config
+  },
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: 'flagcdn.com' },

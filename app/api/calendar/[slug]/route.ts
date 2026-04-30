@@ -48,7 +48,7 @@ export async function GET(
 
   const openEvents: string[] = data?.admissions_format?.open_events ?? []
   const schoolName = school?.name_en ?? slug
-  const schoolUrl = school?.website ?? `https://nanasays.com/schools/${slug}/report`
+  const schoolUrl = school?.website ?? `https://nanasays.school/schools/${slug}/report`
 
   // Find the first event that has a parseable date
   let eventDate: string | null = null

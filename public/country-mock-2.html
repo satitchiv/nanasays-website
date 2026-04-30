@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Country Section — Mock 2: Region Tabs</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy: #0b1f3a; --teal: #1bb5a1; --teal-dk: #149e8c;
+    --muted: #64748b; --border: #e2e8f0; --off: #f7f8fa;
+  }
+  body { font-family: 'Nunito Sans', sans-serif; background: #f0f4f8; }
+
+  .section { background: var(--off); border-top: 1px solid var(--border); padding: 72px 5%; }
+  .inner { max-width: 1240px; margin: 0 auto; }
+
+  .top-row { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 36px; flex-wrap: wrap; gap: 16px; }
+  .eyebrow { font-size: 11px; font-weight: 800; color: var(--teal-dk); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
+  h2 { font-family: 'Nunito', sans-serif; font-size: clamp(24px, 3vw, 38px); font-weight: 900; color: var(--navy); letter-spacing: -0.5px; line-height: 1.12; }
+  h2 span { color: var(--teal-dk); }
+
+  /* ── REGION TABS ── */
+  .tabs {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    margin-bottom: 28px;
+  }
+  .tab {
+    padding: 8px 18px; border-radius: 100px;
+    border: 1.5px solid var(--border); background: #fff;
+    font-size: 12px; font-weight: 700; color: var(--muted);
+    cursor: pointer; transition: all .15s; white-space: nowrap;
+  }
+  .tab.active, .tab:hover {
+    background: var(--navy); border-color: var(--navy);
+    color: #fff;
+  }
+  .tab .count { opacity: .5; font-weight: 400; margin-left: 4px; font-size: 11px; }
+
+  /* ── BIG FLAG CARDS ── */
+  .country-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  .country-card {
+    border-radius: 14px;
+    border: 1.5px solid var(--border);
+    background: #fff;
+    text-decoration: none;
+    overflow: hidden;
+    transition: transform .18s, box-shadow .18s, border-color .18s;
+    display: flex; flex-direction: column;
+  }
+  .country-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 32px rgba(11,31,58,.12);
+    border-color: var(--teal);
+  }
+  .card-flag-zone {
+    height: 100px;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #f0f7ff 0%, #e8f5f3 100%);
+    position: relative; overflow: hidden;
+  }
+  .card-flag-zone img { width: 80px; height: auto; border-radius: 4px; box-shadow: 0 3px 12px rgba(0,0,0,.18); }
+  .card-flag-zone .emoji-bg { font-size: 72px; opacity: .08; position: absolute; right: -8px; bottom: -10px; line-height: 1; user-select: none; }
+  .card-body { padding: 14px 16px 16px; }
+  .card-name { font-family: 'Nunito', sans-serif; font-size: 15px; font-weight: 800; color: var(--navy); margin-bottom: 4px; }
+  .card-count { font-size: 12px; color: var(--muted); font-weight: 400; }
+  .card-arrow {
+    margin-top: 10px; display: inline-flex; align-items: center; gap: 4px;
+    font-size: 11px; font-weight: 700; color: var(--teal-dk);
+    opacity: 0; transition: opacity .15s;
+  }
+  .country-card:hover .card-arrow { opacity: 1; }
+
+  /* popular badge */
+  .pop-badge {
+    position: absolute; top: 8px; left: 8px;
+    background: var(--navy); color: #fff;
+    font-size: 9px; font-weight: 800; padding: 3px 8px;
+    border-radius: 100px; text-transform: uppercase; letter-spacing: .5px;
+  }
+
+  /* ── ALL COUNTRIES pill list ── */
+  .pill-section { margin-top: 32px; padding-top: 28px; border-top: 1px solid var(--border); }
+  .pill-label { font-size: 11px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 14px; }
+  .pills { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pill {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: 100px;
+    border: 1px solid var(--border); background: #fff;
+    font-size: 12px; font-weight: 600; color: var(--navy);
+    text-decoration: none; transition: all .13s;
+  }
+  .pill:hover { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .pill img { border-radius: 1px; }
+  .pill .pcount { font-size: 10px; opacity: .5; font-weight: 400; }
+</style>
+</head>
+<body>
+
+<div class="section">
+  <div class="inner">
+
+    <div class="top-row">
+      <div>
+        <div class="eyebrow">Browse by Country</div>
+        <h2>166 countries, <span>one search.</span></h2>
+      </div>
+    </div>
+
+    <!-- Region tabs -->
+    <div class="tabs">
+      <div class="tab active">🌏 Southeast Asia <span class="count">8</span></div>
+      <div class="tab">🇬🇧 Europe <span class="count">40+</span></div>
+      <div class="tab">🌍 Middle East <span class="count">12</span></div>
+      <div class="tab">🌏 East Asia <span class="count">6</span></div>
+      <div class="tab">🌎 Americas <span class="count">14</span></div>
+      <div class="tab">🌍 Africa <span class="count">18</span></div>
+      <div class="tab">🌐 All regions</div>
+    </div>
+
+    <!-- Big flag card grid (Southeast Asia shown) -->
+    <div class="country-grid">
+
+      <a class="country-card" href="#">
+        <div class="card-flag-zone">
+          <div class="pop-badge">🔥 Most searched</div>
+          <img src="https://flagcdn.com/w160/th.png" alt="Thailand">
+          <div class="emoji-bg">🇹🇭</div>
+        </div>
+        <div class="card-body">
+          <div class="card-name">Thailand</div>
+          <div class="card-count">286 schools</div>
+          <div class="card-arrow">Browse schools →</div>
+        </div>
+      </a>
+
+      <a class="country-card" href="#">
+        <div class="card-flag-zone">
+          <div class="pop-badge">📊 Most schools</div>
+          <img src="https://flagcdn.com/w160/sg.png" alt="Singapore">
+          <div class="emoji-bg">🇸🇬</div>
+        </div>
+        <div class="card-body">
+          <div class="card-name">Singapore</div>
+          <div class="card-count">209 schools</div>
+          <div class="card-arrow">Browse schools →</div>
+        </div>
+      </a>
+
+      <a class="country-card" href="#">
+        <div class="card-flag-zone">
+          <img src="https://flagcdn.com/w160/id.png" alt="Indonesia">
+          <div class="emoji-bg">🇮🇩</div>
+        </div>
+        <div class="card-body">
+          <div class="card-name">Indonesia</div>
+          <div class="card-count">143 schools</div>
+          <div class="card-arrow">Browse schools →</div>
+        </div>
+      </a>
+
+      <a class="country-card" href="#">
+        <div class="card-flag-zone">
+          <img src="https://flagcdn.com/w160/my.png" alt="Malaysia">
+          <div class="emoji-bg">🇲🇾</div>
+        </div>
+        <div class="card-body">
+          <div class="card-name">Malaysia</div>
+          <div class="card-count">174 schools</div>
+          <div class="card-arrow">Browse schools →</div>
+        </div>
+      </a>
+
+      <a class="country-card" href="#">
+        <div class="card-flag-zone">
+          <img src="https://flagcdn.com/w160/vn.png" alt="Vietnam">
+          <div class="emoji-bg">🇻🇳</div>
+        </div>
+        <div class="card-body">
+          <div class="card-name">Vietnam</div>
+          <div class="card-count">82 schools</div>
+          <div class="card-arrow">Browse schools →</div>
+        </div>
+      </a>
+
+      <a class="country-card" href="#">
+        <div class="card-flag-zone">
+          <img src="https://flagcdn.com/w160/ph.png" alt="Philippines">
+          <div class="emoji-bg">🇵🇭</div>
+        </div>
+        <div class="card-body">
+          <div class="card-name">Philippines</div>
+          <div class="card-count">37 schools</div>
+          <div class="card-arrow">Browse schools →</div>
+        </div>
+      </a>
+
+      <a class="country-card" href="#">
+        <div class="card-flag-zone">
+          <img src="https://flagcdn.com/w160/mm.png" alt="Myanmar">
+        </div>
+        <div class="card-body">
+          <div class="card-name">Myanmar</div>
+          <div class="card-count">18 schools</div>
+          <div class="card-arrow">Browse schools →</div>
+        </div>
+      </a>
+
+      <a class="country-card" href="#">
+        <div class="card-flag-zone">
+          <img src="https://flagcdn.com/w160/kh.png" alt="Cambodia">
+        </div>
+        <div class="card-body">
+          <div class="card-name">Cambodia</div>
+          <div class="card-count">19 schools</div>
+          <div class="card-arrow">Browse schools →</div>
+        </div>
+      </a>
+
+    </div>
+
+    <!-- All countries as compact pills -->
+    <div class="pill-section">
+      <div class="pill-label">All other countries</div>
+      <div class="pills">
+        <a class="pill" href="#"><img src="https://flagcdn.com/16x12/gb.png" width="16" height="12" alt="UK"> United Kingdom <span class="pcount">2,078</span></a>
+        <a class="pill" href="#"><img src="https://flagcdn.com/16x12/es.png" width="16" height="12" alt="Spain"> Spain <span class="pcount">424</span></a>
+        <a class="pill" href="#"><img src="https://flagcdn.com/16x12/ch.png" width="16" height="12" alt="Switzerland"> Switzerland <span class="pcount">202</span></a>
+        <a class="pill" href="#"><img src="https://flagcdn.com/16x12/de.png" width="16" height="12" alt="Germany"> Germany <span class="pcount">155</span></a>
+        <a class="pill" href="#"><img src="https://flagcdn.com/16x12/fr.png" width="16" height="12" alt="France"> France <span class="pcount">110</span></a>
+        <a class="pill" href="#"><img src="https://flagcdn.com/16x12/tr.png" width="16" height="12" alt="Turkey"> Turkey <span class="pcount">128</span></a>
+        <a class="pill" href="#"><img src="https://flagcdn.com/16x12/pl.png" width="16" height="12" alt="Poland"> Poland <span class="pcount">114</span></a>
+        <a class="pill" href="#"><img src="https://flagcdn.com/16x12/it.png" width="16" height="12" alt="Italy"> Italy <span class="pcount">68</span></a>
+        <a class="pill" href="#"><img src="https://flagcdn.com/16x12/nl.png" width="16" height="12" alt="Netherlands"> Netherlands <span class="pcount">74</span></a>
+        <a class="pill" href="#"><img src="https://flagcdn.com/16x12/au.png" width="16" height="12" alt="Australia"> Australia <span class="pcount">96</span></a>
+        <a class="pill" href="#"><img src="https://flagcdn.com/16x12/ae.png" width="16" height="12" alt="UAE"> UAE <span class="pcount">52</span></a>
+        <a class="pill" href="#"><img src="https://flagcdn.com/16x12/jp.png" width="16" height="12" alt="Japan"> Japan <span class="pcount">44</span></a>
+        <a class="pill" href="#"><img src="https://flagcdn.com/16x12/cn.png" width="16" height="12" alt="China"> China <span class="pcount">61</span></a>
+        <a class="pill" href="#"><img src="https://flagcdn.com/16x12/in.png" width="16" height="12" alt="India"> India <span class="pcount">38</span></a>
+        <a class="pill" href="#"><img src="https://flagcdn.com/16x12/nz.png" width="16" height="12" alt="New Zealand"> New Zealand <span class="pcount">29</span></a>
+        <a class="pill" href="#"><img src="https://flagcdn.com/16x12/ca.png" width="16" height="12" alt="Canada"> Canada <span class="pcount">88</span></a>
+        <a class="pill" href="#"> + 150 more countries →</a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

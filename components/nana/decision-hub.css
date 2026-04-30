@@ -970,3 +970,64 @@
   0%,100% { opacity: .4; }
   50%      { opacity: .8; }
 }
+
+/* ── Chat: answer anatomy ─────────────────────────────────────────────── */
+.dh-ans-section { margin-top: 10px; margin-bottom: 2px; }
+.dh-ans-section--dim { opacity: .55; }
+
+/* ── Chat: confidence badge ───────────────────────────────────────────── */
+.dh-conf-badge {
+  font-size: 11px; font-weight: 600; border-radius: 4px;
+  padding: 2px 8px; margin-top: 6px; margin-bottom: 6px; display: inline-block;
+}
+.dh-conf--high   { background: rgba(74,222,128,.15);  color: #4ade80; }
+.dh-conf--medium { background: rgba(251,191,36,.15);  color: #fbbf24; }
+.dh-conf--low    { background: rgba(248,113,113,.15); color: #f87171; }
+.dh-conf--none   { background: rgba(255,255,255,.08); color: rgba(255,255,255,.4); }
+
+/* ── Chat: source pills ───────────────────────────────────────────────── */
+.dh-sources { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+.dh-source-pill.dh-source-pill--chat {
+  font-size: 11px; background: rgba(255,255,255,.08); color: rgba(255,255,255,.6);
+  border-radius: 4px; padding: 3px 8px; text-decoration: none;
+}
+.dh-source-pill.dh-source-pill--chat:hover { background: rgba(255,255,255,.14); color: #fff; }
+
+/* ── Chat: candidate cards (F7) ──────────────────────────────────────── */
+.dh-candidates-section { padding: 0 20px 16px; }
+.dh-candidate-card {
+  background: rgba(255,255,255,.06); border-radius: 10px;
+  padding: 14px 16px; margin-bottom: 10px;
+}
+.dh-candidate-name { font-weight: 600; color: #fff; margin-bottom: 4px; font-size: 14px; }
+.dh-candidate-why  { font-size: 13px; color: rgba(255,255,255,.75); margin-bottom: 6px; }
+.dh-candidate-concern { font-size: 12px; color: #f59e0b; margin-bottom: 8px; }
+.dh-candidate-add {
+  background: #2dd4bf; color: #0d1b2a; border: none; border-radius: 6px;
+  padding: 6px 12px; font-size: 12px; font-weight: 600; cursor: pointer;
+  font-family: var(--dh-sans);
+}
+.dh-candidate-add:hover { background: #34C3A0; }
+.dh-candidate-added { font-size: 12px; color: #4ade80; font-weight: 600; }
+
+/* ── Chat: first-visit tooltip (F1) ──────────────────────────────────── */
+.dh-tooltip {
+  margin: 0 20px 10px;
+  background: rgba(52,195,160,.15); border: 1px solid rgba(52,195,160,.3);
+  border-radius: 8px; padding: 10px 36px 10px 14px;
+  font-size: 12px; color: rgba(255,255,255,.85);
+  position: relative; cursor: pointer; line-height: 1.5;
+}
+.dh-tooltip-close {
+  position: absolute; top: 8px; right: 10px;
+  background: none; border: none; color: rgba(255,255,255,.5);
+  cursor: pointer; font-size: 13px; padding: 0; font-family: var(--dh-sans);
+}
+.dh-tooltip-close:hover { color: #fff; }
+
+/* ── Chat: msg-affordance as link ─────────────────────────────────────── */
+a.dh-msg-affordance {
+  font-size: 11px; font-weight: 700; color: #34C3A0;
+  text-decoration: none; display: inline-block; margin-top: 8px;
+}
+a.dh-msg-affordance:hover { text-decoration: underline; }

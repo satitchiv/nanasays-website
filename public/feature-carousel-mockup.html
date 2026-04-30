@@ -1,0 +1,1649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nanasays — Feature Carousel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy:    #1B3252;
+  --navy-lt: #243F66;
+  --teal:    #34C3A0;
+  --teal-dk: #239C80;
+  --teal-bg: #E8FAF6;
+  --off:     #F6F8FA;
+  --off2:    #EEF1F5;
+  --border:  #E5E7EB;
+  --bmd:     #D1D5DB;
+  --muted:   #6B7280;
+  --body:    #374151;
+  --shadow:  rgba(27,50,82,0.08);
+  --shadow-lg: rgba(27,50,82,0.16);
+  --sans:    'Nunito Sans', system-ui, sans-serif;
+  --head:    'Nunito', 'Nunito Sans', system-ui, sans-serif;
+}
+
+html, body { font-family: var(--sans); background: var(--off); color: var(--body); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+
+/* ── PAGE ── */
+.page { max-width: 1120px; margin: 0 auto; padding: 64px 24px 80px; }
+
+.eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; color: var(--teal-dk); margin-bottom: 14px; text-align: center; }
+
+.headline {
+  font-family: var(--head); font-size: clamp(28px, 4vw, 46px);
+  font-weight: 900; text-align: center; color: var(--navy);
+  line-height: 1.1; letter-spacing: -1px; margin-bottom: 14px;
+}
+.headline em { color: var(--teal); font-style: normal; }
+
+.sub { text-align: center; font-size: 16px; font-weight: 400; color: var(--muted); max-width: 520px; margin: 0 auto 36px; line-height: 1.65; }
+
+/* ── AUDIENCE TOGGLE ── */
+.aud-wrap { display: flex; justify-content: center; margin-bottom: 44px; }
+.audience-toggle {
+  display: flex; gap: 3px; align-items: center;
+  background: #fff; border: 1.5px solid var(--border);
+  border-radius: 100px; padding: 4px;
+  box-shadow: 0 2px 8px var(--shadow);
+}
+.aud-btn {
+  padding: 9px 24px; border-radius: 100px;
+  font-size: 13px; font-weight: 800; border: none; cursor: pointer;
+  background: transparent; color: var(--muted); font-family: var(--sans);
+  transition: background .18s, color .18s;
+}
+.aud-btn.active { background: var(--navy); color: #fff; }
+
+/* ── CAROUSEL CARD ── */
+.carousel-card {
+  background: #fff; border-radius: 18px;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 24px var(--shadow), 0 1px 3px var(--shadow);
+  overflow: hidden;
+}
+
+/* ── TAB BAR ── */
+.tab-bar {
+  display: flex; background: #fff;
+  border-bottom: 1px solid var(--border);
+  padding: 0 6px; gap: 0;
+}
+.tab-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: 16px 18px 14px; border: none; background: transparent;
+  cursor: pointer; font-family: var(--sans); position: relative; text-align: left;
+}
+.tab-icon { font-size: 17px; line-height: 1; margin-bottom: 2px; }
+.tab-label { font-size: 10px; font-weight: 800; color: var(--navy); opacity: .4; text-transform: uppercase; letter-spacing: .1em; white-space: nowrap; transition: opacity .2s, color .2s; }
+.tab-desc  { font-size: 13px; font-weight: 700; color: var(--navy); opacity: .4; line-height: 1.3; transition: opacity .2s; }
+.tab-btn.active .tab-label { opacity: 1; color: var(--teal-dk); }
+.tab-btn.active .tab-desc  { opacity: 1; }
+.tab-progress { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: var(--teal); transform: scaleX(0); transform-origin: left; }
+.tab-btn.active .tab-progress { animation: tab-adv 5000ms linear forwards; }
+.tab-btn.active.paused .tab-progress { animation-play-state: paused; }
+@keyframes tab-adv { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* ── PANEL ── */
+.panel-content { display: none; }
+.panel-content.active { display: block; }
+.panel-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 26px 28px 0; gap: 16px;
+}
+.panel-title { font-family: var(--head); font-size: 20px; font-weight: 900; color: var(--navy); line-height: 1.2; }
+.panel-hint { font-size: 11px; font-weight: 600; color: var(--muted); margin-top: 5px; display: flex; align-items: center; gap: 5px; }
+.panel-hint::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--teal); }
+.pause-btn {
+  width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid var(--border);
+  background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 13px; color: var(--muted); flex-shrink: 0; margin-top: 2px;
+  transition: border-color .15s, color .15s;
+}
+.pause-btn:hover { border-color: var(--navy); color: var(--navy); }
+
+.panel-body { display: flex; gap: 28px; padding: 18px 28px 28px; min-height: 340px; }
+.panel-copy { flex: 1; min-width: 0; padding-top: 4px; }
+.panel-copy p { font-size: 14px; line-height: 1.7; color: var(--muted); margin-top: 8px; max-width: 300px; }
+.panel-copy ul { margin-top: 16px; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+.panel-copy li { display: flex; align-items: flex-start; gap: 9px; font-size: 13px; font-weight: 600; color: var(--navy); }
+.panel-copy li::before {
+  content: "✓"; display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%; background: var(--teal-bg); color: var(--teal-dk);
+  font-size: 10px; font-weight: 900; flex-shrink: 0; margin-top: 1px;
+}
+.panel-mock {
+  flex: 1.4; min-width: 0; background: var(--off); border-radius: 12px;
+  border: 1px solid var(--border); overflow: hidden; min-height: 260px;
+  display: flex; flex-direction: column;
+}
+
+/* ── BROWSER CHROME ── */
+.chrome { background: #fff; border-bottom: 1px solid var(--border); padding: 9px 12px; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.dot { width: 9px; height: 9px; border-radius: 50%; }
+.dot.r { background: #FF5F57; } .dot.y { background: #FFBD2E; } .dot.g { background: #28C840; }
+.url { flex: 1; background: var(--off2); border-radius: 5px; padding: 4px 10px; font-size: 11px; color: var(--muted); font-weight: 600; margin-left: 4px; }
+
+/* ── CTA ── */
+.cta-strip { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 40px; }
+.cta-primary {
+  background: var(--navy); color: #fff; border: none; border-radius: 100px;
+  padding: 14px 32px; font-size: 15px; font-weight: 800; font-family: var(--sans);
+  cursor: pointer; text-decoration: none; transition: background .15s;
+  display: inline-block;
+}
+.cta-primary:hover { background: var(--navy-lt); }
+.cta-link { color: var(--navy); font-size: 14px; font-weight: 700; border-bottom: 2px solid var(--teal); padding-bottom: 1px; text-decoration: none; }
+
+/* ══════════════════════════════════════════
+   PANEL 1 — DISCOVER (drag to compare)
+══════════════════════════════════════════ */
+.disc-search { display: flex; gap: 8px; padding: 10px 12px; background: #fff; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.disc-search-input { flex: 1; background: var(--off); border: 1px solid var(--border); border-radius: 8px; padding: 7px 11px; font-size: 12px; color: var(--navy); font-family: var(--sans); }
+.disc-search-btn { background: var(--navy); color: #fff; border: none; border-radius: 8px; padding: 7px 13px; font-size: 12px; font-weight: 800; cursor: default; }
+
+.disc-chips { display: flex; gap: 5px; flex-wrap: wrap; padding: 8px 12px; background: #fff; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.chip { padding: 4px 11px; border-radius: 100px; font-size: 11px; font-weight: 700; border: 1.5px solid var(--border); color: var(--muted); background: #fff; cursor: default; }
+.chip.on { background: var(--navy); color: #fff; border-color: var(--navy); }
+
+.disc-list { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+
+.school-card-drag {
+  background: #fff; border-radius: 10px; border: 1.5px solid var(--border);
+  padding: 9px 12px; display: flex; align-items: center; gap: 10px;
+  cursor: grab; user-select: none;
+  transition: border-color .15s, box-shadow .15s, opacity .15s, transform .15s;
+  position: relative;
+}
+.school-card-drag:hover { border-color: var(--teal); box-shadow: 0 4px 14px rgba(52,195,160,.15); }
+.school-card-drag.dragging { opacity: .45; transform: scale(.98); cursor: grabbing; }
+.school-card-drag.in-compare { border-color: var(--teal); background: var(--teal-bg); }
+.school-card-drag.saved .save-btn { color: #e74c3c; }
+
+.s-badge { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; color: #fff; flex-shrink: 0; }
+.s-info { flex: 1; min-width: 0; }
+.s-name { font-size: 13px; font-weight: 800; color: var(--navy); }
+.s-meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.s-tag { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 100px; background: var(--teal-bg); color: var(--teal-dk); flex-shrink: 0; }
+.save-btn { background: none; border: none; cursor: pointer; font-size: 15px; color: var(--bmd); padding: 2px; transition: color .15s, transform .2s; flex-shrink: 0; }
+.save-btn:hover { color: #e74c3c; transform: scale(1.2); }
+
+.drag-hint { display: flex; align-items: center; gap: 6px; padding: 6px 12px 10px; font-size: 11px; font-weight: 600; color: var(--muted); flex-shrink: 0; }
+
+/* Compare tray */
+.compare-tray {
+  background: #fff; border-top: 1.5px solid var(--border); padding: 10px 12px;
+  display: flex; gap: 8px; align-items: center; flex-shrink: 0;
+}
+.tray-label { font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .12em; white-space: nowrap; }
+.tray-slots { display: flex; gap: 6px; flex: 1; }
+.tray-slot {
+  flex: 1; height: 38px; border-radius: 8px; border: 2px dashed var(--bmd);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: var(--muted); font-weight: 600;
+  transition: border-color .15s, background .15s;
+  position: relative; overflow: hidden;
+}
+.tray-slot.drag-over { border-color: var(--teal); background: var(--teal-bg); }
+.tray-slot.filled {
+  border-style: solid; border-color: var(--teal); background: var(--teal-bg);
+  font-size: 11px; font-weight: 800; color: var(--teal-dk);
+  cursor: pointer;
+}
+.tray-slot .remove-x { position: absolute; top: 2px; right: 4px; font-size: 11px; color: var(--muted); background: none; border: none; cursor: pointer; padding: 0; line-height: 1; }
+.compare-tray-btn {
+  background: var(--navy); color: #fff; border: none; border-radius: 8px;
+  padding: 0 14px; height: 38px; font-size: 12px; font-weight: 800; cursor: default;
+  white-space: nowrap; opacity: .4; transition: opacity .2s;
+}
+.compare-tray-btn.ready { opacity: 1; }
+
+/* Heart pop animation */
+@keyframes heart-pop { 0%{transform:scale(1)} 40%{transform:scale(1.6)} 70%{transform:scale(.9)} 100%{transform:scale(1)} }
+.heart-popped { animation: heart-pop .35s ease forwards; color: #e74c3c !important; }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: var(--navy); color: #fff; padding: 10px 20px; border-radius: 100px;
+  font-size: 13px; font-weight: 700; z-index: 9999; transition: transform .3s ease;
+  pointer-events: none; white-space: nowrap;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ══════════════════════════════════════════
+   PANEL 2 — REPORTS
+══════════════════════════════════════════ */
+.rep-header { background: var(--navy); padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.rep-school { font-family: var(--head); font-size: 15px; font-weight: 900; color: #fff; }
+.rep-badge { background: var(--teal); color: #fff; font-size: 10px; font-weight: 900; letter-spacing: .1em; padding: 3px 10px; border-radius: 100px; }
+.rep-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: var(--border); flex-shrink: 0; }
+.rep-stat { background: #fff; padding: 10px 12px; text-align: center; }
+.rep-val { font-family: var(--head); font-size: 19px; font-weight: 900; color: var(--navy); }
+.rep-val em { color: var(--teal); font-style: normal; }
+.rep-lbl { font-size: 10px; color: var(--muted); margin-top: 1px; font-weight: 600; }
+.rep-sections { padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1; }
+.rep-row { display: flex; align-items: center; gap: 10px; padding: 8px 11px; background: #fff; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; transition: border-color .15s; }
+.rep-row:hover { border-color: var(--teal); }
+.rep-row-icon { font-size: 14px; }
+.rep-row-label { font-size: 12px; font-weight: 700; color: var(--navy); flex: 1; }
+.rep-chip { font-size: 10px; font-weight: 800; padding: 3px 9px; border-radius: 100px; }
+.chip-good { background: var(--teal-bg); color: var(--teal-dk); }
+.chip-mid  { background: #FFF8E6; color: #B07800; }
+.chip-na   { background: var(--off2); color: var(--muted); }
+/* expand animation */
+.rep-expand { max-height: 0; overflow: hidden; transition: max-height .3s ease; font-size: 12px; color: var(--muted); line-height: 1.6; padding: 0 11px; }
+.rep-row.open + .rep-expand { max-height: 120px; padding: 6px 11px 10px; }
+
+/* ══════════════════════════════════════════
+   PANEL 3 — NANA CHAT
+══════════════════════════════════════════ */
+.chat-header { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #fff; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.nana-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--teal); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+.chat-nana-label { font-size: 12px; font-weight: 800; color: var(--teal-dk); }
+.chat-school-lbl { font-size: 12px; color: var(--muted); font-weight: 600; margin-left: auto; }
+.chat-msgs { flex: 1; overflow-y: auto; padding: 12px 12px 8px; display: flex; flex-direction: column; gap: 9px; }
+.msg { max-width: 88%; font-size: 13px; line-height: 1.55; padding: 9px 13px; border-radius: 14px; }
+.msg.user { align-self: flex-end; background: var(--navy); color: #fff; border-bottom-right-radius: 4px; }
+.msg.nana { align-self: flex-start; background: #fff; color: var(--body); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+.msg.nana strong { color: var(--teal-dk); }
+.msg.typing { align-self: flex-start; }
+.typing-dots { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+.typing-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--bmd); animation: typing-bounce 1.4s infinite; }
+.typing-dot:nth-child(2) { animation-delay: .2s; }
+.typing-dot:nth-child(3) { animation-delay: .4s; }
+@keyframes typing-bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+.hint-pills { display: flex; gap: 5px; flex-wrap: wrap; padding: 0 12px 8px; flex-shrink: 0; }
+.hint-pill { background: var(--teal-bg); border: 1px solid rgba(52,195,160,.3); color: var(--teal-dk); font-size: 11px; font-weight: 700; padding: 5px 11px; border-radius: 100px; cursor: pointer; transition: background .15s; }
+.hint-pill:hover { background: var(--teal); color: #fff; }
+.chat-input-row { display: flex; gap: 7px; padding: 8px 12px; border-top: 1px solid var(--border); background: #fff; flex-shrink: 0; }
+.chat-field { flex: 1; background: var(--off); border: 1px solid var(--border); border-radius: 8px; padding: 8px 11px; font-size: 12px; color: var(--muted); font-family: var(--sans); }
+.chat-send { background: var(--teal); color: #fff; border: none; border-radius: 8px; padding: 8px 12px; font-size: 14px; cursor: pointer; transition: background .15s; }
+.chat-send:hover { background: var(--teal-dk); }
+
+/* ══════════════════════════════════════════
+   PANEL 4 — COMPARE (drag to reorder)
+══════════════════════════════════════════ */
+.cmp-wrap { padding: 12px 12px; display: flex; flex-direction: column; gap: 0; flex: 1; overflow: hidden; }
+.cmp-school-cols { display: grid; gap: 0; margin-bottom: 1px; }
+.cmp-cell { padding: 8px 10px; font-size: 11px; background: #fff; border: 1px solid var(--border); border-bottom: none; }
+.cmp-cell:first-child { background: var(--off); color: var(--muted); font-weight: 800; text-transform: uppercase; letter-spacing: .08em; font-size: 10px; }
+.cmp-school-hdr {
+  background: var(--navy); color: #fff; font-family: var(--head);
+  font-size: 12px; font-weight: 900; text-align: center;
+  cursor: grab; user-select: none;
+  transition: background .15s, opacity .15s;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.cmp-school-hdr:hover { background: var(--navy-lt); }
+.cmp-school-hdr.dragging { opacity: .4; cursor: grabbing; }
+.cmp-school-hdr .drag-icon { font-size: 10px; opacity: .4; }
+.cmp-row { display: grid; gap: 0; }
+.cmp-row:nth-child(odd) .cmp-cell { background: var(--off); }
+.cmp-row:nth-child(odd) .cmp-cell:first-child { background: var(--off2); }
+.cmp-val { font-size: 12px; font-weight: 700; color: var(--navy); text-align: center; }
+.cmp-val.better { color: var(--teal-dk); font-weight: 900; }
+.cmp-val.worse  { color: var(--muted); font-weight: 400; }
+.cmp-winner { display: flex; align-items: center; gap: 8px; background: var(--teal-bg); border-top: 1px solid #c4ede3; padding: 9px 12px; font-size: 12px; font-weight: 700; color: var(--teal-dk); flex-shrink: 0; margin-top: auto; }
+
+/* ══════════════════════════════════════════
+   AGENTS — PANEL A1 CLIENTS (drag pills)
+══════════════════════════════════════════ */
+.clients-list { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.client-row { background: #fff; border-radius: 10px; border: 1.5px solid var(--border); padding: 10px 12px; display: flex; align-items: flex-start; gap: 10px; transition: border-color .15s; }
+.client-row.drag-over { border-color: var(--teal); background: var(--teal-bg); }
+.c-avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; color: #fff; flex-shrink: 0; margin-top: 2px; }
+.c-info { flex: 1; min-width: 0; }
+.c-name { font-size: 13px; font-weight: 800; color: var(--navy); }
+.c-sub  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.c-pills { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 7px; }
+.c-pill {
+  font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 100px;
+  background: var(--teal-bg); color: var(--teal-dk); border: 1px solid rgba(52,195,160,.3);
+  cursor: grab; user-select: none;
+  transition: box-shadow .15s, transform .15s, opacity .15s;
+  display: flex; align-items: center; gap: 5px;
+}
+.c-pill:hover { box-shadow: 0 2px 8px rgba(52,195,160,.3); transform: translateY(-1px); }
+.c-pill.dragging { opacity: .4; cursor: grabbing; }
+.c-pill .pill-x { font-size: 12px; opacity: .5; cursor: pointer; }
+.c-pill .pill-x:hover { opacity: 1; }
+
+/* ══════════════════════════════════════════
+   AGENTS — PANEL A2 INTELLIGENCE
+══════════════════════════════════════════ */
+.intel-hdr { background: var(--navy); padding: 13px 14px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.intel-name { font-family: var(--head); font-size: 14px; font-weight: 900; color: #fff; }
+.intel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); flex-shrink: 0; }
+.intel-cell { background: #fff; padding: 10px 12px; }
+.intel-val { font-family: var(--head); font-size: 18px; font-weight: 900; color: var(--navy); }
+.intel-val em { color: var(--teal); font-style: normal; }
+.intel-lbl { font-size: 10px; color: var(--muted); margin-top: 1px; font-weight: 600; }
+.intel-rows { padding: 10px; display: flex; flex-direction: column; gap: 5px; flex: 1; overflow: hidden; }
+.intel-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #fff; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; transition: border-color .15s; }
+.intel-row:hover { border-color: var(--teal); }
+.intel-icon { font-size: 14px; }
+.intel-text { font-size: 12px; font-weight: 600; color: var(--navy); flex: 1; }
+.intel-badge { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 100px; }
+.b-g { background: var(--teal-bg); color: var(--teal-dk); }
+.b-a { background: #FFF8E6; color: #B07800; }
+
+/* ══════════════════════════════════════════
+   AGENTS — PANEL A3 SHARE
+══════════════════════════════════════════ */
+.share-body { padding: 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.share-report-box { background: #fff; border-radius: 10px; border: 1.5px solid var(--teal); padding: 11px 13px; display: flex; align-items: center; gap: 11px; }
+.share-report-icon { font-size: 22px; }
+.share-report-name { font-size: 13px; font-weight: 800; color: var(--navy); }
+.share-report-meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.share-client-box { background: #fff; border-radius: 10px; border: 1px solid var(--border); padding: 10px 13px; }
+.share-client-lbl { font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
+.share-client-row { display: flex; align-items: center; gap: 8px; }
+.share-avatar { width: 26px; height: 26px; border-radius: 50%; background: #F5A623; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; color: #fff; }
+.share-client-name { font-size: 13px; font-weight: 700; color: var(--navy); flex: 1; }
+.share-tick { font-size: 15px; color: var(--teal); }
+.share-btn-box { background: var(--navy); color: #fff; border: none; border-radius: 10px; padding: 11px 16px; font-size: 13px; font-weight: 800; font-family: var(--sans); cursor: pointer; text-align: center; transition: background .15s; }
+.share-btn-box:hover { background: var(--navy-lt); }
+.share-sent { background: var(--teal-bg); border-radius: 10px; padding: 10px 13px; border: 1px solid #c4ede3; font-size: 12px; font-weight: 600; color: var(--teal-dk); display: flex; align-items: center; gap: 8px; }
+
+/* ══════════════════════════════════════════
+   AGENTS — PANEL A4 SPECIALISTS
+══════════════════════════════════════════ */
+.niche-body { padding: 10px; display: flex; flex-direction: column; gap: 8px; flex: 1; overflow: hidden; }
+.niche-group-label { font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .12em; padding: 0 2px; }
+.niche-chips { display: flex; gap: 5px; flex-wrap: wrap; }
+.niche-chip { padding: 5px 12px; border-radius: 100px; font-size: 11px; font-weight: 700; border: 1.5px solid var(--border); color: var(--muted); background: #fff; cursor: pointer; transition: all .15s; }
+.niche-chip:hover { border-color: var(--navy); color: var(--navy); }
+.niche-chip.on { background: var(--navy); color: #fff; border-color: var(--navy); }
+.niche-results { display: flex; flex-direction: column; gap: 5px; }
+.niche-row { background: #fff; border-radius: 8px; border: 1px solid var(--border); padding: 8px 11px; display: flex; align-items: center; gap: 9px; transition: border-color .15s; }
+.niche-row:hover { border-color: var(--teal); }
+.niche-row.top { border-color: var(--teal); }
+.niche-num { font-size: 11px; font-weight: 900; color: var(--muted); width: 16px; text-align: center; }
+.niche-name { font-size: 12px; font-weight: 800; color: var(--navy); flex: 1; }
+.niche-pct { font-size: 11px; font-weight: 700; color: var(--teal-dk); }
+
+</style>
+</head>
+<body>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<div class="page">
+  <div class="eyebrow">Everything in one place</div>
+  <h1 class="headline">The smarter way to choose a<br><em>UK independent school</em></h1>
+  <p class="sub">Deep research, honest answers, side-by-side comparison — powered by Nana, your AI school advisor.</p>
+
+  <!-- Audience toggle -->
+  <div class="aud-wrap">
+    <div class="audience-toggle">
+      <button class="aud-btn active" data-aud="parents" onclick="switchAud('parents')">👨‍👩‍👧 For Parents</button>
+      <button class="aud-btn" data-aud="agents" onclick="switchAud('agents')">🎓 For Education Agents</button>
+    </div>
+  </div>
+
+  <!-- ══════ PARENTS CAROUSEL ══════ -->
+  <div id="car-parents" class="carousel-card">
+    <div class="tab-bar" id="tabs-parents">
+      <button class="tab-btn active" data-tab="0" onclick="selTab('parents',0)">
+        <span class="tab-icon">🔍</span><span class="tab-label">Discover</span>
+        <span class="tab-desc">Find the right school</span><div class="tab-progress"></div>
+      </button>
+      <button class="tab-btn" data-tab="1" onclick="selTab('parents',1)">
+        <span class="tab-icon">📋</span><span class="tab-label">Reports</span>
+        <span class="tab-desc">Deep school insight</span><div class="tab-progress"></div>
+      </button>
+      <button class="tab-btn" data-tab="2" onclick="selTab('parents',2)">
+        <span class="tab-icon">💬</span><span class="tab-label">Ask Nana</span>
+        <span class="tab-desc">Your AI advisor</span><div class="tab-progress"></div>
+      </button>
+      <button class="tab-btn" data-tab="3" onclick="selTab('parents',3)">
+        <span class="tab-icon">⚖️</span><span class="tab-label">Compare</span>
+        <span class="tab-desc">Schools side-by-side</span><div class="tab-progress"></div>
+      </button>
+    </div>
+
+    <!-- P0: DISCOVER -->
+    <div class="panel-content active" data-panel="parents-0">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Find the right school for your child</div>
+          <div class="panel-hint">Drag a school into the compare tray · Double-click to save ❤️</div>
+        </div>
+        <button class="pause-btn" onclick="togglePause('parents')">⏸</button>
+      </div>
+      <div class="panel-body">
+        <div class="panel-copy">
+          <p>Search 64+ UK independent schools by boarding type, location, specialism, and fees — all in one place.</p>
+          <ul>
+            <li>Filter by boarding, day, or flexi</li>
+            <li>Search by county or town</li>
+            <li>Narrow by arts, sport, or STEM</li>
+            <li>See ISI rating at a glance</li>
+          </ul>
+        </div>
+        <div class="panel-mock" style="overflow:hidden;">
+          <div class="chrome"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div><div class="url">nanasays.com/schools</div></div>
+          <div class="disc-search">
+            <input class="disc-search-input" value="Surrey, boarding" readonly>
+            <div class="disc-search-btn">Search</div>
+          </div>
+          <div class="disc-chips">
+            <div class="chip on">Boarding</div><div class="chip on">Surrey</div>
+            <div class="chip">Day</div><div class="chip">Co-ed</div><div class="chip">Sport</div>
+          </div>
+          <div class="drag-hint">☝️ Drag any school below into the compare tray</div>
+          <div class="disc-list" id="disc-list">
+            <div class="school-card-drag" draggable="true" data-name="Epsom College" data-id="ep" ondragstart="startDrag(event,'ep','Epsom College')" ondragend="endDrag(event)" ondblclick="saveSchool(this,'ep')">
+              <div class="s-badge" style="background:#1B3252">EP</div>
+              <div class="s-info"><div class="s-name">Epsom College</div><div class="s-meta">Surrey · Boarding · Co-ed · 13–18</div></div>
+              <div class="s-tag">ISI Excellent</div>
+              <button class="save-btn" title="Double-click card to save">♡</button>
+            </div>
+            <div class="school-card-drag" draggable="true" data-name="Reed's School" data-id="rs" ondragstart="startDrag(event,'rs',"Reed's School")" ondragend="endDrag(event)" ondblclick="saveSchool(this,'rs')">
+              <div class="s-badge" style="background:#34C3A0">RS</div>
+              <div class="s-info"><div class="s-name">Reed's School</div><div class="s-meta">Surrey · Day & Boarding · Boys · 11–18</div></div>
+              <div class="s-tag">ISI Excellent</div>
+              <button class="save-btn" title="Double-click card to save">♡</button>
+            </div>
+            <div class="school-card-drag" draggable="true" data-name="Cranleigh School" data-id="cr" ondragstart="startDrag(event,'cr','Cranleigh School')" ondragend="endDrag(event)" ondblclick="saveSchool(this,'cr')">
+              <div class="s-badge" style="background:#F5A623">CR</div>
+              <div class="s-info"><div class="s-name">Cranleigh School</div><div class="s-meta">Surrey · Full Boarding · Co-ed · 13–18</div></div>
+              <div class="s-tag">ISI Excellent</div>
+              <button class="save-btn" title="Double-click card to save">♡</button>
+            </div>
+            <div class="school-card-drag" draggable="true" data-name="Charterhouse" data-id="ch" ondragstart="startDrag(event,'ch','Charterhouse')" ondragend="endDrag(event)" ondblclick="saveSchool(this,'ch')">
+              <div class="s-badge" style="background:#8B5CF6">CH</div>
+              <div class="s-info"><div class="s-name">Charterhouse</div><div class="s-meta">Surrey · Full Boarding · Co-ed · 13–18</div></div>
+              <div class="s-tag">ISI Excellent</div>
+              <button class="save-btn" title="Double-click card to save">♡</button>
+            </div>
+          </div>
+          <!-- Compare tray -->
+          <div class="compare-tray">
+            <div class="tray-label">Compare</div>
+            <div class="tray-slots">
+              <div class="tray-slot" id="slot-0" ondragover="allowDrop(event,0)" ondragleave="leaveDrop(0)" ondrop="dropSchool(event,0)">Drop here</div>
+              <div class="tray-slot" id="slot-1" ondragover="allowDrop(event,1)" ondragleave="leaveDrop(1)" ondrop="dropSchool(event,1)">Drop here</div>
+              <div class="tray-slot" id="slot-2" ondragover="allowDrop(event,2)" ondragleave="leaveDrop(2)" ondrop="dropSchool(event,2)">Drop here</div>
+            </div>
+            <button class="compare-tray-btn" id="cmp-btn">Compare →</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- P1: REPORTS -->
+    <div class="panel-content" data-panel="parents-1">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Deep reports — beyond the brochure</div>
+          <div class="panel-hint">Click any section to expand it</div>
+        </div>
+        <button class="pause-btn" onclick="togglePause('parents')">⏸</button>
+      </div>
+      <div class="panel-body">
+        <div class="panel-copy">
+          <p>Every school gets a structured deep report: academics, ISI inspection findings, pastoral care, sports, fees, and more.</p>
+          <ul>
+            <li>ISI inspection highlights in plain English</li>
+            <li>Sports teams & fixtures data</li>
+            <li>Fees, bursaries & scholarships</li>
+            <li>Admissions & entry points</li>
+          </ul>
+        </div>
+        <div class="panel-mock">
+          <div class="chrome"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div><div class="url">nanasays.com/schools/epsom-college/report</div></div>
+          <div class="rep-header">
+            <div class="rep-school">Epsom College</div>
+            <div class="rep-badge">ISI: Excellent</div>
+          </div>
+          <div class="rep-stats">
+            <div class="rep-stat"><div class="rep-val">£<em>47k</em></div><div class="rep-lbl">Boarding / year</div></div>
+            <div class="rep-stat"><div class="rep-val"><em>900</em></div><div class="rep-lbl">Pupils</div></div>
+            <div class="rep-stat"><div class="rep-val"><em>12</em></div><div class="rep-lbl">Sports</div></div>
+          </div>
+          <div class="rep-sections">
+            <div class="rep-row" onclick="toggleRepRow(this)">
+              <span class="rep-row-icon">🎓</span><span class="rep-row-label">Academic profile</span><span class="rep-chip chip-good">Strong</span>
+            </div>
+            <div class="rep-expand">Strong A-Level results. Mean grade B+. 85% of leavers to Russell Group. Medicine and Sciences particularly strong.</div>
+
+            <div class="rep-row" onclick="toggleRepRow(this)">
+              <span class="rep-row-icon">🏉</span><span class="rep-row-label">Sports & teams</span><span class="rep-chip chip-good">12 sports</span>
+            </div>
+            <div class="rep-expand">Rugby, cricket, hockey, tennis, netball, swimming and more. SOCS data shows 28 rugby teams across age groups. Tier 1 in county fixtures.</div>
+
+            <div class="rep-row" onclick="toggleRepRow(this)">
+              <span class="rep-row-icon">🏠</span><span class="rep-row-label">Boarding & pastoral</span><span class="rep-chip chip-good">Excellent</span>
+            </div>
+            <div class="rep-expand">ISI 2024: "Pupils are exceptionally well supported by knowledgeable and caring staff." 8 boarding houses, co-ed.</div>
+
+            <div class="rep-row" onclick="toggleRepRow(this)">
+              <span class="rep-row-icon">💷</span><span class="rep-row-label">Bursaries available</span><span class="rep-chip chip-mid">Up to 100%</span>
+            </div>
+            <div class="rep-expand">Means-tested bursaries up to 100% of fees. Academic & sport scholarships also available — contact admissions by January.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- P2: NANA CHAT -->
+    <div class="panel-content" data-panel="parents-2">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Ask Nana — honest answers, no brochure spin</div>
+          <div class="panel-hint">Click a suggested question below to try it</div>
+        </div>
+        <button class="pause-btn" onclick="togglePause('parents')">⏸</button>
+      </div>
+      <div class="panel-body">
+        <div class="panel-copy">
+          <p>Nana is your AI school advisor. Ask anything about a school and get a straight answer grounded in real data — not marketing.</p>
+          <ul>
+            <li>Backed by ISI reports & school data</li>
+            <li>No sales pitch — just honest insight</li>
+            <li>Ask about your child's specific needs</li>
+            <li>Available on every school page</li>
+          </ul>
+        </div>
+        <div class="panel-mock" style="display:flex;flex-direction:column;">
+          <div class="chrome"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div><div class="url">nanasays.com/schools/wycombe-abbey/report</div></div>
+          <div class="chat-header">
+            <div class="nana-dot"></div>
+            <div class="chat-nana-label">Nana · AI School Advisor</div>
+            <div class="chat-school-lbl">Wycombe Abbey</div>
+          </div>
+          <div class="chat-msgs" id="chat-msgs">
+            <div class="msg nana">Hi! I'm Nana. Ask me anything about Wycombe Abbey — fees, pastoral, arts, sport, fit for your child.</div>
+          </div>
+          <div class="hint-pills" id="hint-pills">
+            <div class="hint-pill" onclick="askNana(this,'Is it good for a shy artistic girl?')">Is it good for a shy artistic girl?</div>
+            <div class="hint-pill" onclick="askNana(this,'What are the boarding fees?')">What are the boarding fees?</div>
+            <div class="hint-pill" onclick="askNana(this,'How strong is the sport?')">How strong is the sport?</div>
+          </div>
+          <div class="chat-input-row">
+            <input class="chat-field" placeholder="Ask about this school…" onkeydown="if(event.key==='Enter')sendChat(this)">
+            <button class="chat-send" onclick="sendChatBtn(this)">↑</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- P3: COMPARE (drag to reorder cols) -->
+    <div class="panel-content" data-panel="parents-3">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Compare schools side-by-side</div>
+          <div class="panel-hint">Drag column headers to reorder</div>
+        </div>
+        <button class="pause-btn" onclick="togglePause('parents')">⏸</button>
+      </div>
+      <div class="panel-body">
+        <div class="panel-copy">
+          <p>Add up to 3 schools to your shortlist and compare them on the metrics that matter most.</p>
+          <ul>
+            <li>One-click add from any school page</li>
+            <li>Head-to-head on 12+ data points</li>
+            <li>Nana highlights the best fit</li>
+            <li>Save & share your comparison</li>
+          </ul>
+        </div>
+        <div class="panel-mock" style="display:flex;flex-direction:column;">
+          <div class="chrome"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div><div class="url">nanasays.com/compare</div></div>
+          <div class="cmp-wrap" id="cmp-table">
+            <!-- built by JS -->
+          </div>
+          <div class="cmp-winner">✦ Nana recommends <strong id="cmp-winner-name">Epsom College</strong> — earlier entry + lower fees for Year 7 joiners.</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /car-parents -->
+
+
+  <!-- ══════ AGENTS CAROUSEL ══════ -->
+  <div id="car-agents" class="carousel-card" style="display:none">
+    <div class="tab-bar" id="tabs-agents">
+      <button class="tab-btn active" data-tab="0" onclick="selTab('agents',0)">
+        <span class="tab-icon">👥</span><span class="tab-label">Clients</span>
+        <span class="tab-desc">Manage shortlists</span><div class="tab-progress"></div>
+      </button>
+      <button class="tab-btn" data-tab="1" onclick="selTab('agents',1)">
+        <span class="tab-icon">⚡</span><span class="tab-label">Intelligence</span>
+        <span class="tab-desc">Instant school data</span><div class="tab-progress"></div>
+      </button>
+      <button class="tab-btn" data-tab="2" onclick="selTab('agents',2)">
+        <span class="tab-icon">📤</span><span class="tab-label">Share</span>
+        <span class="tab-desc">Send reports to clients</span><div class="tab-progress"></div>
+      </button>
+      <button class="tab-btn" data-tab="3" onclick="selTab('agents',3)">
+        <span class="tab-icon">🎯</span><span class="tab-label">Specialists</span>
+        <span class="tab-desc">Find niche schools</span><div class="tab-progress"></div>
+      </button>
+    </div>
+
+    <!-- A0: CLIENTS (drag pills between clients) -->
+    <div class="panel-content active" data-panel="agents-0">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Manage every client's shortlist</div>
+          <div class="panel-hint">Drag school pills between client rows · Double-click pill to remove</div>
+        </div>
+        <button class="pause-btn" onclick="togglePause('agents')">⏸</button>
+      </div>
+      <div class="panel-body">
+        <div class="panel-copy">
+          <p>Keep track of every family, their shortlisted schools, and their child's profile — all in one dashboard.</p>
+          <ul>
+            <li>One dashboard, all your clients</li>
+            <li>Tag schools per family</li>
+            <li>Track progress & applications</li>
+            <li>Instant switch between client views</li>
+          </ul>
+        </div>
+        <div class="panel-mock" style="display:flex;flex-direction:column;">
+          <div class="chrome"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div><div class="url">nanasays.com/agent/clients</div></div>
+          <div class="clients-list" id="clients-list">
+            <!-- built by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- A1: INTELLIGENCE -->
+    <div class="panel-content" data-panel="agents-1">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Instant intelligence on any school</div>
+          <div class="panel-hint">Click any row to expand details</div>
+        </div>
+        <button class="pause-btn" onclick="togglePause('agents')">⏸</button>
+      </div>
+      <div class="panel-body">
+        <div class="panel-copy">
+          <p>Pull up a full data brief on any UK independent school in seconds. No more digging through PDFs before a client call.</p>
+          <ul>
+            <li>ISI inspection findings summarised</li>
+            <li>Up-to-date fees & bursaries</li>
+            <li>Sports, arts & specialist programmes</li>
+            <li>Entry requirements & CE averages</li>
+          </ul>
+        </div>
+        <div class="panel-mock" style="display:flex;flex-direction:column;">
+          <div class="chrome"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div><div class="url">nanasays.com/schools/kings-college-wimbledon</div></div>
+          <div class="intel-hdr">
+            <div class="intel-name">King's College School, Wimbledon</div>
+            <div class="rep-badge">ISI: Excellent</div>
+          </div>
+          <div class="intel-grid">
+            <div class="intel-cell"><div class="intel-val">£<em>26k</em></div><div class="intel-lbl">Day fees / year</div></div>
+            <div class="intel-cell"><div class="intel-val"><em>1,450</em></div><div class="intel-lbl">Pupils (Boys 7–18)</div></div>
+          </div>
+          <div class="intel-rows">
+            <div class="intel-row" onclick="toggleRepRow(this)"><span class="intel-icon">🎓</span><span class="intel-text">Top 10 nationally for A-Level results</span><span class="intel-badge b-g">Verified</span></div>
+            <div class="intel-row" onclick="toggleRepRow(this)"><span class="intel-icon">🏏</span><span class="intel-text">Cricket — SOCS Tier 1, 18 teams</span><span class="intel-badge b-g">Strong</span></div>
+            <div class="intel-row" onclick="toggleRepRow(this)"><span class="intel-icon">🎭</span><span class="intel-text">Music & drama — dedicated theatre</span><span class="intel-badge b-g">Excellent</span></div>
+            <div class="intel-row" onclick="toggleRepRow(this)"><span class="intel-icon">💷</span><span class="intel-text">Bursaries — limited, competitive</span><span class="intel-badge b-a">Check</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- A2: SHARE -->
+    <div class="panel-content" data-panel="agents-2">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Share school reports directly to families</div>
+          <div class="panel-hint">Click the send button to see it in action</div>
+        </div>
+        <button class="pause-btn" onclick="togglePause('agents')">⏸</button>
+      </div>
+      <div class="panel-body">
+        <div class="panel-copy">
+          <p>Found the perfect school? Send the full Nanasays report to a family with one click — branded as your recommendation.</p>
+          <ul>
+            <li>One-click share from any report page</li>
+            <li>Client gets a personalised summary</li>
+            <li>You see when they've read it</li>
+            <li>Add your own agent notes</li>
+          </ul>
+        </div>
+        <div class="panel-mock" style="display:flex;flex-direction:column;">
+          <div class="chrome"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div><div class="url">nanasays.com/agent/share</div></div>
+          <div class="share-body">
+            <div class="share-report-box">
+              <div class="share-report-icon">📋</div>
+              <div><div class="share-report-name">Epsom College — Full Report</div><div class="share-report-meta">12 sections · Updated April 2025 · ISI: Excellent</div></div>
+            </div>
+            <div class="share-client-box">
+              <div class="share-client-lbl">Sending to</div>
+              <div class="share-client-row">
+                <div class="share-avatar">TA</div>
+                <div class="share-client-name">Tanaka Family · tanaka@email.com</div>
+                <div class="share-tick">✓</div>
+              </div>
+            </div>
+            <button class="share-btn-box" id="share-btn" onclick="doShare()">📤 Send report to client</button>
+            <div class="share-sent" id="share-sent" style="display:none">✅ Report sent! Tanaka family viewed it 3 times — they're interested.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- A3: SPECIALISTS -->
+    <div class="panel-content" data-panel="agents-3">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Find specialist schools for unique needs</div>
+          <div class="panel-hint">Click filters to see ranked matches update</div>
+        </div>
+        <button class="pause-btn" onclick="togglePause('agents')">⏸</button>
+      </div>
+      <div class="panel-body">
+        <div class="panel-copy">
+          <p>Filter by specialist criteria — EAL, music scholarships, sport academies, SEN — and get a ranked match list instantly.</p>
+          <ul>
+            <li>Filter by EAL / international intake</li>
+            <li>Sport scholarship schools</li>
+            <li>Music & arts specialist provision</li>
+            <li>SEN & learning support rated</li>
+          </ul>
+        </div>
+        <div class="panel-mock" style="display:flex;flex-direction:column;">
+          <div class="chrome"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div><div class="url">nanasays.com/schools?specialist=true</div></div>
+          <div class="niche-body">
+            <div class="niche-group-label">Needs</div>
+            <div class="niche-chips" id="niche-needs">
+              <div class="niche-chip on" onclick="toggleNiche(this)">EAL support</div>
+              <div class="niche-chip on" onclick="toggleNiche(this)">High intl. intake</div>
+              <div class="niche-chip" onclick="toggleNiche(this)">SEN provision</div>
+              <div class="niche-chip" onclick="toggleNiche(this)">Dyslexia</div>
+            </div>
+            <div class="niche-group-label">Specialism</div>
+            <div class="niche-chips" id="niche-spec">
+              <div class="niche-chip on" onclick="toggleNiche(this)">Music scholarship</div>
+              <div class="niche-chip" onclick="toggleNiche(this)">Drama</div>
+              <div class="niche-chip" onclick="toggleNiche(this)">Sport academy</div>
+              <div class="niche-chip" onclick="toggleNiche(this)">STEM</div>
+            </div>
+            <div class="niche-group-label">Matched schools</div>
+            <div class="niche-results" id="niche-results">
+              <div class="niche-row top"><div class="niche-num">1</div><div class="niche-name">Brooke House College</div><div class="niche-pct">96% match</div></div>
+              <div class="niche-row"><div class="niche-num">2</div><div class="niche-name">MPW London</div><div class="niche-pct">88% match</div></div>
+              <div class="niche-row"><div class="niche-num">3</div><div class="niche-name">Abbey College Cambridge</div><div class="niche-pct">81% match</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /car-agents -->
+
+  <!-- ══════════════════════════════════════════
+       SITE WALKTHROUGH SECTION
+  ══════════════════════════════════════════ -->
+  <div style="margin-top:64px">
+    <div class="eyebrow">Live site demo</div>
+    <h2 class="headline" style="font-size:clamp(22px,3vw,36px);margin-bottom:10px">Browse the site — see how it works</h2>
+    <p class="sub" style="margin-bottom:32px">Click through the steps below to see exactly what you'd experience on nanasays.school — for free.</p>
+
+    <!-- Step indicators -->
+    <div class="wt-steps" id="wt-steps"></div>
+
+    <!-- Mini browser -->
+    <div class="wt-browser">
+      <!-- Browser chrome -->
+      <div class="wt-chrome">
+        <div style="display:flex;gap:5px;align-items:center">
+          <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        </div>
+        <button class="wt-nav-btn" id="wt-back" onclick="wtNav(-1)">‹</button>
+        <button class="wt-nav-btn" id="wt-fwd"  onclick="wtNav(1)">›</button>
+        <div class="wt-url-bar" id="wt-url">nanasays.school</div>
+        <div class="wt-reload">↻</div>
+      </div>
+
+      <!-- Page viewport -->
+      <div class="wt-viewport" id="wt-viewport"></div>
+
+      <!-- Step navigation footer -->
+      <div class="wt-footer">
+        <button class="wt-arrow" id="wt-prev-btn" onclick="wtNav(-1)">← Previous</button>
+        <div class="wt-step-label" id="wt-step-label"></div>
+        <button class="wt-arrow wt-arrow-next" id="wt-next-btn" onclick="wtNav(1)">Next →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="cta-strip" style="margin-top:48px">
+    <a class="cta-primary" href="#">Start exploring — it's free</a>
+    <a class="cta-link" href="#">See all 64 UK schools →</a>
+  </div>
+</div>
+
+<style>
+/* ── WALKTHROUGH ── */
+.wt-steps {
+  display: flex; gap: 0; justify-content: center; margin-bottom: 20px;
+}
+.wt-step-dot {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  flex: 1; max-width: 160px; cursor: pointer; padding: 0 8px;
+  position: relative;
+}
+.wt-step-dot:not(:last-child)::after {
+  content:''; position:absolute; top:14px; left:calc(50% + 14px); right:0;
+  height:2px; background:var(--border);
+}
+.wt-step-dot.done::after { background:var(--teal); }
+.wt-dot-circle {
+  width:28px; height:28px; border-radius:50%;
+  border:2px solid var(--border); background:#fff;
+  display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:900; color:var(--muted);
+  transition:all .2s; z-index:1; position:relative;
+}
+.wt-step-dot.active .wt-dot-circle { border-color:var(--teal); background:var(--teal); color:#fff; }
+.wt-step-dot.done .wt-dot-circle   { border-color:var(--teal); background:var(--teal-bg); color:var(--teal-dk); }
+.wt-dot-label { font-size:11px; font-weight:700; color:var(--muted); text-align:center; }
+.wt-step-dot.active .wt-dot-label { color:var(--navy); }
+
+.wt-browser {
+  background:#fff; border-radius:18px;
+  border:1px solid var(--border);
+  box-shadow:0 8px 40px var(--shadow), 0 1px 3px var(--shadow);
+  overflow:hidden;
+}
+.wt-chrome {
+  display:flex; align-items:center; gap:8px;
+  background:#f0f0f0; padding:10px 14px;
+  border-bottom:1px solid var(--border);
+}
+.wt-nav-btn {
+  width:24px; height:24px; border-radius:50%; border:none;
+  background:rgba(0,0,0,.08); color:#555;
+  font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  font-family:var(--sans); line-height:1;
+  transition:background .15s;
+}
+.wt-nav-btn:hover { background:rgba(0,0,0,.14); }
+.wt-nav-btn:disabled { opacity:.3; cursor:default; }
+.wt-url-bar {
+  flex:1; background:#fff; border-radius:20px; border:1px solid var(--bmd);
+  padding:5px 14px; font-size:12px; color:var(--muted); font-weight:600;
+  text-align:center; transition:all .3s;
+}
+.wt-reload { font-size:15px; color:var(--muted); cursor:default; }
+
+.wt-viewport {
+  height:480px; overflow:hidden; position:relative;
+  background:var(--off);
+}
+.wt-page {
+  position:absolute; inset:0;
+  opacity:0; transform:translateX(30px);
+  transition:opacity .3s ease, transform .3s ease;
+  pointer-events:none; overflow-y:auto;
+}
+.wt-page.active {
+  opacity:1; transform:translateX(0); pointer-events:auto;
+}
+.wt-page.exit-left {
+  opacity:0; transform:translateX(-30px);
+}
+
+.wt-footer {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 20px; border-top:1px solid var(--border);
+  background:#fafafa;
+}
+.wt-arrow {
+  font-size:13px; font-weight:800; color:var(--navy);
+  background:none; border:1.5px solid var(--border); border-radius:100px;
+  padding:8px 18px; cursor:pointer; font-family:var(--sans);
+  transition:border-color .15s, background .15s;
+}
+.wt-arrow:hover { border-color:var(--navy); background:var(--off); }
+.wt-arrow:disabled { opacity:.3; cursor:default; }
+.wt-arrow-next { background:var(--navy); color:#fff; border-color:var(--navy); }
+.wt-arrow-next:hover { background:var(--navy-lt); border-color:var(--navy-lt); }
+.wt-step-label { font-size:13px; font-weight:700; color:var(--muted); }
+
+/* ── PAGE MOCKS ── */
+
+/* NAV mock (shared) */
+.m-nav {
+  display:flex; align-items:center; gap:16px; padding:0 24px;
+  height:52px; background:rgba(255,255,255,.97);
+  border-bottom:1px solid var(--border);
+  position:sticky; top:0; z-index:10;
+  backdrop-filter:blur(10px);
+}
+.m-logo { display:flex; align-items:center; gap:7px; }
+.m-logo-icon { width:28px; height:28px; background:var(--navy); border-radius:7px; display:flex; align-items:center; justify-content:center; font-size:13px; }
+.m-logo-text { font-family:var(--head); font-size:17px; font-weight:800; color:var(--navy); }
+.m-logo-text em { color:var(--teal); font-style:normal; }
+.m-nav-right { margin-left:auto; display:flex; align-items:center; gap:8px; }
+.m-nav-pill { padding:6px 13px; border-radius:7px; font-size:12px; font-weight:700; border:1px solid var(--border); background:var(--off); color:var(--navy); }
+.m-nav-cta  { padding:6px 14px; border-radius:7px; font-size:12px; font-weight:800; background:var(--teal); color:#fff; }
+
+/* PAGE 1 — HOMEPAGE */
+.m-hero {
+  background:var(--navy); padding:52px 28px 48px; text-align:center;
+  position:relative; overflow:hidden;
+}
+.m-hero-eyebrow { font-size:10px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:var(--teal); margin-bottom:14px; }
+.m-hero-h1 { font-family:var(--head); font-size:clamp(22px,4vw,34px); font-weight:900; color:#fff; line-height:1.15; letter-spacing:-1px; margin-bottom:10px; }
+.m-hero-h1 em { color:var(--teal); font-style:normal; }
+.m-hero-sub { font-size:13px; color:rgba(255,255,255,.55); max-width:380px; margin:0 auto 26px; line-height:1.6; }
+.m-hero-search {
+  display:flex; max-width:440px; margin:0 auto; gap:0;
+  background:#fff; border-radius:12px; overflow:hidden;
+  box-shadow:0 8px 32px rgba(0,0,0,.2);
+}
+.m-hero-input { flex:1; padding:13px 16px; font-size:13px; border:none; outline:none; font-family:var(--sans); color:var(--navy); background:transparent; }
+.m-hero-btn { padding:13px 20px; background:var(--teal); color:#fff; border:none; font-size:13px; font-weight:800; cursor:pointer; font-family:var(--sans); white-space:nowrap; }
+.m-hero-proof { display:flex; gap:28px; justify-content:center; margin-top:22px; }
+.m-proof-stat { text-align:center; }
+.m-proof-num { font-family:var(--head); font-size:20px; font-weight:900; color:#fff; }
+.m-proof-num em { color:var(--teal); font-style:normal; }
+.m-proof-label { font-size:10px; color:rgba(255,255,255,.4); font-weight:600; margin-top:2px; }
+
+.m-dest-section { padding:28px 24px; }
+.m-dest-label { font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.12em; margin-bottom:12px; }
+.m-dest-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.m-dest-card {
+  background:#fff; border:1px solid var(--border); border-radius:10px;
+  padding:12px 10px; text-align:center; cursor:pointer;
+  transition:border-color .15s, box-shadow .15s;
+}
+.m-dest-card:hover { border-color:var(--teal); box-shadow:0 4px 12px rgba(52,195,160,.15); }
+.m-dest-flag { font-size:22px; display:block; margin-bottom:4px; }
+.m-dest-name { font-size:11px; font-weight:700; color:var(--navy); }
+.m-dest-count { font-size:10px; color:var(--muted); }
+
+/* PAGE 2 — SEARCH RESULTS / TYPE ANIMATION */
+.m-search-anim { position:relative; }
+.m-typing-cursor { display:inline-block; width:2px; height:14px; background:var(--teal); margin-left:2px; animation:blink .8s step-end infinite; vertical-align:middle; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:0} }
+
+/* PAGE 3 — DIRECTORY */
+.m-dir-header { background:var(--navy); padding:28px 24px 20px; }
+.m-dir-h1 { font-family:var(--head); font-size:22px; font-weight:900; color:#fff; letter-spacing:-.5px; margin-bottom:4px; }
+.m-dir-sub { font-size:12px; color:rgba(255,255,255,.45); }
+.m-dir-controls { background:var(--navy); padding:0 24px 20px; display:flex; gap:8px; flex-wrap:wrap; }
+.m-dir-search-box {
+  flex:1; min-width:160px; padding:8px 12px;
+  border:1px solid rgba(255,255,255,.2); background:rgba(255,255,255,.08);
+  border-radius:8px; color:rgba(255,255,255,.8); font-size:12px; font-family:var(--sans);
+}
+.m-dir-pill {
+  padding:6px 13px; border-radius:100px; font-size:11px; font-weight:700;
+  border:1px solid rgba(255,255,255,.25); background:transparent; color:rgba(255,255,255,.7);
+  cursor:pointer; font-family:var(--sans); transition:all .15s;
+}
+.m-dir-pill.on { background:var(--teal); color:var(--navy); border-color:var(--teal); }
+.m-dir-results-bar { padding:10px 24px; font-size:11px; font-weight:700; color:var(--muted); background:#fff; border-bottom:1px solid var(--border); }
+.m-dir-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; padding:16px 24px; background:var(--off); }
+.m-dir-card {
+  background:#fff; border:1px solid var(--border); border-radius:12px;
+  padding:14px; cursor:pointer;
+  transition:border-color .18s, box-shadow .18s, transform .15s;
+}
+.m-dir-card:hover { border-color:var(--teal); box-shadow:0 4px 16px rgba(27,50,82,.1); transform:translateY(-2px); }
+.m-dir-card.hl { border-color:var(--teal); box-shadow:0 4px 20px rgba(52,195,160,.2); transform:translateY(-2px); }
+.m-dir-card-name { font-size:13px; font-weight:900; color:var(--navy); margin-bottom:3px; }
+.m-dir-card-city { font-size:11px; color:var(--muted); margin-bottom:8px; }
+.m-dir-card-tags { display:flex; gap:4px; flex-wrap:wrap; }
+.m-dir-tag { font-size:10px; font-weight:700; padding:2px 7px; border-radius:100px; background:var(--off); color:var(--muted); border:1px solid var(--border); }
+.m-dir-tag.sport { background:var(--teal-bg); color:var(--teal-dk); }
+
+/* PAGE 4 — SCHOOL PROFILE */
+.m-school-hero { background:var(--navy); padding:24px; }
+.m-school-flag { font-size:11px; font-weight:800; color:rgba(255,255,255,.4); letter-spacing:.1em; text-transform:uppercase; margin-bottom:6px; }
+.m-school-name { font-family:var(--head); font-size:22px; font-weight:900; color:#fff; margin-bottom:10px; letter-spacing:-.5px; }
+.m-school-tags-row { display:flex; gap:6px; flex-wrap:wrap; }
+.m-school-tag { font-size:10px; font-weight:800; padding:4px 10px; border-radius:100px; background:rgba(255,255,255,.1); color:rgba(255,255,255,.7); }
+.m-school-tag.teal { background:rgba(52,195,160,.2); color:var(--teal); }
+.m-school-tabs { display:flex; background:#fff; border-bottom:1px solid var(--border); padding:0 24px; }
+.m-school-tab { padding:12px 16px; font-size:12px; font-weight:700; color:var(--muted); border-bottom:2px solid transparent; cursor:pointer; margin-bottom:-1px; transition:color .15s; }
+.m-school-tab.active { color:var(--navy); border-bottom-color:var(--teal); }
+.m-school-body { padding:20px 24px; background:var(--off); }
+.m-school-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+.m-school-stat-card { background:#fff; border:1px solid var(--border); border-radius:10px; padding:12px; }
+.m-school-stat-val { font-family:var(--head); font-size:18px; font-weight:900; color:var(--navy); }
+.m-school-stat-val em { color:var(--teal); font-style:normal; }
+.m-school-stat-lbl { font-size:10px; color:var(--muted); margin-top:2px; font-weight:600; }
+.m-school-section { background:#fff; border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:8px; }
+.m-school-sec-label { font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; margin-bottom:6px; }
+.m-school-sec-text { font-size:12px; color:var(--body); line-height:1.6; }
+.m-nana-teaser {
+  background:var(--navy); border-radius:12px; padding:16px;
+  display:flex; align-items:center; gap:12px; margin-top:0;
+}
+.m-nana-icon { font-size:22px; }
+.m-nana-text { flex:1; }
+.m-nana-text strong { font-size:13px; font-weight:800; color:#fff; display:block; margin-bottom:2px; }
+.m-nana-text span { font-size:11px; color:rgba(255,255,255,.5); }
+.m-nana-btn { background:var(--teal); color:#fff; border:none; border-radius:8px; padding:8px 14px; font-size:12px; font-weight:800; cursor:pointer; font-family:var(--sans); white-space:nowrap; }
+
+/* PAGE 5 — REPORT + NANA */
+.m-report-layout { display:flex; height:100%; overflow:hidden; }
+.m-report-main { flex:1; overflow-y:auto; }
+.m-report-hdr { background:var(--navy); padding:20px 20px 16px; }
+.m-report-eyebrow { font-size:10px; font-weight:800; letter-spacing:.15em; text-transform:uppercase; color:var(--teal); margin-bottom:6px; }
+.m-report-school { font-family:var(--head); font-size:18px; font-weight:900; color:#fff; margin-bottom:10px; }
+.m-report-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); }
+.m-rep-stat { background:#fff; padding:10px 12px; text-align:center; }
+.m-rep-val { font-family:var(--head); font-size:17px; font-weight:900; color:var(--navy); }
+.m-rep-val em { color:var(--teal); font-style:normal; }
+.m-rep-lbl { font-size:10px; color:var(--muted); margin-top:1px; }
+.m-report-sections { padding:12px; display:flex; flex-direction:column; gap:6px; }
+.m-rep-row { display:flex; align-items:center; gap:9px; padding:9px 11px; background:#fff; border-radius:8px; border:1px solid var(--border); cursor:pointer; }
+.m-rep-row:hover { border-color:var(--teal); }
+.m-rep-icon { font-size:14px; }
+.m-rep-label { font-size:12px; font-weight:700; color:var(--navy); flex:1; }
+.m-rep-chip { font-size:10px; font-weight:800; padding:3px 9px; border-radius:100px; background:var(--teal-bg); color:var(--teal-dk); }
+/* Nana side panel */
+.m-nana-panel {
+  width:240px; flex-shrink:0; border-left:1px solid var(--border);
+  background:#fff; display:flex; flex-direction:column; overflow:hidden;
+}
+.m-nana-panel-hdr {
+  background:var(--navy); padding:12px 14px;
+  display:flex; align-items:center; gap:8px;
+}
+.m-nana-panel-dot { width:7px; height:7px; border-radius:50%; background:var(--teal); animation:pulse 2s infinite; }
+.m-nana-panel-label { font-size:12px; font-weight:800; color:#fff; }
+.m-nana-msgs { flex:1; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:7px; }
+.m-nmsg { font-size:11px; line-height:1.5; padding:8px 10px; border-radius:10px; }
+.m-nmsg.user { background:var(--navy); color:#fff; align-self:flex-end; max-width:85%; }
+.m-nmsg.nana { background:var(--off); border:1px solid var(--border); color:var(--body); align-self:flex-start; max-width:92%; }
+.m-nmsg.nana strong { color:var(--teal-dk); }
+.m-nana-input-row { display:flex; gap:5px; padding:8px; border-top:1px solid var(--border); }
+.m-nana-field { flex:1; background:var(--off); border:1px solid var(--border); border-radius:6px; padding:6px 9px; font-size:11px; font-family:var(--sans); }
+.m-nana-send { background:var(--teal); color:#fff; border:none; border-radius:6px; padding:6px 9px; font-size:12px; cursor:pointer; }
+
+/* click-me pulse */
+.click-cue {
+  position:absolute; pointer-events:none;
+  width:40px; height:40px; border-radius:50%;
+  border:2px solid var(--teal); opacity:0;
+  animation:click-pulse 2.5s ease-out infinite;
+}
+@keyframes click-pulse { 0%{opacity:.8;transform:scale(.5)} 70%{opacity:0;transform:scale(1.5)} 100%{opacity:0} }
+</style>
+
+<script>
+// ─── STATE ────────────────────────────────────────────
+const S = {
+  parents: { active:0, paused:false, timer:null, count:4 },
+  agents:  { active:0, paused:false, timer:null, count:4 },
+  current: 'parents'
+}
+const ADV = 5000
+
+// ─── TABS ────────────────────────────────────────────
+function selTab(aud, idx, resetTimer=true) {
+  const s = S[aud]
+  s.active = idx
+  document.querySelectorAll(`#tabs-${aud} .tab-btn`).forEach((t,i) => {
+    t.classList.toggle('active', i===idx)
+    t.classList.remove('paused')
+    if (i===idx) { const p=t.querySelector('.tab-progress'); p.style.animation='none'; p.offsetHeight; p.style.animation=''; }
+  })
+  document.querySelectorAll(`[data-panel^="${aud}-"]`).forEach(p => p.classList.toggle('active', p.dataset.panel===`${aud}-${idx}`))
+  if (resetTimer) { clearInterval(s.timer); if(!s.paused) startTimer(aud) }
+}
+function startTimer(aud) {
+  const s = S[aud]
+  s.timer = setInterval(() => { if(!s.paused) selTab(aud, (s.active+1)%s.count) }, ADV)
+}
+function togglePause(aud) {
+  const s = S[aud]; s.paused = !s.paused
+  document.querySelectorAll(`#car-${aud} .pause-btn`).forEach(b => { b.textContent = s.paused ? '▶' : '⏸'; b.title = s.paused ? 'Resume':'Pause' })
+  const at = document.querySelector(`#tabs-${aud} .tab-btn.active`)
+  if (at) at.classList.toggle('paused', s.paused)
+  s.paused ? clearInterval(s.timer) : startTimer(aud)
+}
+function switchAud(aud) {
+  S.current = aud
+  document.querySelectorAll('.aud-btn').forEach(b => b.classList.toggle('active', b.dataset.aud===aud))
+  document.getElementById('car-parents').style.display = aud==='parents' ? '' : 'none'
+  document.getElementById('car-agents').style.display  = aud==='agents'  ? '' : 'none'
+  selTab(aud, 0)
+}
+
+// ─── TOAST ────────────────────────────────────────────
+function toast(msg) {
+  const t = document.getElementById('toast')
+  t.textContent = msg; t.classList.add('show')
+  setTimeout(() => t.classList.remove('show'), 2200)
+}
+
+// ─── DRAG: SCHOOL → COMPARE TRAY ─────────────────────
+let dragging = { id:null, name:null }
+const slots = [null, null, null]
+
+function startDrag(e, id, name) {
+  dragging = { id, name }
+  e.currentTarget.classList.add('dragging')
+  e.dataTransfer.effectAllowed = 'move'
+}
+function endDrag(e) { e.currentTarget.classList.remove('dragging') }
+function allowDrop(e, i) { e.preventDefault(); document.getElementById(`slot-${i}`).classList.add('drag-over') }
+function leaveDrop(i) { document.getElementById(`slot-${i}`).classList.remove('drag-over') }
+function dropSchool(e, i) {
+  e.preventDefault()
+  leaveDrop(i)
+  if (!dragging.id) return
+  if (slots.includes(dragging.id)) { toast('Already in compare tray'); return }
+  slots[i] = dragging.id
+  const slot = document.getElementById(`slot-${i}`)
+  slot.classList.add('filled')
+  slot.innerHTML = `<span>${dragging.name.split(' ')[0]}</span><button class="remove-x" onclick="removeSlot(${i})">✕</button>`
+  // mark card
+  const card = document.querySelector(`[data-id="${dragging.id}"]`)
+  if (card) card.classList.add('in-compare')
+  const filled = slots.filter(Boolean).length
+  document.getElementById('cmp-btn').classList.toggle('ready', filled >= 2)
+  toast(`${dragging.name} added to compare`)
+}
+function removeSlot(i) {
+  const id = slots[i]; if (!id) return
+  slots[i] = null
+  const slot = document.getElementById(`slot-${i}`)
+  slot.classList.remove('filled','drag-over')
+  slot.innerHTML = 'Drop here'
+  const card = document.querySelector(`[data-id="${id}"]`)
+  if (card) card.classList.remove('in-compare')
+  document.getElementById('cmp-btn').classList.toggle('ready', slots.filter(Boolean).length>=2)
+}
+
+// ─── DOUBLE CLICK: SAVE SCHOOL ───────────────────────
+const saved = new Set()
+function saveSchool(card, id) {
+  const btn = card.querySelector('.save-btn')
+  if (saved.has(id)) {
+    saved.delete(id); btn.textContent='♡'; btn.classList.remove('heart-popped'); card.classList.remove('saved')
+    toast('Removed from saved schools')
+  } else {
+    saved.add(id); btn.textContent='♥'; btn.classList.add('heart-popped'); card.classList.add('saved')
+    toast('❤️ Saved to your shortlist!')
+    btn.addEventListener('animationend', () => btn.classList.remove('heart-popped'), {once:true})
+  }
+}
+
+// ─── CLICK: EXPAND REPORT ROW ────────────────────────
+function toggleRepRow(row) {
+  const wasOpen = row.classList.contains('open')
+  document.querySelectorAll('.rep-row.open, .intel-row.open').forEach(r => r.classList.remove('open'))
+  if (!wasOpen) row.classList.add('open')
+}
+
+// ─── COMPARE TABLE (drag cols) ────────────────────────
+const CMP_SCHOOLS = [
+  { name:'Epsom College', fees:'£47,250', isi:'Excellent', type:'Co-ed', entry:'11+, 13+', sports:'12' },
+  { name:'Cranleigh School', fees:'£52,350', isi:'Excellent', type:'Co-ed', entry:'13+ only', sports:'15' },
+  { name:'Reed\'s School', fees:'£44,100', isi:'Excellent', type:'Boys', entry:'11+, 13+', sports:'10' },
+]
+const CMP_ROWS = [
+  { label:'ISI Rating',    key:'isi',    better:(a,b)=>true },
+  { label:'Boarding Fees', key:'fees',   better:(a,b)=>a<b },
+  { label:'Type',          key:'type',   better:()=>null },
+  { label:'Entry Age',     key:'entry',  better:(a,b)=>a.includes('11+')&&!b.includes('11+') },
+  { label:'Sports',        key:'sports', better:(a,b)=>parseInt(a)>parseInt(b) },
+]
+let cmpOrder = [0,1,2]
+let cmpDragIdx = null
+
+function buildCmpTable() {
+  const wrap = document.getElementById('cmp-table')
+  const schools = cmpOrder.map(i=>CMP_SCHOOLS[i])
+  const cols = schools.length + 1
+  const gridCols = `110px repeat(${schools.length},1fr)`
+  let html = `<div class="cmp-school-cols" style="display:grid;grid-template-columns:${gridCols};gap:1px;background:var(--border);flex-shrink:0">`
+  html += `<div class="cmp-cell" style="background:var(--off2)"></div>`
+  schools.forEach((s,i) => {
+    html += `<div class="cmp-cell cmp-school-hdr" draggable="true" data-ci="${i}" ondragstart="cmpDragStart(${i})" ondragover="cmpDragOver(event,${i})" ondrop="cmpDrop(${i})" ondragend="cmpDragEnd()">
+      <span class="drag-icon">⠿</span>${s.name.split(' ')[0]}
+    </div>`
+  })
+  html += '</div>'
+  CMP_ROWS.forEach(row => {
+    html += `<div class="cmp-row" style="display:grid;grid-template-columns:${gridCols};gap:1px;background:var(--border)">`
+    html += `<div class="cmp-cell" style="color:var(--muted);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em">${row.label}</div>`
+    schools.forEach((s,si) => {
+      const others = schools.filter((_,oi)=>oi!==si)
+      let cls = 'cmp-val'
+      if (row.better) {
+        const isBetter = others.every(o => row.better(s[row.key], o[row.key]))
+        const isWorse  = others.every(o => row.better(o[row.key], s[row.key]))
+        if (isBetter===true) cls += ' better'
+        else if (isWorse===true) cls += ' worse'
+      }
+      html += `<div class="cmp-cell ${cls}">${s[row.key]}</div>`
+    })
+    html += '</div>'
+  })
+  wrap.innerHTML = html
+  document.getElementById('cmp-winner-name').textContent = schools[0].name
+}
+function cmpDragStart(i) { cmpDragIdx=i; setTimeout(()=>document.querySelectorAll('.cmp-school-hdr').forEach(h=>{ if(parseInt(h.dataset.ci)===i) h.classList.add('dragging') }),0) }
+function cmpDragOver(e,i) { e.preventDefault() }
+function cmpDrop(i) {
+  if (cmpDragIdx===null||cmpDragIdx===i) return
+  const tmp=cmpOrder[cmpDragIdx]; cmpOrder[cmpDragIdx]=cmpOrder[i]; cmpOrder[i]=tmp
+  buildCmpTable()
+  toast('Order updated')
+}
+function cmpDragEnd() { cmpDragIdx=null; buildCmpTable() }
+
+// ─── CLIENTS PANEL (pill drag) ────────────────────────
+const CLIENTS = [
+  { id:'ta', name:'Tanaka Family', sub:'Son, 12 · Boarding · Surrey/Kent', color:'#F5A623', init:'TA',
+    schools:['Epsom College','Cranleigh','Reed\'s'] },
+  { id:'rm', name:'Rodriguez-Mora', sub:'Daughter, 10 · Girls\' boarding · Oxfordshire', color:'#8B5CF6', init:'RM',
+    schools:['Wycombe Abbey','Headington'] },
+  { id:'kp', name:'Kim-Park Family', sub:'Twins, 13 · Co-ed day · London', color:'#1B3252', init:'KP',
+    schools:['King\'s College Wimbledon','Dulwich'] },
+]
+let clientData = CLIENTS.map(c=>({...c, schools:[...c.schools]}))
+let pillDrag = { from:null, school:null }
+
+function buildClients() {
+  const list = document.getElementById('clients-list')
+  list.innerHTML = clientData.map((c,ci) => `
+    <div class="client-row" data-ci="${ci}" ondragover="clientDragOver(event,${ci})" ondragleave="clientDragLeave(${ci})" ondrop="clientDrop(event,${ci})">
+      <div class="c-avatar" style="background:${c.color}">${c.init}</div>
+      <div class="c-info">
+        <div class="c-name">${c.name}</div>
+        <div class="c-sub">${c.sub}</div>
+        <div class="c-pills" id="pills-${ci}">
+          ${c.schools.map(s=>`<div class="c-pill" draggable="true" ondragstart="pillDragStart(event,${ci},'${s.replace(/'/g,"\\'")}')" ondragend="pillDragEnd()" ondblclick="removePill(${ci},'${s.replace(/'/g,"\\'")}')">
+            ${s}<span class="pill-x" onclick="event.stopPropagation();removePill(${ci},'${s.replace(/'/g,"\\'")}')">✕</span>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>`).join('')
+}
+function pillDragStart(e,ci,school) {
+  pillDrag={from:ci,school}
+  e.currentTarget.classList.add('dragging')
+  e.dataTransfer.effectAllowed='move'
+}
+function pillDragEnd() { document.querySelectorAll('.c-pill.dragging').forEach(p=>p.classList.remove('dragging')) }
+function clientDragOver(e,ci) { e.preventDefault(); document.querySelector(`[data-ci="${ci}"]`).classList.add('drag-over') }
+function clientDragLeave(ci) { document.querySelector(`[data-ci="${ci}"]`).classList.remove('drag-over') }
+function clientDrop(e,ci) {
+  e.preventDefault(); clientDragLeave(ci)
+  if (pillDrag.from===null||pillDrag.from===ci) return
+  if (clientData[ci].schools.includes(pillDrag.school)) { toast('Already on this shortlist'); return }
+  clientData[pillDrag.from].schools = clientData[pillDrag.from].schools.filter(s=>s!==pillDrag.school)
+  clientData[ci].schools.push(pillDrag.school)
+  buildClients()
+  toast(`Moved to ${clientData[ci].name.split(' ')[0]}`)
+}
+function removePill(ci, school) {
+  clientData[ci].schools = clientData[ci].schools.filter(s=>s!==school)
+  buildClients()
+  toast('Removed from shortlist')
+}
+
+// ─── NANA CHAT ────────────────────────────────────────
+const NANA_ANSWERS = {
+  'Is it good for a shy artistic girl?': 'Yes — with caveats. Wycombe\'s arts programme is <strong>genuinely strong</strong>: dedicated studios, ceramics, thriving drama. ISI praised the nurturing pastoral care. Sport is compulsory but there\'s breadth — yoga, riding, fencing. A shy, artistic child will likely find her tribe here.',
+  'What are the boarding fees?': '<strong>£50,850/year</strong> for full boarders (2024–25). Bursaries available up to 100% — means-tested. Scholarship exams held each January.',
+  'How strong is the sport?': 'Sport is <strong>mandatory</strong> and well-resourced — lacrosse, tennis, rowing, swimming are all strong. County and national fixtures. It\'s not optional, so if your child dislikes sport entirely, worth factoring that in.',
+}
+function askNana(pillEl, q) {
+  if (pillEl) pillEl.remove()
+  appendMsg('user', q)
+  const typing = appendTyping()
+  setTimeout(()=>{ typing.remove(); appendMsg('nana', NANA_ANSWERS[q]||'That\'s a great question! Based on the ISI report and school data, I\'d say Wycombe Abbey handles this well.') }, 1100)
+}
+function sendChat(input) { if(input.value.trim()) { askNana(null, input.value.trim()); input.value=''; } }
+function sendChatBtn(btn) { const f=btn.closest('.chat-input-row').querySelector('.chat-field'); sendChat(f) }
+function appendMsg(type, html) {
+  const msgs=document.getElementById('chat-msgs')
+  const d=document.createElement('div'); d.className=`msg ${type}`; d.innerHTML=html; msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight; return d
+}
+function appendTyping() {
+  const msgs=document.getElementById('chat-msgs')
+  const d=document.createElement('div'); d.className='msg nana typing'; d.innerHTML='<div class="typing-dots"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>'; msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight; return d
+}
+
+// ─── SHARE BUTTON ─────────────────────────────────────
+function doShare() {
+  const btn=document.getElementById('share-btn')
+  btn.textContent='Sending…'; btn.style.opacity='.6'; btn.onclick=null
+  setTimeout(()=>{ document.getElementById('share-sent').style.display='flex'; btn.style.display='none' },900)
+}
+
+// ─── NICHE FILTER ─────────────────────────────────────
+const NICHE_RESULTS = [
+  ['Brooke House College','96%'],['MPW London','88%'],['Abbey College Cambridge','81%'],
+  ['Concord College','74%'],['DLD College London','68%'],
+]
+function toggleNiche(el) {
+  el.classList.toggle('on')
+  const on = document.querySelectorAll('.niche-chip.on').length
+  const list=document.getElementById('niche-results')
+  const count = Math.max(2, Math.min(on+1, NICHE_RESULTS.length))
+  list.innerHTML = NICHE_RESULTS.slice(0,count).map((r,i)=>`
+    <div class="niche-row ${i===0?'top':''}">
+      <div class="niche-num">${i+1}</div>
+      <div class="niche-name">${r[0]}</div>
+      <div class="niche-pct">${r[1]} match</div>
+    </div>`).join('')
+}
+
+// ─── BOOT ─────────────────────────────────────────────
+buildCmpTable()
+buildClients()
+startTimer('parents')
+
+// ══════════════════════════════════════════════════════
+//  SITE WALKTHROUGH
+// ══════════════════════════════════════════════════════
+const WT_STEPS = [
+  { label:'Homepage',    icon:'🏠', url:'nanasays.school' },
+  { label:'Search',      icon:'🔍', url:'nanasays.school/?q=United+Kingdom' },
+  { label:'Directory',   icon:'📂', url:'nanasays.school/schools' },
+  { label:'School page', icon:'🏫', url:'nanasays.school/schools/epsom-college' },
+  { label:'Report + Nana', icon:'📋', url:'nanasays.school/schools/epsom-college/report' },
+]
+
+const WT_PAGES = [
+  // PAGE 1 — Homepage
+  () => `
+  <div class="m-nav">
+    <div class="m-logo"><div class="m-logo-icon">🧠</div><div class="m-logo-text">nana<em>says</em></div></div>
+    <div class="m-nav-right">
+      <div class="m-nav-pill">GBP</div>
+      <div class="m-nav-pill">EN</div>
+      <div class="m-nav-cta">For Schools</div>
+    </div>
+  </div>
+  <div class="m-hero">
+    <div class="m-hero-eyebrow">10,000+ schools · 100+ countries</div>
+    <div class="m-hero-h1">Find the right school for<br>your <em>child abroad</em></div>
+    <div class="m-hero-sub">Search, compare, and get honest AI guidance on international schools worldwide.</div>
+    <div class="m-hero-search">
+      <input class="m-hero-input" id="wt-hero-input" placeholder="Search by school name, country, or type…" readonly>
+      <button class="m-hero-btn">Search</button>
+    </div>
+    <div class="m-hero-proof">
+      <div class="m-proof-stat"><div class="m-proof-num">10,<em>000</em>+</div><div class="m-proof-label">Schools worldwide</div></div>
+      <div class="m-proof-stat"><div class="m-proof-num"><em>100</em>+</div><div class="m-proof-label">Countries</div></div>
+      <div class="m-proof-stat"><div class="m-proof-num"><em>64</em></div><div class="m-proof-label">Deep UK reports</div></div>
+    </div>
+  </div>
+  <div class="m-dest-section">
+    <div class="m-dest-label">Top destinations</div>
+    <div class="m-dest-grid">
+      <div class="m-dest-card" onclick="wtNav(1)"><span class="m-dest-flag">🇬🇧</span><div class="m-dest-name">United Kingdom</div><div class="m-dest-count">140 schools</div></div>
+      <div class="m-dest-card"><span class="m-dest-flag">🇸🇬</span><div class="m-dest-name">Singapore</div><div class="m-dest-count">86 schools</div></div>
+      <div class="m-dest-card"><span class="m-dest-flag">🇨🇭</span><div class="m-dest-name">Switzerland</div><div class="m-dest-count">54 schools</div></div>
+      <div class="m-dest-card"><span class="m-dest-flag">🇹🇭</span><div class="m-dest-name">Thailand</div><div class="m-dest-count">286 schools</div></div>
+    </div>
+    <div style="margin-top:10px;font-size:11px;font-weight:700;color:var(--teal-dk);text-align:center;cursor:pointer" onclick="wtNav(1)">👆 Click 🇬🇧 United Kingdom or hit Next → to search UK schools</div>
+  </div>`,
+
+  // PAGE 2 — Search / typing animation
+  () => `
+  <div class="m-nav">
+    <div class="m-logo"><div class="m-logo-icon">🧠</div><div class="m-logo-text">nana<em>says</em></div></div>
+    <div class="m-nav-right">
+      <div class="m-nav-pill">GBP</div><div class="m-nav-pill">EN</div>
+      <div class="m-nav-cta">For Schools</div>
+    </div>
+  </div>
+  <div class="m-hero" style="padding:32px 28px 36px">
+    <div class="m-hero-h1" style="font-size:22px;margin-bottom:14px">Find the right school</div>
+    <div class="m-hero-search">
+      <div class="m-hero-input" style="padding:13px 16px;font-size:13px;color:var(--navy);font-weight:700" id="wt-typing-display">
+        <span id="wt-typed"></span><span class="m-typing-cursor"></span>
+      </div>
+      <button class="m-hero-btn" onclick="wtNav(1)">Search</button>
+    </div>
+    <div style="margin-top:12px;font-size:11px;color:rgba(255,255,255,.4)">Searching for boarding schools in the United Kingdom…</div>
+  </div>
+  <div style="padding:20px 24px;background:var(--off)">
+    <div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:12px">Quick filters</div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap">
+      <div class="m-dir-pill on" style="background:var(--teal);color:var(--navy);border-color:var(--teal)">🇬🇧 United Kingdom</div>
+      <div class="m-dir-pill on" style="background:var(--teal);color:var(--navy);border-color:var(--teal)">Boarding</div>
+      <div class="m-dir-pill" style="border:1px solid var(--border);color:var(--muted);background:#fff">Boys</div>
+      <div class="m-dir-pill" style="border:1px solid var(--border);color:var(--muted);background:#fff">Girls</div>
+      <div class="m-dir-pill" style="border:1px solid var(--border);color:var(--muted);background:#fff">Co-ed</div>
+    </div>
+    <div style="margin-top:16px;background:#fff;border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;align-items:center;gap:10px;cursor:pointer" onclick="wtNav(1)">
+      <div style="width:34px;height:34px;background:var(--teal-bg);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px">🔍</div>
+      <div><div style="font-size:13px;font-weight:800;color:var(--navy)">140 UK schools found</div><div style="font-size:11px;color:var(--muted);margin-top:1px">Click to browse the full directory →</div></div>
+    </div>
+  </div>`,
+
+  // PAGE 3 — Directory
+  () => `
+  <div class="m-nav">
+    <div class="m-logo"><div class="m-logo-icon">🧠</div><div class="m-logo-text">nana<em>says</em></div></div>
+    <div class="m-nav-right"><div class="m-nav-pill">GBP</div><div class="m-nav-cta">For Schools</div></div>
+  </div>
+  <div class="m-dir-header">
+    <div class="m-dir-h1">UK Independent Schools</div>
+    <div class="m-dir-sub">140 schools with deep research reports · free to browse</div>
+  </div>
+  <div class="m-dir-controls">
+    <input class="m-dir-search-box" value="Boarding Surrey" readonly>
+    <div class="m-dir-pill on">Boarding</div>
+    <div class="m-dir-pill on">Surrey</div>
+    <div class="m-dir-pill">Boys</div>
+    <div class="m-dir-pill">Girls</div>
+  </div>
+  <div class="m-dir-results-bar">Showing 12 of 140 schools</div>
+  <div class="m-dir-grid">
+    <div class="m-dir-card hl" onclick="wtNav(1)" title="Click to view Epsom College">
+      <div class="m-dir-card-name">Epsom College</div>
+      <div class="m-dir-card-city">📍 Epsom, Surrey</div>
+      <div class="m-dir-card-tags">
+        <span class="m-dir-tag">Boarding</span><span class="m-dir-tag">Co-ed</span>
+        <span class="m-dir-tag sport">🏉 Rugby</span><span class="m-dir-tag sport">🎾 Tennis</span>
+      </div>
+    </div>
+    <div class="m-dir-card">
+      <div class="m-dir-card-name">Reed's School</div>
+      <div class="m-dir-card-city">📍 Cobham, Surrey</div>
+      <div class="m-dir-card-tags"><span class="m-dir-tag">Boarding</span><span class="m-dir-tag">Boys</span><span class="m-dir-tag sport">🏏 Cricket</span></div>
+    </div>
+    <div class="m-dir-card">
+      <div class="m-dir-card-name">Cranleigh School</div>
+      <div class="m-dir-card-city">📍 Cranleigh, Surrey</div>
+      <div class="m-dir-card-tags"><span class="m-dir-tag">Full Boarding</span><span class="m-dir-tag">Co-ed</span><span class="m-dir-tag sport">🏊 Swimming</span></div>
+    </div>
+    <div class="m-dir-card">
+      <div class="m-dir-card-name">Charterhouse</div>
+      <div class="m-dir-card-city">📍 Godalming, Surrey</div>
+      <div class="m-dir-card-tags"><span class="m-dir-tag">Boarding</span><span class="m-dir-tag">Co-ed</span><span class="m-dir-tag sport">⚽ Football</span></div>
+    </div>
+    <div class="m-dir-card">
+      <div class="m-dir-card-name">St Catherine's Bramley</div>
+      <div class="m-dir-card-city">📍 Bramley, Surrey</div>
+      <div class="m-dir-card-tags"><span class="m-dir-tag">Day & Boarding</span><span class="m-dir-tag">Girls</span><span class="m-dir-tag sport">🏑 Hockey</span></div>
+    </div>
+    <div class="m-dir-card">
+      <div class="m-dir-card-name">Ewell Castle School</div>
+      <div class="m-dir-card-city">📍 Ewell, Surrey</div>
+      <div class="m-dir-card-tags"><span class="m-dir-tag">Day</span><span class="m-dir-tag">Co-ed</span></div>
+    </div>
+  </div>
+  <div style="padding:6px 24px 16px;font-size:11px;font-weight:700;color:var(--teal-dk);text-align:center;background:var(--off)">👆 Click Epsom College to view its full profile</div>`,
+
+  // PAGE 4 — School profile
+  () => `
+  <div class="m-nav">
+    <div class="m-logo"><div class="m-logo-icon">🧠</div><div class="m-logo-text">nana<em>says</em></div></div>
+    <div class="m-nav-right"><div class="m-nav-pill">GBP</div><div class="m-nav-cta">For Schools</div></div>
+  </div>
+  <div class="m-school-hero">
+    <div class="m-school-flag">🇬🇧 United Kingdom · Surrey</div>
+    <div class="m-school-name">Epsom College</div>
+    <div class="m-school-tags-row">
+      <span class="m-school-tag">Co-ed</span>
+      <span class="m-school-tag">Boarding</span>
+      <span class="m-school-tag">Ages 11–18</span>
+      <span class="m-school-tag teal">ISI: Excellent</span>
+    </div>
+  </div>
+  <div class="m-school-tabs">
+    <div class="m-school-tab active">Overview</div>
+    <div class="m-school-tab">Sports</div>
+    <div class="m-school-tab">Fees</div>
+    <div class="m-school-tab">Admissions</div>
+  </div>
+  <div class="m-school-body">
+    <div class="m-school-grid">
+      <div class="m-school-stat-card"><div class="m-school-stat-val">£<em>47k</em></div><div class="m-school-stat-lbl">Boarding fees / year</div></div>
+      <div class="m-school-stat-card"><div class="m-school-stat-val"><em>900</em></div><div class="m-school-stat-lbl">Pupils</div></div>
+      <div class="m-school-stat-card"><div class="m-school-stat-val"><em>12</em></div><div class="m-school-stat-lbl">Sports offered</div></div>
+      <div class="m-school-stat-card"><div class="m-school-stat-val"><em>8</em></div><div class="m-school-stat-lbl">Boarding houses</div></div>
+    </div>
+    <div class="m-school-section">
+      <div class="m-school-sec-label">About</div>
+      <div class="m-school-sec-text">Epsom College is a leading co-educational boarding and day school in Surrey. Founded in 1855, it offers a broad curriculum with strong pastoral care, excellent sports facilities, and a vibrant creative arts programme.</div>
+    </div>
+    <div class="m-nana-teaser" onclick="wtNav(1)" style="cursor:pointer">
+      <div class="m-nana-icon">🧠</div>
+      <div class="m-nana-text">
+        <strong>Ask Nana about Epsom College</strong>
+        <span>Get honest AI answers — fees, fit, pastoral, sport</span>
+      </div>
+      <button class="m-nana-btn">Open report →</button>
+    </div>
+  </div>`,
+
+  // PAGE 5 — Report + Nana
+  () => `
+  <div class="m-nav" style="position:relative">
+    <div class="m-logo"><div class="m-logo-icon">🧠</div><div class="m-logo-text">nana<em>says</em></div></div>
+    <div class="m-nav-right"><div class="m-nav-pill">GBP</div><div class="m-nav-cta">For Schools</div></div>
+  </div>
+  <div class="m-report-layout" style="height:calc(100% - 52px)">
+    <div class="m-report-main">
+      <div class="m-report-hdr">
+        <div class="m-report-eyebrow">Deep school report</div>
+        <div class="m-report-school">Epsom College</div>
+      </div>
+      <div class="m-report-stats">
+        <div class="m-rep-stat"><div class="m-rep-val">£<em>47k</em></div><div class="m-rep-lbl">Boarding / yr</div></div>
+        <div class="m-rep-stat"><div class="m-rep-val"><em>900</em></div><div class="m-rep-lbl">Pupils</div></div>
+        <div class="m-rep-stat"><div class="m-rep-val"><em>ISI ✓</em></div><div class="m-rep-lbl">Excellent</div></div>
+      </div>
+      <div class="m-report-sections">
+        <div class="m-rep-row"><span class="m-rep-icon">🎓</span><span class="m-rep-label">Academic profile</span><span class="m-rep-chip">Strong</span></div>
+        <div class="m-rep-row"><span class="m-rep-icon">🏉</span><span class="m-rep-label">Sports & teams</span><span class="m-rep-chip">12 sports</span></div>
+        <div class="m-rep-row"><span class="m-rep-icon">🏠</span><span class="m-rep-label">Boarding & pastoral</span><span class="m-rep-chip">Excellent</span></div>
+        <div class="m-rep-row"><span class="m-rep-icon">💷</span><span class="m-rep-label">Fees & bursaries</span><span class="m-rep-chip">Up to 100%</span></div>
+        <div class="m-rep-row"><span class="m-rep-icon">📄</span><span class="m-rep-label">ISI inspection findings</span><span class="m-rep-chip">2024 report</span></div>
+      </div>
+    </div>
+    <div class="m-nana-panel">
+      <div class="m-nana-panel-hdr">
+        <div class="m-nana-panel-dot"></div>
+        <div class="m-nana-panel-label">Nana · AI Advisor</div>
+      </div>
+      <div class="m-nana-msgs">
+        <div class="m-nmsg nana">Hi! I've read the full Epsom College profile. Ask me anything — fees, sport, pastoral, fit for your child.</div>
+        <div class="m-nmsg user">Is it good for a sporty boy?</div>
+        <div class="m-nmsg nana"><strong>Yes — very strong.</strong> 12 sports, county-level fixtures in rugby & cricket. Tier 1 SOCS ranking. ISI praised the "exceptional" PE provision.</div>
+        <div class="m-nmsg user">Are bursaries available?</div>
+        <div class="m-nmsg nana">Yes — means-tested up to <strong>100% of fees</strong>. Academic and sport scholarships also available. Deadline is usually January for September entry.</div>
+      </div>
+      <div class="m-nana-input-row">
+        <input class="m-nana-field" placeholder="Ask Nana…" readonly>
+        <button class="m-nana-send">↑</button>
+      </div>
+    </div>
+  </div>`,
+]
+
+let wtCurrent = 0
+
+function buildWtSteps() {
+  const wrap = document.getElementById('wt-steps')
+  wrap.innerHTML = WT_STEPS.map((s,i) => `
+    <div class="wt-step-dot ${i===0?'active':''}" data-wi="${i}" onclick="wtGoTo(${i})">
+      <div class="wt-dot-circle">${i < wtCurrent ? '✓' : i+1}</div>
+      <div class="wt-dot-label">${s.icon} ${s.label}</div>
+    </div>`).join('')
+}
+
+function renderWtPage(idx, dir=1) {
+  const vp = document.getElementById('wt-viewport')
+  const old = vp.querySelector('.wt-page.active')
+  if (old) { old.classList.add(dir>0?'exit-left':''); setTimeout(()=>old.remove(),300) }
+
+  const page = document.createElement('div')
+  page.className = 'wt-page'
+  page.innerHTML = WT_PAGES[idx]()
+  vp.appendChild(page)
+  requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ page.classList.add('active') }) })
+
+  // URL bar
+  document.getElementById('wt-url').textContent = WT_STEPS[idx].url
+
+  // step dots
+  document.querySelectorAll('.wt-step-dot').forEach((d,i) => {
+    d.classList.toggle('active', i===idx)
+    d.classList.toggle('done', i<idx)
+    d.querySelector('.wt-dot-circle').textContent = i<idx ? '✓' : i+1
+  })
+
+  // nav btns
+  document.getElementById('wt-back').disabled = idx===0
+  document.getElementById('wt-fwd').disabled  = idx===WT_STEPS.length-1
+  document.getElementById('wt-prev-btn').disabled = idx===0
+  document.getElementById('wt-next-btn').textContent = idx===WT_STEPS.length-1 ? '✓ Done' : 'Next →'
+  document.getElementById('wt-step-label').textContent = `Step ${idx+1} of ${WT_STEPS.length} — ${WT_STEPS[idx].label}`
+
+  // typing animation on step 2
+  if (idx===1) startTyping('United Kingdom boarding schools')
+}
+
+function wtNav(dir) {
+  const next = wtCurrent + dir
+  if (next<0||next>=WT_STEPS.length) return
+  wtGoTo(next, dir)
+}
+function wtGoTo(idx, dir) {
+  const dir2 = idx > wtCurrent ? 1 : -1
+  wtCurrent = idx
+  renderWtPage(idx, dir2)
+}
+
+let typingTimer = null
+function startTyping(text) {
+  const el = document.getElementById('wt-typed')
+  if (!el) return
+  let i=0; el.textContent=''
+  clearInterval(typingTimer)
+  typingTimer = setInterval(()=>{
+    if (!document.getElementById('wt-typed')) { clearInterval(typingTimer); return }
+    if (i>=text.length) { clearInterval(typingTimer); return }
+    el.textContent += text[i++]
+  }, 60)
+}
+
+// Init walkthrough
+buildWtSteps()
+renderWtPage(0)
+</script>
+</body>
+</html>

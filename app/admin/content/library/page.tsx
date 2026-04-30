@@ -58,7 +58,7 @@ export default function LibraryPage() {
   }, [])
 
   const allPillars = useMemo(
-    () => [...new Set(assets.flatMap(a => a.pillar_tags || []).filter(t => t !== '*'))].sort(),
+    () => Array.from(new Set(assets.flatMap(a => a.pillar_tags || []).filter(t => t !== '*'))).sort(),
     [assets],
   )
 

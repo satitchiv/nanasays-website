@@ -156,7 +156,7 @@ export default function FeesSection({
         </>
       ) : feesMin ? (
         <p>
-          <strong><FeeText min={feesMin} max={feesMax ?? feesMin} originalCurrency={currency ?? 'GBP'} /></strong> per year
+          <strong><FeeText feesUsdMin={feesMin} feesUsdMax={feesMax ?? feesMin} feesOriginal={currency ?? 'GBP'} /></strong> per year
           {includesBoarding ? ' (boarding fee)' : ''}.
           {applicationFee && <> Application fee: {fmt(applicationFee, prefix)}.</>}
         </p>

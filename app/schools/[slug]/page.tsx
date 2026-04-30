@@ -38,6 +38,9 @@ import KeyFactsGrid    from '@/components/report/KeyFactsGrid'
 import AdmissionsSection from '@/components/report/AdmissionsSection'
 import LocationSection  from '@/components/report/LocationSection'
 import FeesSection      from '@/components/report/FeesSection'
+import NanaDemoTeaser from '@/components/school/NanaDemoTeaser'
+import { getDemoQuestions } from '@/lib/demo-questions'
+import NanaHandleLocked from '@/components/nana/NanaHandleLocked'
 import './report/report.css'
 
 // Temporarily force-dynamic while we iterate on the sports/fees extraction.
@@ -905,6 +908,14 @@ export default async function SchoolPage({ params, searchParams }: Props) {
         <main style={{ minWidth: 0 }}>
           <SchoolSummary school={school} />
 
+          {/* NANA DEMO TEASER — shown for schools with pre-generated demo answers */}
+          {(() => {
+            const demoQs = getDemoQuestions(params.slug)
+            return demoQs.length > 0 ? (
+              <NanaDemoTeaser slug={params.slug} schoolName={school.name ?? ''} questions={demoQs} />
+            ) : null
+          })()}
+
           {/* FOLLOWED CONFIRMATION BANNER */}
           {searchParams?.followed === 'true' && (
             <div style={{
@@ -1551,32 +1562,33 @@ export default async function SchoolPage({ params, searchParams }: Props) {
             />
           )}
 
-          {/* KEY FACTS STRIP — structured data, SEO: ages / gender / roll / fees */}
-          <KeyFactsGrid
-            founded={school.founded_year ?? sd?.founded_year ?? null}
-            gender={school.gender_split ?? null}
-            ageMin={school.age_min ?? null}
-            ageMax={school.age_max ?? null}
-            studentCount={sd?.student_count ?? (school as any).student_count ?? null}
-            boarderCount={sd?.boarder_count ?? null}
-            feesMin={sd?.fees_local_min ?? sd?.fees_min ?? null}
-            feesMax={sd?.fees_local_max ?? sd?.fees_max ?? null}
-            feesCurrency={sd?.fees_local_currency ?? sd?.fees_currency ?? null}
-            sixthFormOffer={sd?.sixth_form_offer ?? null}
-            inspectorate={school.country === 'United Kingdom' ? 'ISI' : null}
-          />
+          {/* KEY FACTS + FEES — wrapped in .report-page so .block/.kf/.fin-table styles apply */}
+          <div className="report-page" style={{ background: 'transparent', minHeight: 0, userSelect: 'auto', WebkitUserSelect: 'auto', fontFamily: 'inherit' }}>
+            <KeyFactsGrid
+              founded={school.founded_year ?? sd?.founded_year ?? null}
+              gender={school.gender_split ?? null}
+              ageMin={school.age_min ?? null}
+              ageMax={school.age_max ?? null}
+              studentCount={sd?.student_count ?? (school as any).student_count ?? null}
+              boarderCount={sd?.boarder_count ?? null}
+              feesMin={sd?.fees_local_min ?? sd?.fees_min ?? null}
+              feesMax={sd?.fees_local_max ?? sd?.fees_max ?? null}
+              feesCurrency={sd?.fees_local_currency ?? sd?.fees_currency ?? null}
+              sixthFormOffer={sd?.sixth_form_offer ?? null}
+              inspectorate={school.country === 'United Kingdom' ? 'ISI' : null}
+            />
 
-          {/* FEES — day vs boarding breakdown, #1 parent search query */}
-          <FeesSection
-            feesMin={sd?.fees_local_min ?? sd?.fees_min ?? null}
-            feesMax={sd?.fees_local_max ?? sd?.fees_max ?? null}
-            currency={sd?.fees_local_currency ?? sd?.fees_currency ?? null}
-            feesByGrade={sd?.fees_by_grade ?? null}
-            includesBoarding={sd?.fees_includes_boarding ?? null}
-            scholarships={sd?.scholarships_available ?? null}
-            bursariesNote={sd?.bursary_note ?? null}
-            feesSourceUrl={sd?.fees_source_url ?? null}
-          />
+            <FeesSection
+              feesMin={sd?.fees_local_min ?? sd?.fees_min ?? null}
+              feesMax={sd?.fees_local_max ?? sd?.fees_max ?? null}
+              currency={sd?.fees_local_currency ?? sd?.fees_currency ?? null}
+              feesByGrade={sd?.fees_by_grade ?? null}
+              includesBoarding={sd?.fees_includes_boarding ?? null}
+              scholarships={sd?.scholarships_available ?? null}
+              bursariesNote={sd?.bursary_note ?? null}
+              feesSourceUrl={sd?.fees_source_url ?? null}
+            />
+          </div>
 
           {/* ABOUT */}
           {school.description && (
@@ -1608,11 +1620,13 @@ export default async function SchoolPage({ params, searchParams }: Props) {
           />
 
           {/* ADMISSIONS — entry points, process, open events; SEO: "[school] how to apply" */}
-          <AdmissionsSection
-            admissionsFormat={sd?.admissions_format ?? null}
-            registrationDeadline={sd?.registration_deadline ?? null}
-            entryExamType={sd?.entry_exam_type ?? null}
-          />
+          <div className="report-page" style={{ background: 'transparent', minHeight: 0, userSelect: 'auto', WebkitUserSelect: 'auto', fontFamily: 'inherit' }}>
+            <AdmissionsSection
+              admissionsFormat={sd?.admissions_format ?? null}
+              registrationDeadline={sd?.registration_deadline ?? null}
+              entryExamType={sd?.entry_exam_type ?? null}
+            />
+          </div>
 
           {/* PARENT FIT TEASER — AEO: feeds "is X right for my child" AI queries */}
           <ParentFitTeaser
@@ -2123,10 +2137,12 @@ export default async function SchoolPage({ params, searchParams }: Props) {
           )}
 
           {/* LOCATION — airports, train, map; SEO: "[school] location" + international parent queries */}
-          <LocationSection
-            location={sdLocationProfile}
-            schoolName={school.name}
-          />
+          <div className="report-page" style={{ background: 'transparent', minHeight: 0, userSelect: 'auto', WebkitUserSelect: 'auto', fontFamily: 'inherit' }}>
+            <LocationSection
+              location={sdLocationProfile}
+              schoolName={school.name}
+            />
+          </div>
 
           {/* FAQ */}
           {faqs.length > 0 && (
@@ -2465,6 +2481,9 @@ export default async function SchoolPage({ params, searchParams }: Props) {
       </div>
 
       <Footer />
+
+      {/* Locked Nana handle — fixed right tab, links to /unlock */}
+      <NanaHandleLocked slug={params.slug} />
     </>
   )
 }

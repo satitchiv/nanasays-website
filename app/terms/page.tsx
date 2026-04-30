@@ -17,7 +17,7 @@ export default function TermsPage() {
       <div className="legal-page">
         <div className="legal-hero">
           <h1>Terms of Service</h1>
-          <p className="legal-hero-meta">Last updated: April 2026 · Applies to nanasays.com</p>
+          <p className="legal-hero-meta">Last updated: April 2026 · Applies to nanasays.school</p>
         </div>
         <div className="legal-body">
 
@@ -26,7 +26,7 @@ export default function TermsPage() {
           </div>
 
           <h2>1. Who these terms apply to</h2>
-          <p>These Terms of Service (&quot;Terms&quot;) govern your use of nanasays.com (&quot;the Service&quot;), operated by Nanasays (&quot;we&quot;, &quot;us&quot;). By creating an account or accessing any part of the Service, you agree to these Terms.</p>
+          <p>These Terms of Service (&quot;Terms&quot;) govern your use of nanasays.school (&quot;the Service&quot;), operated by Nanasays (&quot;we&quot;, &quot;us&quot;). By creating an account or accessing any part of the Service, you agree to these Terms.</p>
 
           <h2>2. The service</h2>
           <p>Nanasays provides deep research reports on UK independent schools, including data sourced from public regulatory filings, school websites, ISI inspection records, and Charity Commission documents. A free school profile is available to all visitors. A one-time payment unlocks full access to all reports and the Nana AI chat feature.</p>
@@ -46,7 +46,7 @@ export default function TermsPage() {
           <p>Your access covers all current and future school reports added to the Service for as long as Nanasays operates. We do not charge recurring fees for existing purchasers when new schools are added.</p>
 
           <h2>5. Refund policy</h2>
-          <p>Because the report content is delivered digitally and is immediately accessible on purchase, we are unable to offer refunds once you have accessed the paid content. If you have a technical problem that prevented access, contact <a href="mailto:support@nanasays.com">support@nanasays.com</a> within 7 days of purchase and we will investigate.</p>
+          <p>Because the report content is delivered digitally and is immediately accessible on purchase, we are unable to offer refunds once you have accessed the paid content. If you have a technical problem that prevented access, contact <a href="mailto:support@nanasays.school">support@nanasays.school</a> within 7 days of purchase and we will investigate.</p>
           <p>If you have not yet accessed the report (e.g., you purchased in error), contact us within 24 hours and we will issue a full refund at our discretion.</p>
 
           <h2>6. Content disclaimer</h2>
@@ -64,7 +64,7 @@ export default function TermsPage() {
 
           <h2>8. Account termination</h2>
           <p>We may suspend or terminate your account if you breach these Terms, particularly the licence restrictions in Section 3. We will notify you by email before doing so unless the breach is severe (e.g., systematic scraping).</p>
-          <p>You may close your account at any time by emailing <a href="mailto:support@nanasays.com">support@nanasays.com</a>. Closing your account does not entitle you to a refund.</p>
+          <p>You may close your account at any time by emailing <a href="mailto:support@nanasays.school">support@nanasays.school</a>. Closing your account does not entitle you to a refund.</p>
 
           <h2>9. Limitation of liability</h2>
           <p>To the maximum extent permitted by UK law, Nanasays&apos; total liability for any claim arising from use of the Service is limited to the amount you paid for access. We are not liable for indirect, consequential, or incidental losses.</p>
@@ -76,7 +76,7 @@ export default function TermsPage() {
           <p>We may update these Terms as the Service evolves. We will notify existing users by email of material changes at least 14 days before they take effect. Continued use after that date constitutes acceptance.</p>
 
           <h2>12. Contact</h2>
-          <p>Questions about these Terms: <a href="mailto:support@nanasays.com">support@nanasays.com</a>.</p>
+          <p>Questions about these Terms: <a href="mailto:support@nanasays.school">support@nanasays.school</a>.</p>
 
           <p style={{ marginTop: 40, fontSize: 13, color: 'var(--muted)' }}>
             See also: <Link href="/privacy">Privacy Policy</Link>

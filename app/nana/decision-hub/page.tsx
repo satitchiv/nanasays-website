@@ -89,17 +89,20 @@ export default async function DecisionHubPage() {
   let structuredData: Array<{
     school_slug: string
     exam_results: Record<string, unknown> | null
-    fees: Record<string, unknown> | null
+    fees_by_grade: Record<string, unknown> | null
+    fees_min: number | null
+    fees_max: number | null
+    fees_currency: string | null
     sports_profile: Record<string, unknown> | null
-    isi_inspection: Record<string, unknown> | null
-    school_overview: Record<string, unknown> | null
+    report_verdict: Record<string, unknown> | null
+    university_destinations: Record<string, unknown> | null
   }> = []
 
   if (shortlist.length > 0) {
     const slugs = shortlist.map(s => s.school_slug)
     const { data: ssd } = await supabase
       .from('school_structured_data')
-      .select('school_slug, exam_results, fees, sports_profile, isi_inspection, school_overview')
+      .select('school_slug, exam_results, fees_by_grade, fees_min, fees_max, fees_currency, sports_profile, report_verdict, university_destinations')
       .in('school_slug', slugs)
     structuredData = (ssd ?? []) as typeof structuredData
   }

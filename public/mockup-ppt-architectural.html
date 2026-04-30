@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PPT Mock 03 — Architectural</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@200;300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --black: #0a0a0a;
+    --white: #fafaf8;
+    --accent: #d63a2a;
+    --gray: #888;
+    --rule: #1a1a1a;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #2a2826; font-family: 'Inter', sans-serif; padding: 48px 0; }
+  .topbar { text-align: center; color: #aaa; font-family: 'Inter', sans-serif; font-size: 12px; letter-spacing: 0.18em; margin-bottom: 32px; text-transform: uppercase; }
+  .topbar b { color: #fff; font-weight: 500; }
+  .topbar a { color: #d4a85a; text-decoration: none; margin-left: 16px; }
+  .slide { width: 1280px; height: 720px; margin: 0 auto 28px; box-shadow: 0 24px 80px rgba(0,0,0,0.5); position: relative; overflow: hidden; }
+
+  /* COVER */
+  .cover { background: var(--black); color: var(--white); padding: 64px; display: flex; flex-direction: column; }
+  .cover .top {
+    display: flex; justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    color: var(--gray); letter-spacing: 0.05em;
+  }
+  .cover h1 {
+    font-family: 'Inter', sans-serif; font-weight: 200;
+    font-size: 188px; line-height: 0.92; letter-spacing: -0.045em;
+    margin: auto 0 0;
+  }
+  .cover h1 span { font-weight: 600; color: var(--accent); }
+  .cover .sub {
+    font-family: 'JetBrains Mono', monospace; font-size: 14px;
+    color: var(--gray); margin-top: 24px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .cover .accent-bar {
+    position: absolute; bottom: 64px; right: 64px;
+    width: 220px; height: 3px; background: var(--accent);
+  }
+  .cover .corner {
+    position: absolute; top: 64px; right: 64px;
+    width: 24px; height: 24px;
+    border-top: 1px solid #444; border-right: 1px solid #444;
+  }
+
+  /* CONTENT */
+  .content { background: var(--white); color: var(--black); padding: 64px; display: flex; flex-direction: column; }
+  .content .top {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    color: var(--gray); margin-bottom: 8px;
+  }
+  .content .top .accent { color: var(--accent); }
+  .content h2 {
+    font-family: 'Inter', sans-serif; font-weight: 300;
+    font-size: 56px; letter-spacing: -0.02em; margin: 0 0 40px;
+  }
+  .content .grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    grid-template-rows: 1fr 1fr; gap: 0;
+    border-top: 1px solid var(--black); border-left: 1px solid var(--black);
+    flex: 1;
+  }
+  .content .cell {
+    border-right: 1px solid var(--black); border-bottom: 1px solid var(--black);
+    padding: 28px 32px; display: flex; flex-direction: column;
+  }
+  .content .cell .lbl {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--gray); margin-bottom: auto; letter-spacing: 0.02em;
+  }
+  .content .cell .num {
+    font-family: 'Inter', sans-serif; font-weight: 200;
+    font-size: 80px; line-height: 1; letter-spacing: -0.04em;
+  }
+  .content .cell .num span { color: var(--accent); }
+  .content .cell .unit {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--gray); margin-top: 8px;
+  }
+
+  /* DATA */
+  .data { background: var(--white); color: var(--black); padding: 64px 64px 110px; display: flex; flex-direction: column; }
+  .data .top {
+    display: flex; justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace; font-size: 12px;
+    color: var(--gray); margin-bottom: 8px;
+  }
+  .data .top .accent { color: var(--accent); }
+  .data h2 {
+    font-family: 'Inter', sans-serif; font-weight: 300;
+    font-size: 56px; letter-spacing: -0.02em; margin: 0 0 56px;
+  }
+  .data .chart { flex: 1; display: flex; flex-direction: column; gap: 22px; }
+  .data .row { display: grid; grid-template-columns: 200px 1fr 80px; align-items: center; gap: 24px; }
+  .data .row .lbl {
+    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    color: var(--black);
+  }
+  .data .row .bar-track { height: 6px; background: #e8e6e0; position: relative; }
+  .data .row .bar { height: 6px; background: var(--black); }
+  .data .row.h .bar { background: var(--accent); }
+  .data .row .val {
+    font-family: 'Inter', sans-serif; font-weight: 500;
+    font-size: 18px; text-align: right;
+  }
+  .data .footer {
+    position: absolute; bottom: 32px; left: 64px; right: 64px;
+    display: flex; justify-content: space-between;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--gray);
+    border-top: 1px solid #ddd; padding-top: 16px;
+  }
+</style>
+</head>
+<body>
+  <div class="topbar"><b>Mock 03 — Architectural</b> &nbsp;·&nbsp; Bauhaus / Vitsoe / Dieter Rams <a href="mockup-ppt-index.html">← all mocks</a></div>
+
+  <!-- Cover -->
+  <div class="slide cover">
+    <div class="top">
+      <span>001 / SCHOOL PROFILE</span>
+      <span>2026 — UK BOARDING</span>
+    </div>
+    <div class="corner"></div>
+    <h1>Wycombe<br>Abbey<span>.</span></h1>
+    <div class="sub">
+      <span style="display:inline-block; width:12px; height:1px; background: #888"></span>
+      <span>BUCKINGHAMSHIRE / EST. 1896 / GIRLS / 11–18</span>
+    </div>
+    <div class="accent-bar"></div>
+  </div>
+
+  <!-- Content -->
+  <div class="slide content">
+    <div class="top">
+      <span><span class="accent">→</span> 002 / KEY METRICS</span>
+      <span>WYCOMBE ABBEY</span>
+    </div>
+    <h2>The numbers behind the school.</h2>
+    <div class="grid">
+      <div class="cell">
+        <div class="lbl">Pupils enrolled</div>
+        <div class="num">642</div>
+        <div class="unit">— total roll, 2025/26</div>
+      </div>
+      <div class="cell">
+        <div class="lbl">Boarders</div>
+        <div class="num">95<span>%</span></div>
+        <div class="unit">— full-boarding model</div>
+      </div>
+      <div class="cell">
+        <div class="lbl">Annual fee</div>
+        <div class="num">£51.9k</div>
+        <div class="unit">— boarding, all-in</div>
+      </div>
+      <div class="cell">
+        <div class="lbl">Founded</div>
+        <div class="num">1896</div>
+        <div class="unit">— 130 years standing</div>
+      </div>
+      <div class="cell">
+        <div class="lbl">Russell Group</div>
+        <div class="num">98<span>%</span></div>
+        <div class="unit">— offers, leavers' destinations</div>
+      </div>
+      <div class="cell">
+        <div class="lbl">Pupil : staff</div>
+        <div class="num">8:1</div>
+        <div class="unit">— teaching ratio</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data -->
+  <div class="slide data">
+    <div class="top">
+      <span><span class="accent">→</span> 003 / SUBJECT BREAKDOWN</span>
+      <span>A-LEVEL ENTRIES, 2025</span>
+    </div>
+    <h2>Where pupils sit their A-Levels.</h2>
+    <div class="chart">
+      <div class="row h"><div class="lbl">Mathematics</div><div class="bar-track"><div class="bar" style="width:92%"></div></div><div class="val">142</div></div>
+      <div class="row"><div class="lbl">English Lit.</div><div class="bar-track"><div class="bar" style="width:71%"></div></div><div class="val">110</div></div>
+      <div class="row"><div class="lbl">Biology</div><div class="bar-track"><div class="bar" style="width:64%"></div></div><div class="val">98</div></div>
+      <div class="row"><div class="lbl">Chemistry</div><div class="bar-track"><div class="bar" style="width:58%"></div></div><div class="val">89</div></div>
+      <div class="row"><div class="lbl">History</div><div class="bar-track"><div class="bar" style="width:46%"></div></div><div class="val">71</div></div>
+      <div class="row"><div class="lbl">Physics</div><div class="bar-track"><div class="bar" style="width:38%"></div></div><div class="val">58</div></div>
+      <div class="row"><div class="lbl">French</div><div class="bar-track"><div class="bar" style="width:24%"></div></div><div class="val">37</div></div>
+    </div>
+    <div class="footer">
+      <span>WYCOMBE ABBEY · 2026</span>
+      <span>p. 03 / 24</span>
+    </div>
+  </div>
+</body>
+</html>

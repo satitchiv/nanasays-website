@@ -11,7 +11,9 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
+        "npm:@anthropic-ai/sdk@~0.91.1",
         "npm:@google/generative-ai@~0.24.1",
+        "npm:@supabase/ssr@~0.10.2",
         "npm:@supabase/supabase-js@^2.100.0",
         "npm:@types/leaflet@^1.9.21",
         "npm:@types/node@20",
@@ -19,14 +21,18 @@
         "npm:@types/react-dom@18",
         "npm:@types/react-google-recaptcha@^2.1.9",
         "npm:@types/react@18",
+        "npm:fflate@~0.8.2",
         "npm:leaflet@^1.9.4",
         "npm:next@14.2.35",
         "npm:nodemailer@^8.0.4",
         "npm:postcss@8",
+        "npm:posthog-js@^1.372.5",
+        "npm:puppeteer@^24.41.0",
         "npm:react-dom@18",
         "npm:react-google-recaptcha@^3.1.0",
         "npm:react@18",
         "npm:resend@^6.9.4",
+        "npm:stripe@^22.1.0",
         "npm:tailwindcss@^3.4.1",
         "npm:typescript@5"
       ]

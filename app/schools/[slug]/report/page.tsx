@@ -354,7 +354,7 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
           return (
             <div className="report-action-row">
               <ShortlistButton slug={slug} />
-              <a href={`/nana/research/${slug}`} className="report-research-btn">
+              <a href={`/nana/research?school=${slug}`} className="report-research-btn">
                 🔬 Research Mode
               </a>
               {hasDate ? (
