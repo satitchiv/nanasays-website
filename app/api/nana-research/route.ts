@@ -31,9 +31,12 @@ import {
   runOneQuestionStream,
   runMultiSchoolQuestionStream,
   runAgenticQuestionStream,
+  runIntentProseStream,
   detectMentionedSlugs,
   runSummaryUpdate,
 } from '../../../../scripts/lib/nana-brain.js'
+// @ts-ignore
+import { routeIntent } from '../../../../scripts/lib/intent-router.js'
 
 export const runtime   = 'nodejs'
 export const dynamic   = 'force-dynamic'
@@ -177,6 +180,36 @@ export async function POST(req: NextRequest) {
   // ── Route to correct brain function ──
   let mentionedSlugs: string[] = await detectMentionedSlugs(supabase, question)
 
+  // ── Intent router (Phase B) ────────────────────────────────────────────
+  // Codex P2 #4: call routeIntent with RAW mentionedSlugs, BEFORE the
+  // shortlist-expansion mutation below.
+  //
+  // Codex P2 #5: gate `activeSchoolSlug` with the same conditions the legacy
+  // verdict-tab fallback uses (`activeTab === 'verdict'` AND no mentions AND
+  // not a global / compare query). Without this gate, "Which schools offer
+  // IB?" while sitting on Eton's verdict tab would route to a fact_lookup
+  // for Eton instead of falling through to global discovery.
+  const routerActiveSchoolSlug =
+    activeTab === 'verdict' &&
+    activeSchoolSlug &&
+    mentionedSlugs.length === 0 &&
+    !compareKw.test(question) &&
+    !globalKw.test(question)
+      ? activeSchoolSlug
+      : null
+
+  // Gate: NEXT_PUBLIC_NANA_PROSE_MODE === 'on' (default OFF — flip per
+  // deployment to enable prose answers). Skip intent router entirely when
+  // user explicitly enabled deep mode (agentic loop is the contract there).
+  const proseFlag = process.env.NEXT_PUBLIC_NANA_PROSE_MODE === 'on'
+  const intentMatch = (proseFlag && !useShortlistAgentic)
+    ? routeIntent(question, {
+        mentionedSlugs:   [...mentionedSlugs],
+        activeSchoolSlug: routerActiveSchoolSlug,
+        shortlistSlugs:   shortlistSlugs,
+      })
+    : null
+
   // "Compare my shortlist" with no explicit school names → use shortlist directly
   if (compareKw.test(question) && shortlistSlugs.length >= 2 && mentionedSlugs.length === 0) {
     mentionedSlugs = shortlistSlugs
@@ -221,7 +254,7 @@ export async function POST(req: NextRequest) {
         type: 'session_ready',
         sessionId,
         isNew:           !incomingSessionId,
-        mode:            useShortlistAgentic ? 'shortlist_deep' : mode,
+        mode:            useShortlistAgentic ? 'shortlist_deep' : (intentMatch ? `prose:${(intentMatch as any).intent}` : mode),
         agenticLocked:   useShortlistAgentic,
         restrictToSlugs: useShortlistAgentic ? lockedShortlistSlugs : null,
       })
@@ -229,11 +262,17 @@ export async function POST(req: NextRequest) {
       let finalPayload: any = null
 
       try {
+        // Dispatch precedence:
+        //   1. shortlist deep mode (explicit user toggle) → agentic loop
+        //   2. intent router match (flag-gated) → prose runner
+        //   3. mode-based fallback → existing single / multi / agentic paths
         const generator = useShortlistAgentic
           ? runAgenticQuestionStream(supabase, question, {
               ...streamOpts,
               restrictToSlugs: lockedShortlistSlugs,
             })
+          : intentMatch
+          ? runIntentProseStream(supabase, question, intentMatch, streamOpts)
           : mode === 'global' ? runAgenticQuestionStream(supabase, question, streamOpts)
           : mode === 'single' ? runOneQuestionStream(supabase, mentionedSlugs[0], question, streamOpts)
           : runMultiSchoolQuestionStream(supabase, mentionedSlugs, question, streamOpts)
@@ -269,8 +308,17 @@ export async function POST(req: NextRequest) {
         // finalPayload has backend/usage/cost/model directly — there is no .telemetry wrapper
         const usage    = finalPayload?.usage  ?? null
         const costData = finalPayload?.cost   ?? null
+        // Codex P2/P3 #7: prose answers targeting one school should populate
+        // school_slug from parsed.schoolsMentioned so dashboard school filters
+        // pick them up. Falls through to legacy mode='single' otherwise.
+        const proseSlugs: string[] =
+          parsed?.format === 'prose_v1' && Array.isArray(parsed.schoolsMentioned)
+            ? parsed.schoolsMentioned.filter((s: unknown): s is string => typeof s === 'string')
+            : []
         supabase.from('nana_chat_logs').insert({
-          school_slug:          mode === 'single' ? mentionedSlugs[0] : null,
+          school_slug:          proseSlugs.length === 1
+                                  ? proseSlugs[0]
+                                  : (mode === 'single' ? mentionedSlugs[0] : null),
           question:             question.slice(0, 2000),
           answer_preview:       (finalPayload?.raw ?? '').slice(0, 500),
           tokens_in:            usage?.input_tokens                 ?? null,
@@ -339,6 +387,17 @@ export async function POST(req: NextRequest) {
 }
 
 function computeUiIntent(mode: string, slugs: string[], parsed: any): Record<string, unknown> {
+  // Phase B — prose answers carry the deterministic uiIntentHint set by the
+  // intent router; honour it directly (more reliable than guessing from
+  // parsed.recommended_schools, which prose schemas don't have).
+  if (parsed?.format === 'prose_v1') {
+    const hint = parsed.uiIntentHint
+    const mentioned: string[] = Array.isArray(parsed.schoolsMentioned) ? parsed.schoolsMentioned : []
+    if (hint === 'verdict' && mentioned[0]) return { action: 'show_verdict', schoolSlug: mentioned[0] }
+    if (hint === 'compare' && mentioned.length > 1) return { action: 'show_compare', schoolSlugs: mentioned.slice(0, 4) }
+    if (hint === 'compare' && mentioned.length > 0) return { action: 'show_candidates', candidates: mentioned.map(slug => ({ slug })) }
+    return { action: 'none' }
+  }
   if (mode === 'single') return { action: 'show_verdict', schoolSlug: slugs[0] }
   if (mode === 'multi')  return { action: 'show_compare', schoolSlugs: slugs }
   const recs = parsed?.recommended_schools
