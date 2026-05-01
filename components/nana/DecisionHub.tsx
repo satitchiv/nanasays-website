@@ -31,6 +31,7 @@ interface ParsedAnswer {
   tour_target?: string | null
   sources_used?: SourceUsed[]
   recommended_schools?: RecommendedSchool[]
+  answer_markdown?: string
 }
 
 interface RecommendedSchool {
@@ -44,8 +45,18 @@ interface ResearchMessage {
   id: string
   question: string
   parsed: ParsedAnswer | null
+  rawText?: string
+  parseError?: string
   shareToken?: string
   createdAt: string
+}
+
+interface ToolStep {
+  id: string
+  name: string
+  args: Record<string, unknown>
+  status: 'started' | 'completed'
+  result_summary?: string
 }
 
 interface DecisionSummary {
@@ -126,22 +137,61 @@ interface Props {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-/** Pull a string field out of a partial JSON buffer as it streams */
-function extractStreamingField(buf: string, key: string): string {
-  const marker = `"${key}":`
-  const idx = buf.indexOf(marker)
-  if (idx === -1) return ''
-  const after = buf.slice(idx + marker.length).trimStart()
-  if (!after.startsWith('"')) return ''
-  let result = ''
-  let i = 1
-  while (i < after.length) {
-    const ch = after[i]
-    if (ch === '\\' && i + 1 < after.length) { result += after[i + 1]; i += 2; continue }
-    if (ch === '"') break
-    result += ch; i++
+/**
+ * Pull a string field out of a partial JSON buffer as it streams.
+ * Tolerates whitespace around the colon, decodes JSON escapes correctly,
+ * and handles partial \uXXXX or trailing-backslash chunk boundaries.
+ * Mirrors the implementation in NanaPanel.tsx — keep them in sync.
+ */
+/** Map internal tool names to parent-friendly labels for the progress log. */
+function prettyToolName(name: string): string {
+  switch (name) {
+    case 'rankSchools':       return 'Ranking schools'
+    case 'filterSchools':     return 'Filtering schools'
+    case 'searchSchoolText':  return 'Searching school sites'
+    case 'compareSchools':    return 'Comparing schools'
+    case 'getSchoolFacts':    return 'Looking up school details'
+    case 'searchSafeguarding': return 'Checking safeguarding records'
+    default:                  return name
   }
-  return result
+}
+
+function extractStreamingField(buf: string, key: string): string {
+  if (!buf) return ''
+  const re = new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)`, 's')
+  const m = buf.match(re)
+  if (!m) return ''
+  return decodeJsonString(m[1])
+}
+
+function decodeJsonString(s: string): string {
+  let out = ''
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i]
+    if (c !== '\\') { out += c; continue }
+    const n = s[i + 1]
+    if (n === undefined) break
+    if (n === 'u') {
+      const hex = s.slice(i + 2, i + 6)
+      if (hex.length < 4) break
+      out += String.fromCharCode(parseInt(hex, 16))
+      i += 5
+      continue
+    }
+    switch (n) {
+      case 'n':  out += '\n'; break
+      case 't':  out += '\t'; break
+      case 'r':  out += '\r'; break
+      case 'b':  out += '\b'; break
+      case 'f':  out += '\f'; break
+      case '"':  out += '"';  break
+      case '\\': out += '\\'; break
+      case '/':  out += '/';  break
+      default:   out += n;     break
+    }
+    i += 1
+  }
+  return out
 }
 
 /** Very simple inline markdown: bold, line breaks */
@@ -784,20 +834,42 @@ function NanaMsgBubble({
   const parsed = msg?.parsed
   const s = parsed?.sections ?? {}
 
-  const liveShort = isStreaming && streamBuf
-    ? extractStreamingField(streamBuf, 'short_answer')
-    : ''
+  // Progressive extraction during streaming — pull each section out of the partial JSON
+  // as it arrives, so the bubble fills in section-by-section instead of popping at the end.
+  const live = isStreaming && streamBuf
+    ? {
+        short_answer:      extractStreamingField(streamBuf, 'short_answer'),
+        confirmed_facts:   extractStreamingField(streamBuf, 'confirmed_facts'),
+        what_this_means:   extractStreamingField(streamBuf, 'what_this_means'),
+        tradeoff:          extractStreamingField(streamBuf, 'tradeoff'),
+        what_we_dont_know: extractStreamingField(streamBuf, 'what_we_dont_know'),
+      }
+    : null
 
-  const showSkeleton = isStreaming && !liveShort
+  // Resolve "best available" value for each section: live partial wins while streaming,
+  // committed parsed value wins after final.
+  const shortAnswer    = live?.short_answer      || s.short_answer       || ''
+  const confirmedFacts = live?.confirmed_facts   || s.confirmed_facts    || ''
+  const whatThisMeans  = live?.what_this_means   || s.what_this_means    || ''
+  const tradeoff       = live?.tradeoff          || s.tradeoff           || ''
+  const whatWeDontKnow = live?.what_we_dont_know || s.what_we_dont_know  || ''
+
+  // Skeleton only while streaming AND we haven't even started receiving short_answer yet.
+  const showSkeleton = isStreaming && !shortAnswer
+
+  // Fallback: if parsing failed entirely, or sections are empty, render raw text so the
+  // user always sees Nana's actual answer instead of a blank bubble.
+  const renderedAnySection = !!(shortAnswer || confirmedFacts || whatThisMeans || tradeoff || whatWeDontKnow)
+  const fallbackText = !isStreaming && !renderedAnySection
+    ? (parsed?.answer_markdown || msg?.rawText || '')
+    : ''
 
   return (
     <div className="dh-msg-nana">
-      {(liveShort || s.short_answer) && (
+      {shortAnswer && (
         <>
           <p className="dh-msg-nana-eyebrow">Short answer</p>
-          <p className="dh-msg-nana-lead">
-            {isStreaming ? liveShort || '…' : renderMd(s.short_answer!)}
-          </p>
+          <p className="dh-msg-nana-lead">{renderMd(shortAnswer)}</p>
         </>
       )}
 
@@ -811,28 +883,43 @@ function NanaMsgBubble({
         </div>
       )}
 
-      {!isStreaming && s.confirmed_facts && s.confirmed_facts !== 'Nothing to flag here.' && (
-        <p className="dh-msg-nana-prose">{renderMd(s.confirmed_facts)}</p>
+      {confirmedFacts && confirmedFacts !== 'Nothing to flag here.' && (
+        <p className="dh-msg-nana-prose">{renderMd(confirmedFacts)}</p>
       )}
 
-      {!isStreaming && s.what_this_means && s.what_this_means !== 'Nothing to flag here.' && (
+      {whatThisMeans && whatThisMeans !== 'Nothing to flag here.' && (
         <div className="dh-ans-section">
           <p className="dh-msg-nana-eyebrow">What this means</p>
-          <p className="dh-msg-nana-prose">{renderMd(s.what_this_means)}</p>
+          <p className="dh-msg-nana-prose">{renderMd(whatThisMeans)}</p>
         </div>
       )}
 
-      {!isStreaming && s.tradeoff && s.tradeoff !== 'Nothing to flag here.' && (
+      {tradeoff && tradeoff !== 'Nothing to flag here.' && (
         <div className="dh-msg-nana-tradeoff">
           <p className="dh-msg-nana-tradeoff-label">⚠ Watch out</p>
-          {renderMd(s.tradeoff)}
+          {renderMd(tradeoff)}
         </div>
       )}
 
-      {!isStreaming && s.what_we_dont_know && s.what_we_dont_know !== 'Nothing to flag here.' && (
+      {whatWeDontKnow && whatWeDontKnow !== 'Nothing to flag here.' && (
         <div className="dh-ans-section dh-ans-section--dim">
           <p className="dh-msg-nana-eyebrow">What we don&apos;t know</p>
-          <p className="dh-msg-nana-prose">{renderMd(s.what_we_dont_know)}</p>
+          <p className="dh-msg-nana-prose">{renderMd(whatWeDontKnow)}</p>
+        </div>
+      )}
+
+      {fallbackText && (
+        <div className="dh-ans-section">
+          <p className="dh-msg-nana-prose">{renderMd(fallbackText)}</p>
+        </div>
+      )}
+
+      {!isStreaming && msg?.parseError && (
+        <div className="dh-msg-nana-tradeoff">
+          <p className="dh-msg-nana-tradeoff-label">Heads up</p>
+          <p className="dh-msg-nana-prose">
+            Nana&apos;s answer didn&apos;t come back in the expected shape, so the structured callouts (sources, tour question) may be missing.
+          </p>
         </div>
       )}
 
@@ -933,6 +1020,14 @@ export function DecisionHub({
   const [devilsAdvocate, setDevilsAdvocate] = useState(false)
   const [candidates, setCandidates] = useState<RecommendedSchool[]>([])
   const [showTooltip, setShowTooltip] = useState(false)
+  const [askError, setAskError] = useState<{ status?: number; message: string } | null>(null)
+  const [toolProgress, setToolProgress] = useState<ToolStep[]>([])
+  // Deep mode = agentic loop scoped to the parent's shortlist. Opt-in toggle —
+  // adds ~20-40s of latency in exchange for tool-calling, stricter scope, and
+  // more thoughtful cross-school answers. Disabled until the shortlist has 2+.
+  const [deepMode, setDeepMode]           = useState(false)
+  const [agentStatus, setAgentStatus]     = useState<string | null>(null)
+  const [shortlistLocked, setShortlistLocked] = useState(false)
 
   useEffect(() => {
     if (!localStorage.getItem('nana-dh-visited')) {
@@ -960,6 +1055,7 @@ export function DecisionHub({
     const ac = new AbortController()
     abortRef.current = ac
 
+    setAskError(null)
     setIsStreaming(true)
     setStreamBuf('')
     setActiveQuestion(q)
@@ -967,6 +1063,31 @@ export function DecisionHub({
     setActiveShareToken(undefined)
     setQuestion('')
     setCandidates([])
+    setToolProgress([])
+    setShortlistLocked(false)
+    // Optimistic status copy — fills the silent ~3-5s gap between submit and
+    // the first server-emitted agent_status / tool_call event so parents see
+    // immediate feedback. Server events overwrite this once they arrive.
+    setAgentStatus('Looking into our library — one moment…')
+
+    // Hoisted so the finalization watchdog can run in both happy-path
+    // (post-loop) and error-path (catch) — if the stream drops mid-flight
+    // we still preserve whatever partial text Nana sent.
+    let sawFinal = false
+    let localStreamText = ''
+    let serverError: string | null = null
+
+    const commitPartialAsMessage = () => {
+      setMessages(prev => [...prev, {
+        id:        crypto.randomUUID?.() ?? Math.random().toString(36).slice(2),
+        question:  q,
+        parsed:    null,
+        rawText:   localStreamText,
+        parseError: 'Stream ended before Nana finished a structured answer.',
+        shareToken: undefined,
+        createdAt: new Date().toISOString(),
+      }])
+    }
 
     try {
       const res = await fetch('/api/nana-research', {
@@ -976,6 +1097,7 @@ export function DecisionHub({
           question: q,
           sessionId: session?.id,
           devilsAdvocate,
+          deepMode: deepMode && localShortlist.length >= 2,
           activeTab,
           activeSchoolSlug: activeSchool?.school_slug ?? null,
           shortlistSlugs: localShortlist.map(s => s.school_slug),
@@ -985,7 +1107,9 @@ export function DecisionHub({
 
       if (!res.ok || !res.body) {
         const err = await res.json().catch(() => ({ error: 'Request failed' }))
-        throw new Error(err.error || 'Request failed')
+        const httpError: any = new Error(err.error || 'Request failed')
+        httpError.status = res.status
+        throw httpError
       }
 
       const reader = res.body.getReader()
@@ -1020,26 +1144,49 @@ export function DecisionHub({
                   last_active_at: new Date().toISOString(),
                 }
               })
+              if (evt.agenticLocked === true) setShortlistLocked(true)
               break
 
-            case 'token':
-              hasContent = true
-              setStreamBuf(prev => prev + (evt.text ?? ''))
+            case 'agent_status':
+              // Server-emitted progress copy ("Planning the checks for your shortlist…",
+              // "Writing the comparison…"). Parents see this during the silent multi-second
+              // turns where there's no token streaming.
+              if (typeof evt.message === 'string') setAgentStatus(evt.message)
               break
 
-            case 'final':
+            case 'token': {
+              const text = typeof evt.text === 'string' ? evt.text : ''
+              if (text) {
+                hasContent = true
+                localStreamText += text
+                setStreamBuf(prev => prev + text)
+              }
+              break
+            }
+
+            case 'final': {
+              sawFinal = true
+              setAgentStatus(null)  // clear progress copy now that the answer is here
               shareToken = evt.shareToken
               setActiveShareToken(evt.shareToken)
               if (evt.payload?.parsed) {
                 localParsed = evt.payload.parsed
                 setActiveParsed(localParsed)
               }
+              const rawText: string | undefined =
+                typeof evt.payload?.raw === 'string' && evt.payload.raw.length > 0
+                  ? evt.payload.raw
+                  : undefined
+              const parseError: string | undefined =
+                typeof evt.payload?.parseError === 'string' ? evt.payload.parseError : undefined
               setIsStreaming(false)
-              if (localParsed || hasContent) {
+              if (localParsed || hasContent || rawText) {
                 setMessages(prev => [...prev, {
                   id:        crypto.randomUUID?.() ?? Math.random().toString(36).slice(2),
                   question:  q,
                   parsed:    localParsed,
+                  rawText,
+                  parseError,
                   shareToken,
                   createdAt: new Date().toISOString(),
                 }])
@@ -1061,6 +1208,7 @@ export function DecisionHub({
                 }
               }
               break
+            }
 
             case 'summary_generating':
               break
@@ -1070,20 +1218,90 @@ export function DecisionHub({
                 setSession(prev => prev ? { ...prev, summary: evt.payload.summary } : prev)
               }
               break
+
+            case 'error':
+              serverError = typeof evt.error === 'string' ? evt.error : 'Nana hit an error generating this answer.'
+              setAgentStatus(null)  // clear optimistic copy so error isn't hidden behind a spinner
+              setIsStreaming(false)
+              void reader.cancel().catch(() => {})
+              break
+
+            case 'tool_call': {
+              // Agentic-mode progress event. Don't touch sawFinal/serverError —
+              // these are pure progress bookkeeping. Append on 'started',
+              // mark complete in place on 'completed'.
+              const name = typeof evt.name === 'string' ? evt.name : 'tool'
+              const args = (evt.args && typeof evt.args === 'object') ? evt.args as Record<string, unknown> : {}
+              const id = `${name}:${JSON.stringify(args)}`
+              const status: 'started' | 'completed' = evt.status === 'completed' ? 'completed' : 'started'
+              const summary = typeof evt.result_summary === 'string' ? evt.result_summary : undefined
+
+              setToolProgress(prev => {
+                if (status === 'started') {
+                  if (prev.some(p => p.id === id)) return prev
+                  return [...prev, { id, name, args, status: 'started' }]
+                }
+                return prev.map(p => p.id === id ? { ...p, status: 'completed', result_summary: summary } : p)
+              })
+              break
+            }
           }
+        }
+      }
+
+      // Watchdog: stream closed cleanly but no `final` arrived. Either the brain
+      // emitted an `error` event, or the response ended early. Surface what we
+      // can so the user never sees a silent dead-end.
+      if (!sawFinal) {
+        if (serverError) {
+          setAskError({ message: serverError })
+        } else if (localStreamText) {
+          commitPartialAsMessage()
+        } else {
+          setAskError({ message: 'The connection ended before Nana could answer. Please try again.' })
         }
       }
 
     } catch (e: any) {
       if (e?.name === 'AbortError') return
+      // Mid-stream drop with partial tokens already received: commit the partial
+      // so the user keeps what Nana actually said, rather than losing it to an
+      // error toast.
+      if (!sawFinal && localStreamText) {
+        commitPartialAsMessage()
+      } else {
+        const status = typeof e?.status === 'number' ? e.status : undefined
+        const message =
+          status === 401 ? 'You need to be signed in to ask Nana. Open this in a browser where you\'re logged in.'
+          : status === 402 ? 'Deep Research needs an active subscription. Visit /unlock to subscribe.'
+          : status === 429 ? 'You\'re sending questions too fast. Give it a moment and try again.'
+          : (typeof e?.message === 'string' && e.message) || 'Something went wrong. Please try again.'
+        setAskError({ status, message })
+      }
     } finally {
       setIsStreaming(false)
+      setAgentStatus(null)  // clear any leftover progress copy on stream end
     }
-  }, [question, isStreaming, session, devilsAdvocate, activeTab, activeSchool, localShortlist])
+  }, [question, isStreaming, session, devilsAdvocate, deepMode, activeTab, activeSchool, localShortlist])
 
   function stopStream() {
     abortRef.current?.abort()
     setIsStreaming(false)
+  }
+
+  function startNewConversation() {
+    abortRef.current?.abort()
+    setIsStreaming(false)
+    setSession(null)
+    setMessages([])
+    setStreamBuf('')
+    setActiveQuestion('')
+    setActiveParsed(null)
+    setActiveShareToken(undefined)
+    setCandidates([])
+    setAskError(null)
+    setQuestion('')
+    inputRef.current?.focus()
   }
 
   function handleKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -1190,6 +1408,16 @@ export function DecisionHub({
               >
                 {devilsAdvocate ? '👿 Second opinion ON' : 'Second opinion'}
               </button>
+              {(messages.length > 0 || session) && (
+                <button
+                  type="button"
+                  className="dh-new-toggle"
+                  onClick={startNewConversation}
+                  title="Start a fresh conversation"
+                >
+                  + New
+                </button>
+              )}
             </div>
             <p className="dh-chat-nana-sub">Ask anything about any UK independent school</p>
           </div>
@@ -1226,7 +1454,41 @@ export function DecisionHub({
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
                   <div className="dh-msg-user">{activeQuestion}</div>
                 </div>
+                {agentStatus && (
+                  <div className="dh-agent-status" aria-live="polite">
+                    <span className="dh-agent-status-spinner" aria-hidden="true">⟳</span>
+                    <span>{agentStatus}</span>
+                  </div>
+                )}
+                {toolProgress.length > 0 && (
+                  <div className="dh-tool-progress" aria-live="polite">
+                    {toolProgress.map(step => (
+                      <div key={step.id} className={`dh-tool-step dh-tool-step--${step.status}`}>
+                        <span className="dh-tool-icon" aria-hidden="true">{step.status === 'completed' ? '✓' : '⟳'}</span>
+                        <span className="dh-tool-name">{prettyToolName(step.name)}</span>
+                        {step.result_summary && (
+                          <span className="dh-tool-summary"> — {step.result_summary}</span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <NanaMsgBubble isStreaming streamBuf={streamBuf} />
+              </div>
+            )}
+
+            {askError && !isStreaming && (
+              <div className="dh-msg-nana" role="alert" style={{ borderLeft: '3px solid #f59e0b' }}>
+                <p className="dh-msg-nana-eyebrow" style={{ color: '#f59e0b' }}>Couldn&apos;t send</p>
+                <p className="dh-msg-nana-prose">{askError.message}</p>
+                <button
+                  type="button"
+                  onClick={() => setAskError(null)}
+                  className="dh-msg-share"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                >
+                  Dismiss
+                </button>
               </div>
             )}
 
@@ -1264,6 +1526,31 @@ export function DecisionHub({
               <button className="dh-tooltip-close" onClick={e => { e.stopPropagation(); setShowTooltip(false) }}>✕</button>
             </div>
           )}
+
+          {/* Deep mode — agentic loop scoped to the parent's shortlist. Opt-in
+              because it adds 20-40s latency. Disabled until shortlist has 2+. */}
+          <div className="dh-mode-row">
+            <button
+              type="button"
+              className={`dh-deep-toggle${deepMode ? ' dh-deep-toggle--on' : ''}`}
+              onClick={() => setDeepMode(v => !v)}
+              disabled={isStreaming || localShortlist.length < 2}
+              title={
+                localShortlist.length < 2
+                  ? 'Add 2+ schools to your shortlist to enable Deep mode'
+                  : deepMode
+                    ? 'Deep mode ON — Nana will analyse your shortlist step-by-step (~30s).'
+                    : 'Deep mode OFF — Nana answers fast (~10s) using parallel retrieval.'
+              }
+            >
+              <span aria-hidden="true">🔬</span> Deep mode {deepMode ? 'ON' : 'OFF'}
+            </button>
+            {deepMode && localShortlist.length >= 2 && (
+              <span className="dh-mode-hint">
+                Nana will analyse your {localShortlist.length} schools step-by-step. ~30s response time.
+              </span>
+            )}
+          </div>
 
           {/* Input bar */}
           <div className="dh-chat-input-bar">

@@ -4,14 +4,15 @@
  * SSE endpoint for Research Mode — school-agnostic, searches all 140 UK schools.
  *
  * Routing:
- *   0 schools mentioned in question → runGlobalQuestionStream (all-schools vector search)
+ *   0 schools mentioned in question → runAgenticQuestionStream (Claude picks tools)
  *   1 school mentioned              → runOneQuestionStream (single-school deep dive)
  *   2–4 schools mentioned           → runMultiSchoolQuestionStream (side-by-side comparison)
  *
  * Event types:
  *   session_ready    — fired once with sessionId
  *   retrieval        — fired after vector search with schools found
- *   token            — each streamed token from Claude
+ *   tool_call        — agentic mode: progress event for each tool invocation
+ *   token            — each streamed token from Claude (single/multi mode only)
  *   final            — complete parsed answer + share_token
  *   summary_generating — brief pause marker while summary runs
  *   summary_update   — new decision brief after DB write
@@ -27,7 +28,7 @@ import { checkRateLimit } from '@/lib/rateLimit'
 import {
   runOneQuestionStream,
   runMultiSchoolQuestionStream,
-  runGlobalQuestionStream,
+  runAgenticQuestionStream,
   detectMentionedSlugs,
   runSummaryUpdate,
 } from '../../../../scripts/lib/nana-brain.js'
@@ -83,6 +84,7 @@ export async function POST(req: NextRequest) {
 
   const incomingSessionId: string | null = typeof body?.sessionId === 'string' ? body.sessionId : null
   const devilsAdvocate = body?.devilsAdvocate === true
+  const deepMode       = body?.deepMode === true
   const shareToken     = crypto.randomUUID()
 
   // F2: context sent by client
@@ -91,6 +93,13 @@ export async function POST(req: NextRequest) {
   const shortlistSlugs: string[]        = Array.isArray(body?.shortlistSlugs)
     ? body.shortlistSlugs.filter((s: unknown) => typeof s === 'string').slice(0, 10)
     : []
+
+  // Deep mode = agentic loop scoped to the parent's shortlist. Capped at 4.
+  // Decision is made BEFORE the mode-based routing so a vague-sounding question
+  // ("which has better pastoral care?") doesn't leak into global mode just
+  // because it has no school names. Codex P1.
+  const lockedShortlistSlugs = shortlistSlugs.slice(0, 4)
+  const useShortlistAgentic  = deepMode && lockedShortlistSlugs.length >= 2
 
   // ── Session setup ──
   let sessionId: string
@@ -179,7 +188,10 @@ export async function POST(req: NextRequest) {
     else req.signal.addEventListener('abort', () => ac.abort(), { once: true })
   }
 
-  const streamOpts = { signal: ac.signal, devilsAdvocate, parentContext }
+  // verbosity='chat' tells the agentic brain to emit the trimmed schema (4
+  // sections, optional ones may be omitted) instead of the full report schema.
+  // Saves 500-1500 output tokens per answer = the biggest perceived-speed win.
+  const streamOpts = { signal: ac.signal, devilsAdvocate, parentContext, verbosity: 'chat' as const }
 
   const encoder = new TextEncoder()
   const stream = new ReadableStream({
@@ -189,13 +201,24 @@ export async function POST(req: NextRequest) {
         catch { ac.abort() }
       }
 
-      send({ type: 'session_ready', sessionId, isNew: !incomingSessionId, mode })
+      send({
+        type: 'session_ready',
+        sessionId,
+        isNew:           !incomingSessionId,
+        mode:            useShortlistAgentic ? 'shortlist_deep' : mode,
+        agenticLocked:   useShortlistAgentic,
+        restrictToSlugs: useShortlistAgentic ? lockedShortlistSlugs : null,
+      })
 
       let finalPayload: any = null
 
       try {
-        const generator =
-          mode === 'global' ? runGlobalQuestionStream(supabase, question, streamOpts)
+        const generator = useShortlistAgentic
+          ? runAgenticQuestionStream(supabase, question, {
+              ...streamOpts,
+              restrictToSlugs: lockedShortlistSlugs,
+            })
+          : mode === 'global' ? runAgenticQuestionStream(supabase, question, streamOpts)
           : mode === 'single' ? runOneQuestionStream(supabase, mentionedSlugs[0], question, streamOpts)
           : runMultiSchoolQuestionStream(supabase, mentionedSlugs, question, streamOpts)
 

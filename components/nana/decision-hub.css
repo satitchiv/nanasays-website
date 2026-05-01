@@ -670,6 +670,18 @@
   background: rgba(52,195,160,.2);
   color: #34C3A0;
 }
+.dh-new-toggle {
+  font-size: 11px;
+  font-weight: 700;
+  color: rgba(255,255,255,.75);
+  background: rgba(255,255,255,.09);
+  border: none;
+  border-radius: 6px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-family: var(--dh-sans);
+}
+.dh-new-toggle:hover { background: rgba(255,255,255,.15); }
 
 /* ── Chat messages ────────────────────────────────────────────────────── */
 .dh-chat-messages {
@@ -776,6 +788,118 @@
   display: inline-block;
 }
 .dh-msg-share:hover { text-decoration: underline; }
+
+/* ── Tool progress log (agentic mode) ─────────────────────────────────── */
+.dh-tool-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 6px;
+}
+.dh-tool-step {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: rgba(255,255,255,.55);
+}
+.dh-tool-step--completed { color: rgba(255,255,255,.75); }
+.dh-tool-icon {
+  flex-shrink: 0;
+  font-size: 11px;
+  width: 12px;
+  display: inline-block;
+  text-align: center;
+}
+.dh-tool-step--completed .dh-tool-icon { color: #34C3A0; }
+.dh-tool-step--started .dh-tool-icon {
+  color: rgba(255,255,255,.4);
+  animation: dh-tool-spin 1.2s linear infinite;
+}
+.dh-tool-name {
+  font-weight: 700;
+  letter-spacing: .02em;
+  color: rgba(255,255,255,.85);
+}
+.dh-tool-summary {
+  color: rgba(255,255,255,.55);
+  font-weight: 400;
+}
+@keyframes dh-tool-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ── Server-emitted agent status ("Planning the checks…") ───────────── */
+.dh-agent-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  padding: 10px 14px;
+  background: rgba(52, 195, 160, .08);
+  border: 1px solid rgba(52, 195, 160, .2);
+  border-radius: 6px;
+  font-size: 12px;
+  color: rgba(255, 255, 255, .85);
+}
+.dh-agent-status-spinner {
+  color: #34C3A0;
+  animation: dh-tool-spin 1.2s linear infinite;
+  display: inline-block;
+}
+
+/* ── Deep mode toggle ────────────────────────────────────────────────── */
+.dh-mode-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px 8px;
+  flex-wrap: wrap;
+}
+.dh-deep-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, .65);
+  background: rgba(255, 255, 255, .04);
+  border: 1px solid rgba(255, 255, 255, .12);
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.dh-deep-toggle:hover:not(:disabled) {
+  color: rgba(255, 255, 255, .9);
+  border-color: rgba(255, 255, 255, .25);
+}
+.dh-deep-toggle:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+.dh-deep-toggle--on {
+  color: #fff;
+  background: rgba(52, 195, 160, .18);
+  border-color: rgba(52, 195, 160, .55);
+}
+.dh-deep-toggle--on:hover:not(:disabled) {
+  background: rgba(52, 195, 160, .26);
+  border-color: rgba(52, 195, 160, .75);
+}
+.dh-mode-hint {
+  font-size: 11px;
+  color: rgba(255, 255, 255, .5);
+  font-style: italic;
+}
 
 /* ── Chat skeleton (streaming) ────────────────────────────────────────── */
 .dh-skeleton { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
