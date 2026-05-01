@@ -826,13 +826,76 @@ function NanaMsgBubble({
   msg,
   isStreaming,
   streamBuf,
+  streamFormat,
 }: {
   msg?: ResearchMessage
   isStreaming?: boolean
   streamBuf?: string
+  streamFormat?: 'structured' | 'prose'
 }) {
-  const parsed = msg?.parsed
+  const parsed = msg?.parsed as any
   const s = parsed?.sections ?? {}
+
+  // ── Phase A: prose-mode render ──
+  // Triggered by either: live stream marked as prose (intent router path), or
+  // a finalised message persisted in prose_v1 format. Renders plain markdown
+  // and the citation chips; skips the structured "Watch Out / What we don't
+  // know" callouts entirely.
+  const isProseMode =
+    (isStreaming && streamFormat === 'prose') ||
+    parsed?.format === 'prose_v1'
+
+  if (isProseMode) {
+    // During streaming streamBuf is the partial markdown. Strip any trailing
+    // <!-- nana-meta ... start because renderMd treats text as plain spans
+    // (not HTML), so the comment opener would otherwise be visible mid-stream
+    // until the closing --> arrives. After final, parsed.prose is the
+    // already-cleaned text from the runner.
+    const rawProse = isStreaming
+      ? (streamBuf || '')
+      : (parsed?.prose || msg?.rawText || '')
+    const proseText = isStreaming
+      ? rawProse.replace(/<!--\s*nana-meta[\s\S]*$/i, '').trimEnd()
+      : rawProse
+    const citations: string[] = Array.isArray(parsed?.citations) ? parsed.citations : []
+
+    return (
+      <div className="dh-msg-nana">
+        {proseText
+          ? <div className="dh-msg-nana-prose">{renderMd(proseText)}</div>
+          : (
+            <div className="dh-skeleton">
+              <div className="dh-skeleton-line dh-skeleton-line--80" />
+              <div className="dh-skeleton-line dh-skeleton-line--60" />
+            </div>
+          )
+        }
+        {!isStreaming && citations.length > 0 && (
+          <div className="dh-sources">
+            {citations
+              .filter(url => typeof url === 'string' && isSafeUrl(url))
+              .slice(0, 6)
+              .map((url, i) => {
+                let label = 'source'
+                try { label = new URL(url).hostname.replace(/^www\./, '') } catch {}
+                return (
+                  <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="dh-source-pill dh-source-pill--chat">
+                    {label.slice(0, 40)} ↗
+                  </a>
+                )
+              })}
+          </div>
+        )}
+        {!isStreaming && msg?.shareToken && (
+          <Link href={`/nana/answer/${msg.shareToken}`} className="dh-msg-share" target="_blank">
+            Share ↗
+          </Link>
+        )}
+      </div>
+    )
+  }
+
+  // ── Structured render (legacy + agentic fallback) ──
 
   // Progressive extraction during streaming — pull each section out of the partial JSON
   // as it arrives, so the bubble fills in section-by-section instead of popping at the end.
@@ -933,9 +996,9 @@ function NanaMsgBubble({
       {!isStreaming && parsed?.sources_used && parsed.sources_used.length > 0 && (
         <div className="dh-sources">
           {parsed.sources_used
-            .filter(s => s.source_url && s.section_label && isSafeUrl(s.source_url))
+            .filter((s: any) => s.source_url && s.section_label && isSafeUrl(s.source_url))
             .slice(0, 6)
-            .map((s, i) => (
+            .map((s: any, i: number) => (
               <a key={i} href={s.source_url} target="_blank" rel="noopener noreferrer" className="dh-source-pill dh-source-pill--chat">
                 {s.section_label.slice(0, 40)} ↗
               </a>
@@ -1028,6 +1091,10 @@ export function DecisionHub({
   const [deepMode, setDeepMode]           = useState(false)
   const [agentStatus, setAgentStatus]     = useState<string | null>(null)
   const [shortlistLocked, setShortlistLocked] = useState(false)
+  // Phase A — intent router signals "prose" via {type:'answer_format'}.
+  // During streaming the bubble renders streamBuf as plain markdown
+  // (rather than running extractStreamingField against partial JSON).
+  const [streamFormat, setStreamFormat] = useState<'structured' | 'prose'>('structured')
 
   useEffect(() => {
     if (!localStorage.getItem('nana-dh-visited')) {
@@ -1058,6 +1125,7 @@ export function DecisionHub({
     setAskError(null)
     setIsStreaming(true)
     setStreamBuf('')
+    setStreamFormat('structured')   // reset; prose intent fires answer_format event if applicable
     setActiveQuestion(q)
     setActiveParsed(null)
     setActiveShareToken(undefined)
@@ -1154,6 +1222,15 @@ export function DecisionHub({
               if (typeof evt.message === 'string') setAgentStatus(evt.message)
               break
 
+            case 'answer_format':
+              // Phase A — intent router emits this BEFORE any tokens. Tells the
+              // bubble whether to render streamBuf as plain markdown ('prose')
+              // or run extractStreamingField against partial JSON ('structured').
+              if (evt.format === 'prose' || evt.format === 'structured') {
+                setStreamFormat(evt.format)
+              }
+              break
+
             case 'token': {
               const text = typeof evt.text === 'string' ? evt.text : ''
               if (text) {
@@ -1163,6 +1240,15 @@ export function DecisionHub({
               }
               break
             }
+
+            case 'stream_reset':
+              // Agentic loop emits this before a parse-error retry when the
+              // original turn already streamed partial tokens. Clear the
+              // partial-JSON buffer so stale text doesn't sit on screen
+              // while the retry runs.
+              localStreamText = ''
+              setStreamBuf('')
+              break
 
             case 'final': {
               sawFinal = true
@@ -1473,7 +1559,7 @@ export function DecisionHub({
                     ))}
                   </div>
                 )}
-                <NanaMsgBubble isStreaming streamBuf={streamBuf} />
+                <NanaMsgBubble isStreaming streamBuf={streamBuf} streamFormat={streamFormat} />
               </div>
             )}
 

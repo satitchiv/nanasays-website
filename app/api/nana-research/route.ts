@@ -11,8 +11,10 @@
  * Event types:
  *   session_ready    — fired once with sessionId
  *   retrieval        — fired after vector search with schools found
+ *   agent_status     — agentic mode: progress copy ("Writing the answer…")
  *   tool_call        — agentic mode: progress event for each tool invocation
- *   token            — each streamed token from Claude (single/multi mode only)
+ *   token            — each streamed token from Claude (single/multi/agentic final-answer turns)
+ *   stream_reset     — agentic mode: clear partial token buffer before retry
  *   final            — complete parsed answer + share_token
  *   summary_generating — brief pause marker while summary runs
  *   summary_update   — new decision brief after DB write
@@ -43,6 +45,20 @@ const supabase = createClient(
 )
 
 const MAX_Q = 2000
+
+// Pulls a short text preview from either schema:
+//   structured_v1: parsed.sections.short_answer
+//   prose_v1:      parsed.prose (first paragraph or first ~200 chars)
+// Used for conversation memory + decision-brief summary; without this both
+// would be empty for prose answers and Nana would lose context across turns.
+function answerPreview(parsed: any, max = 200): string {
+  if (!parsed) return ''
+  if (parsed.format === 'prose_v1' && typeof parsed.prose === 'string') {
+    const firstChunk = parsed.prose.split(/\n\n/)[0] ?? parsed.prose
+    return firstChunk.slice(0, max)
+  }
+  return parsed.sections?.short_answer ?? ''
+}
 
 function buildParentContext(profile: Record<string, string | boolean | null>): string | null {
   const parts: string[] = []
@@ -142,7 +158,7 @@ export async function POST(req: NextRequest) {
 
     if (recentMsgs?.length) {
       const pairs = recentMsgs.reverse().map(m => {
-        const a = (m.parsed_answer as any)?.sections?.short_answer ?? ''
+        const a = answerPreview(m.parsed_answer, 120)
         return `Q: ${(m.question as string).slice(0, 100)} / A: ${a.slice(0, 120)}${a.length > 120 ? '…' : ''}`
       }).join('\n')
       historyContext = `Recent conversation:\n${pairs}`
@@ -293,7 +309,7 @@ export async function POST(req: NextRequest) {
         if (allMessages && allMessages.length > 0) {
           const messagesForSummary = allMessages.map(m => ({
             question:        m.question,
-            short_answer:    (m.parsed_answer as any)?.sections?.short_answer ?? '',
+            short_answer:    answerPreview(m.parsed_answer, 200),
             confirmed_facts: (m.parsed_answer as any)?.sections?.confirmed_facts ?? '',
           }))
 
