@@ -37,6 +37,8 @@ import {
 } from '../../../../scripts/lib/nana-brain.js'
 // @ts-ignore
 import { routeIntent } from '../../../../scripts/lib/intent-router.js'
+// @ts-ignore
+import { expandFamousShortNames } from '../../../../scripts/lib/famous-names.js'
 
 export const runtime   = 'nodejs'
 export const dynamic   = 'force-dynamic'
@@ -180,6 +182,14 @@ export async function POST(req: NextRequest) {
   // ── Route to correct brain function ──
   let mentionedSlugs: string[] = await detectMentionedSlugs(supabase, question)
 
+  // detectMentionedSlugs requires 2+ distinctive words ≥5 chars (avoids
+  // false positives like "worth"/"reading"). For unambiguous famous
+  // one-word names we accept the bare form via expandFamousShortNames,
+  // which always merges with the existing list (not just on empty) so
+  // questions like "Compare Wycombe Abbey and Eton" surface both schools.
+  // See scripts/lib/famous-names.js + scripts/eval/eval-slug-detection.js.
+  mentionedSlugs = expandFamousShortNames(question, mentionedSlugs)
+
   // ── Intent router (Phase B) ────────────────────────────────────────────
   // Codex P2 #4: call routeIntent with RAW mentionedSlugs, BEFORE the
   // shortlist-expansion mutation below.
@@ -209,6 +219,11 @@ export async function POST(req: NextRequest) {
         shortlistSlugs:   shortlistSlugs,
       })
     : null
+  // Telemetry: which path did we take?
+  console.log('[nana-research] %s%s "%s"',
+    intentMatch ? `prose:${(intentMatch as any).intent}` : (useShortlistAgentic ? 'shortlist_deep' : `legacy:${mentionedSlugs.length === 0 ? 'global' : mentionedSlugs.length === 1 ? 'single' : 'multi'}`),
+    mentionedSlugs.length ? ` slugs=${JSON.stringify(mentionedSlugs)}` : '',
+    question.slice(0, 50))
 
   // "Compare my shortlist" with no explicit school names → use shortlist directly
   if (compareKw.test(question) && shortlistSlugs.length >= 2 && mentionedSlugs.length === 0) {
