@@ -20,6 +20,7 @@
     "leaflet": "^1.9.4",
     "next": "14.2.35",
     "nodemailer": "^8.0.4",
+    "openai": "^6.35.0",
     "posthog-js": "^1.372.5",
     "puppeteer": "^24.41.0",
     "react": "^18",

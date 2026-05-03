@@ -34,11 +34,11 @@ import {
   runIntentProseStream,
   detectMentionedSlugs,
   runSummaryUpdate,
-} from '../../../../scripts/lib/nana-brain.js'
+} from '@/lib/server/nana-brain.js'
 // @ts-ignore
-import { routeIntent } from '../../../../scripts/lib/intent-router.js'
+import { routeIntent } from '@/lib/server/intent-router.js'
 // @ts-ignore
-import { expandFamousShortNames } from '../../../../scripts/lib/famous-names.js'
+import { expandFamousShortNames } from '@/lib/server/famous-names.js'
 
 export const runtime   = 'nodejs'
 export const dynamic   = 'force-dynamic'
