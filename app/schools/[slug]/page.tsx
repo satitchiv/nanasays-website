@@ -42,6 +42,9 @@ import NanaDemoTeaser from '@/components/school/NanaDemoTeaser'
 import SchoolFeatureEmbed from '@/components/school/SchoolFeatureEmbed'
 import { getDemoQuestions } from '@/lib/demo-questions'
 import NanaHandleLocked from '@/components/nana/NanaHandleLocked'
+import SchoolPageNav from '@/components/school/SchoolPageNav'
+import SidebarTabs from '@/components/school/SidebarTabs'
+import '@/components/school/school-page-nav.css'
 import './report/report.css'
 
 // Temporarily force-dynamic while we iterate on the sports/fees extraction.
@@ -238,8 +241,8 @@ function SectionTitle({ children, as: Tag = 'h2' }: { children: React.ReactNode;
   )
 }
 
-function Section({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
-  return <div style={{ marginBottom: 52, ...style }}>{children}</div>
+function Section({ children, style, id }: { children: React.ReactNode; style?: React.CSSProperties; id?: string }) {
+  return <div id={id} style={{ marginBottom: 52, ...style }}>{children}</div>
 }
 
 function FacilityItem({ label }: { label: string }) {
@@ -334,7 +337,8 @@ export default async function SchoolPage({ params, searchParams }: Props) {
   const sdSchoolLife = (sd?.school_life as any) ?? null
   const sdLocationProfile = (sd?.location_profile as any) ?? null
   const sdTourQuestions = (sd?.report_tour_questions as any) ?? null
-  const sdScholarships = (sd?.scholarships_available as any) ?? null
+  const sdScholarshipsRaw = (sd?.scholarships_available as any) ?? null
+  const sdScholarships: string[] | null = Array.isArray(sdScholarshipsRaw) ? sdScholarshipsRaw : null
   const sdBursaryNote = (sd?.bursary_note as any) ?? null
 
   // Build lookup for similar schools that have EduWorld feeds
@@ -1079,44 +1083,55 @@ export default async function SchoolPage({ params, searchParams }: Props) {
             </Section>
           )}
 
-          {/* MAP */}
-          <Section>
-            <SectionTitle>{t('school_section_location')}</SectionTitle>
-            <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border)' }}>
-              <iframe
-                src={`https://maps.google.com/maps?q=${mapQuery}&output=embed&z=14`}
-                width="100%"
-                height="280"
-                style={{ border: 0, display: 'block' }}
-                loading="lazy"
-                referrerPolicy="no-referrer-when-downgrade"
+          {/* LOCATION — rich profile when available (#location anchor lives on the
+              <section> inside LocationSection); falls back to basic map embed */}
+          {sdLocationProfile ? (
+            <div className="report-page" style={{ background: 'transparent', minHeight: 0, userSelect: 'auto', WebkitUserSelect: 'auto', fontFamily: 'inherit', marginBottom: 52 }}>
+              <LocationSection
+                location={sdLocationProfile}
+                schoolName={school.name}
               />
-              <div style={{
-                padding: '14px 18px', background: '#fff',
-                borderTop: '1px solid var(--border)',
-                fontSize: 15, color: 'var(--muted)',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              }}>
-                <span>{school.address}</span>
-                <a
-                  href={`https://maps.google.com/?q=${mapQuery}`}
-                  target="_blank" rel="noopener noreferrer"
-                  style={{ fontSize: 12, color: 'var(--blue)', textDecoration: 'none', fontWeight: 600 }}
-                >
-                  {t('school_cta_maps')}
-                </a>
-              </div>
             </div>
-            {(school.distance_city || school.distance_airport || school.bus_service || school.nearest_airport || school.flight_hours_from_bkk) && (
-              <div className="ns-3col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 16 }}>
-                {school.nearest_airport && <FacilityItem label={`Airport: ${school.nearest_airport}`} />}
-                {school.country?.toLowerCase() === 'thailand' && !!school.flight_hours_from_bkk && <FacilityItem label={`${school.flight_hours_from_bkk}h from Bangkok`} />}
-                {school.distance_airport && <FacilityItem label={school.distance_airport} />}
-                {school.distance_city && <FacilityItem label={school.distance_city} />}
-                {school.bus_service && <FacilityItem label={t('school_transport_bus')} />}
+          ) : (
+            <Section id="location">
+              <SectionTitle>{t('school_section_location')}</SectionTitle>
+              <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                <iframe
+                  title={`Map of ${school.name}`}
+                  src={`https://maps.google.com/maps?q=${mapQuery}&output=embed&z=14`}
+                  width="100%"
+                  height="280"
+                  style={{ border: 0, display: 'block' }}
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+                <div style={{
+                  padding: '14px 18px', background: '#fff',
+                  borderTop: '1px solid var(--border)',
+                  fontSize: 15, color: 'var(--muted)',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                }}>
+                  <span>{school.address}</span>
+                  <a
+                    href={`https://maps.google.com/?q=${mapQuery}`}
+                    target="_blank" rel="noopener noreferrer"
+                    style={{ fontSize: 12, color: 'var(--blue)', textDecoration: 'none', fontWeight: 600 }}
+                  >
+                    {t('school_cta_maps')}
+                  </a>
+                </div>
               </div>
-            )}
-          </Section>
+              {(school.distance_city || school.distance_airport || school.bus_service || school.nearest_airport || school.flight_hours_from_bkk) && (
+                <div className="ns-3col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginTop: 16 }}>
+                  {school.nearest_airport && <FacilityItem label={`Airport: ${school.nearest_airport}`} />}
+                  {school.country?.toLowerCase() === 'thailand' && !!school.flight_hours_from_bkk && <FacilityItem label={`${school.flight_hours_from_bkk}h from Bangkok`} />}
+                  {school.distance_airport && <FacilityItem label={school.distance_airport} />}
+                  {school.distance_city && <FacilityItem label={school.distance_city} />}
+                  {school.bus_service && <FacilityItem label={t('school_transport_bus')} />}
+                </div>
+              )}
+            </Section>
+          )}
 
           {/* GALLERY — only shown when images exist */}
           {(school.gallery_images?.length ?? 0) > 0 && (() => {
@@ -1132,7 +1147,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
 
           {/* NANASAYS SCORECARD */}
           {(scorecardItems.length > 0 || boolItems.length > 0) && (
-            <Section>
+            <Section id="scorecard">
               <SectionTitle>{t('school_section_scorecard')}</SectionTitle>
               <div className="ns-scorecard-grid" style={{
                 display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12,
@@ -1172,7 +1187,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
           {/* KEY DETAILS — curricula, accreditations, languages, support */}
           {(school.curriculum?.length || school.accreditations?.length || school.languages?.length ||
             school.eal_support != null || school.sen_support != null || school.sel_support != null || school.bus_service != null) && (
-            <Section>
+            <Section id="key-details">
               <SectionTitle>{t('school_section_key_details')}</SectionTitle>
               <div className="ns-key-details-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 14 }}>
 
@@ -1255,11 +1270,11 @@ export default async function SchoolPage({ params, searchParams }: Props) {
           )}
 
           {/* SCHOLARSHIPS — full detail when no scholarship_total_usd */}
-          {((school.scholarship_available && school.scholarship_details && !school.scholarship_total_usd) || school.bursary_available || sdScholarships?.length > 0) ? (
-            <Section>
+          {((school.scholarship_available && school.scholarship_details && !school.scholarship_total_usd) || school.bursary_available || (sdScholarships && sdScholarships.length > 0)) ? (
+            <Section id="scholarships">
               <SectionTitle>{t('school_section_scholarships')}</SectionTitle>
               {/* Structured scholarship types from deep data */}
-              {sdScholarships?.length > 0 && (
+              {sdScholarships && sdScholarships.length > 0 && (
                 <div style={{ marginBottom: 16 }}>
                   <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 10 }}>
                     Types Available
@@ -1322,6 +1337,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
           ) : null}
 
           {/* ACADEMIC PERFORMANCE */}
+          {/* ACADEMIC PERFORMANCE (legacy inline — anchor lives on AcademicSnapshotSection below) */}
           {(school.ap_pass_rate != null || school.ib_pass_rate != null || school.university_placement_rate != null || school.sat_avg != null || school.act_avg != null || school.inspection_rating || school.a_level_results || school.gcse_results || school.oxbridge_rate != null || school.russell_group_rate != null) && (
             <Section>
               <SectionTitle>{t('school_section_academic')}</SectionTitle>
@@ -1483,7 +1499,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
 
           {/* ISI INSPECTION REPORT */}
           {(school.isi_summary || school.isi_academic_quality || school.isi_key_strengths?.length) && (
-            <Section>
+            <Section id="isi">
               <SectionTitle>ISI Inspection Report</SectionTitle>
               {school.isi_summary && (
                 <p style={{ color: '#334', marginBottom: 20, fontSize: 16, lineHeight: 1.85 }}>{school.isi_summary}</p>
@@ -1588,12 +1604,13 @@ export default async function SchoolPage({ params, searchParams }: Props) {
               scholarships={sd?.scholarships_available ?? null}
               bursariesNote={sd?.bursary_note ?? null}
               feesSourceUrl={sd?.fees_source_url ?? null}
+              scholarshipsId="fees-scholarships"
             />
           </div>
 
           {/* ABOUT */}
           {school.description && (
-            <Section>
+            <Section id="about">
               <SectionTitle>{t('school_section_about')}</SectionTitle>
               {school.description.split('\n\n').map((para, i) => (
                 <p key={i} style={{ color: '#334', marginBottom: 14, fontSize: 16, lineHeight: 1.85 }}>{para}</p>
@@ -1612,8 +1629,11 @@ export default async function SchoolPage({ params, searchParams }: Props) {
             activitiesClubs={sdSchoolLife?.activities_clubs ?? null}
           />
 
-          {/* ACADEMIC SNAPSHOT — SEO: captures exam result searches */}
+          {/* ACADEMIC SNAPSHOT — SEO: captures exam result searches.
+              id is applied to the component's rendered root so the anchor
+              only exists when there's actual content (no dead TOC links). */}
           <AcademicSnapshotSection
+            id="academic"
             examResults={sdExamResults}
             uniDestinations={sdUniDestinations}
             reportVerdict={sdReportVerdict}
@@ -1648,7 +1668,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
 
           {/* WHY CHOOSE */}
           {school.unique_selling_points && (
-            <Section>
+            <Section id="why-choose">
               <SectionTitle>{t('school_section_why_choose')}</SectionTitle>
               {(() => {
                 const usp = school.unique_selling_points!
@@ -1688,7 +1708,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
 
           {/* STRENGTHS */}
           {school.strengths?.length && !school.unique_selling_points && (
-            <Section>
+            <Section id="why-choose">
               <SectionTitle>{t('school_section_why_choose')}</SectionTitle>
               <ul style={{ listStyle: 'none', padding: 0 }}>
                 {school.strengths.map((s, i) => (
@@ -1713,7 +1733,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
 
           {/* UNIVERSITY DESTINATIONS */}
           {school.top_universities?.length && (
-            <Section>
+            <Section id="destinations">
               <SectionTitle>{t('school_section_uni_destinations')}</SectionTitle>
               {school.university_placement_rate && (
                 <p style={{ fontSize: 15, color: 'var(--muted)', marginBottom: 16 }}>
@@ -1734,7 +1754,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
             </Section>
           )}
 
-          {/* FEES */}
+          {/* FEES (legacy inline — anchor lives on FeesSection above) */}
           {(school.fees_by_grade || school.fees_usd_min || school.fees_local_min) && (
             <Section>
               <SectionTitle>{t('school_section_fees')}</SectionTitle>
@@ -1767,7 +1787,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
             </Section>
           )}
 
-          {/* ADMISSIONS */}
+          {/* ADMISSIONS (legacy inline — anchor lives on AdmissionsSection above) */}
           {school.admissions_process && (
             <Section>
               <SectionTitle>{t('school_section_admissions_process')}</SectionTitle>
@@ -1853,7 +1873,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
 
           {/* BOARDING */}
           {school.boarding && (school.boarding_arrangements || school.boarding_type || school.boarding_facilities || school.single_rooms != null) && (
-            <Section>
+            <Section id="boarding">
               <SectionTitle>{t('school_section_boarding')}</SectionTitle>
               {(school.boarding_type || school.single_rooms != null) && (
                 <div className="ns-3col-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
@@ -1888,7 +1908,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
 
           {/* SCHOOL DAY */}
           {school.school_day_structure && (
-            <Section>
+            <Section id="school-day">
               <SectionTitle>{t('school_section_school_day')}</SectionTitle>
               <div style={{ background: 'var(--off)', border: '1px solid var(--border)', borderRadius: 10, padding: 22 }}>
                 <p style={{ fontSize: 15, color: 'var(--body)', lineHeight: 1.7, margin: 0 }}>{school.school_day_structure}</p>
@@ -1898,7 +1918,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
 
           {/* STUDENT LIFE */}
           {(school.clubs?.length || school.food_options || school.uniform_requirement || school.house_system || school.house_names?.length) && (
-            <Section>
+            <Section id="student-life">
               <SectionTitle>{t('school_section_student_life')}</SectionTitle>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                 {school.house_system && (
@@ -1954,7 +1974,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
 
           {/* FACILITIES */}
           {(allFacilities.length > 0 || school.sports_excellence_programmes?.length) && (
-            <Section>
+            <Section id="facilities">
               <SectionTitle>{t('school_section_facilities')}</SectionTitle>
               {school.sports_excellence_programmes?.length ? (
                 <div style={{ marginBottom: 24 }}>
@@ -1987,7 +2007,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
 
           {/* WELLBEING & SAFETY */}
           {(school.mental_wellbeing || school.safeguarding) && (
-            <Section>
+            <Section id="wellbeing">
               <SectionTitle>{t('school_section_wellbeing')}</SectionTitle>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                 {school.mental_wellbeing && (
@@ -2008,7 +2028,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
 
           {/* STUDENT DEMOGRAPHICS */}
           {(school.nationalities_count || school.age_min != null || school.gender_split || school.stages?.length) && (
-            <Section>
+            <Section id="demographics">
               <SectionTitle>{t('school_section_demographics')}</SectionTitle>
               <div className="ns-scorecard-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, alignItems: 'start' }}>
                 {school.gender_split && (
@@ -2065,7 +2085,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
 
           {/* CURRICULUM BY STAGE */}
           {school.curriculum_results && (
-            <Section>
+            <Section id="curriculum">
               <SectionTitle>{t('school_section_curriculum_stage')}</SectionTitle>
               <div style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid var(--border)' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
@@ -2092,7 +2112,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
 
           {/* SCHOOL BACKGROUND */}
           {(school.governance || school.religious_affiliation || school.awards || school.alumni_notable || school.thai_community) && (
-            <Section>
+            <Section id="background">
               <SectionTitle>{t('school_section_background')}</SectionTitle>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
                 {school.governance && (
@@ -2129,28 +2149,22 @@ export default async function SchoolPage({ params, searchParams }: Props) {
             </Section>
           )}
 
-          {/* SPORTS OVERVIEW — SEO: captures sport-focused parent searches */}
+          {/* SPORTS OVERVIEW — SEO: captures sport-focused parent searches.
+              id is on the component root so anchor only exists when content does. */}
           <SportsOverviewSection
+            id="sports"
             sportsProfile={sdSportsProfile}
             sportsFacilities={school.sports_facilities ?? null}
           />
 
           {/* NOTABLE ALUMNI */}
           {sdSchoolLife?.notable_alumni?.length > 0 && (
-            <AlumniSection alumni={sdSchoolLife.notable_alumni} />
+            <AlumniSection id="alumni" alumni={sdSchoolLife.notable_alumni} />
           )}
-
-          {/* LOCATION — airports, train, map; SEO: "[school] location" + international parent queries */}
-          <div className="report-page" style={{ background: 'transparent', minHeight: 0, userSelect: 'auto', WebkitUserSelect: 'auto', fontFamily: 'inherit' }}>
-            <LocationSection
-              location={sdLocationProfile}
-              schoolName={school.name}
-            />
-          </div>
 
           {/* FAQ */}
           {faqs.length > 0 && (
-            <Section>
+            <Section id="faq">
               <SectionTitle>{t('school_section_faqs')}</SectionTitle>
               {faqs.map((faq, i) => (
                 <FaqItem key={i} question={faq.q} answer={faq.a} defaultOpen={i === 0} />
@@ -2160,7 +2174,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
 
           {/* SIMILAR SCHOOLS */}
           {similarSchools.length > 0 && (
-            <Section>
+            <Section id="similar">
               <SectionTitle>{t('school_section_similar')}</SectionTitle>
               <div className="ns-similar-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
                 {similarSchools.map(s => (
@@ -2340,8 +2354,9 @@ export default async function SchoolPage({ params, searchParams }: Props) {
 
         {/* SIDEBAR */}
         <aside className="ns-school-aside" style={{ position: 'sticky', top: 80, minWidth: 0 }}>
-          <SidebarCard>
-            <SidebarTitle>{t('school_sidebar_facts')}</SidebarTitle>
+          <SidebarTabs
+            navTab={<SchoolPageNav />}
+            factsTab={<>
             {school.country && <SidebarStat label={t('school_sidebar_country')} value={school.country} />}
             {school.region && <SidebarStat label={t('school_sidebar_region')} value={expandRegion(school.region, school.country) ?? school.region} />}
             {school.city && !school.region && <SidebarStat label={t('school_sidebar_city')} value={school.city} />}
@@ -2365,7 +2380,21 @@ export default async function SchoolPage({ params, searchParams }: Props) {
             ))}
             {!!school.university_placement_rate && <SidebarStat label={t('school_stat_uni_rate')} value={`${school.university_placement_rate}%`} accent />}
             {school.head_of_school && <SidebarStat label={t('school_sidebar_head')} value={school.head_of_school} />}
-          </SidebarCard>
+            </>}
+          />
+
+          {school.official_website && (
+            <a
+              href={buildUtmUrl(school.official_website, 'sidebar-visit-website')} target="_blank" rel="noopener noreferrer"
+              style={{
+                display: 'block', width: '100%', background: 'var(--teal)', color: '#fff',
+                textAlign: 'center', padding: '14px 20px', borderRadius: 8, fontSize: 14,
+                fontWeight: 700, textDecoration: 'none', marginBottom: 10, border: 'none',
+              }}
+            >
+              {t('school_cta_website')}
+            </a>
+          )}
 
           {/* School admin claim prompt */}
           <div style={{
@@ -2385,19 +2414,6 @@ export default async function SchoolPage({ params, searchParams }: Props) {
               </span>
             </a>
           </div>
-
-          {school.official_website && (
-            <a
-              href={buildUtmUrl(school.official_website, 'sidebar-visit-website')} target="_blank" rel="noopener noreferrer"
-              style={{
-                display: 'block', width: '100%', background: 'var(--teal)', color: '#fff',
-                textAlign: 'center', padding: '14px 20px', borderRadius: 8, fontSize: 14,
-                fontWeight: 700, textDecoration: 'none', marginBottom: 10, border: 'none',
-              }}
-            >
-              {t('school_cta_website')}
-            </a>
-          )}
 
           {/* SOCIAL LINKS */}
           {(school.instagram_url || school.youtube_url) && (

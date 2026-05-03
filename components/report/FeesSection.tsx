@@ -53,6 +53,10 @@ type Props = {
   scholarships?: string[] | null
   bursariesNote?: string | null
   feesSourceUrl?: string | null
+  /* Anchor for the inner scholarships subsection. Defaults to "scholarships"
+     to preserve the existing /report TOC link. The school detail page passes
+     "fees-scholarships" to avoid colliding with its outer #scholarships. */
+  scholarshipsId?: string
 }
 
 function fmt(n: number | null | undefined, prefix = '£') {
@@ -84,6 +88,7 @@ function normalizeFeesByGrade(raw: FeesByGrade | null | undefined, fallbackCurre
 export default function FeesSection({
   feesMin, feesMax, currency, feesByGrade,
   includesBoarding, applicationFee, scholarships, bursariesNote, feesSourceUrl,
+  scholarshipsId = 'scholarships',
 }: Props) {
   const normalized = normalizeFeesByGrade(feesByGrade, currency)
   const hasGradeTable = !!(normalized && normalized.rows && normalized.rows.length > 0)
@@ -170,7 +175,7 @@ export default function FeesSection({
       </div>
 
       {(scholarships?.length || bursariesNote) && (
-        <div className="schol-section" id="scholarships">
+        <div className="schol-section" id={scholarshipsId}>
           <div className="schol-section-title">Scholarships & financial assistance</div>
 
           {scholarships && scholarships.length > 0 && (

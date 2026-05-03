@@ -18,6 +18,7 @@ interface Props {
   uniDestinations: UniDestinations | null
   reportVerdict: string | null
   schoolName: string
+  id?: string
 }
 
 function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
@@ -57,7 +58,7 @@ function parseIsiResult(verdict: string | null): { date: string; met: boolean; s
   return { date, met: true, summary, flag }
 }
 
-export default function AcademicSnapshotSection({ examResults, uniDestinations, reportVerdict, schoolName }: Props) {
+export default function AcademicSnapshotSection({ examResults, uniDestinations, reportVerdict, schoolName, id }: Props) {
   const isi = parseIsiResult(reportVerdict)
   const al = examResults?.a_level
   const gcse = examResults?.gcse
@@ -73,7 +74,7 @@ export default function AcademicSnapshotSection({ examResults, uniDestinations, 
   const usUnis = (uniDestinations?.us_ivy_and_top10 ?? []).slice(0, 4)
 
   return (
-    <div style={{ marginBottom: 52 }}>
+    <div id={id} style={{ marginBottom: 52 }}>
       <h2 style={{
         fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.14em',
         color: 'var(--teal-dk)', marginBottom: 18, paddingBottom: 10,

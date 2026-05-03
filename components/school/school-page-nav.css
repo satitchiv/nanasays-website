@@ -1,0 +1,132 @@
+/* Sidebar tabs (Quick Facts | On this page) for /schools/[slug]
+   Lives inside the existing .ns-school-aside (300px sticky right column). */
+
+.ns-sidebar-tabs {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 12px var(--shadow);
+  overflow: hidden;
+  /* Cap so the whole sticky aside (tabs + Visit Website CTA + claim
+     prompt + social links) fits inside the viewport.
+       sticky top      80px  (matches inline style on <aside>)
+       footer stack   ~150px (CTA 48 + claim 40 + social 45 + gaps)
+       safety buffer   20px
+     Use 100dvh so iOS Safari address-bar resize doesn't clip. */
+  max-height: calc(100dvh - 250px);
+  display: flex;
+  flex-direction: column;
+}
+
+.ns-sidebar-tabstrip {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  background: var(--off);
+  flex-shrink: 0;
+}
+
+.ns-sidebar-tabstrip button {
+  flex: 1;
+  appearance: none;
+  background: transparent;
+  border: 0;
+  padding: 12px 14px;
+  font-family: 'Nunito', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color .15s, border-color .15s, background .15s;
+}
+
+.ns-sidebar-tabstrip button:hover {
+  color: var(--navy);
+}
+
+.ns-sidebar-tabstrip button.is-active {
+  color: var(--teal-dk);
+  border-bottom-color: var(--teal);
+  background: #fff;
+}
+
+.ns-sidebar-tabpanel {
+  padding: 18px 22px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* TOC inside the tab — unboxed since the tab panel is the box now. */
+.school-page-nav {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.school-page-nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.school-page-nav .grp {
+  margin-bottom: 10px;
+}
+
+.school-page-nav .grp:last-child {
+  margin-bottom: 0;
+}
+
+.school-page-nav .grp-label {
+  font-family: 'Nunito', sans-serif;
+  font-weight: 900;
+  font-size: 10px;
+  color: var(--teal-dk);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  margin: 6px 0 4px;
+}
+
+.school-page-nav .grp:first-child .grp-label {
+  margin-top: 0;
+}
+
+.school-page-nav li li {
+  margin: 0;
+}
+
+.school-page-nav a {
+  color: var(--body);
+  text-decoration: none;
+  display: block;
+  padding: 4px 8px;
+  border-radius: 5px;
+  border-left: 2px solid transparent;
+  transition: color .15s, border-color .15s, background .15s;
+}
+
+.school-page-nav a:hover {
+  color: var(--teal-dk);
+}
+
+.school-page-nav a.is-active {
+  color: var(--teal-dk);
+  font-weight: 700;
+  border-left-color: var(--teal);
+  background: var(--teal-bg);
+}
+
+/* Mobile: aside is promoted above main via order:-1; keep tabs but ditch
+   the height cap so it can flow naturally with the rest of the page. */
+@media (max-width: 900px) {
+  .ns-sidebar-tabs {
+    max-height: none;
+  }
+  .ns-sidebar-tabpanel {
+    overflow: visible;
+  }
+}

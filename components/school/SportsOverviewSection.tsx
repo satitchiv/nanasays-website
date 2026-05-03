@@ -42,6 +42,7 @@ interface SportsProfile {
 interface Props {
   sportsProfile: SportsProfile | null
   sportsFacilities: string[] | null
+  id?: string
 }
 
 const TIER_COLORS: Record<string, { bg: string; border: string; text: string }> = {
@@ -62,7 +63,7 @@ function getSigName(s: string | { name: string }): string {
   return typeof s === 'string' ? s : s.name
 }
 
-export default function SportsOverviewSection({ sportsProfile, sportsFacilities }: Props) {
+export default function SportsOverviewSection({ sportsProfile, sportsFacilities, id }: Props) {
   if (!sportsProfile && (!sportsFacilities || sportsFacilities.length === 0)) return null
 
   const notes = sportsProfile?.notes ?? ''
@@ -91,7 +92,7 @@ export default function SportsOverviewSection({ sportsProfile, sportsFacilities 
   if (!totalTeams && teamsBySport.length === 0 && facilities.length === 0) return null
 
   return (
-    <div style={{ marginBottom: 52 }}>
+    <div id={id} style={{ marginBottom: 52 }}>
       <h2 style={{
         fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.14em',
         color: 'var(--teal-dk)', marginBottom: 18, paddingBottom: 10,
