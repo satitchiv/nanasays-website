@@ -1,0 +1,179 @@
+{
+  "school_slug": "queen-ethelburgas-collegiate",
+  "school_name": "Queen Ethelburga's Collegiate",
+  "generated_at": "2026-04-30T03:53:54.474Z",
+  "answers": {
+    "fees": {
+      "sections": {
+        "short_answer": "The data confirms annual fees range from GBP 14,025 to GBP 44,400 and scholarships are available for UK students with gifts in academics, sports, music, and drama, but does not confirm the specific breakdown of day versus boarding costs or typical scholarship award sizes.",
+        "confirmed_facts": "- Annual fees range: GBP 14,025–GBP 44,400 per year [structured facts]\n- School serves ages 3–19 across four divisions (Explorers Nursery, Chapter House, King's Magna, College) [school profile]\n- Scholarships available to UK students with gifts in academics, sports, music, or drama [school profile]\n- Boarding places available alongside day places [school profile]\n- International students' fees stated as USD 54,374–USD 63,481 per year [school profile]",
+        "what_this_means": "The wide GBP fee range—spanning 30,375—reflects variation across age groups and likely between day and boarding options. Scholarship availability signals the school commits to financial access for talented students, but without published award amounts, it is unclear how substantial that support is or whether it extends to full boarding costs.",
+        "tradeoff": "Published fees do not itemize inclusions (tuition, pastoral care, activities, trips) versus extras (music lessons, uniform, laundry). The data confirms scholarship categories exist but not how many scholarships are awarded per year, whether they are full or partial, or what percentage of the cohort receives support.",
+        "what_we_dont_know": "Specific annual fees by age group, day versus full boarding cost split, typical scholarship or bursary award amounts, percentage of pupils receiving financial support, whether any means-tested bursary programme exists beyond named scholarships, and what extras cost beyond the published termly fee.",
+        "sources": "[structured facts] verified school annual fee data · [school profile] NanaSays profile, admissions section",
+        "you_might_also_ask": "- What does a typical termly bill look like for a full boarder in Year 10, broken down by tuition, boarding, and extras?\n- If my child qualifies for a sports scholarship, what is the average award and does it reduce boarding costs?\n- Are there any means-tested bursaries or sibling discounts, and what proportion of pupils receive any form of financial support?"
+      },
+      "confidence": "low",
+      "comparison_table": null,
+      "follow_ups": [
+        "What is the boarding fee per term separately from day tuition at the age group my child would enter?",
+        "Can you provide a sample all-in annual cost for a full boarder, including extras like trips and activities?",
+        "For a student awarded a scholarship in sport or academics, what is the typical value and does it reduce the boarding fee or tuition only?"
+      ],
+      "tour_question": "\"Can you break down your annual fees by age group and clearly show the difference between day and full boarding costs? And what is the average scholarship award, by category, and what percentage of your pupils receive financial support?\"",
+      "tour_target": "Admissions office or director of finance"
+    },
+    "academic": {
+      "sections": {
+        "short_answer": "The school expects students to achieve a minimum of 3 B grades at A Level, and supports multiple pathways after Sixth Form — university, employment, internships, and degree apprenticeships. However, the data does not confirm actual grade distributions or which universities students typically attend.",
+        "confirmed_facts": "- School expectation: all students should achieve minimum 3 B grades at A Level [ks5-options ↑]\n- Multiple post-secondary pathways supported: university, full-time employment, internships, volunteering, and degree apprenticeships [ks5-options ↑]\n- School describes itself as achieving \"strong academic results across a wide range of abilities\" [profile ↑]\n- KS5 curriculum includes A Levels, BTECs, and enrichment options [ks5-options ↑]",
+        "what_this_means": "The 3 B minimum is a stated expectation, not a reported outcome. Schools set targets that reflect ambition; actual results may vary. The emphasis on multiple valid pathways suggests the school supports both academic and vocational progression, rather than a pure university focus.",
+        "tradeoff": "The data confirms what QE *expects* from students but does not confirm what they actually *achieve*. The absence of published grade distributions or audited exam results means the school's optimistic framing cannot be independently verified.",
+        "what_we_dont_know": "Actual A-Level grade distributions from recent years; percentage of students achieving A/A* grades; specific universities where graduates enrol; Russell Group or Oxbridge placement rates; employment outcomes for students taking vocational routes; how often the school meets its 3 B expectation across the cohort.",
+        "sources": "[ks5-options ↑] KS5 Options Book 2026/27 · [profile ↑] NanaSays profile",
+        "you_might_also_ask": "- What percentage of students achieved A or A* grades in the last three years?\n- Which universities do most graduates attend, and how many go to Russell Group institutions?\n- Can you share data on degree apprenticeships and employment outcomes for non-university routes?"
+      },
+      "confidence": "low",
+      "comparison_table": null,
+      "follow_ups": [
+        "What percentage of students achieved A or A* grades in the last three years?",
+        "Which universities do most graduates attend, and how many go to Russell Group or Oxbridge?",
+        "Can you share employment and degree apprenticeship outcomes for students not going to university?"
+      ],
+      "tour_question": "\"Can you share the actual A-Level grade breakdown from the last three years and a summary of where your graduates typically go to university?\"",
+      "tour_target": "Head of Sixth Form or director of university admissions"
+    },
+    "verdict": {
+      "sections": {
+        "short_answer": "Queen Ethelburga's seems built for a student who wants breadth, thrives in a structured community (especially boarding), and sees sports and extracurriculars as equal to academics. The data confirms strong coaching, multiple competitive pathways, pastoral focus, and flexibility across academic/creative/vocational routes — but does not confirm academic selectivity, university outcomes, or depth of support for struggling students.",
+        "confirmed_facts": "- Four-school collegiate structure with 1,400 students aged 3–19, with built-in progression pathways from nursery through Sixth Form [profile ↑]\n- Majority boarders (1,000 boarding capacity) — boarding is the cultural and social centre of the school [profile ↑]\n- Rugby coached by RFU Level 3 coach (13 years, formerly England U21s); Performance Sports Programme for county-level players; seven grass pitches + four floodlit 3G astro pitches\n- Football offers pathways to professional trials, girls' scholarships announced for 2024, endorsed by Chelsea coach\n- Cricket ranked in Cricketer Magazine Top 100 UK Senior Schools 2025; 15 teams compete across all age groups\n- School explicitly caters to \"traditional academic, creative, and vocational pathways\" across ability ranges [profile ↑]\n- Pastoral care described as \"student-centred approach to wellbeing and welfare\" with on-site medical centre and 24-hour wraparound care [handbook ↑]\n- 70+ weekly enrichment activities; EAL support included in fees; SEN/learning support available [profile ↑]",
+        "what_this_means": "The data paints a school built on **breadth and structure**, not narrow specialism. Sports are a main pillar (county-level coaching, professional pathways, embedded competition from Year 3), not an add-on. The boarding-majority culture means the social experience is community-first — peer networks are built in. The four-school pipeline means progression feels mapped out. Pastoral infrastructure (medical centre, enrichment focus, trained boarding staff) signals genuine investment in non-academic wellbeing. The explicit welcome of creative/vocational alongside academic suggests the school is comfortable with different learning styles and ambitions. A student who thrives here is likely someone who: wants multiple options (not a single track), values peer community and structure, sees sports/arts/service as important to identity, and doesn't need a highly selective elite academic environment to feel challenged.",
+        "tradeoff": "Breadth can mean less depth. The data confirms the school excels at sports, community, and pastoral care, but does not confirm what happens at the academic peak — Oxbridge outcomes, pre-university progression, or how much stretch a top-set pupil gets. It also doesn't confirm the flip side: if a pupil struggles academically, what does intervention actually look like? For families where academic excellence or specialist SEN support is the primary decision criterion, this gap matters.",
+        "what_we_dont_know": "- University outcomes and Oxbridge placement rate — a key signal for families prioritising academic prestige or Russell Group progression.\n- How the school supports a pupil underperforming academically: extent of 1-to-1 tutoring, mentoring, smaller-group pathways, or alternative options.\n- Integration of day and boarding pupils: do day pupils feel integrated or secondary in a majority-boarding culture?\n- Depth of SEN support: the school mentions learning support, but not the range of diagnoses (autism, dyslexia, ADHD, etc.) or typical outcomes.\n- Profile of day pupils: are they local commuters or families choosing day access to a boarding school?",
+        "sources": "[profile ↑]( NanaSays school profile · [handbook ↑]( Parent Handbook 2025–26 · [website ↑]( Queen Ethelburga's main website",
+        "you_might_also_ask": "- \"What are your university outcomes over the past three years by subject? What percentage reach Russell Group or Oxbridge?\"\n- \"If my child starts struggling academically, what does your support pathway look like — tutoring, smaller classes, alternative GCSEs/A-Levels?\"\n- \"What's the day-pupil culture like? How integrated are day pupils in boarding-dominated house life and social events?\""
+      },
+      "confidence": "medium",
+      "comparison_table": null,
+      "follow_ups": [
+        "What are your university outcomes over the past three years by subject?",
+        "If my child starts struggling academically, what does your support pathway look like?",
+        "What's the day-pupil culture like compared to boarders?"
+      ],
+      "tour_question": "\"I want to understand the academic trajectory here. Can you share university outcomes for the past three years by subject, and what stretch looks like for high-performing pupils versus support pathways for those who underperform?\"",
+      "tour_target": "Academic Director, Head of Sixth Form, or the Principal"
+    },
+    "compare": {
+      "sections": {
+        "short_answer": "Repton excels at elite sports development with Olympic-level coaching but offers no rugby and fewer total sports. Queen Ethelburga's and Uppingham both provide broader programmes suited to well-rounded athletes — Uppingham emphasises full-boarding community, Queen Ethelburga's offers affordability with majority boarding.",
+        "confirmed_facts": "- Queen Ethelburga's: Comprehensive rugby with 7+ pitches and RFU Level 3 coach; 15 cricket teams; football from Year 3 with Performance Sports Programme; 220-acre Sports Village with gym, 25m pool, and movement analysis lab; majority are boarders; fees £14,025–£44,400 [qe.org ↗].\n\n- Repton School: 31 hockey teams (Olympic medallists in alumni); 31 tennis teams with world-ranked coach James Rushby; 14 cricket teams led by England Test cricketer Chris Read; girls' football 1st XI ranked 2/44 nationally (77.78% win rate); **NO rugby programme listed** [repton.org ↗]. 626 students; fees £40,665–£54,825.\n\n- Uppingham School: 22 rugby teams with Leicester Tigers and Northampton Saints academy pathways; 31 hockey teams (15 girls, 16 boys); 39 tennis courts (12 hard, 24 astroturf, 3 floodlit); cricket with stated \"powerhouse\" vision; full boarding school; 839 students; fees £26,334–£60,516 [uppingham.co.uk ↗].",
+        "what_this_means": "For a sporty, well-rounded child, Repton suits those who want elite specialisation in a select few sports backed by world-class coaching and proven pathways to professional or international competition. Queen Ethelburga's and Uppingham suit children who value breadth across rugby, football, hockey, cricket, and tennis with strong facilities — Uppingham's full-boarding model creates a more immersive sports community, whilst Queen Ethelburga's offers similar breadth at lower entry cost with day-student flexibility.",
+        "tradeoff": "Repton's elite-only focus means rugby is entirely absent; families prioritising rugby should look elsewhere. Queen Ethelburga's and Uppingham offer breadth, but neither has Repton's Olympic-level individual coaching. Queen Ethelburga's fees start lower (£14k), making it most accessible; Uppingham's full boarding creates tighter campus culture than Queen Ethelburga's mixed day/boarding model. The core trade-off is specialisation (Repton) versus breadth (Uppingham and Queen Ethelburga's) and boarding intensity versus flexibility.",
+        "what_we_dont_know": "Queen Ethelburga's: No breakdown of how many of the 15 cricket teams are competitive versus recreational; unclear how many students get meaningful playing time. No detail on girls' rugby availability despite boys' programme strength. Repton: No data on non-elite recreational pathways; unclear how well day students integrate into the boarding-dominated sports culture. Uppingham: Football and cricket are noted as 'developing' or with stated ambition, but no national ranking or win-rate data to compare with Repton or Queen Ethelburga's.",
+        "sources": "- [qe.org ↗](\n- [repton.org ↗](\n- [uppingham.co.uk ↗](",
+        "you_might_also_ask": "What percentage of each school's students participate in their main sports, and how many make regional or national teams? Do Uppingham and Queen Ethelburga's offer strength-and-conditioning or performance analysis support comparable to Repton's movement-analysis lab? How do day students at Repton integrate into weekend and evening sports activities?"
+      },
+      "confidence": "high",
+      "comparison_table": {
+        "title": "Sports Comparison: Suitability for a Sporty, Well-Rounded Child",
+        "columns": [
+          "Metric",
+          "Queen Ethelburga's",
+          "Repton",
+          "Uppingham"
+        ],
+        "rows": [
+          [
+            "Annual Fees (range)",
+            "£14,025–£44,400",
+            "£40,665–£54,825",
+            "£26,334–£60,516"
+          ],
+          [
+            "Total Student Count",
+            "1,400",
+            "626",
+            "839"
+          ],
+          [
+            "Boarding Model",
+            "Majority boarders + day option",
+            "Mixed day/boarding",
+            "Full boarding"
+          ],
+          [
+            "Rugby",
+            "Comprehensive (7+ pitches, RFU Level 3)",
+            "**NONE**",
+            "22 teams (Leicester/Northampton pathways)"
+          ],
+          [
+            "Hockey",
+            "Girls (winter) / boys (spring), limited detail",
+            "31 teams (Olympic medallists)",
+            "31 teams (15 girls, 16 boys)"
+          ],
+          [
+            "Tennis",
+            "Courts available, no competitive detail",
+            "31 teams, world-ranked coach",
+            "39 courts, all-year participation"
+          ],
+          [
+            "Cricket",
+            "15 teams",
+            "14 teams, England Test coach",
+            "Vision to be 'powerhouse'"
+          ],
+          [
+            "Football",
+            "From Year 3, pathways to pro trials",
+            "16 teams, girls ranked 2/44 nationally",
+            "2 senior XIs + U16, developing"
+          ],
+          [
+            "Elite Coaching",
+            "RFU Level 3, Performance Programme",
+            "Olympic medallists, world-ranked players",
+            "Professional academy links"
+          ],
+          [
+            "Key Differentiator",
+            "Breadth + affordability",
+            "Specialisation + elite pathways",
+            "Breadth + full-boarding immersion"
+          ]
+        ],
+        "highlight_row_index": 3,
+        "footer": "Repton's absence of rugby is the most striking contrast and a critical factor for rugby-interested families. The choice hinges on whether your child prioritises elite development in select sports (Repton), breadth with boarding community (Uppingham), or accessibility with flexibility (Queen Ethelburga's)."
+      },
+      "follow_ups": [
+        "Does Repton offer any non-elite recreational rugby pathway, or is rugby entirely absent from the co-curricular menu?",
+        "Uppingham offers full boarding — what's the typical weekend sports schedule, and how much free time do boarders have for non-sport hobbies?",
+        "Queen Ethelburga's has announced girls' football scholarships. What other sport scholarships are available for girls, and is girls' rugby offered?"
+      ],
+      "tour_question": "We're looking at your school for our sporty, well-rounded child. Can you clarify: (1) How many of your 15 cricket teams compete seriously versus recreationally? (2) What's the experience like for a strong footballer or hockey player who's not yet elite? (3) Do you support non-elite pathways equally with elite ones?",
+      "tour_target": "Queen Ethelburga's"
+    },
+    "trust": {
+      "sections": {
+        "short_answer": "The data confirms the school is financially solvent with a recent surplus, but does not include the full ISI inspection findings — the report exists but has not been parsed. No obvious financial red flags are visible in the available figures, but a complete assessment requires the full ISI report and audited accounts.",
+        "confirmed_facts": "- Charity Commission filing (FY 2025): income £7,065,434, expenditure £6,801,343 (surplus of ~£264k) [charity-commission ↑]\n- Registered liabilities: £1,045,502 [charity-commission ↑]\n- Queen Ethelburga's Collegiate Limited is active and in good standing with Companies House [companies-house ↑]\n- No records found in the DfE teacher prohibition register [dfe-prohibition ↑]\n- ISI inspection reports are available for this school but the full findings have not yet been retrieved [isi ↑]",
+        "what_this_means": "The school operates with a healthy surplus — income exceeds spending by roughly £264,000 — indicating it is not in financial distress. Liabilities of £1.05M are typical for a school with significant fixed assets (buildings, sports facilities, boarding houses). The absence of prohibition records and Companies House compliance issues are positive signals. However, this snapshot does not constitute a full audit-level financial risk assessment.",
+        "tradeoff": "Headline figures suggest the school is operationally sound, but they do not reveal debt service capacity, whether reserves are adequate for emergencies or market downturns, or multi-year sustainability trends. The missing ISI report is the more significant gap — that inspection would surface governance, safeguarding, or educational compliance issues the school is working to address.",
+        "what_we_dont_know": "The specific ISI inspection findings — whether the report noted strengths, identified weaknesses, or flagged compliance concerns, and what improvement actions the school has completed since. Multi-year financial trends, the school's formal reserves policy, details of any major borrowing or capital projects, and whether the school holds adequate contingency reserves.",
+        "sources": "[charity-commission ↑] The Collegiate Charitable Foundation financial filing, Charity Commission register · [companies-house ↑] Queen Ethelburga's Collegiate Limited registration, Companies House · [dfe-prohibition ↑] DfE teacher prohibition register · [isi ↑] ISI institutional record for Queen Ethelburga's",
+        "you_might_also_ask": "- What have the school's audited accounts shown for the past three years — any trends in reserves, total debt, or major capital spending?\n- Can you walk me through the ISI inspection report and any improvement recommendations that were made?\n- What is the school's formal reserves policy, and does it currently meet your target?"
+      },
+      "confidence": "low",
+      "comparison_table": null,
+      "follow_ups": [
+        "What have the school's audited accounts shown for the past three years — any trends in reserves, total debt, or major capital spending?",
+        "Can you walk me through the ISI inspection report and explain any improvement recommendations that were made?",
+        "What is the school's formal reserves policy, and does it currently meet your target?"
+      ],
+      "tour_question": "\"Can you provide the most recent ISI inspection report and the last three years of audited financial statements? I'd like to understand any areas flagged for improvement and how the school's financial position has evolved.\"",
+      "tour_target": "Head of Finance, Bursar, or Principal"
+    }
+  }
+}

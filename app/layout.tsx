@@ -9,6 +9,7 @@ import SiteTracker from "@/components/SiteTracker";
 import OverflowDebugger from "@/components/OverflowDebugger";
 import CookieBanner from "@/components/CookieBanner";
 import ConsentAnalytics from "@/components/ConsentAnalytics";
+import PostHogAnalytics from "@/components/PostHogAnalytics";
 
 const nunito = Nunito({
   subsets: ['latin'],
@@ -65,6 +66,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   const gaMeasurementId = process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID
+  const postHogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY
 
   return (
     <html lang="en" className={`${nunito.variable} ${nunitoSans.variable}`}>
@@ -81,6 +83,7 @@ export default function RootLayout({
             {children}
             <CookieBanner />
             {gaMeasurementId && <ConsentAnalytics measurementId={gaMeasurementId} />}
+            {postHogKey && <PostHogAnalytics apiKey={postHogKey} />}
           </CurrencyProvider>
         </LanguageProvider>
       </body>

@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nanasays — Feature Embed</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --navy:    #1B3252;
+  --navy-lt: #243F66;
+  --teal:    #34C3A0;
+  --teal-dk: #239C80;
+  --teal-bg: #E8FAF6;
+  --off:     #F6F8FA;
+  --off2:    #EEF1F5;
+  --border:  #E5E7EB;
+  --bmd:     #D1D5DB;
+  --muted:   #6B7280;
+  --body:    #374151;
+  --shadow:  rgba(27,50,82,0.08);
+  --shadow-lg: rgba(27,50,82,0.16);
+  --sans:    'Nunito Sans', system-ui, sans-serif;
+  --head:    'Nunito', 'Nunito Sans', system-ui, sans-serif;
+}
+html, body { font-family: var(--sans); background: transparent; color: var(--body); -webkit-font-smoothing: antialiased; }
+.embed-wrap { padding: 0; }
+
+/* ── Unified container ── */
+.unified-card { background: #fff; border-radius: 18px; border: 1px solid var(--border); box-shadow: 0 8px 32px var(--shadow-lg); overflow: hidden; }
+
+/* ── Pricing header (top of unified card) ── */
+.pricing-card { background: var(--navy); padding: 22px 26px; color: #fff; }
+.pricing-row { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; }
+.pricing-left { flex: 1; min-width: 220px; }
+.pricing-eyebrow { font-size: 10px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; color: var(--teal); margin-bottom: 7px; }
+.pricing-headline { font-family: var(--head); font-size: 20px; font-weight: 900; color: #fff; line-height: 1.2; margin-bottom: 6px; }
+.pricing-headline em { color: var(--teal); font-style: normal; }
+.pricing-price { font-family: var(--head); font-size: 28px; font-weight: 900; color: #fff; }
+.pricing-price small { font-size: 13px; font-weight: 700; color: rgba(255,255,255,.5); margin-left: 5px; }
+.pricing-cancel { font-size: 11px; color: rgba(255,255,255,.55); margin-top: 4px; font-weight: 600; }
+.pricing-bullets { flex: 1.4; min-width: 260px; }
+.pricing-bullets ul { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
+.pricing-bullets li { display: flex; align-items: flex-start; gap: 6px; font-size: 11.5px; color: rgba(255,255,255,.92); line-height: 1.4; font-weight: 600; }
+.pricing-bullets li::before { content: "✓"; display: inline-flex; align-items: center; justify-content: center; width: 15px; height: 15px; border-radius: 50%; background: rgba(52,195,160,.2); color: var(--teal); font-size: 10px; font-weight: 900; flex-shrink: 0; margin-top: 1px; }
+.pricing-cta-btn { background: var(--teal); color: #fff; border: none; border-radius: 100px; padding: 11px 22px; font-size: 13px; font-weight: 900; font-family: var(--sans); cursor: pointer; white-space: nowrap; transition: background .15s; }
+.pricing-cta-btn:hover { background: var(--teal-dk); }
+@media (max-width: 720px) { .pricing-bullets ul { grid-template-columns: 1fr; } .pricing-row { flex-direction: column; align-items: stretch; } }
+
+/* ── Carousel (now nested inside unified-card) ── */
+.carousel-card { background: #fff; }
+.tab-bar { display: flex; background: #fff; border-bottom: 1px solid var(--border); padding: 0 6px; gap: 0; }
+.tab-btn { flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 16px 18px 14px; border: none; background: transparent; cursor: pointer; font-family: var(--sans); position: relative; text-align: left; }
+.tab-icon { font-size: 17px; line-height: 1; margin-bottom: 2px; }
+.tab-label { font-size: 10px; font-weight: 800; color: var(--navy); opacity: .4; text-transform: uppercase; letter-spacing: .1em; white-space: nowrap; transition: opacity .2s, color .2s; }
+.tab-desc  { font-size: 13px; font-weight: 700; color: var(--navy); opacity: .4; line-height: 1.3; transition: opacity .2s; }
+.tab-btn.active .tab-label { opacity: 1; color: var(--teal-dk); }
+.tab-btn.active .tab-desc  { opacity: 1; }
+.tab-progress { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: var(--teal); transform: scaleX(0); transform-origin: left; }
+.tab-btn.active .tab-progress { animation: tab-adv 6000ms linear forwards; }
+.tab-btn.active.paused .tab-progress { animation-play-state: paused; }
+@keyframes tab-adv { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+.panel-content { display: none; }
+.panel-content.active { display: block; }
+.panel-header { display: flex; align-items: flex-start; justify-content: space-between; padding: 22px 24px 0; gap: 14px; }
+.panel-title { font-family: var(--head); font-size: 18px; font-weight: 900; color: var(--navy); line-height: 1.2; }
+.panel-hint { font-size: 11px; font-weight: 600; color: var(--muted); margin-top: 5px; display: flex; align-items: center; gap: 5px; }
+.panel-hint::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--teal); }
+.pause-btn { width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--border); background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--muted); flex-shrink: 0; transition: border-color .15s, color .15s; }
+.pause-btn:hover { border-color: var(--navy); color: var(--navy); }
+.panel-body { display: flex; gap: 24px; padding: 16px 24px 24px; min-height: 340px; max-height: 480px; }
+.panel-mock { flex: 1; min-width: 0; background: var(--off); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; min-height: 260px; max-height: 440px; display: flex; flex-direction: column; }
+.chrome { background: #fff; border-bottom: 1px solid var(--border); padding: 9px 12px; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.dot { width: 9px; height: 9px; border-radius: 50%; }
+.dot.r { background: #FF5F57; } .dot.y { background: #FFBD2E; } .dot.g { background: #28C840; }
+.url { flex: 1; background: var(--off2); border-radius: 5px; padding: 4px 10px; font-size: 11px; color: var(--muted); font-weight: 600; margin-left: 4px; }
+
+/* ── Toast ── */
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(60px); background: var(--navy); color: #fff; padding: 9px 18px; border-radius: 100px; font-size: 12px; font-weight: 700; z-index: 9999; transition: transform .3s ease; pointer-events: none; white-space: nowrap; }
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ── Reports tab — Dossier + Verdict split ── */
+.dossier-pane { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+.dossier-hdr { padding: 12px 16px 9px; border-bottom: 1px solid var(--border); flex-shrink: 0; background: #fff; }
+.dossier-kicker { font-size: 10px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; color: var(--teal-dk); margin-bottom: 4px; }
+.dossier-title { font-family: var(--head); font-size: 14px; font-weight: 900; color: var(--navy); line-height: 1.25; }
+.dossier-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; background: var(--border); flex-shrink: 0; }
+.dossier-stat { background: #fff; padding: 7px 5px; text-align: center; }
+.dossier-stat-val { font-family: var(--head); font-size: 14px; font-weight: 900; color: var(--navy); }
+.dossier-stat-val em { color: var(--teal); font-style: normal; }
+.dossier-stat-lbl { font-size: 9px; color: var(--muted); margin-top: 1px; font-weight: 700; line-height: 1.2; }
+.toc-list { flex: 1; overflow-y: auto; padding: 7px; display: flex; flex-direction: column; gap: 3px; background: var(--off); }
+
+/* ── Curated additions list (replaces 22-row TOC) ── */
+.add-list-label { font-size: 10px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; color: var(--teal-dk); padding: 11px 14px 8px; background: var(--off); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.add-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 5px; background: var(--off); }
+.add-row { display: flex; align-items: flex-start; gap: 9px; padding: 8px 10px; background: #fff; border-radius: 8px; border: 1px solid var(--border); }
+.add-icon { font-size: 16px; line-height: 1; flex-shrink: 0; padding-top: 1px; }
+.add-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.add-text strong { font-size: 11.5px; font-weight: 800; color: var(--navy); line-height: 1.3; }
+.add-text span { font-size: 10.5px; color: var(--muted); line-height: 1.4; font-weight: 500; }
+.toc-row { display: flex; align-items: center; gap: 7px; padding: 6px 9px; background: #fff; border-radius: 7px; border: 1px solid var(--border); cursor: pointer; transition: border-color .15s, background .15s; }
+.toc-row:hover { border-color: var(--teal); }
+.toc-row.open { border-color: var(--teal); background: var(--teal-bg); }
+.toc-num { font-size: 10px; font-weight: 900; color: var(--muted); width: 16px; text-align: center; flex-shrink: 0; }
+.toc-row.open .toc-num { color: var(--teal-dk); }
+.toc-label { font-size: 11.5px; font-weight: 700; color: var(--navy); flex: 1; line-height: 1.3; }
+.toc-chip { font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 100px; background: var(--off2); color: var(--muted); flex-shrink: 0; }
+.toc-chip.green { background: var(--teal-bg); color: var(--teal-dk); }
+.toc-chip.amber { background: #FFF3CD; color: #856404; }
+.toc-expand { max-height: 0; overflow: hidden; transition: max-height .35s ease; padding: 0 9px 0 32px; background: #fff; border-radius: 0 0 7px 7px; }
+.toc-row.open + .toc-expand { max-height: 280px; padding: 7px 11px 11px 32px; border-left: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); margin-top: -3px; border-top: none; }
+.toc-expand-text { font-size: 11px; color: var(--body); line-height: 1.55; }
+.toc-quote { background: var(--off); border-left: 3px solid var(--teal); padding: 7px 11px; font-style: italic; font-size: 11px; color: var(--body); margin-top: 5px; line-height: 1.5; border-radius: 0 6px 6px 0; }
+.toc-quote-cite { display: block; font-style: normal; font-size: 10px; color: var(--muted); margin-top: 4px; font-weight: 700; }
+
+.verdict-pane { background: var(--navy); padding: 14px 16px; height: 100%; overflow-y: auto; color: #fff; }
+.verdict-kicker { display: flex; align-items: center; gap: 6px; font-size: 10px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; color: var(--teal); margin-bottom: 7px; }
+.verdict-kicker::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--teal); }
+.verdict-headline { font-family: var(--head); font-size: 13px; font-weight: 900; line-height: 1.3; margin-bottom: 6px; color: #fff; }
+.verdict-body { font-size: 11px; line-height: 1.5; color: rgba(255,255,255,.75); margin-bottom: 11px; }
+.verdict-lights { display: grid; grid-template-columns: repeat(2,1fr); gap: 5px; margin-bottom: 11px; }
+.vlight { background: rgba(255,255,255,.06); border-radius: 7px; padding: 6px 8px; }
+.vlight-label { font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.6); margin-bottom: 2px; }
+.vlight-value { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; color: #fff; }
+.vlight-dot { width: 8px; height: 8px; border-radius: 50%; }
+.vlight.green .vlight-dot { background: #34C3A0; box-shadow: 0 0 0 2px rgba(52,195,160,.25); }
+.vlight.amber .vlight-dot { background: #F5A623; box-shadow: 0 0 0 2px rgba(245,166,35,.25); }
+.vsplit { background: rgba(255,255,255,.06); border-radius: 7px; padding: 7px 9px; margin-bottom: 4px; border-left: 3px solid var(--teal); }
+.vsplit.warn { border-left-color: #F5A623; }
+.vsplit-label { font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.55); margin-bottom: 3px; }
+.vsplit-text { font-size: 11px; line-height: 1.4; color: rgba(255,255,255,.92); }
+.verdict-qs-label { font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.55); margin: 12px 0 6px; }
+.verdict-q { background: rgba(255,255,255,.06); border-radius: 7px; padding: 6px 9px; margin-bottom: 4px; }
+.verdict-q-cat { font-size: 9px; font-weight: 800; color: var(--teal); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 2px; }
+.verdict-q-text { font-size: 11px; color: rgba(255,255,255,.92); line-height: 1.4; }
+
+/* ── Ask Nana chat ── */
+.chat-header { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #fff; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.nana-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--teal); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+.chat-nana-label { font-size: 12px; font-weight: 800; color: var(--teal-dk); }
+.chat-school-lbl { font-size: 11px; color: var(--muted); font-weight: 600; margin-left: auto; }
+.chat-msgs { flex: 1; overflow-y: auto; padding: 12px 12px 8px; display: flex; flex-direction: column; gap: 9px; }
+.msg { max-width: 88%; font-size: 13px; line-height: 1.55; padding: 9px 13px; border-radius: 14px; }
+.msg.user { align-self: flex-end; background: var(--navy); color: #fff; border-bottom-right-radius: 4px; }
+.msg.nana { align-self: flex-start; background: #fff; color: var(--body); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+.msg.nana strong { color: var(--teal-dk); }
+.typing-dots { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+.typing-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--bmd); animation: typing-bounce 1.4s infinite; }
+.typing-dot:nth-child(2) { animation-delay: .2s; }
+.typing-dot:nth-child(3) { animation-delay: .4s; }
+@keyframes typing-bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+.hint-pills { display: flex; gap: 5px; flex-wrap: wrap; padding: 0 12px 8px; flex-shrink: 0; }
+.hint-pill { background: var(--teal-bg); border: 1px solid rgba(52,195,160,.3); color: var(--teal-dk); font-size: 11px; font-weight: 700; padding: 5px 11px; border-radius: 100px; cursor: pointer; transition: background .15s; }
+.hint-pill:hover { background: var(--teal); color: #fff; }
+.chat-input-row { display: flex; gap: 7px; padding: 8px 12px; border-top: 1px solid var(--border); background: #fff; flex-shrink: 0; }
+.chat-field { flex: 1; background: var(--off); border: 1px solid var(--border); border-radius: 8px; padding: 8px 11px; font-size: 12px; color: var(--muted); font-family: var(--sans); }
+.chat-send { background: var(--teal); color: #fff; border: none; border-radius: 8px; padding: 8px 12px; font-size: 14px; cursor: pointer; transition: background .15s; }
+.chat-send:hover { background: var(--teal-dk); }
+
+/* ── Compare table ── */
+.cmp-wrap { padding: 12px 12px; display: flex; flex-direction: column; gap: 0; flex: 1; overflow: hidden; }
+.cmp-cell { padding: 7px 9px; font-size: 11px; background: #fff; border: 1px solid var(--border); border-bottom: none; }
+.cmp-school-hdr { background: var(--navy); color: #fff; font-family: var(--head); font-size: 11px; font-weight: 900; text-align: center; cursor: grab; user-select: none; transition: background .15s, opacity .15s; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.cmp-school-hdr:hover { background: var(--navy-lt); }
+.cmp-school-hdr.dragging { opacity: .4; cursor: grabbing; }
+.cmp-school-hdr .drag-icon { font-size: 9px; opacity: .4; }
+.cmp-row:nth-child(odd) .cmp-cell { background: var(--off); }
+.cmp-val { font-size: 11px; font-weight: 700; color: var(--navy); text-align: center; }
+.cmp-val.better { color: var(--teal-dk); font-weight: 900; }
+.cmp-val.worse  { color: var(--muted); font-weight: 400; }
+.cmp-winner { display: flex; align-items: center; gap: 8px; background: var(--teal-bg); border-top: 1px solid #c4ede3; padding: 9px 12px; font-size: 11.5px; font-weight: 700; color: var(--teal-dk); flex-shrink: 0; margin-top: auto; }
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+
+<div class="embed-wrap">
+ <div class="unified-card">
+  <!-- Pricing header -->
+  <div class="pricing-card">
+    <div class="pricing-row">
+      <div class="pricing-left">
+        <div class="pricing-eyebrow">Unlock everything for this school</div>
+        <div class="pricing-headline">Smarter choices on <em>100+ UK schools</em></div>
+        <div class="pricing-price">£39<small>/month</small></div>
+        <div class="pricing-cancel">Cancel anytime · No long-term commitment</div>
+      </div>
+      <div class="pricing-bullets">
+        <ul>
+          <li>Full 34-page deep dossier (22 sections)</li>
+          <li>Ask Nana — backed by 6 verified sources</li>
+          <li>ISI inspection quotes + SOCS data</li>
+          <li>Compare up to <strong>5 schools</strong> side-by-side</li>
+          <li>Save schools to your shortlist</li>
+          <li>Mobile + desktop access</li>
+        </ul>
+      </div>
+      <div><button class="pricing-cta-btn" onclick="onCtaClick()">Try it out →</button></div>
+    </div>
+  </div>
+
+  <!-- Carousel -->
+  <div class="carousel-card">
+    <div class="tab-bar" id="tabs">
+      <button class="tab-btn active" data-tab="0" onclick="selTab(0)">
+        <span class="tab-icon">📋</span><span class="tab-label">Reports</span>
+        <span class="tab-desc">Read everything</span><div class="tab-progress"></div>
+      </button>
+      <button class="tab-btn" data-tab="1" onclick="selTab(1)">
+        <span class="tab-icon">💬</span><span class="tab-label">Ask Nana</span>
+        <span class="tab-desc">Honest answers</span><div class="tab-progress"></div>
+      </button>
+      <button class="tab-btn" data-tab="2" onclick="selTab(2)">
+        <span class="tab-icon">⚖️</span><span class="tab-label">Compare</span>
+        <span class="tab-desc">Side by side</span><div class="tab-progress"></div>
+      </button>
+    </div>
+
+    <!-- P0: REPORTS -->
+    <div class="panel-content active" data-panel="0">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Read everything — 34 pages</div>
+          <div class="panel-hint">Click any of the 22 sections to expand · Verdict on the right</div>
+        </div>
+        <button class="pause-btn" onclick="togglePause()">⏸</button>
+      </div>
+      <div class="panel-body" style="padding:16px 20px 22px">
+        <div class="panel-mock" style="flex:1.2;display:flex;flex-direction:row;min-height:380px;background:#fff;padding:0">
+          <div class="dossier-pane" style="flex:1.22;border-right:1px solid var(--border)">
+            <div class="dossier-hdr">
+              <div class="dossier-kicker">Deep Research Dossier</div>
+              <div class="dossier-title" id="ed-school-name-1">This school</div>
+            </div>
+            <div class="dossier-stats">
+              <div class="dossier-stat"><div class="dossier-stat-val"><em>34</em></div><div class="dossier-stat-lbl">pages</div></div>
+              <div class="dossier-stat"><div class="dossier-stat-val"><em>18</em></div><div class="dossier-stat-lbl">data tables</div></div>
+              <div class="dossier-stat"><div class="dossier-stat-val"><em>12,400+</em></div><div class="dossier-stat-lbl">words</div></div>
+              <div class="dossier-stat"><div class="dossier-stat-val"><em>22</em></div><div class="dossier-stat-lbl">sources</div></div>
+            </div>
+            <div class="add-list-label">What you unlock with full access</div>
+            <div class="add-list">
+              <div class="add-row"><span class="add-icon">📊</span><div class="add-text"><strong>Subject-by-subject GCSE & A-Level results</strong><span>Full grade distributions with 3-year trend lines</span></div></div>
+              <div class="add-row"><span class="add-icon">🎓</span><div class="add-text"><strong>Oxbridge & Russell Group destination analysis</strong><span>Where leavers actually go — by subject</span></div></div>
+              <div class="add-row"><span class="add-icon">👥</span><div class="add-text"><strong>Coaching staff + alumni athletes</strong><span>Who's coaching your child, and notable alumni</span></div></div>
+              <div class="add-row"><span class="add-icon">🛡️</span><div class="add-text"><strong>Wellbeing ratios + safeguarding record</strong><span>The pastoral picture beyond the brochure</span></div></div>
+              <div class="add-row"><span class="add-icon">💷</span><div class="add-text"><strong>Hidden fees + full bursary timelines</strong><span>True total cost · deadlines · scholarship categories</span></div></div>
+              <div class="add-row"><span class="add-icon">📈</span><div class="add-text"><strong>3-year financial health trend</strong><span>Reserves, surplus, and any red flags</span></div></div>
+              <div class="add-row"><span class="add-icon">📜</span><div class="add-text"><strong>Full ISI inspection findings — with quotes</strong><span>Not just the rating, the actual report</span></div></div>
+              <div class="add-row"><span class="add-icon">⭐</span><div class="add-text"><strong>Parent-fit verdict scored across 8 dimensions</strong><span>Academic, sport, pastoral, value, fit & more →</span></div></div>
+              <div class="add-row"><span class="add-icon">❓</span><div class="add-text"><strong>5 pre-prepared tour questions with scripts</strong><span>Designed to surface what brochures hide</span></div></div>
+              <div class="add-row"><span class="add-icon">🔗</span><div class="add-text"><strong>22 verified sources cross-checked</strong><span>Methodology + every primary source listed</span></div></div>
+            </div>
+          </div>
+          <div class="verdict-pane" style="flex:1">
+            <div class="verdict-kicker">The one-minute verdict</div>
+            <div class="verdict-headline">Strong across the board — exceptional for the right family</div>
+            <div class="verdict-body">Well-resourced co-ed boarding with strong pastoral care, Tier-1 sport, and academic results that don't pressure pupils.</div>
+            <div class="verdict-lights">
+              <div class="vlight green"><div class="vlight-label">Academic</div><div class="vlight-value"><span class="vlight-dot"></span>B+ mean</div></div>
+              <div class="vlight green"><div class="vlight-label">Sport</div><div class="vlight-value"><span class="vlight-dot"></span>Tier 1</div></div>
+              <div class="vlight green"><div class="vlight-label">Pastoral</div><div class="vlight-value"><span class="vlight-dot"></span>Excellent</div></div>
+              <div class="vlight amber"><div class="vlight-label">Value</div><div class="vlight-value"><span class="vlight-dot"></span>Mid-range</div></div>
+            </div>
+            <div class="vsplit"><div class="vsplit-label">✓ Best fit for</div><div class="vsplit-text">Sporty, well-rounded pupils seeking co-ed boarding with strong pastoral support.</div></div>
+            <div class="vsplit warn"><div class="vsplit-label">— Harder fit for</div><div class="vsplit-text">Families seeking high-pressure academic environment or single-sex school.</div></div>
+            <div class="verdict-qs-label">Top 3 tour questions</div>
+            <div class="verdict-q"><div class="verdict-q-cat">Academic</div><div class="verdict-q-text">"What % of Year 13 leavers go to Russell Group universities?"</div></div>
+            <div class="verdict-q"><div class="verdict-q-cat">Pastoral</div><div class="verdict-q-text">"How does the house system handle concerns for new boarders?"</div></div>
+            <div class="verdict-q"><div class="verdict-q-cat">Sport</div><div class="verdict-q-text">"Which sports compete at U15 county level?"</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- P1: ASK NANA -->
+    <div class="panel-content" data-panel="1">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Ask Nana anything</div>
+          <div class="panel-hint">Click a suggested question · Or type your own</div>
+        </div>
+        <button class="pause-btn" onclick="togglePause()">⏸</button>
+      </div>
+      <div class="panel-body" style="padding:16px 20px 22px">
+        <div class="panel-mock" style="flex:1;display:flex;flex-direction:column;min-height:380px;background:#fff;padding:0">
+          <div class="chat-header">
+            <div class="nana-dot"></div>
+            <div class="chat-nana-label">Nana · AI School Advisor</div>
+            <div class="chat-school-lbl" id="ed-school-name-2">This school</div>
+          </div>
+          <div class="chat-msgs" id="chat-msgs">
+            <div class="msg nana">Hi! I'm Nana. I've read every source on this school — ISI report, prospectus, SOCS sports data, fees, university destinations. Ask me anything.</div>
+          </div>
+          <div class="hint-pills" id="hint-pills">
+            <div class="hint-pill" onclick="askNana(this,'Is it good for a sporty boy?')">Is it good for a sporty boy?</div>
+            <div class="hint-pill" onclick="askNana(this,'What are the boarding fees?')">What are the boarding fees?</div>
+            <div class="hint-pill" onclick="askNana(this,'Is there EAL support?')">Is there EAL support?</div>
+          </div>
+          <div class="chat-input-row">
+            <input class="chat-field" placeholder="Ask about this school…">
+            <button class="chat-send">↑</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- P2: COMPARE -->
+    <div class="panel-content" data-panel="2">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Compare side by side</div>
+          <div class="panel-hint">Drag column headers to reorder</div>
+        </div>
+        <button class="pause-btn" onclick="togglePause()">⏸</button>
+      </div>
+      <div class="panel-body" style="padding:16px 20px 22px">
+        <div class="panel-mock" style="flex:1;display:flex;flex-direction:column;min-height:380px">
+          <div class="chrome"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div><div class="url">nanasays.com/compare</div></div>
+          <div class="cmp-wrap" id="cmp-table"></div>
+          <div class="cmp-winner">✦ Nana recommends <strong>Epsom College</strong> — earlier entry + lower fees for Year 7 joiners.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+ </div><!-- /unified-card -->
+</div>
+
+<script>
+const S = { active:0, paused:false, timer:null, count:3 }
+const ADV = 6000
+
+function selTab(idx, resetTimer=true) {
+  S.active = idx
+  document.querySelectorAll('#tabs .tab-btn').forEach((t,i) => {
+    t.classList.toggle('active', i===idx)
+    t.classList.remove('paused')
+    if (i===idx) { const p=t.querySelector('.tab-progress'); p.style.animation='none'; p.offsetHeight; p.style.animation='' }
+  })
+  document.querySelectorAll('[data-panel]').forEach(p => p.classList.toggle('active', parseInt(p.dataset.panel)===idx))
+  if (resetTimer) { clearInterval(S.timer); if(!S.paused) startTimer() }
+}
+function startTimer() { S.timer = setInterval(() => { if(!S.paused) selTab((S.active+1)%S.count) }, ADV) }
+function togglePause() {
+  S.paused = !S.paused
+  document.querySelectorAll('.pause-btn').forEach(b => { b.textContent = S.paused ? '▶' : '⏸' })
+  const at = document.querySelector('#tabs .tab-btn.active')
+  if (at) at.classList.toggle('paused', S.paused)
+  S.paused ? clearInterval(S.timer) : startTimer()
+}
+
+// Toast
+function toast(msg) { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'), 2000) }
+
+// CTA — sends message to parent window
+function onCtaClick() {
+  if (window.parent && window.parent !== window) window.parent.postMessage({ type:'nana-embed-cta', action:'unlock' }, '*')
+  else toast('Demo CTA — would open checkout')
+}
+
+// TOC expand
+function toggleToc(row) {
+  const wasOpen = row.classList.contains('open')
+  document.querySelectorAll('.toc-row.open').forEach(r => r.classList.remove('open'))
+  if (!wasOpen) row.classList.add('open')
+}
+
+// Ask Nana
+const NANA_ANSWERS = {
+  'Is it good for a sporty boy?': '<strong>Yes — very strong.</strong> 12 sports, county-level fixtures in rugby & cricket. SOCS Tier 1. ISI praised the "exceptional" PE provision.',
+  'What are the boarding fees?': '<strong>£47,250/year</strong> (2024–25). Day option £29,400/yr. Bursaries available up to 100% — means-tested.',
+  'Is there EAL support?': '<strong>Yes.</strong> ~12% international intake across 28 nationalities. Dedicated EAL provision referenced in prospectus and ISI report.',
+}
+function askNana(pillEl, q) {
+  if (pillEl) pillEl.remove()
+  appendMsg('user', q)
+  const typing = appendTyping()
+  setTimeout(() => {
+    typing.remove()
+    appendMsg('nana', NANA_ANSWERS[q] || 'Based on the ISI report and school data — yes, this is one of this school\'s strengths.')
+  }, 1200)
+}
+function appendMsg(type, html) {
+  const msgs=document.getElementById('chat-msgs')
+  const d=document.createElement('div'); d.className=`msg ${type}`; d.innerHTML=html; msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight; return d
+}
+function appendTyping() {
+  const msgs=document.getElementById('chat-msgs')
+  const d=document.createElement('div'); d.className='msg nana'
+  d.innerHTML='<div class="typing-dots"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>'
+  msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight; return d
+}
+
+// Compare table (drag-reorder)
+const CMP_SCHOOLS = [
+  { name:'This school', fees:'£47k', isi:'Excellent', type:'Co-ed', entry:'11+, 13+', sports:'12' },
+  { name:'School B', fees:'£52k', isi:'Excellent', type:'Co-ed', entry:'13+ only', sports:'15' },
+  { name:'School C', fees:'£44k', isi:'Excellent', type:'Boys', entry:'11+, 13+', sports:'10' },
+]
+const CMP_ROWS = [
+  { label:'ISI Rating', key:'isi' },
+  { label:'Boarding Fees', key:'fees' },
+  { label:'Type', key:'type' },
+  { label:'Entry Age', key:'entry' },
+  { label:'Sports', key:'sports' },
+]
+let cmpOrder = [0,1,2]
+let cmpDragIdx = null
+function buildCmpTable() {
+  const wrap = document.getElementById('cmp-table'); if (!wrap) return
+  const schools = cmpOrder.map(i=>CMP_SCHOOLS[i])
+  const gridCols = `100px repeat(${schools.length},1fr)`
+  let html = `<div style="display:grid;grid-template-columns:${gridCols};gap:1px;background:var(--border);flex-shrink:0">`
+  html += `<div class="cmp-cell" style="background:var(--off2)"></div>`
+  schools.forEach((s,i) => { html += `<div class="cmp-cell cmp-school-hdr" draggable="true" data-ci="${i}" ondragstart="cmpDragStart(${i})" ondragover="event.preventDefault()" ondrop="cmpDrop(${i})" ondragend="cmpDragEnd()"><span class="drag-icon">⠿</span>${s.name}</div>` })
+  html += '</div>'
+  CMP_ROWS.forEach((row,ri) => {
+    html += `<div class="cmp-row" style="display:grid;grid-template-columns:${gridCols};gap:1px;background:var(--border)">`
+    html += `<div class="cmp-cell" style="background:${ri%2?'var(--off2)':'var(--off)'};color:var(--muted);font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.06em">${row.label}</div>`
+    schools.forEach(s => { html += `<div class="cmp-cell cmp-val" style="background:${ri%2?'var(--off)':'#fff'}">${s[row.key]}</div>` })
+    html += '</div>'
+  })
+  wrap.innerHTML = html
+}
+function cmpDragStart(i) { cmpDragIdx=i; setTimeout(()=>document.querySelectorAll('.cmp-school-hdr').forEach(h=>{ if(parseInt(h.dataset.ci)===i) h.classList.add('dragging') }),0) }
+function cmpDrop(i) { if (cmpDragIdx===null||cmpDragIdx===i) return; const tmp=cmpOrder[cmpDragIdx]; cmpOrder[cmpDragIdx]=cmpOrder[i]; cmpOrder[i]=tmp; buildCmpTable(); toast('Order updated') }
+function cmpDragEnd() { cmpDragIdx=null; buildCmpTable() }
+
+// Read schoolName from URL query
+const params = new URLSearchParams(window.location.search)
+const schoolName = params.get('school') || 'This school'
+document.getElementById('ed-school-name-1').textContent = schoolName
+document.getElementById('ed-school-name-2').textContent = schoolName
+CMP_SCHOOLS[0].name = schoolName
+
+// Boot
+buildCmpTable()
+startTimer()
+
+// Tell parent the height so iframe can resize
+function postHeight() {
+  if (window.parent !== window) {
+    const h = document.body.scrollHeight
+    window.parent.postMessage({ type:'nana-embed-height', height: h }, '*')
+  }
+}
+window.addEventListener('load', () => { setTimeout(postHeight, 100); setTimeout(postHeight, 500) })
+window.addEventListener('resize', postHeight)
+</script>
+</body>
+</html>

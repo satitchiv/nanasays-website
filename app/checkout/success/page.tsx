@@ -83,7 +83,7 @@ export default function CheckoutSuccessPage() {
               }}>
                 Go to my reports →
               </Link>
-              <a href="mailto:hello@nanasays.com" style={{
+              <a href="mailto:hello@nanasays.school" style={{
                 display: 'block', padding: '12px 24px', borderRadius: 10,
                 border: '1px solid #e2e8f0', color: navy, textDecoration: 'none',
                 fontWeight: 700, fontSize: 14,

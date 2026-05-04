@@ -77,7 +77,7 @@ export default async function RenderPage({ params, searchParams }: PageProps) {
       } else {
         const school = (post.source_data as { school_snapshot?: Record<string, unknown> } | null)?.school_snapshot
         const slotCopy = (post.source_data as { slot_copy?: Record<string, string | null> } | null)?.slot_copy
-        const pillarRow = post.social_pillars as { slug: string; name_en: string } | null
+        const pillarRow = (post.social_pillars as unknown) as { slug: string; name_en: string } | null
         data = {
           name:           school?.name as string | undefined,
           city:           school?.city as string | undefined,
@@ -91,7 +91,7 @@ export default async function RenderPage({ params, searchParams }: PageProps) {
           boarding:       school?.boarding as boolean | null | undefined,
           verified_at:    school?.verified_at as string | null | undefined,
           slot_copy: slotCopy as TemplateData['slot_copy'],
-          pillar: pillarRow ? { slug: pillarRow.slug as TemplateData['pillar']['slug'], name_en: pillarRow.name_en } : null,
+          pillar: pillarRow ? ({ slug: (pillarRow as any).slug, name_en: (pillarRow as any).name_en } as TemplateData['pillar']) : null,
         }
       }
     }
@@ -239,7 +239,7 @@ function StubTemplate({
             data.age_min != null && data.age_max != null ? ['Ages', `${data.age_min}–${data.age_max}`] : null,
             data.curriculum?.length  ? ['Curriculum',    data.curriculum.join(' · ')] : null,
             data.boarding != null    ? ['Boarding',      data.boarding ? 'Yes' : 'No'] : null,
-          ].filter(Boolean).map(([label, value], i) => (
+          ].filter(Boolean).map((row) => { const [label, value] = row as [string, string]; return (
             <div key={label} style={{
               display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
               padding: '11px 0',
@@ -248,7 +248,7 @@ function StubTemplate({
               <span style={{ fontSize: 11, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: 1 }}>{label}</span>
               <span style={{ fontSize: 14, fontWeight: 600, color: navy, textAlign: 'right', maxWidth: '60%', fontVariantNumeric: 'tabular-nums' }}>{value}</span>
             </div>
-          ))}
+          ); })}
 
           {/* Accreditations */}
           {data.accreditations?.length ? (
@@ -293,7 +293,7 @@ function StubTemplate({
             </div>
           )}
           <div style={{ fontSize: 11, color: muted, fontWeight: 500, marginLeft: 'auto' }}>
-            {tokens['text.footer_url'] || 'nanasays.com'}
+            {tokens['text.footer_url'] || 'nanasays.school'}
           </div>
         </div>
 

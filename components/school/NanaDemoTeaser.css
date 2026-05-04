@@ -1,0 +1,150 @@
+/* NanaDemoTeaser.css — Nana demo pill section on the free school page */
+
+.ndt-wrap {
+  background: #fff;
+  border: 1.5px solid #DDD4C0;
+  border-radius: 14px;
+  padding: 24px;
+  margin: 28px 0;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+
+.ndt-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.ndt-pulse {
+  width: 8px;
+  height: 8px;
+  background: #34C3A0;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(52,195,160,0.2);
+  animation: ndt-pulse 2.4s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes ndt-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(52,195,160,0.2); }
+  50%       { box-shadow: 0 0 0 6px rgba(52,195,160,0.05); }
+}
+
+.ndt-label {
+  font-family: 'Lora', Georgia, serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #1B3252;
+}
+
+.ndt-badge {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #34C3A0;
+  border: 1.5px solid rgba(52,195,160,0.35);
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-left: auto;
+}
+
+/* ── Intro text ─────────────────────────────────────────────────────────────── */
+
+.ndt-intro {
+  font-size: 14px;
+  color: #7a7060;
+  line-height: 1.55;
+  margin: 0 0 18px;
+}
+
+/* ── Pills ───────────────────────────────────────────────────────────────────── */
+
+.ndt-pills {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.ndt-pill {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: #fdfcf7;
+  border: 1.5px solid #EDE9DF;
+  border-radius: 10px;
+  text-decoration: none;
+  transition: all 0.15s;
+  cursor: pointer;
+}
+.ndt-pill:hover {
+  border-color: #34C3A0;
+  background: #f0fdf9;
+  transform: translateX(2px);
+}
+
+.ndt-pill-emoji {
+  font-size: 18px;
+  flex-shrink: 0;
+  width: 24px;
+  text-align: center;
+}
+
+.ndt-pill-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1B3252;
+  flex: 1;
+}
+
+.ndt-pill-arrow {
+  font-size: 14px;
+  color: #34C3A0;
+  font-weight: 700;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.ndt-pill:hover .ndt-pill-arrow { opacity: 1; }
+
+/* ── Footer ──────────────────────────────────────────────────────────────────── */
+
+.ndt-footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #EDE9DF;
+  flex-wrap: wrap;
+}
+
+.ndt-unlock {
+  font-size: 13px;
+  font-weight: 800;
+  color: #fff;
+  background: #1B3252;
+  padding: 10px 18px;
+  border-radius: 8px;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.ndt-unlock:hover { background: #2c4f7a; }
+
+.ndt-footer-note {
+  font-size: 12px;
+  color: #a0988a;
+}
+
+/* ── Mobile ──────────────────────────────────────────────────────────────────── */
+
+@media (max-width: 640px) {
+  .ndt-wrap { padding: 18px; }
+  .ndt-badge { display: none; }
+  .ndt-footer { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .ndt-unlock { width: 100%; text-align: center; }
+}

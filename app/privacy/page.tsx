@@ -17,7 +17,7 @@ export default function PrivacyPage() {
       <div className="legal-page">
         <div className="legal-hero">
           <h1>Privacy Policy</h1>
-          <p className="legal-hero-meta">Last updated: April 2026 · Applies to nanasays.com</p>
+          <p className="legal-hero-meta">Last updated: April 2026 · Applies to nanasays.school</p>
         </div>
         <div className="legal-body">
 
@@ -26,7 +26,7 @@ export default function PrivacyPage() {
           </div>
 
           <h2>1. Who we are</h2>
-          <p>Nanasays (&quot;we&quot;, &quot;us&quot;, &quot;our&quot;) operates nanasays.com, a UK independent schools research platform. For GDPR purposes we are the data controller. Contact: <a href="mailto:privacy@nanasays.com">privacy@nanasays.com</a>.</p>
+          <p>Nanasays (&quot;we&quot;, &quot;us&quot;, &quot;our&quot;) operates nanasays.school, a UK independent schools research platform. For GDPR purposes we are the data controller. Contact: <a href="mailto:privacy@nanasays.school">privacy@nanasays.school</a>.</p>
 
           <h2>2. What data we collect</h2>
           <ul>
@@ -64,7 +64,7 @@ export default function PrivacyPage() {
 
           <h2>6. Your rights</h2>
           <p>Under UK GDPR you have the right to: access the data we hold about you, correct inaccurate data, request deletion (&quot;right to be forgotten&quot;), object to processing, and request a portable copy of your data.</p>
-          <p>To exercise any of these rights, email <a href="mailto:privacy@nanasays.com">privacy@nanasays.com</a>. We will respond within 30 days. You also have the right to lodge a complaint with the ICO at <a href="https://ico.org.uk" target="_blank" rel="noopener noreferrer">ico.org.uk</a>.</p>
+          <p>To exercise any of these rights, email <a href="mailto:privacy@nanasays.school">privacy@nanasays.school</a>. We will respond within 30 days. You also have the right to lodge a complaint with the ICO at <a href="https://ico.org.uk" target="_blank" rel="noopener noreferrer">ico.org.uk</a>.</p>
 
           <h2>7. Cookies</h2>
           <ul>
@@ -80,7 +80,7 @@ export default function PrivacyPage() {
           <p>We may update this policy as the service evolves. Material changes will be notified by email to registered users. The &quot;Last updated&quot; date at the top of this page always reflects the current version.</p>
 
           <h2>10. Contact</h2>
-          <p>Questions about this policy: <a href="mailto:privacy@nanasays.com">privacy@nanasays.com</a>. Postal address available on request.</p>
+          <p>Questions about this policy: <a href="mailto:privacy@nanasays.school">privacy@nanasays.school</a>. Postal address available on request.</p>
 
           <p style={{ marginTop: 40, fontSize: 13, color: 'var(--muted)' }}>
             See also: <Link href="/terms">Terms of Service</Link>

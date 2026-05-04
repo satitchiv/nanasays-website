@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Country Section — Mock 3: Map + Search-first</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;800;900&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy: #0b1f3a; --teal: #1bb5a1; --teal-dk: #149e8c;
+    --muted: #64748b; --border: #e2e8f0; --off: #f7f8fa;
+  }
+  body { font-family: 'Nunito Sans', sans-serif; background: #f0f4f8; }
+
+  .section {
+    background: linear-gradient(180deg, #0b1f3a 0%, #112952 100%);
+    padding: 72px 5% 80px;
+  }
+  .inner { max-width: 1240px; margin: 0 auto; }
+
+  .eyebrow { font-size: 11px; font-weight: 800; color: var(--teal); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 10px; }
+  h2 { font-family: 'Nunito', sans-serif; font-size: clamp(24px, 3vw, 38px); font-weight: 900; color: #fff; letter-spacing: -0.5px; line-height: 1.12; margin-bottom: 6px; }
+  h2 span { color: var(--teal); }
+  .subtitle { font-size: 14px; color: rgba(255,255,255,.45); font-weight: 300; margin-bottom: 36px; }
+
+  /* ── SEARCH BAR ── */
+  .search-wrap { position: relative; max-width: 480px; margin-bottom: 36px; }
+  .search-input {
+    width: 100%; padding: 14px 20px 14px 48px;
+    border-radius: 12px; border: 1.5px solid rgba(255,255,255,.12);
+    background: rgba(255,255,255,.08);
+    color: #fff; font-family: 'Nunito Sans', sans-serif; font-size: 15px; font-weight: 400;
+    outline: none; transition: border-color .15s, background .15s;
+  }
+  .search-input::placeholder { color: rgba(255,255,255,.3); }
+  .search-input:focus { border-color: var(--teal); background: rgba(255,255,255,.12); }
+  .search-icon { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); opacity: .4; }
+
+  /* ── QUICK PICKS: horizontal scroll strip ── */
+  .quick-label { font-size: 10px; font-weight: 800; color: rgba(255,255,255,.35); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 12px; }
+  .quick-strip {
+    display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px;
+    margin-bottom: 44px;
+    scrollbar-width: none;
+  }
+  .quick-strip::-webkit-scrollbar { display: none; }
+  .quick-chip {
+    flex-shrink: 0; display: flex; align-items: center; gap: 9px;
+    padding: 10px 18px; border-radius: 100px;
+    border: 1.5px solid rgba(255,255,255,.12);
+    background: rgba(255,255,255,.06);
+    text-decoration: none; transition: all .15s; cursor: pointer;
+  }
+  .quick-chip:hover { background: var(--teal); border-color: var(--teal); }
+  .quick-chip img { border-radius: 2px; }
+  .quick-chip .cname { font-size: 13px; font-weight: 700; color: #fff; }
+  .quick-chip .ccount { font-size: 11px; color: rgba(255,255,255,.4); }
+  .quick-chip:hover .ccount { color: rgba(255,255,255,.7); }
+
+  /* ── MAIN GRID: 2-column layout ── */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+  /* Left: region list */
+  .region-list { display: flex; flex-direction: column; gap: 6px; }
+  .region-group { border-radius: 14px; overflow: hidden; border: 1px solid rgba(255,255,255,.07); }
+  .region-header {
+    padding: 12px 18px; background: rgba(255,255,255,.05);
+    font-size: 11px; font-weight: 800; color: rgba(255,255,255,.5);
+    text-transform: uppercase; letter-spacing: 1px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .region-countries { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 14px; background: rgba(255,255,255,.025); }
+  .rc {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 12px; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,.08);
+    background: rgba(255,255,255,.04);
+    text-decoration: none; transition: all .13s;
+  }
+  .rc:hover { background: rgba(27,181,161,.2); border-color: var(--teal); }
+  .rc img { border-radius: 1px; }
+  .rc .rcn { font-size: 12px; font-weight: 600; color: rgba(255,255,255,.85); }
+  .rc .rcc { font-size: 10px; color: rgba(255,255,255,.35); margin-left: 2px; }
+
+  /* Right: big feature card + stats */
+  .right-col { display: flex; flex-direction: column; gap: 14px; }
+  .feature-card {
+    flex: 1; border-radius: 16px; padding: 32px;
+    background: linear-gradient(135deg, rgba(27,181,161,.18) 0%, rgba(27,181,161,.05) 100%);
+    border: 1px solid rgba(27,181,161,.25);
+    text-decoration: none;
+    display: flex; flex-direction: column; justify-content: space-between;
+    min-height: 240px; transition: border-color .15s;
+  }
+  .feature-card:hover { border-color: var(--teal); }
+  .feature-flag { font-size: 72px; margin-bottom: 16px; display: block; }
+  .feature-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(27,181,161,.2); border: 1px solid rgba(27,181,161,.3);
+    color: var(--teal); font-size: 10px; font-weight: 800;
+    padding: 3px 10px; border-radius: 100px; margin-bottom: 10px; width: fit-content;
+  }
+  .feature-name { font-family: 'Nunito', sans-serif; font-size: 26px; font-weight: 900; color: #fff; margin-bottom: 6px; }
+  .feature-count { font-size: 13px; color: rgba(255,255,255,.4); }
+  .feature-cta {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: var(--teal); color: #fff;
+    font-size: 13px; font-weight: 700; padding: 10px 20px;
+    border-radius: 100px; margin-top: 20px; width: fit-content;
+    transition: opacity .15s;
+  }
+  .feature-cta:hover { opacity: .9; }
+
+  /* Stats row */
+  .stats-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-card {
+    border-radius: 12px; padding: 18px;
+    background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.07);
+    text-decoration: none; transition: background .15s;
+  }
+  .stat-card:hover { background: rgba(255,255,255,.09); }
+  .stat-flag { font-size: 28px; margin-bottom: 8px; display: block; }
+  .stat-name { font-size: 13px; font-weight: 700; color: rgba(255,255,255,.8); margin-bottom: 3px; }
+  .stat-count { font-size: 20px; font-family: 'Nunito', sans-serif; font-weight: 900; color: var(--teal); }
+  .stat-label { font-size: 10px; color: rgba(255,255,255,.35); }
+
+  /* ── ALL COUNTRIES GRID (compact, below) ── */
+  .all-section { margin-top: 44px; padding-top: 36px; border-top: 1px solid rgba(255,255,255,.08); }
+  .all-label { font-size: 11px; font-weight: 800; color: rgba(255,255,255,.35); text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 16px; }
+  .all-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 7px;
+  }
+  .ag {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px; border-radius: 8px;
+    border: 1px solid rgba(255,255,255,.06);
+    background: rgba(255,255,255,.03);
+    text-decoration: none; transition: all .13s;
+  }
+  .ag:hover { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.15); }
+  .ag img { border-radius: 2px; flex-shrink: 0; }
+  .ag-name { font-size: 12px; font-weight: 600; color: rgba(255,255,255,.75); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .ag-count { font-size: 10px; color: rgba(255,255,255,.3); }
+</style>
+</head>
+<body>
+
+<div class="section">
+  <div class="inner">
+    <div class="eyebrow">Browse by Country</div>
+    <h2>166 countries, <span>one search.</span></h2>
+    <p class="subtitle">Search any country or explore by region below.</p>
+
+    <!-- Search -->
+    <div class="search-wrap">
+      <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="white" stroke-width="2"/><path d="m16.5 16.5 4 4" stroke="white" stroke-width="2" stroke-linecap="round"/></svg>
+      <input class="search-input" type="text" placeholder="Search countries, e.g. Switzerland…">
+    </div>
+
+    <!-- Quick picks strip -->
+    <div class="quick-label">Popular destinations</div>
+    <div class="quick-strip">
+      <a class="quick-chip" href="#"><img src="https://flagcdn.com/24x18/th.png" width="24" height="18" alt="Thailand"><span class="cname">Thailand</span><span class="ccount">286</span></a>
+      <a class="quick-chip" href="#"><img src="https://flagcdn.com/24x18/gb.png" width="24" height="18" alt="UK"><span class="cname">United Kingdom</span><span class="ccount">2,078</span></a>
+      <a class="quick-chip" href="#"><img src="https://flagcdn.com/24x18/sg.png" width="24" height="18" alt="Singapore"><span class="cname">Singapore</span><span class="ccount">209</span></a>
+      <a class="quick-chip" href="#"><img src="https://flagcdn.com/24x18/ch.png" width="24" height="18" alt="Switzerland"><span class="cname">Switzerland</span><span class="ccount">202</span></a>
+      <a class="quick-chip" href="#"><img src="https://flagcdn.com/24x18/au.png" width="24" height="18" alt="Australia"><span class="cname">Australia</span><span class="ccount">96</span></a>
+      <a class="quick-chip" href="#"><img src="https://flagcdn.com/24x18/ae.png" width="24" height="18" alt="UAE"><span class="cname">UAE</span><span class="ccount">52</span></a>
+      <a class="quick-chip" href="#"><img src="https://flagcdn.com/24x18/jp.png" width="24" height="18" alt="Japan"><span class="cname">Japan</span><span class="ccount">44</span></a>
+      <a class="quick-chip" href="#"><img src="https://flagcdn.com/24x18/my.png" width="24" height="18" alt="Malaysia"><span class="cname">Malaysia</span><span class="ccount">174</span></a>
+      <a class="quick-chip" href="#"><img src="https://flagcdn.com/24x18/ca.png" width="24" height="18" alt="Canada"><span class="cname">Canada</span><span class="ccount">88</span></a>
+    </div>
+
+    <!-- 2-col: regions + feature -->
+    <div class="two-col">
+      <!-- Left: region grouped -->
+      <div class="region-list">
+
+        <div class="region-group">
+          <div class="region-header">🌏 Southeast Asia <span>8 countries</span></div>
+          <div class="region-countries">
+            <a class="rc" href="#"><img src="https://flagcdn.com/24x18/th.png" width="20" height="15" alt=""><span class="rcn">Thailand</span><span class="rcc">286</span></a>
+            <a class="rc" href="#"><img src="https://flagcdn.com/24x18/sg.png" width="20" height="15" alt=""><span class="rcn">Singapore</span><span class="rcc">209</span></a>
+            <a class="rc" href="#"><img src="https://flagcdn.com/24x18/id.png" width="20" height="15" alt=""><span class="rcn">Indonesia</span><span class="rcc">143</span></a>
+            <a class="rc" href="#"><img src="https://flagcdn.com/24x18/my.png" width="20" height="15" alt=""><span class="rcn">Malaysia</span><span class="rcc">174</span></a>
+            <a class="rc" href="#"><img src="https://flagcdn.com/24x18/vn.png" width="20" height="15" alt=""><span class="rcn">Vietnam</span><span class="rcc">82</span></a>
+            <a class="rc" href="#"><img src="https://flagcdn.com/24x18/ph.png" width="20" height="15" alt=""><span class="rcn">Philippines</span><span class="rcc">37</span></a>
+            <a class="rc" href="#"><img src="https://flagcdn.com/24x18/kh.png" width="20" height="15" alt=""><span class="rcn">Cambodia</span><span class="rcc">19</span></a>
+            <a class="rc" href="#"><img src="https://flagcdn.com/24x18/mm.png" width="20" height="15" alt=""><span class="rcn">Myanmar</span><span class="rcc">18</span></a>
+          </div>
+        </div>
+
+        <div class="region-group">
+          <div class="region-header">🌍 Europe <span>40+ countries</span></div>
+          <div class="region-countries">
+            <a class="rc" href="#"><img src="https://flagcdn.com/24x18/gb.png" width="20" height="15" alt=""><span class="rcn">United Kingdom</span><span class="rcc">2,078</span></a>
+            <a class="rc" href="#"><img src="https://flagcdn.com/24x18/es.png" width="20" height="15" alt=""><span class="rcn">Spain</span><span class="rcc">424</span></a>
+            <a class="rc" href="#"><img src="https://flagcdn.com/24x18/ch.png" width="20" height="15" alt=""><span class="rcn">Switzerland</span><span class="rcc">202</span></a>
+            <a class="rc" href="#"><img src="https://flagcdn.com/24x18/de.png" width="20" height="15" alt=""><span class="rcn">Germany</span><span class="rcc">155</span></a>
+            <a class="rc" href="#"><img src="https://flagcdn.com/24x18/fr.png" width="20" height="15" alt=""><span class="rcn">France</span><span class="rcc">110</span></a>
+            <a class="rc" href="#"><img src="https://flagcdn.com/24x18/it.png" width="20" height="15" alt=""><span class="rcn">Italy</span><span class="rcc">68</span></a>
+            <a class="rc" href="#"><img src="https://flagcdn.com/24x18/tr.png" width="20" height="15" alt=""><span class="rcn">Turkey</span><span class="rcc">128</span></a>
+            <a class="rc" href="#"><img src="https://flagcdn.com/24x18/nl.png" width="20" height="15" alt=""><span class="rcn">Netherlands</span><span class="rcc">74</span></a>
+          </div>
+        </div>
+
+        <div class="region-group">
+          <div class="region-header">🌍 Middle East &amp; South Asia <span>12 countries</span></div>
+          <div class="region-countries">
+            <a class="rc" href="#"><img src="https://flagcdn.com/24x18/ae.png" width="20" height="15" alt=""><span class="rcn">UAE</span><span class="rcc">52</span></a>
+            <a class="rc" href="#"><img src="https://flagcdn.com/24x18/qa.png" width="20" height="15" alt=""><span class="rcn">Qatar</span><span class="rcc">31</span></a>
+            <a class="rc" href="#"><img src="https://flagcdn.com/24x18/in.png" width="20" height="15" alt=""><span class="rcn">India</span><span class="rcc">38</span></a>
+            <a class="rc" href="#"><img src="https://flagcdn.com/24x18/sa.png" width="20" height="15" alt=""><span class="rcn">Saudi Arabia</span><span class="rcc">24</span></a>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right: feature + stats -->
+      <div class="right-col">
+
+        <a class="feature-card" href="#">
+          <div>
+            <span class="feature-flag">🇹🇭</span>
+            <div class="feature-badge">🔥 Most searched by Thai families</div>
+            <div class="feature-name">Thailand</div>
+            <div class="feature-count">286 international schools</div>
+          </div>
+          <div class="feature-cta">Browse Thai schools →</div>
+        </a>
+
+        <div class="stats-row">
+          <a class="stat-card" href="#">
+            <span class="stat-flag">🇬🇧</span>
+            <div class="stat-name">United Kingdom</div>
+            <div class="stat-count">2,078</div>
+            <div class="stat-label">schools · deep reports</div>
+          </a>
+          <a class="stat-card" href="#">
+            <span class="stat-flag">🇸🇬</span>
+            <div class="stat-name">Singapore</div>
+            <div class="stat-count">209</div>
+            <div class="stat-label">schools · Asia hub</div>
+          </a>
+          <a class="stat-card" href="#">
+            <span class="stat-flag">🇦🇺</span>
+            <div class="stat-name">Australia</div>
+            <div class="stat-count">96</div>
+            <div class="stat-label">schools · popular</div>
+          </a>
+          <a class="stat-card" href="#">
+            <span class="stat-flag">🇨🇭</span>
+            <div class="stat-name">Switzerland</div>
+            <div class="stat-count">202</div>
+            <div class="stat-label">schools · boarding</div>
+          </a>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- All countries compact grid -->
+    <div class="all-section">
+      <div class="all-label">All countries A–Z</div>
+      <div class="all-grid">
+        <a class="ag" href="#"><img src="https://flagcdn.com/24x18/ca.png" width="20" height="15" alt="Canada"><div><div class="ag-name">Canada</div><div class="ag-count">88 schools</div></div></a>
+        <a class="ag" href="#"><img src="https://flagcdn.com/24x18/cn.png" width="20" height="15" alt="China"><div><div class="ag-name">China</div><div class="ag-count">61 schools</div></div></a>
+        <a class="ag" href="#"><img src="https://flagcdn.com/24x18/cz.png" width="20" height="15" alt="Czech Republic"><div><div class="ag-name">Czech Republic</div><div class="ag-count">32 schools</div></div></a>
+        <a class="ag" href="#"><img src="https://flagcdn.com/24x18/gr.png" width="20" height="15" alt="Greece"><div><div class="ag-name">Greece</div><div class="ag-count">29 schools</div></div></a>
+        <a class="ag" href="#"><img src="https://flagcdn.com/24x18/hu.png" width="20" height="15" alt="Hungary"><div><div class="ag-name">Hungary</div><div class="ag-count">21 schools</div></div></a>
+        <a class="ag" href="#"><img src="https://flagcdn.com/24x18/ie.png" width="20" height="15" alt="Ireland"><div><div class="ag-name">Ireland</div><div class="ag-count">18 schools</div></div></a>
+        <a class="ag" href="#"><img src="https://flagcdn.com/24x18/jp.png" width="20" height="15" alt="Japan"><div><div class="ag-name">Japan</div><div class="ag-count">44 schools</div></div></a>
+        <a class="ag" href="#"><img src="https://flagcdn.com/24x18/lt.png" width="20" height="15" alt="Lithuania"><div><div class="ag-name">Lithuania</div><div class="ag-count">13 schools</div></div></a>
+        <a class="ag" href="#"><img src="https://flagcdn.com/24x18/lu.png" width="20" height="15" alt="Luxembourg"><div><div class="ag-name">Luxembourg</div><div class="ag-count">9 schools</div></div></a>
+        <a class="ag" href="#"><img src="https://flagcdn.com/24x18/nz.png" width="20" height="15" alt="New Zealand"><div><div class="ag-name">New Zealand</div><div class="ag-count">29 schools</div></div></a>
+        <a class="ag" href="#"><img src="https://flagcdn.com/24x18/no.png" width="20" height="15" alt="Norway"><div><div class="ag-name">Norway</div><div class="ag-count">53 schools</div></div></a>
+        <a class="ag" href="#"><img src="https://flagcdn.com/24x18/pl.png" width="20" height="15" alt="Poland"><div><div class="ag-name">Poland</div><div class="ag-count">114 schools</div></div></a>
+        <a class="ag" href="#"><img src="https://flagcdn.com/24x18/pt.png" width="20" height="15" alt="Portugal"><div><div class="ag-name">Portugal</div><div class="ag-count">24 schools</div></div></a>
+        <a class="ag" href="#"><img src="https://flagcdn.com/24x18/ro.png" width="20" height="15" alt="Romania"><div><div class="ag-name">Romania</div><div class="ag-count">34 schools</div></div></a>
+        <a class="ag" href="#"><img src="https://flagcdn.com/24x18/se.png" width="20" height="15" alt="Sweden"><div><div class="ag-name">Sweden</div><div class="ag-count">67 schools</div></div></a>
+        <a class="ag" href="#"><img src="https://flagcdn.com/24x18/ua.png" width="20" height="15" alt="Ukraine"><div><div class="ag-name">Ukraine</div><div class="ag-count">5 schools</div></div></a>
+        <a class="ag" href="#"><img src="https://flagcdn.com/24x18/us.png" width="20" height="15" alt="USA"><div><div class="ag-name">United States</div><div class="ag-count">71 schools</div></div></a>
+        <a class="ag" href="#"><div style="font-size:12px;color:rgba(255,255,255,.4);font-weight:600;">+ 149 more →</div></a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

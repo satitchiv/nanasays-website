@@ -41,7 +41,7 @@ const websiteSchema = {
 }
 
 const MapSection = dynamicImport(() => import('@/components/MapSection'), { ssr: false })
-const HeroSearch = dynamicImport(() => import('@/components/HeroSearch'), { ssr: false })
+const HeroSearch = dynamicImport(() => import('@/components/HeroSearch'))
 
 const TOP_DESTINATIONS = [
   { name: 'United Kingdom', slug: 'united-kingdom', flagCode: 'gb' },

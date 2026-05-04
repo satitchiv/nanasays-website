@@ -39,6 +39,10 @@ export default async function SharedAnswerPage({ params }: { params: Promise<{ t
   const s = parsed.sections ?? {}
   const sources: any[] = parsed.sources_used ?? []
   const schoolSlug: string = data.school_slug
+  // Phase A — dual-render. Prose answers (intent router path) carry
+  // { format: 'prose_v1', prose, citations } instead of { sections }.
+  const isProse: boolean = parsed?.format === 'prose_v1' && typeof parsed?.prose === 'string'
+  const proseCitations: string[] = Array.isArray(parsed?.citations) ? parsed.citations : []
 
   return (
     <div className="shared-answer-shell">
@@ -53,6 +57,25 @@ export default async function SharedAnswerPage({ params }: { params: Promise<{ t
         <div className="shared-answer-question">{data.question}</div>
 
         <article className="shared-answer-article">
+          {isProse ? (
+            <>
+              <section>
+                <p className="shared-prose" style={{ whiteSpace: 'pre-wrap' }}>{parsed.prose}</p>
+              </section>
+              {proseCitations.length > 0 && (
+                <section className="shared-sources">
+                  <div className="shared-eyebrow">Sources</div>
+                  <div className="shared-pills">
+                    {proseCitations.slice(0, 8).map((url, i) => {
+                      let label = 'source'
+                      try { label = new URL(url).hostname.replace(/^www\./, '') } catch {}
+                      return <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="shared-pill">{label}</a>
+                    })}
+                  </div>
+                </section>
+              )}
+            </>
+          ) : (<>
           {s.short_answer && (
             <section>
               <div className="shared-eyebrow">Short Answer</div>
@@ -100,6 +123,7 @@ export default async function SharedAnswerPage({ params }: { params: Promise<{ t
               </div>
             </section>
           )}
+          </>)}
         </article>
 
         <div className="shared-answer-cta">

@@ -99,7 +99,7 @@ function summariseCups(cups: CupResult[]) {
     if (w.year != null) byTourney.get(w.tournament)!.push(w.year)
   }
   const summaries: Array<{ tournament: string; count: number; years: (string | number)[] }> = []
-  for (const [tournament, years] of byTourney.entries()) {
+  for (const [tournament, years] of Array.from(byTourney.entries())) {
     if (years.length >= 2) summaries.push({ tournament, count: years.length, years: years.sort((a, b) => Number(b) - Number(a)) })
   }
   return summaries

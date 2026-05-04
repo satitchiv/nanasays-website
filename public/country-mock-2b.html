@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Country Mock 2B — White bg, Horizontal Region Rows</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --navy: #1B3252; --navy-lt: #243F66;
+  --teal: #34C3A0; --teal-dk: #239C80; --teal-bg: #E8FAF6;
+  --blue: #2D7DD2; --blue-bg: #EBF4FF;
+  --body: #374151; --muted: #6B7280;
+  --border: #E5E7EB; --bmd: #D1D5DB;
+  --off: #F6F8FA; --off2: #EEF1F5;
+  --shadow: rgba(27,50,82,.08); --shadow-lg: rgba(27,50,82,.16);
+}
+body { font-family: 'Nunito Sans', sans-serif; background: #e8edf2; color: var(--body); -webkit-font-smoothing: antialiased; }
+
+.section { background: #fff; border-top: 1px solid var(--border); padding: 72px 5%; }
+.inner { max-width: 1240px; margin: 0 auto; }
+
+.header-row { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 44px; flex-wrap: wrap; gap: 12px; }
+.eyebrow { font-size: 11px; font-weight: 800; color: var(--teal-dk); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 8px; }
+h2 { font-family: 'Nunito', sans-serif; font-size: clamp(24px, 3vw, 36px); font-weight: 900; color: var(--navy); letter-spacing: -.5px; line-height: 1.12; }
+h2 em { color: var(--teal-dk); font-style: normal; }
+.sub { font-size: 14px; color: var(--muted); font-weight: 300; margin-top: 6px; }
+
+/* ── Each region is a labelled horizontal strip ── */
+.region-block { margin-bottom: 36px; }
+.region-block:last-child { margin-bottom: 0; }
+.region-label {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px;
+}
+.region-name { font-family: 'Nunito', sans-serif; font-size: 13px; font-weight: 800; color: var(--navy); }
+.region-count { font-size: 11px; color: var(--muted); font-weight: 400; }
+.region-line { flex: 1; height: 1px; background: var(--border); }
+
+/* Horizontal scroll row of cards */
+.strip {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(178px, 1fr));
+  gap: 10px;
+}
+
+/* Individual country card — landscape, flag left */
+.card {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 16px; border-radius: 12px;
+  border: 1.5px solid var(--border); background: var(--off);
+  text-decoration: none;
+  transition: border-color .16s, box-shadow .16s, background .16s;
+  position: relative; overflow: hidden;
+}
+.card::after {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; background: var(--teal); transform: scaleY(0);
+  transform-origin: bottom; transition: transform .18s;
+}
+.card:hover { border-color: var(--teal); background: #fff; box-shadow: 0 4px 18px var(--shadow); }
+.card:hover::after { transform: scaleY(1); }
+
+.flag-wrap { flex-shrink: 0; width: 36px; height: 27px; border-radius: 3px; overflow: hidden; box-shadow: 0 1px 5px rgba(0,0,0,.14); }
+.flag-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.info { min-width: 0; }
+.cname { font-size: 13px; font-weight: 700; color: var(--navy); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ccount { font-size: 11px; color: var(--muted); font-weight: 300; }
+
+/* featured card variant */
+.card.feat { background: var(--navy); border-color: var(--navy); }
+.card.feat .cname { color: #fff; }
+.card.feat .ccount { color: rgba(255,255,255,.45); }
+.card.feat::after { background: var(--teal); }
+.card.feat:hover { box-shadow: 0 6px 22px rgba(27,50,82,.22); }
+
+/* badge */
+.fbadge {
+  position: absolute; top: 7px; right: 8px;
+  font-size: 8px; font-weight: 800; text-transform: uppercase; letter-spacing: .3px;
+  padding: 2px 7px; border-radius: 100px;
+  background: rgba(52,195,160,.2); color: var(--teal); border: 1px solid rgba(52,195,160,.3);
+}
+
+/* ── View all strip ── */
+.view-all-row { margin-top: 36px; padding-top: 28px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+.va-text { font-size: 14px; color: var(--muted); font-weight: 300; }
+.va-text strong { color: var(--navy); font-weight: 700; }
+.va-btn { font-size: 13px; font-weight: 700; color: #fff; background: var(--navy); padding: 10px 22px; border-radius: 10px; text-decoration: none; transition: background .15s; }
+.va-btn:hover { background: var(--navy-lt); }
+</style>
+</head>
+<body>
+<div class="section">
+<div class="inner">
+
+  <div class="header-row">
+    <div>
+      <div class="eyebrow">Browse by Country</div>
+      <h2>166 countries, <em>one search.</em></h2>
+      <p class="sub">Filter by region or click any country to explore schools.</p>
+    </div>
+  </div>
+
+  <!-- Southeast Asia -->
+  <div class="region-block">
+    <div class="region-label">
+      <span class="region-name">🌏 Southeast Asia</span>
+      <span class="region-count">8 countries</span>
+      <div class="region-line"></div>
+    </div>
+    <div class="strip">
+      <a class="card feat" href="#">
+        <div class="fbadge">🔥 Top pick</div>
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/th.png" alt="Thailand"></div>
+        <div class="info"><div class="cname">Thailand</div><div class="ccount">286 schools</div></div>
+      </a>
+      <a class="card feat" href="#">
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/sg.png" alt="Singapore"></div>
+        <div class="info"><div class="cname">Singapore</div><div class="ccount">209 schools</div></div>
+      </a>
+      <a class="card" href="#">
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/my.png" alt="Malaysia"></div>
+        <div class="info"><div class="cname">Malaysia</div><div class="ccount">174 schools</div></div>
+      </a>
+      <a class="card" href="#">
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/id.png" alt="Indonesia"></div>
+        <div class="info"><div class="cname">Indonesia</div><div class="ccount">143 schools</div></div>
+      </a>
+      <a class="card" href="#">
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/vn.png" alt="Vietnam"></div>
+        <div class="info"><div class="cname">Vietnam</div><div class="ccount">82 schools</div></div>
+      </a>
+      <a class="card" href="#">
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/ph.png" alt="Philippines"></div>
+        <div class="info"><div class="cname">Philippines</div><div class="ccount">37 schools</div></div>
+      </a>
+      <a class="card" href="#">
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/kh.png" alt="Cambodia"></div>
+        <div class="info"><div class="cname">Cambodia</div><div class="ccount">19 schools</div></div>
+      </a>
+      <a class="card" href="#">
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/mm.png" alt="Myanmar"></div>
+        <div class="info"><div class="cname">Myanmar</div><div class="ccount">18 schools</div></div>
+      </a>
+    </div>
+  </div>
+
+  <!-- Europe -->
+  <div class="region-block">
+    <div class="region-label">
+      <span class="region-name">🌍 Europe</span>
+      <span class="region-count">40+ countries</span>
+      <div class="region-line"></div>
+    </div>
+    <div class="strip">
+      <a class="card feat" href="#">
+        <div class="fbadge">⭐ Deep reports</div>
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/gb.png" alt="UK"></div>
+        <div class="info"><div class="cname">United Kingdom</div><div class="ccount">2,078 schools</div></div>
+      </a>
+      <a class="card" href="#">
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/es.png" alt="Spain"></div>
+        <div class="info"><div class="cname">Spain</div><div class="ccount">424 schools</div></div>
+      </a>
+      <a class="card" href="#">
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/ch.png" alt="Switzerland"></div>
+        <div class="info"><div class="cname">Switzerland</div><div class="ccount">202 schools</div></div>
+      </a>
+      <a class="card" href="#">
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/de.png" alt="Germany"></div>
+        <div class="info"><div class="cname">Germany</div><div class="ccount">155 schools</div></div>
+      </a>
+      <a class="card" href="#">
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/tr.png" alt="Turkey"></div>
+        <div class="info"><div class="cname">Turkey</div><div class="ccount">128 schools</div></div>
+      </a>
+      <a class="card" href="#">
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/fr.png" alt="France"></div>
+        <div class="info"><div class="cname">France</div><div class="ccount">110 schools</div></div>
+      </a>
+      <a class="card" href="#">
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/it.png" alt="Italy"></div>
+        <div class="info"><div class="cname">Italy</div><div class="ccount">68 schools</div></div>
+      </a>
+      <a class="card" href="#">
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/nl.png" alt="Netherlands"></div>
+        <div class="info"><div class="cname">Netherlands</div><div class="ccount">74 schools</div></div>
+      </a>
+    </div>
+  </div>
+
+  <!-- Middle East -->
+  <div class="region-block">
+    <div class="region-label">
+      <span class="region-name">🕌 Middle East &amp; South Asia</span>
+      <span class="region-count">12 countries</span>
+      <div class="region-line"></div>
+    </div>
+    <div class="strip">
+      <a class="card" href="#">
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/ae.png" alt="UAE"></div>
+        <div class="info"><div class="cname">UAE</div><div class="ccount">52 schools</div></div>
+      </a>
+      <a class="card" href="#">
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/qa.png" alt="Qatar"></div>
+        <div class="info"><div class="cname">Qatar</div><div class="ccount">31 schools</div></div>
+      </a>
+      <a class="card" href="#">
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/sa.png" alt="Saudi Arabia"></div>
+        <div class="info"><div class="cname">Saudi Arabia</div><div class="ccount">24 schools</div></div>
+      </a>
+      <a class="card" href="#">
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/in.png" alt="India"></div>
+        <div class="info"><div class="cname">India</div><div class="ccount">38 schools</div></div>
+      </a>
+    </div>
+  </div>
+
+  <!-- East Asia -->
+  <div class="region-block">
+    <div class="region-label">
+      <span class="region-name">🌏 East Asia</span>
+      <span class="region-count">6 countries</span>
+      <div class="region-line"></div>
+    </div>
+    <div class="strip">
+      <a class="card" href="#">
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/cn.png" alt="China"></div>
+        <div class="info"><div class="cname">China</div><div class="ccount">61 schools</div></div>
+      </a>
+      <a class="card" href="#">
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/jp.png" alt="Japan"></div>
+        <div class="info"><div class="cname">Japan</div><div class="ccount">44 schools</div></div>
+      </a>
+      <a class="card" href="#">
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/kr.png" alt="South Korea"></div>
+        <div class="info"><div class="cname">South Korea</div><div class="ccount">27 schools</div></div>
+      </a>
+      <a class="card" href="#">
+        <div class="flag-wrap"><img src="https://flagcdn.com/w160/hk.png" alt="Hong Kong"></div>
+        <div class="info"><div class="cname">Hong Kong</div><div class="ccount">22 schools</div></div>
+      </a>
+    </div>
+  </div>
+
+  <!-- View all -->
+  <div class="view-all-row">
+    <p class="va-text">Showing popular regions. <strong>155 more countries</strong> available.</p>
+    <a class="va-btn" href="#">View all 166 countries →</a>
+  </div>
+
+</div>
+</div>
+</body>
+</html>

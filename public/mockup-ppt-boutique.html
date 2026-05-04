@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PPT Mock 04 — Boutique</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500&family=Lora:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --cream: #efe7d6;
+    --cream-deep: #e3d8be;
+    --terracotta: #b85638;
+    --terracotta-deep: #8d3e26;
+    --olive: #6e6a3b;
+    --ink: #2c241b;
+    --gold: #b58a3d;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #2a2826; font-family: 'Lora', serif; padding: 48px 0; }
+  .topbar { text-align: center; color: #aaa; font-family: 'Inter', sans-serif; font-size: 12px; letter-spacing: 0.18em; margin-bottom: 32px; text-transform: uppercase; }
+  .topbar b { color: #fff; font-weight: 500; }
+  .topbar a { color: #d4a85a; text-decoration: none; margin-left: 16px; }
+  .slide { width: 1280px; height: 720px; background: var(--cream); margin: 0 auto 28px; box-shadow: 0 24px 80px rgba(0,0,0,0.5); position: relative; overflow: hidden; color: var(--ink); }
+  .slide::before {
+    content: ""; position: absolute; inset: 0;
+    background-image:
+      radial-gradient(circle at 10% 20%, rgba(181,138,61,0.07), transparent 40%),
+      radial-gradient(circle at 90% 80%, rgba(184,86,56,0.07), transparent 40%);
+    pointer-events: none;
+  }
+
+  /* COVER */
+  .cover { padding: 80px; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+  .cover .illustration { width: 200px; height: 200px; margin-bottom: 28px; }
+  .cover .vol {
+    position: absolute; top: 56px; right: 80px;
+    font-family: 'Inter', sans-serif; font-size: 11px;
+    letter-spacing: 0.3em; color: var(--terracotta);
+  }
+  .cover h1 {
+    font-family: 'Cormorant Garamond', serif; font-weight: 400;
+    font-size: 110px; letter-spacing: 0.01em; line-height: 1;
+    margin: 0 0 12px; color: var(--ink);
+  }
+  .cover .sub {
+    display: flex; align-items: center; gap: 18px;
+    font-family: 'Cormorant Garamond', serif; font-style: italic;
+    font-size: 26px; color: var(--olive); margin-bottom: 56px;
+  }
+  .cover .sub::before, .cover .sub::after {
+    content: ""; width: 60px; height: 1px; background: var(--olive); opacity: 0.6;
+  }
+  .cover .footer {
+    position: absolute; bottom: 56px; left: 80px; right: 80px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: 'Inter', sans-serif; font-size: 11px;
+    letter-spacing: 0.3em; color: var(--terracotta-deep); text-transform: uppercase;
+  }
+  .cover .footer .center {
+    font-family: 'Cormorant Garamond', serif; font-style: italic;
+    font-size: 18px; letter-spacing: 0.02em; text-transform: none;
+    color: var(--olive);
+  }
+
+  /* CONTENT */
+  .content { padding: 80px 96px; display: grid; grid-template-columns: 0.7fr 1fr; gap: 72px; }
+  .content .illus-frame {
+    background: var(--cream-deep);
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .content .illus-frame::before {
+    content: ""; position: absolute; inset: 18px;
+    border: 1px solid var(--gold); opacity: 0.5;
+  }
+  .content .illus-frame svg { width: 75%; height: 75%; }
+  .content .right { display: flex; flex-direction: column; justify-content: center; }
+  .content .label {
+    font-family: 'Inter', sans-serif; font-size: 10px;
+    letter-spacing: 0.4em; color: var(--olive); text-transform: uppercase;
+    margin-bottom: 18px;
+  }
+  .content h2 {
+    font-family: 'Cormorant Garamond', serif; font-weight: 400;
+    font-size: 52px; line-height: 1.05; margin: 0 0 28px;
+    color: var(--ink);
+  }
+  .content h2 em { font-style: italic; color: var(--terracotta); }
+  .content p {
+    font-size: 18px; line-height: 1.7; color: #3d342a;
+    margin: 0 0 16px;
+  }
+  .content p:first-of-type::first-letter {
+    font-family: 'Cormorant Garamond', serif; font-weight: 400;
+    font-size: 64px; float: left; line-height: 0.85;
+    padding: 4px 12px 0 0; color: var(--terracotta);
+  }
+
+  /* DATA */
+  .data { padding: 64px 96px 80px; display: flex; flex-direction: column; }
+  .data .label {
+    font-family: 'Inter', sans-serif; font-size: 10px;
+    letter-spacing: 0.4em; color: var(--olive); text-transform: uppercase;
+    margin-bottom: 12px; text-align: center;
+  }
+  .data h2 {
+    font-family: 'Cormorant Garamond', serif; font-weight: 400;
+    font-size: 48px; margin: 0 0 40px; text-align: center; line-height: 1;
+  }
+  .data h2 em { font-style: italic; color: var(--terracotta); }
+  .data .row { display: grid; grid-template-columns: 1fr 1.2fr; gap: 60px; align-items: center; flex: 1; }
+  .data .donut { display: flex; align-items: center; justify-content: center; }
+  .data .legend { display: flex; flex-direction: column; gap: 14px; }
+  .data .legend-row {
+    display: grid; grid-template-columns: 14px 1fr auto; gap: 18px; align-items: center;
+    border-bottom: 1px solid rgba(110,106,59,0.25); padding-bottom: 12px;
+  }
+  .data .swatch { width: 14px; height: 14px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.05); }
+  .data .legend-row .name {
+    font-family: 'Cormorant Garamond', serif; font-size: 22px;
+  }
+  .data .legend-row .pct {
+    font-family: 'Cormorant Garamond', serif; font-style: italic;
+    font-size: 26px; color: var(--terracotta);
+  }
+  .data .footer {
+    position: absolute; bottom: 28px; left: 96px; right: 96px;
+    display: flex; justify-content: space-between;
+    font-family: 'Inter', sans-serif; font-size: 11px;
+    letter-spacing: 0.3em; color: var(--terracotta-deep); text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+  <div class="topbar"><b>Mock 04 — Boutique</b> &nbsp;·&nbsp; Hermès / Aman / Soho House <a href="mockup-ppt-index.html">← all mocks</a></div>
+
+  <!-- Cover -->
+  <div class="slide cover">
+    <div class="vol">Vol. I — № 01</div>
+    <svg class="illustration" viewBox="0 0 200 200" fill="none" stroke="#b85638" stroke-width="1.2">
+      <ellipse cx="100" cy="100" rx="84" ry="84" />
+      <ellipse cx="100" cy="100" rx="76" ry="76" stroke="#b58a3d" stroke-width="0.6"/>
+      <path d="M100 50 Q 70 80, 100 110 Q 130 80, 100 50 Z" fill="rgba(184,86,56,0.1)"/>
+      <path d="M100 75 L100 145" stroke-width="0.8"/>
+      <path d="M85 95 Q 100 105, 115 95" stroke-width="0.8"/>
+      <path d="M82 115 Q 100 128, 118 115" stroke-width="0.8"/>
+      <path d="M70 132 Q 100 148, 130 132" stroke="#6e6a3b" stroke-width="0.6"/>
+      <text x="100" y="178" text-anchor="middle" stroke="none" fill="#6e6a3b" font-family="Cormorant Garamond" font-style="italic" font-size="11">— maison —</text>
+    </svg>
+    <h1>Wycombe Abbey</h1>
+    <div class="sub">A house among schools</div>
+    <div class="footer">
+      <span>EST. 1896</span>
+      <span class="center">— Buckinghamshire, England —</span>
+      <span>MAISON</span>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="slide content">
+    <div class="illus-frame">
+      <svg viewBox="0 0 200 240" fill="none" stroke="#8d3e26" stroke-width="1.2">
+        <path d="M40 110 L40 200 L160 200 L160 110" fill="rgba(184,86,56,0.06)"/>
+        <path d="M30 115 L100 50 L170 115" />
+        <rect x="62" y="135" width="22" height="40" fill="rgba(184,86,56,0.06)"/>
+        <rect x="116" y="135" width="22" height="40" fill="rgba(184,86,56,0.06)"/>
+        <rect x="88" y="155" width="24" height="45" fill="rgba(110,106,59,0.12)"/>
+        <path d="M88 155 L100 145 L112 155" />
+        <path d="M70 75 L70 95 M130 75 L130 95" stroke="#6e6a3b" stroke-width="0.7"/>
+        <circle cx="70" cy="68" r="6" fill="#b85638" stroke="none" opacity="0.55"/>
+        <circle cx="130" cy="68" r="6" fill="#b85638" stroke="none" opacity="0.55"/>
+        <path d="M20 200 Q 30 195, 40 200 M160 200 Q 170 195, 180 200" stroke="#6e6a3b" stroke-width="0.7"/>
+        <path d="M15 215 L185 215" stroke="#6e6a3b" stroke-width="0.5" stroke-dasharray="2 3"/>
+        <text x="100" y="232" text-anchor="middle" stroke="none" fill="#6e6a3b" font-family="Cormorant Garamond" font-style="italic" font-size="10">— the house —</text>
+      </svg>
+    </div>
+    <div class="right">
+      <div class="label">— II — The Setting</div>
+      <h2>A <em>Wyatt</em> house<br>upon a Buckingham<br>ridge.</h2>
+      <p>Set within one hundred and seventy acres of Chiltern parkland, the school occupies a country house designed by James Wyatt in the late eighteenth century — once the seat of Lord Carrington.</p>
+      <p>The estate, with its lake and lime avenue, has been described as the most beautiful in English schooling. The pupils, in time, come to feel it.</p>
+    </div>
+  </div>
+
+  <!-- Data -->
+  <div class="slide data">
+    <div class="label">— III — Pupil Composition</div>
+    <h2>The <em>house</em> in numbers.</h2>
+    <div class="row">
+      <div class="donut">
+        <svg viewBox="0 0 220 220" width="320" height="320">
+          <circle cx="110" cy="110" r="80" fill="none" stroke="#e3d8be" stroke-width="38"/>
+          <circle cx="110" cy="110" r="80" fill="none" stroke="#b85638" stroke-width="38"
+                  stroke-dasharray="226 503" transform="rotate(-90 110 110)"/>
+          <circle cx="110" cy="110" r="80" fill="none" stroke="#6e6a3b" stroke-width="38"
+                  stroke-dasharray="141 503" stroke-dashoffset="-226" transform="rotate(-90 110 110)"/>
+          <circle cx="110" cy="110" r="80" fill="none" stroke="#b58a3d" stroke-width="38"
+                  stroke-dasharray="75 503" stroke-dashoffset="-367" transform="rotate(-90 110 110)"/>
+          <circle cx="110" cy="110" r="80" fill="none" stroke="#2c241b" stroke-width="38"
+                  stroke-dasharray="60 503" stroke-dashoffset="-442" transform="rotate(-90 110 110)"/>
+          <text x="110" y="106" text-anchor="middle" font-family="Cormorant Garamond" font-size="44" fill="#2c241b">642</text>
+          <text x="110" y="128" text-anchor="middle" font-family="Inter" font-size="9" letter-spacing="3" fill="#8d3e26">— PUPILS —</text>
+        </svg>
+      </div>
+      <div class="legend">
+        <div class="legend-row"><div class="swatch" style="background:#b85638"></div><div class="name">United Kingdom</div><div class="pct">45%</div></div>
+        <div class="legend-row"><div class="swatch" style="background:#6e6a3b"></div><div class="name">Hong Kong &amp; China</div><div class="pct">28%</div></div>
+        <div class="legend-row"><div class="swatch" style="background:#b58a3d"></div><div class="name">Mainland Europe</div><div class="pct">15%</div></div>
+        <div class="legend-row"><div class="swatch" style="background:#2c241b"></div><div class="name">Rest of World</div><div class="pct">12%</div></div>
+      </div>
+    </div>
+    <div class="footer">
+      <span>MAISON · VOL. I</span>
+      <span>p. 03</span>
+    </div>
+  </div>
+</body>
+</html>

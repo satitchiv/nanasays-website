@@ -156,6 +156,13 @@
 @media (min-width: 641px) {
   .kf-grid > :nth-child(even) { border-right: 0; }
   .kf-grid > :nth-last-child(-n+2) { border-bottom: 0; }
+  /* Odd-count grids: span the orphan full width and restore the border on the cell above-right */
+  .kf-grid:has(> :nth-child(odd):last-child) > :last-child {
+    grid-column: 1 / -1; border-right: 0;
+  }
+  .kf-grid:has(> :nth-child(odd):last-child) > :nth-last-child(2) {
+    border-bottom: 1px solid var(--border);
+  }
 }
 @media (max-width: 640px) {
   .kf-grid { grid-template-columns: 1fr; }

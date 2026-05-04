@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Decision Hub — Layout B: Three-column filmstrip</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,700;1,400&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy: #1B3252; --teal: #34C3A0; --cream: #fdfcf7;
+    --border: #DDD4C0; --amber: #F5A623;
+    --sans: 'Nunito Sans', system-ui, sans-serif;
+    --serif: 'Lora', Georgia, serif;
+  }
+  html, body { height: 100%; font-family: var(--sans); background: var(--cream); color: var(--navy); overflow: hidden; }
+
+  /* ── Shell ── */
+  .shell { display: flex; flex-direction: column; height: 100vh; }
+
+  /* ── Header ── */
+  .header {
+    height: 52px; display: flex; align-items: center; gap: 14px;
+    padding: 0 20px; background: #fff; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .back { font-size: 12px; font-weight: 700; color: var(--navy); opacity: 0.45; text-decoration: none; }
+  .back:hover { opacity: 1; }
+  .pulse { width: 8px; height: 8px; background: var(--teal); border-radius: 50%; box-shadow: 0 0 0 3px rgba(52,195,160,0.2); animation: pulse 2.4s infinite; }
+  .brand { font-family: var(--serif); font-size: 15px; font-weight: 700; }
+  .mode { font-size: 10px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--teal); }
+  .h-school { font-family: var(--serif); font-size: 14px; font-weight: 700; color: var(--navy); opacity: 0.6; }
+  .h-sep { color: var(--border); }
+
+  .view-toggle { margin-left: auto; display: flex; gap: 2px; background: rgba(27,50,82,0.06); border-radius: 8px; padding: 3px; }
+  .pill { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 5px; border: none; background: transparent; color: var(--navy); opacity: 0.5; cursor: pointer; }
+  .pill--on { background: white; opacity: 1; box-shadow: 0 1px 3px rgba(27,50,82,0.12); }
+
+  /* ── Three-column body ── */
+  .body { display: flex; flex: 1; min-height: 0; }
+
+  /* ── Col 1: Check filmstrip ── */
+  .filmstrip {
+    width: 200px; flex-shrink: 0;
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .fs-top {
+    padding: 16px 14px 12px;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .fs-label { font-size: 10px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--navy); opacity: 0.35; margin-bottom: 10px; }
+
+  /* mini verdict bar */
+  .mini-bar { display: flex; height: 5px; border-radius: 99px; overflow: hidden; gap: 0; margin-bottom: 8px; }
+  .mini-seg--g { background: var(--teal); flex: 3; }
+  .mini-seg--a { background: var(--amber); flex: 2; }
+  .mini-seg--gr { background: var(--border); flex: 1; }
+  .mini-counts { font-size: 11px; color: var(--navy); opacity: 0.5; }
+
+  .fs-list { flex: 1; overflow-y: auto; padding: 8px 0; }
+  .fs-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px; cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: background 0.12s, border-color 0.12s;
+  }
+  .fs-item:hover { background: rgba(27,50,82,0.03); }
+  .fs-item--active { background: rgba(52,195,160,0.07); border-left-color: var(--teal); }
+  .fs-item--active-amber { background: rgba(245,166,35,0.07); border-left-color: var(--amber); }
+
+  .fs-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .fs-dot--g  { background: var(--teal); }
+  .fs-dot--a  { background: var(--amber); }
+  .fs-dot--gr { background: var(--border); }
+
+  .fs-title { font-size: 12px; font-weight: 700; color: var(--navy); line-height: 1.3; }
+  .fs-sub   { font-size: 11px; color: var(--navy); opacity: 0.45; margin-top: 1px; line-height: 1.3; }
+
+  /* ── Col 2: Detail pane ── */
+  .detail {
+    flex: 1; min-width: 0; display: flex; flex-direction: column;
+    border-right: 1px solid var(--border); overflow: hidden;
+  }
+  .detail-header {
+    padding: 20px 28px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+    display: flex; align-items: flex-start; justify-content: space-between;
+  }
+  .detail-status {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 6px;
+  }
+  .status-icon {
+    width: 32px; height: 32px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px; flex-shrink: 0;
+  }
+  .status-icon--g { background: rgba(52,195,160,0.12); color: #0d7a61; }
+  .status-icon--a { background: rgba(245,166,35,0.12);  color: #8a5800; }
+  .detail-title { font-family: var(--serif); font-size: 22px; font-weight: 700; line-height: 1.25; color: var(--navy); }
+  .detail-evidence { font-size: 13px; color: var(--navy); opacity: 0.55; margin-top: 4px; }
+
+  .detail-scroll { flex: 1; overflow-y: auto; padding: 24px 28px; }
+
+  .sec { margin-bottom: 18px; }
+  .eyebrow { font-size: 10px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--navy); opacity: 0.38; margin-bottom: 6px; }
+  .eyebrow--a { color: #8a5800; opacity: 1; }
+  .lead { font-family: var(--serif); font-size: 16px; line-height: 1.55; color: var(--navy); }
+  .prose { font-size: 13.5px; line-height: 1.65; color: var(--navy); opacity: 0.82; }
+  .bullets { list-style: disc; padding-left: 18px; }
+  .bullets li { font-size: 13.5px; line-height: 1.55; color: var(--navy); margin-bottom: 4px; opacity: 0.85; }
+  .tradeoff {
+    background: rgba(245,166,35,0.07); border-left: 3px solid var(--amber);
+    border-radius: 0 8px 8px 0; padding: 12px 16px; margin-bottom: 18px;
+  }
+  .dim { font-size: 13px; color: var(--navy); opacity: 0.45; line-height: 1.6; }
+  .tour-card { background: rgba(27,50,82,0.04); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+  .tour-q { font-size: 14px; font-style: italic; color: var(--navy); margin-bottom: 4px; line-height: 1.5; }
+  .tour-target { font-size: 11px; color: var(--navy); opacity: 0.45; }
+  .src-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: rgba(52,195,160,0.1); border-radius: 99px;
+    padding: 3px 10px; font-size: 11px; font-weight: 700; color: #0d7a61;
+    text-decoration: none; margin-top: 8px;
+  }
+
+  /* honest read at bottom of detail */
+  .honest-read {
+    border-top: 1px solid var(--border);
+    padding: 18px 28px;
+    background: white;
+    flex-shrink: 0;
+  }
+  .hr-label { font-size: 10px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--teal); margin-bottom: 6px; }
+  .hr-body { font-family: var(--serif); font-size: 13px; line-height: 1.65; color: var(--navy); }
+
+  /* ── Col 3: Chat ── */
+  .chat { width: 340px; flex-shrink: 0; display: flex; flex-direction: column; }
+  .chat-header { padding: 14px 18px; background: white; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+  .ch-top { display: flex; align-items: center; gap: 8px; }
+  .ch-pulse { width: 9px; height: 9px; background: var(--teal); border-radius: 50%; box-shadow: 0 0 0 3px rgba(52,195,160,0.2); animation: pulse 2.4s infinite; }
+  .ch-title { font-family: var(--serif); font-size: 16px; font-weight: 700; }
+  .devil-btn { margin-left: auto; font-size: 10px; font-weight: 700; color: var(--navy); background: rgba(27,50,82,0.06); border: none; border-radius: 5px; padding: 4px 9px; cursor: pointer; opacity: 0.6; }
+  .ch-sub { font-size: 11px; color: var(--navy); opacity: 0.4; margin-top: 2px; }
+
+  .msgs { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .m-user { align-self: flex-end; max-width: 85%; background: var(--navy); color: white; border-radius: 14px 14px 3px 14px; padding: 9px 13px; font-size: 12px; line-height: 1.5; }
+  .m-nana { background: white; border: 1px solid var(--border); border-radius: 3px 14px 14px 14px; padding: 12px 14px; font-size: 12px; }
+  .m-eyebrow { font-size: 9px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--navy); opacity: 0.32; margin-bottom: 4px; }
+  .m-lead { font-family: var(--serif); font-size: 13px; line-height: 1.5; color: var(--navy); margin-bottom: 6px; }
+  .m-prose { font-size: 12px; line-height: 1.55; color: var(--navy); opacity: 0.7; }
+  .m-tradeoff { background: rgba(245,166,35,0.07); border-left: 3px solid var(--amber); border-radius: 0 5px 5px 0; padding: 8px 10px; margin: 6px 0; font-size: 12px; line-height: 1.5; color: var(--navy); }
+  .m-afford { font-size: 10px; font-weight: 700; color: var(--teal); margin-top: 6px; }
+
+  .starters { padding: 0 16px 8px; display: flex; flex-wrap: wrap; gap: 5px; }
+  .chip { font-size: 11px; font-weight: 600; color: var(--navy); background: white; border: 1px solid var(--border); border-radius: 99px; padding: 5px 10px; cursor: pointer; }
+  .chip:hover { border-color: var(--teal); }
+
+  .input-bar { display: flex; align-items: flex-end; gap: 8px; padding: 12px 16px 16px; border-top: 1px solid var(--border); background: var(--cream); }
+  .inp { flex: 1; font-family: var(--sans); font-size: 12px; color: var(--navy); background: white; border: 1px solid var(--border); border-radius: 9px; padding: 9px 12px; resize: none; outline: none; }
+  .inp:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(52,195,160,0.12); }
+  .ask-btn { font-family: var(--sans); font-size: 12px; font-weight: 800; background: var(--navy); color: white; border: none; border-radius: 7px; padding: 9px 14px; cursor: pointer; white-space: nowrap; }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(52,195,160,0.2); }
+    50% { box-shadow: 0 0 0 6px rgba(52,195,160,0.05); }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="header">
+    <a class="back" href="#">← Directory</a>
+    <span class="h-sep">·</span>
+    <div class="pulse"></div>
+    <span class="brand">Nana</span>
+    <span class="mode">Research</span>
+    <span class="h-sep">·</span>
+    <span class="h-school">Epsom College</span>
+    <div class="view-toggle" style="margin-left:auto">
+      <button class="pill pill--on">Verdict</button>
+      <button class="pill">Compare schools</button>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- Col 1: Filmstrip -->
+    <div class="filmstrip">
+      <div class="fs-top">
+        <p class="fs-label">Checks</p>
+        <div class="mini-bar">
+          <div class="mini-seg--g"></div>
+          <div class="mini-seg--a"></div>
+          <div class="mini-seg--gr"></div>
+        </div>
+        <p class="mini-counts">3 ok · 2 watch · 1 gap</p>
+      </div>
+      <div class="fs-list">
+        <div class="fs-item" onclick="select(this,'g')">
+          <span class="fs-dot fs-dot--g"></span>
+          <div><p class="fs-title">Financial health</p><p class="fs-sub">4.3 month reserves</p></div>
+        </div>
+        <div class="fs-item" onclick="select(this,'g')">
+          <span class="fs-dot fs-dot--g"></span>
+          <div><p class="fs-title">Boarding type</p><p class="fs-sub">Full + weekly confirmed</p></div>
+        </div>
+        <div class="fs-item fs-item--active" onclick="select(this,'g')">
+          <span class="fs-dot fs-dot--g"></span>
+          <div><p class="fs-title">Fees within budget</p><p class="fs-sub">£44,880 vs £50k budget</p></div>
+        </div>
+        <div class="fs-item fs-item--active-amber" onclick="select(this,'a')">
+          <span class="fs-dot fs-dot--a"></span>
+          <div><p class="fs-title">A-level results</p><p class="fs-sub">62% A*–B · amber</p></div>
+        </div>
+        <div class="fs-item" onclick="select(this,'a')">
+          <span class="fs-dot fs-dot--a"></span>
+          <div><p class="fs-title">Bursary availability</p><p class="fs-sub">Policy exists, gaps</p></div>
+        </div>
+        <div class="fs-item" onclick="select(this,'gr')">
+          <span class="fs-dot fs-dot--gr"></span>
+          <div><p class="fs-title">SEND support</p><p class="fs-sub">Limited data</p></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Col 2: Detail -->
+    <div class="detail">
+      <div class="detail-header">
+        <div>
+          <div class="detail-status">
+            <div class="status-icon status-icon--g">✓</div>
+            <div>
+              <h2 class="detail-title">Fees within your budget</h2>
+              <p class="detail-evidence">£44,880/yr boarding · published Oct 2024</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="detail-scroll">
+        <div class="sec">
+          <p class="eyebrow">What we know</p>
+          <ul class="bullets">
+            <li>Full boarding: £44,880/year (2024–25), published on the school's fees page</li>
+            <li>Weekly boarding available at £41,200/year</li>
+            <li>Fees have risen 6.2% year-on-year over the past three years</li>
+            <li>No bursary amounts publicly disclosed</li>
+          </ul>
+        </div>
+        <div class="sec">
+          <p class="eyebrow">What this means</p>
+          <p class="lead">Full boarding sits comfortably within your £50k threshold. Weekly boarding gives you a further £3,680 of headroom if finances tighten.</p>
+        </div>
+        <div class="tradeoff">
+          <p class="eyebrow eyebrow--a">⚠ Tradeoff / watch out</p>
+          <p class="prose">At 6.2% annual rises, fees reach ~£53,700 by Year 3 of a five-year stay. Extras — trips, music, laundry — commonly add 8–12% on top. Ask for a cost-of-attendance estimate before signing anything.</p>
+        </div>
+        <div class="sec">
+          <p class="eyebrow" style="opacity:0.3">What we don't know</p>
+          <p class="dim">Whether bursaries are available for Year 9 entry and what typical award sizes look like. The WOW scheme is aspirational — no confirmed current availability.</p>
+        </div>
+        <div class="tour-card">
+          <p class="eyebrow" style="margin-bottom:8px">Tour question</p>
+          <p class="tour-q">"Can you give us a full cost-of-attendance estimate including typical extras, and your policy on fee increases during a child's time at the school?"</p>
+          <p class="tour-target" style="margin-top:6px">Ask: Bursar or admissions</p>
+        </div>
+        <a class="src-pill" href="#">↗ Fees page · Epsom College · Oct 2024</a>
+      </div>
+
+      <div class="honest-read">
+        <p class="hr-label">Nana's honest read</p>
+        <p class="hr-body">Fees are manageable now, but model in a 6–7% annual increase across the full school career. If you stay at full boarding for five years the total could reach £250k+ before extras. Solid financially, but worth stress-testing your budget with a spreadsheet before committing.</p>
+      </div>
+    </div>
+
+    <!-- Col 3: Chat -->
+    <div class="chat">
+      <div class="chat-header">
+        <div class="ch-top">
+          <div class="ch-pulse"></div>
+          <span class="ch-title">Nana</span>
+          <button class="devil-btn">Second opinion</button>
+        </div>
+        <p class="ch-sub">Ask anything — answers update the verdict on the left</p>
+      </div>
+      <div class="msgs">
+        <div class="m-nana">
+          <p class="m-eyebrow">Short answer</p>
+          <p class="m-lead">Three checks hold up cleanly, two need a closer look from you.</p>
+          <p class="m-prose">Fees, boarding type, and financial health are all solid against your profile. A-level results and bursary availability are the things I'd push on before deciding.</p>
+          <p class="m-afford">↻ Verdict updated on the left</p>
+        </div>
+        <div class="m-user">How does Epsom compare to Wellington on football?</div>
+        <div class="m-nana">
+          <p class="m-eyebrow">Short answer</p>
+          <p class="m-lead">Wellington is materially stronger — 32 teams vs 18, ranked 41st vs 71st nationally.</p>
+          <div class="m-tradeoff">⚠ That strength comes at £5,000/year more in fees. Worth confirming whether your son would realistically compete for a school team before that becomes the deciding factor.</div>
+          <p class="m-afford">↑ Added to your comparison</p>
+        </div>
+      </div>
+      <div class="starters">
+        <button class="chip">Any red flags?</button>
+        <button class="chip">Open day questions</button>
+        <button class="chip">Compare fees</button>
+      </div>
+      <div class="input-bar">
+        <textarea class="inp" rows="1" placeholder="Ask Nana…"></textarea>
+        <button class="ask-btn">Ask →</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+<script>
+  function select(el, type) {
+    document.querySelectorAll('.fs-item').forEach(i => i.classList.remove('fs-item--active','fs-item--active-amber'));
+    if (type === 'a') el.classList.add('fs-item--active-amber');
+    else el.classList.add('fs-item--active');
+  }
+  document.querySelector('.inp').addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 100) + 'px';
+  });
+</script>
+</body>
+</html>

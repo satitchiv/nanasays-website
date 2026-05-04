@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PPT Mock 01 — Editorial</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&family=Playfair+Display:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f4f1ea;
+    --ink: #1c1a17;
+    --rule: #1c1a17;
+    --muted: #7a7468;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #2a2826;
+    font-family: 'EB Garamond', serif;
+    color: var(--ink);
+    padding: 48px 0;
+  }
+  .topbar {
+    text-align: center;
+    color: #aaa;
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    margin-bottom: 32px;
+    text-transform: uppercase;
+  }
+  .topbar b { color: #fff; font-weight: 500; }
+  .topbar a { color: #d4a85a; text-decoration: none; margin-left: 16px; }
+  .slide {
+    width: 1280px;
+    height: 720px;
+    background: var(--paper);
+    margin: 0 auto 28px;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.5);
+    position: relative;
+    overflow: hidden;
+  }
+  .slide::before {
+    content: "";
+    position: absolute; inset: 0;
+    background-image: radial-gradient(circle at 30% 40%, rgba(0,0,0,0.018) 0, transparent 50%),
+                      radial-gradient(circle at 70% 60%, rgba(0,0,0,0.018) 0, transparent 50%);
+    pointer-events: none;
+  }
+
+  /* COVER */
+  .cover { padding: 72px 96px; display: flex; flex-direction: column; }
+  .cover .meta-tr {
+    position: absolute; top: 56px; right: 96px;
+    font-family: 'Inter', sans-serif; font-size: 11px;
+    letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted);
+  }
+  .cover .index {
+    font-family: 'Inter', sans-serif; font-size: 11px;
+    letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted);
+  }
+  .cover h1 {
+    font-family: 'Playfair Display', serif;
+    font-weight: 400;
+    font-size: 156px;
+    line-height: 0.95;
+    letter-spacing: -0.02em;
+    margin: auto 0 24px;
+  }
+  .cover .sub {
+    font-style: italic; font-size: 32px; color: var(--ink);
+    margin-bottom: 56px; font-weight: 400;
+  }
+  .cover .footer {
+    display: flex; justify-content: space-between; align-items: end;
+    border-top: 1px solid var(--rule); padding-top: 20px;
+    font-family: 'Inter', sans-serif; font-size: 11px;
+    letter-spacing: 0.22em; text-transform: uppercase;
+  }
+  .cover .wordmark {
+    font-family: 'Playfair Display', serif;
+    font-style: italic; font-size: 22px; letter-spacing: 0;
+    text-transform: none;
+  }
+
+  /* CONTENT */
+  .content { padding: 80px 96px; display: grid; grid-template-columns: 0.85fr 1fr; gap: 80px; height: 100%; }
+  .content .image {
+    background:
+      linear-gradient(135deg, rgba(0,0,0,0.3), transparent 50%),
+      linear-gradient(160deg, #8b6f47 0%, #6b5538 50%, #3d2f1f 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  .content .image::after {
+    content: "";
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse at 30% 20%, rgba(255,235,200,0.22), transparent 50%),
+      radial-gradient(ellipse at 70% 90%, rgba(0,0,0,0.4), transparent 50%);
+  }
+  .content .image::before {
+    /* faint architectural lines */
+    content: "";
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(transparent 60%, rgba(0,0,0,0.15) 60.5%, transparent 61%),
+      linear-gradient(transparent 78%, rgba(0,0,0,0.1) 78.5%, transparent 79%);
+    z-index: 1;
+  }
+  .content .right { display: flex; flex-direction: column; justify-content: center; }
+  .content .label {
+    font-family: 'Inter', sans-serif; font-size: 11px;
+    letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted);
+    margin-bottom: 32px;
+  }
+  .content .quote {
+    font-family: 'Playfair Display', serif;
+    font-style: italic; font-weight: 400;
+    font-size: 46px; line-height: 1.2;
+    letter-spacing: -0.01em;
+    margin-bottom: 40px;
+  }
+  .content .byline {
+    font-family: 'Inter', sans-serif; font-size: 12px;
+    letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted);
+  }
+
+  /* DATA */
+  .data { padding: 96px; display: flex; flex-direction: column; height: 100%; }
+  .data .head {
+    font-family: 'Inter', sans-serif; font-size: 11px;
+    letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted);
+    margin-bottom: 20px;
+  }
+  .data h2 {
+    font-family: 'Playfair Display', serif; font-weight: 400;
+    font-size: 64px; line-height: 1; margin: 0 0 64px;
+    max-width: 760px; letter-spacing: -0.02em;
+  }
+  .data h2 em { font-style: italic; }
+  .data .stats {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 64px;
+    margin-top: auto; margin-bottom: 56px;
+  }
+  .data .stat { border-top: 1px solid var(--ink); padding-top: 18px; }
+  .data .stat .num {
+    font-family: 'Playfair Display', serif; font-weight: 400;
+    font-size: 92px; line-height: 1; letter-spacing: -0.03em;
+  }
+  .data .stat .lbl {
+    font-family: 'Inter', sans-serif; font-size: 11px;
+    letter-spacing: 0.22em; text-transform: uppercase;
+    margin-top: 14px; color: var(--muted);
+  }
+  .data .footer-rule {
+    position: absolute; bottom: 56px; left: 96px; right: 96px;
+    display: flex; justify-content: space-between;
+    font-family: 'Inter', sans-serif; font-size: 11px;
+    letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted);
+    border-top: 1px solid var(--rule); padding-top: 16px;
+  }
+</style>
+</head>
+<body>
+  <div class="topbar"><b>Mock 01 — Editorial</b> &nbsp;·&nbsp; Vogue / Aesop / Apartamento <a href="mockup-ppt-index.html">← all mocks</a></div>
+
+  <!-- Cover -->
+  <div class="slide cover">
+    <div class="meta-tr">Issue No. 01 — Spring 2026</div>
+    <div class="index">01</div>
+    <h1>Wycombe<br>Abbey.</h1>
+    <div class="sub">A portrait of an English boarding school.</div>
+    <div class="footer">
+      <span>Buckinghamshire, England</span>
+      <span class="wordmark">L'École</span>
+      <span>Founded 1896</span>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="slide content">
+    <div class="image"></div>
+    <div class="right">
+      <div class="label">II — Character</div>
+      <div class="quote">"There are schools, and then there are institutions where time itself has settled —<br>quietly, deliberately."</div>
+      <div class="byline">— A. Worth, Editor</div>
+    </div>
+  </div>
+
+  <!-- Data -->
+  <div class="slide data">
+    <div class="head">III — By the numbers</div>
+    <h2>One hundred and<br>thirty years <em>of quiet</em><br>excellence.</h2>
+    <div class="stats">
+      <div class="stat"><div class="num">642</div><div class="lbl">Pupils, all girls</div></div>
+      <div class="stat"><div class="num">1:8</div><div class="lbl">Teacher to pupil</div></div>
+      <div class="stat"><div class="num">98<span style="font-size:0.55em">%</span></div><div class="lbl">Russell Group offers</div></div>
+    </div>
+    <div class="footer-rule">
+      <span>L'École · Issue 01</span>
+      <span>p. 03</span>
+    </div>
+  </div>
+</body>
+</html>

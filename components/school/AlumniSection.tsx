@@ -8,11 +8,12 @@ interface Alumna {
 
 interface Props {
   alumni: Alumna[]
+  id?: string
 }
 
 const VISIBLE = 6
 
-export default function AlumniSection({ alumni }: Props) {
+export default function AlumniSection({ alumni, id }: Props) {
   const [expanded, setExpanded] = useState(false)
 
   // Filter out broken markdown-link entries (name starts with '[')
@@ -23,7 +24,7 @@ export default function AlumniSection({ alumni }: Props) {
   const hidden = clean.length - VISIBLE
 
   return (
-    <div style={{ marginBottom: 52 }}>
+    <div id={id} style={{ marginBottom: 52 }}>
       <h2 style={{
         fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.14em',
         color: 'var(--teal-dk)', marginBottom: 18, paddingBottom: 10,

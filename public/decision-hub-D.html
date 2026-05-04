@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Decision Hub — Layout D: Full-width grid + slide-in chat</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,700;1,400&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy: #1B3252; --teal: #34C3A0; --cream: #fdfcf7;
+    --border: #DDD4C0; --amber: #F5A623;
+    --sans: 'Nunito Sans', system-ui, sans-serif;
+    --serif: 'Lora', Georgia, serif;
+  }
+  html, body { height: 100%; font-family: var(--sans); background: var(--cream); color: var(--navy); overflow: hidden; }
+  .shell { display: flex; flex-direction: column; height: 100vh; }
+
+  /* ── Header ── */
+  .header {
+    height: 52px; display: flex; align-items: center; gap: 14px;
+    padding: 0 28px; background: #fff; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .back { font-size: 12px; font-weight: 700; color: var(--navy); opacity: 0.45; text-decoration: none; }
+  .sep { color: var(--border); }
+  .pulse { width: 8px; height: 8px; background: var(--teal); border-radius: 50%; box-shadow: 0 0 0 3px rgba(52,195,160,0.2); animation: pulse 2.4s infinite; }
+  .brand { font-family: var(--serif); font-size: 15px; font-weight: 700; }
+  .mode-tag { font-size: 10px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--teal); }
+
+  .toggle { display: flex; gap: 2px; background: rgba(27,50,82,0.06); border-radius: 8px; padding: 3px; }
+  .pill { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 5px; border: none; background: transparent; color: var(--navy); opacity: 0.5; cursor: pointer; }
+  .pill--on { background: white; opacity: 1; box-shadow: 0 1px 3px rgba(27,50,82,0.12); }
+
+  /* Nana button in header */
+  .nana-btn {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 8px;
+    background: var(--navy); color: white;
+    border: none; border-radius: 8px; padding: 7px 16px;
+    font-family: var(--sans); font-size: 13px; font-weight: 700;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .nana-btn:hover { background: #142844; }
+  .nana-btn-pulse { width: 7px; height: 7px; background: var(--teal); border-radius: 50%; box-shadow: 0 0 0 2px rgba(52,195,160,0.3); animation: pulse 2.4s infinite; }
+
+  /* ── Main scroll area ── */
+  .main { flex: 1; overflow-y: auto; padding: 28px 36px 40px; }
+
+  /* School + verdict strip */
+  .top-strip { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 24px; }
+  .eyebrow-sm { font-size: 10px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--navy); opacity: 0.35; margin-bottom: 4px; }
+  .school-name { font-family: var(--serif); font-size: 28px; font-weight: 700; line-height: 1.2; }
+  .change-link { font-size: 12px; font-weight: 700; color: var(--teal); background: none; border: none; cursor: pointer; margin-top: 4px; display: block; }
+
+  .verdict-strip { display: flex; align-items: center; gap: 20px; }
+  .v-bar { display: flex; height: 7px; width: 200px; border-radius: 99px; overflow: hidden; }
+  .v-g { background: var(--teal); flex: 3; }
+  .v-a { background: var(--amber); flex: 2; }
+  .v-gr { background: var(--border); flex: 1; }
+  .v-label { font-size: 12px; font-weight: 700; display: flex; align-items: center; gap: 5px; }
+  .vd { width: 8px; height: 8px; border-radius: 50%; }
+
+  /* ── Grid of check cards ── */
+  .checks-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .card {
+    background: white; border: 1px solid var(--border); border-radius: 12px;
+    border-top-width: 3px;
+    padding: 16px 18px; cursor: pointer;
+    transition: box-shadow 0.15s, transform 0.12s;
+  }
+  .card:hover { box-shadow: 0 4px 16px rgba(27,50,82,0.09); transform: translateY(-1px); }
+  .card--g { border-top-color: var(--teal); }
+  .card--a { border-top-color: var(--amber); }
+  .card--gr { border-top-color: var(--border); }
+  .card--active { box-shadow: 0 0 0 2px var(--teal), 0 4px 16px rgba(52,195,160,0.15); transform: translateY(-1px); }
+  .card--active-a { box-shadow: 0 0 0 2px var(--amber), 0 4px 16px rgba(245,166,35,0.12); transform: translateY(-1px); }
+
+  .card-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .card-icon { width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; }
+  .card-icon--g { background: rgba(52,195,160,0.12); color: #0d7a61; }
+  .card-icon--a { background: rgba(245,166,35,0.12); color: #8a5800; }
+  .card-icon--gr { background: rgba(27,50,82,0.06); color: var(--navy); opacity: 0.45; }
+
+  .card-status { font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; }
+  .card-status--g { color: #0d7a61; }
+  .card-status--a { color: #8a5800; }
+  .card-status--gr { color: var(--navy); opacity: 0.4; }
+
+  .card-title { font-size: 14px; font-weight: 700; color: var(--navy); margin-bottom: 4px; }
+  .card-evidence { font-size: 12px; color: var(--navy); opacity: 0.55; line-height: 1.45; }
+
+  /* expanded card detail inline */
+  .card-detail { display: none; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+  .card--active .card-detail,
+  .card--active-a .card-detail { display: block; }
+  .det-label { font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--navy); opacity: 0.32; margin-bottom: 5px; }
+  .det-label--a { color: #8a5800; opacity: 1; }
+  .det-bullets { list-style: disc; padding-left: 16px; margin-bottom: 10px; }
+  .det-bullets li { font-size: 12px; line-height: 1.5; color: var(--navy); opacity: 0.82; margin-bottom: 3px; }
+  .det-tradeoff { background: rgba(245,166,35,0.07); border-left: 3px solid var(--amber); border-radius: 0 6px 6px 0; padding: 9px 12px; margin-bottom: 10px; font-size: 12px; line-height: 1.5; color: var(--navy); }
+  .det-tour { background: rgba(27,50,82,0.04); border: 1px solid var(--border); border-radius: 7px; padding: 10px 12px; }
+  .det-tour-q { font-size: 12px; font-style: italic; color: var(--navy); line-height: 1.5; }
+  .det-tour-t { font-size: 11px; color: var(--navy); opacity: 0.42; margin-top: 4px; }
+  .src-pill { display: inline-flex; background: rgba(52,195,160,0.1); border-radius: 99px; padding: 2px 9px; font-size: 11px; font-weight: 700; color: #0d7a61; text-decoration: none; margin-top: 8px; }
+
+  /* Honest read footer */
+  .honest-read {
+    background: white; border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px 24px;
+    display: flex; gap: 20px; align-items: flex-start;
+  }
+  .hr-icon { width: 36px; height: 36px; background: rgba(52,195,160,0.1); border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .hr-icon-dot { width: 12px; height: 12px; background: var(--teal); border-radius: 50%; }
+  .hr-label { font-size: 10px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--teal); margin-bottom: 6px; }
+  .hr-body { font-family: var(--serif); font-size: 14px; line-height: 1.7; color: var(--navy); }
+
+  /* Matrix view */
+  .matrix-view { display: none; }
+  .matrix-view.on { display: block; }
+  .mtable { border-collapse: collapse; width: 100%; }
+  .mtable th { font-size: 12px; font-weight: 700; color: var(--navy); padding: 0 16px 14px; text-align: center; border-bottom: 1px solid var(--border); }
+  .mtable th:first-child { text-align: left; min-width: 180px; }
+  .mtable td { font-size: 13px; color: var(--navy); padding: 12px 16px; border-bottom: 1px solid rgba(221,212,192,0.5); text-align: center; }
+  .mtable td:first-child { text-align: left; font-weight: 700; font-size: 12px; opacity: 0.65; }
+  .best { background: rgba(52,195,160,0.1); border-radius: 6px; padding: 4px 10px; color: #0d7a61; font-weight: 700; display: inline-block; }
+  .warn { background: rgba(245,166,35,0.1); border-radius: 6px; padding: 4px 10px; color: #8a5800; display: inline-block; }
+  .na { color: var(--navy); opacity: 0.28; }
+
+  /* ── Slide-in chat panel ── */
+  .chat-overlay {
+    position: fixed; inset: 0; z-index: 50;
+    pointer-events: none;
+  }
+  .chat-panel {
+    position: absolute; top: 0; right: 0; bottom: 0; width: 480px;
+    background: var(--cream); border-left: 1px solid var(--border);
+    box-shadow: -8px 0 32px rgba(27,50,82,0.12);
+    display: flex; flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.28s cubic-bezier(0.2, 0, 0, 1);
+    pointer-events: all;
+  }
+  .chat-panel.open { transform: translateX(0); }
+
+  .cp-header { padding: 16px 20px; background: white; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .cp-pulse { width: 9px; height: 9px; background: var(--teal); border-radius: 50%; box-shadow: 0 0 0 3px rgba(52,195,160,0.2); animation: pulse 2.4s infinite; }
+  .cp-title { font-family: var(--serif); font-size: 17px; font-weight: 700; }
+  .cp-sub { font-size: 11px; color: var(--navy); opacity: 0.4; margin-top: 2px; }
+  .cp-close { margin-left: auto; background: none; border: none; font-size: 20px; color: var(--navy); opacity: 0.4; cursor: pointer; padding: 2px 8px; }
+  .cp-close:hover { opacity: 1; }
+
+  .msgs { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; }
+  .m-user { align-self: flex-end; max-width: 80%; background: var(--navy); color: white; border-radius: 16px 16px 4px 16px; padding: 10px 14px; font-size: 13px; line-height: 1.5; }
+  .m-nana { background: white; border: 1px solid var(--border); border-radius: 4px 14px 14px 14px; padding: 14px 16px; font-size: 13px; }
+  .m-ey { font-size: 9px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--navy); opacity: 0.28; margin-bottom: 5px; }
+  .m-lead { font-family: var(--serif); font-size: 14px; line-height: 1.5; color: var(--navy); margin-bottom: 8px; }
+  .m-prose { font-size: 12px; line-height: 1.6; color: var(--navy); opacity: 0.72; }
+  .m-tradeoff { background: rgba(245,166,35,0.07); border-left: 3px solid var(--amber); border-radius: 0 6px 6px 0; padding: 8px 11px; margin: 8px 0; font-size: 12px; line-height: 1.5; color: var(--navy); }
+  .m-afford { font-size: 11px; font-weight: 700; color: var(--teal); margin-top: 8px; }
+
+  .starters { padding: 0 20px 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { font-size: 12px; font-weight: 600; color: var(--navy); background: white; border: 1px solid var(--border); border-radius: 99px; padding: 6px 12px; cursor: pointer; }
+  .chip:hover { border-color: var(--teal); }
+
+  .input-bar { display: flex; align-items: flex-end; gap: 10px; padding: 14px 20px 18px; border-top: 1px solid var(--border); background: var(--cream); flex-shrink: 0; }
+  .inp { flex: 1; font-family: var(--sans); font-size: 13px; color: var(--navy); background: white; border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; resize: none; outline: none; }
+  .inp:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(52,195,160,0.12); }
+  .ask-btn { font-family: var(--sans); font-size: 13px; font-weight: 800; background: var(--navy); color: white; border: none; border-radius: 8px; padding: 10px 18px; cursor: pointer; }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(52,195,160,0.2); }
+    50% { box-shadow: 0 0 0 6px rgba(52,195,160,0.05); }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="header">
+    <a class="back" href="#">← Directory</a>
+    <span class="sep">·</span>
+    <div class="pulse"></div>
+    <span class="brand">Nana</span>
+    <span class="mode-tag">Research</span>
+    <div class="toggle" style="margin-left:16px">
+      <button class="pill pill--on" onclick="setView('verdict',this)">Verdict</button>
+      <button class="pill" onclick="setView('compare',this)">Compare schools</button>
+    </div>
+    <button class="nana-btn" onclick="toggleChat()">
+      <span class="nana-btn-pulse"></span>
+      Ask Nana
+    </button>
+  </div>
+
+  <!-- Main scroll area -->
+  <div class="main">
+
+    <!-- Verdict view -->
+    <div id="verdictView">
+      <div class="top-strip">
+        <div>
+          <p class="eyebrow-sm">Stress-testing your shortlist</p>
+          <h1 class="school-name">Epsom College</h1>
+          <button class="change-link">Change school</button>
+        </div>
+        <div class="verdict-strip">
+          <div class="v-bar"><div class="v-g"></div><div class="v-a"></div><div class="v-gr"></div></div>
+          <span class="v-label"><span class="vd" style="background:var(--teal)"></span>3 holding up</span>
+          <span class="v-label"><span class="vd" style="background:var(--amber)"></span>2 to watch</span>
+          <span class="v-label"><span class="vd" style="background:var(--border)"></span>1 limited</span>
+        </div>
+      </div>
+
+      <!-- 3-column grid -->
+      <div class="checks-grid">
+
+        <!-- Green cards -->
+        <div class="card card--g card--active" onclick="toggleCard(this,'active')">
+          <div class="card-top">
+            <div class="card-icon card-icon--g">✓</div>
+            <span class="card-status card-status--g">Holding up</span>
+          </div>
+          <p class="card-title">Fees within your budget</p>
+          <p class="card-evidence">£44,880/yr boarding — within your £50k threshold</p>
+          <div class="card-detail">
+            <p class="det-label">What we know</p>
+            <ul class="det-bullets">
+              <li>Full boarding £44,880/yr (2024–25), published fees page</li>
+              <li>Weekly boarding £41,200/yr also available</li>
+              <li>Fees rising 6.2%/yr over 3 years</li>
+            </ul>
+            <div class="det-tradeoff">⚠ At 6.2%/yr, fees reach ~£53,700 by Year 3. Extras add 8–12% on top — ask for a cost-of-attendance estimate.</div>
+            <div class="det-tour">
+              <p class="det-tour-q">"Can you give us a full cost-of-attendance estimate including typical extras, and your fee increase policy during a child's time at the school?"</p>
+              <p class="det-tour-t">Ask: Bursar or admissions</p>
+            </div>
+            <a class="src-pill" href="#">↗ Fees page · Oct 2024</a>
+          </div>
+        </div>
+
+        <div class="card card--g" onclick="toggleCard(this,'active')">
+          <div class="card-top">
+            <div class="card-icon card-icon--g">✓</div>
+            <span class="card-status card-status--g">Holding up</span>
+          </div>
+          <p class="card-title">Financial health</p>
+          <p class="card-evidence">4.3 months reserves · ISI Outstanding 2023</p>
+          <div class="card-detail">
+            <p class="det-label">What we know</p>
+            <ul class="det-bullets">
+              <li>Net assets £47.2m (Charity Commission 2023)</li>
+              <li>Annual income £27.1m — 4.3 months coverage</li>
+              <li>No significant debt facility disclosed</li>
+            </ul>
+            <div class="det-tour">
+              <p class="det-tour-q">"Has the school taken on any new debt or capital commitments in the past two years?"</p>
+              <p class="det-tour-t">Ask: Bursar</p>
+            </div>
+            <a class="src-pill" href="#">↗ Charity Commission · 2023</a>
+          </div>
+        </div>
+
+        <div class="card card--g" onclick="toggleCard(this,'active')">
+          <div class="card-top">
+            <div class="card-icon card-icon--g">✓</div>
+            <span class="card-status card-status--g">Holding up</span>
+          </div>
+          <p class="card-title">Boarding type match</p>
+          <p class="card-evidence">Full + weekly boarding · 520 boarders confirmed</p>
+          <div class="card-detail">
+            <p class="det-label">What we know</p>
+            <ul class="det-bullets">
+              <li>520 boarders, 380 day pupils (total 900)</li>
+              <li>Weekly boarding — home Friday evening</li>
+              <li>6 houses: 4 co-ed, 1 boys-only, 1 girls-only</li>
+            </ul>
+            <a class="src-pill" href="#">↗ Admissions · Epsom College</a>
+          </div>
+        </div>
+
+        <!-- Amber cards -->
+        <div class="card card--a card--active-a" onclick="toggleCard(this,'active-a')">
+          <div class="card-top">
+            <div class="card-icon card-icon--a">!</div>
+            <span class="card-status card-status--a">Watch out</span>
+          </div>
+          <p class="card-title">A-level performance</p>
+          <p class="card-evidence">62% A*–B · 4 Oxbridge places 2023</p>
+          <div class="card-detail">
+            <p class="det-label">What we know</p>
+            <ul class="det-bullets">
+              <li>A-level 2023: 62% A*–B, 28% A*–A</li>
+              <li>Oxbridge: 4 places (0.6% of leavers)</li>
+              <li>GCSE: 57% 9–7 grades</li>
+            </ul>
+            <div class="det-tradeoff">⚠ You listed academic ambition as top priority. Schools at this fee level typically place 6–12 pupils at Oxbridge — Epsom's 4 is below that range.</div>
+            <div class="det-tour">
+              <p class="det-tour-q">"What were your Russell Group and Oxbridge outcomes by subject last year, and what structured support exists for competitive applications?"</p>
+              <p class="det-tour-t">Ask: Head of sixth form</p>
+            </div>
+            <a class="src-pill" href="#">↗ Results · Epsom College · 2023</a>
+          </div>
+        </div>
+
+        <div class="card card--a" onclick="toggleCard(this,'active-a')">
+          <div class="card-top">
+            <div class="card-icon card-icon--a">!</div>
+            <span class="card-status card-status--a">Watch out</span>
+          </div>
+          <p class="card-title">Bursary availability</p>
+          <p class="card-evidence">Policy exists · amounts undisclosed</p>
+          <div class="card-detail">
+            <p class="det-label">What we know</p>
+            <ul class="det-bullets">
+              <li>WOW bursary scheme referenced on site</li>
+              <li>Target: 25% on bursaries by 2028</li>
+              <li>No current data on award sizes or availability</li>
+            </ul>
+            <div class="det-tour">
+              <p class="det-tour-q">"How many means-tested bursaries were awarded this year, and what is the average reduction in fees?"</p>
+              <p class="det-tour-t">Ask: Bursar</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grey card -->
+        <div class="card card--gr" style="cursor:default">
+          <div class="card-top">
+            <div class="card-icon card-icon--gr">—</div>
+            <span class="card-status card-status--gr">Limited data</span>
+          </div>
+          <p class="card-title">SEND and pastoral support</p>
+          <p class="card-evidence" style="font-style:italic;opacity:0.35">We have the policy documents but no independent review data for this school</p>
+        </div>
+
+      </div>
+
+      <!-- Honest read -->
+      <div class="honest-read">
+        <div class="hr-icon"><div class="hr-icon-dot"></div></div>
+        <div>
+          <p class="hr-label">Nana's honest read</p>
+          <p class="hr-body">Epsom is financially sound and the boarding setup genuinely fits your profile. The fees are manageable now — stress-test them at 6–7% annual growth to see what a five-year commitment actually costs. The A-level data is the one thing I'd push on: 4 Oxbridge places for a school this size is below expectations if academic ambition is your top priority. Ask the sixth-form team directly before you decide. We don't have enough on SEND to say anything useful — that's a question for the open day.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Matrix view (hidden) -->
+    <div id="compareView" class="matrix-view">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+        <div>
+          <p class="eyebrow-sm">Comparing schools</p>
+          <h2 style="font-family:var(--serif);font-size:22px;font-weight:700">Your shortlist</h2>
+        </div>
+        <button style="font-size:12px;font-weight:700;color:var(--navy);opacity:0.5;background:white;border:1px solid var(--border);border-radius:7px;padding:7px 14px;cursor:pointer">Export to PDF</button>
+      </div>
+      <table class="mtable">
+        <thead><tr>
+          <th></th>
+          <th>Epsom College<br><small style="font-size:10px;font-weight:600;color:#0d7a61;opacity:0.8">Deep data</small></th>
+          <th>Wellington College<br><small style="font-size:10px;font-weight:600;color:#0d7a61;opacity:0.8">Deep data</small></th>
+          <th>Haileybury<br><small style="font-size:10px;font-weight:600;color:var(--navy);opacity:0.4">Limited data</small></th>
+        </tr></thead>
+        <tbody>
+          <tr><td>Boarding fees/year</td><td><span class="best">£44,880</span></td><td>£49,950</td><td>£46,200</td></tr>
+          <tr><td>Day fees/year</td><td><span class="best">£28,400</span></td><td>£36,200</td><td class="na">—</td></tr>
+          <tr><td>A*–B at A-level</td><td>62%</td><td><span class="best">74%</span></td><td class="na">—</td></tr>
+          <tr><td>Oxbridge places (2023)</td><td>4</td><td><span class="best">28</span></td><td class="na">—</td></tr>
+          <tr><td>Financial reserves</td><td><span class="best">4.3 months</span></td><td>3.8 months</td><td class="na">—</td></tr>
+          <tr><td>ISI rating</td><td><span class="best">Outstanding</span></td><td><span class="best">Outstanding</span></td><td class="na">—</td></tr>
+          <tr><td>Fee rise (3yr avg)</td><td><span class="warn">+6.2%/yr</span></td><td><span class="warn">+7.1%/yr</span></td><td class="na">—</td></tr>
+        </tbody>
+      </table>
+      <p style="text-align:center;padding:20px;font-size:13px;color:var(--navy);opacity:0.38;cursor:pointer">+ Ask Nana a question to add a new row →</p>
+    </div>
+
+  </div><!-- /main -->
+</div><!-- /shell -->
+
+<!-- Slide-in chat -->
+<div class="chat-overlay" id="chatOverlay">
+  <div class="chat-panel" id="chatPanel">
+    <div class="cp-header">
+      <div class="cp-pulse"></div>
+      <div>
+        <div class="cp-title">Nana</div>
+        <div class="cp-sub">Ask anything — she has everything we know</div>
+      </div>
+      <button class="cp-close" onclick="toggleChat()">×</button>
+    </div>
+    <div class="msgs">
+      <div class="m-nana">
+        <p class="m-ey">Opening verdict</p>
+        <p class="m-lead">Three things hold up cleanly, two need a closer look before you commit.</p>
+        <p class="m-prose">Fees, boarding type, and financial health are all solid. The A-level results and bursary transparency are the areas I'd push on — especially given academic ambition is top of your list.</p>
+        <p class="m-afford">↻ Verdict cards updated</p>
+      </div>
+      <div class="m-user">How does Epsom compare to Wellington for football?</div>
+      <div class="m-nana">
+        <p class="m-ey">Short answer</p>
+        <p class="m-lead">Wellington is materially stronger — 32 teams, ranked 41st nationally, ISFA Cup semifinalist. Epsom has 18 teams, ranked 71st.</p>
+        <div class="m-tradeoff">⚠ That difference costs £5,000/year extra. Worth confirming whether your son would realistically compete for a team before it becomes the deciding factor.</div>
+        <p class="m-afford">↑ Added to your comparison</p>
+      </div>
+    </div>
+    <div class="starters">
+      <button class="chip">Any red flags?</button>
+      <button class="chip">Open day questions</button>
+      <button class="chip">Compare fees across shortlist</button>
+    </div>
+    <div class="input-bar">
+      <textarea class="inp" rows="1" placeholder="Ask Nana anything…"></textarea>
+      <button class="ask-btn">Ask →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function toggleChat() {
+    document.getElementById('chatPanel').classList.toggle('open');
+  }
+
+  function toggleCard(card, type) {
+    const isActive = card.classList.contains('card--active') || card.classList.contains('card--active-a');
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('card--active','card--active-a'));
+    if (!isActive) {
+      card.classList.add('card--' + type);
+    }
+  }
+
+  function setView(v, btn) {
+    document.querySelectorAll('.pill').forEach(p => p.classList.remove('pill--on'));
+    btn.classList.add('pill--on');
+    document.getElementById('verdictView').style.display = v === 'verdict' ? 'block' : 'none';
+    document.getElementById('compareView').classList.toggle('on', v === 'compare');
+  }
+
+  document.querySelector('.inp').addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 110) + 'px';
+  });
+
+  // Open chat by default so it's visible
+  setTimeout(() => document.getElementById('chatPanel').classList.add('open'), 300);
+</script>
+</body>
+</html>

@@ -98,7 +98,7 @@ export default function DeepReportPreview({ schoolName, slug, sourceCount, tourQ
 
       {/* CTA */}
       <a
-        href={`/schools/${slug}/report`}
+        href={`/unlock?from=/schools/${slug}/report`}
         style={{
           display: 'block', textAlign: 'center',
           background: 'var(--teal)', color: '#fff',
@@ -108,10 +108,10 @@ export default function DeepReportPreview({ schoolName, slug, sourceCount, tourQ
           textDecoration: 'none',
         }}
       >
-        Unlock Full Report — {schoolName}
+        Unlock Full Report — £39/month
       </a>
       <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)', textAlign: 'center', marginTop: 8 }}>
-        NanaSays subscription · All UK schools included · Cancel anytime
+        140 UK schools included · Cancel anytime
       </div>
     </div>
   )

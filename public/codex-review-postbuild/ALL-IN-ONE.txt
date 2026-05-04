@@ -1,0 +1,1101 @@
+
+
+════════════════════════════════════════════════════════════════
+  PROMPT.txt
+════════════════════════════════════════════════════════════════
+
+Post-build review — Thai caption feature is now implemented and
+manually tested. This is the gate before commit + push. Your
+pre-build review on this feature already passed (see sibling
+folder codex-review/ for that context if useful).
+
+What to review:
+
+  01-translate-caption.js
+      New CLI + module. `node translate-caption.js --post=<uuid>`
+      loads copy_en, calls Claude, validates the output, and
+      writes copy_th + copy_th_generated_at + copy_th_model back
+      to the row. Also importable as ES module
+      (translateCaption, buildPrompt, validateTranslation).
+
+  02-translate-caption-route.ts
+      POST /admin/content/api/post/[id]/translate-caption
+      Admin-authed Next.js route that spawns the CLI, returns the
+      saved copy_th. Mirrors api/generate/route.ts.
+
+  03-caption-route.ts
+      PATCH /admin/content/api/post/[id]/caption
+      Saves hand-edits to copy_en and/or copy_th from the detail
+      page's inline textareas.
+
+  04-thai-caption.sql
+      Idempotent migration adding the three copy_th columns to
+      social_posts. Already applied to the live Supabase DB
+      (verified — 3 rows currently have copy_th).
+
+  05-diff-detail-page.patch
+      Admin detail page (/admin/content/[id]) — biggest diff.
+      Adds inline EN/TH caption editors with dirty-tracking +
+      "Save changes" button, a Thai Generate/Regenerate button
+      with timestamp, and a relativeTime helper.
+
+  06-diff-queue-page.patch
+      Queue card — 🇹🇭 Generate / 🔄 Regenerate Thai button per
+      card with spinner. TH preview renders under EN when present.
+
+  07-diff-admin-nav.patch
+      Admin layout — Plan tab promoted to first-class; Schedule /
+      Design / Layout show muted "SOON" pills so we don't click
+      into them by reflex. Plan page's local tab nav removed
+      (now inherits from layout).
+
+Intent + background:
+
+  The NanaSays admin queues Instagram/Facebook carousel posts for
+  Bangkok international schools. Each post has an English caption.
+  Thai translation was opt-in (button click, not auto) to avoid
+  burning Claude calls on drafts that get rejected.
+
+  During build, the first prompt produced Thai that felt too
+  editorial — the user asked for a warmer "parent-to-parent on
+  Facebook" register. After two iterations of the prompt + adding
+  a hard requirement that Thai captions MUST end with a polite
+  particle (ค่ะ / ค่า / คะ / นะคะ / นะค่ะ), the output now sounds
+  like a Thai mum sharing tips in a LINE group.
+
+  First pass of the validator was too strict (only allowed ค่ะ/
+  ค่า/นะคะ/นะค่ะ, not standalone คะ) — it rejected a legitimate
+  suggestion-close "ลองเปิดดูสิคะ". Already fixed; worth
+  confirming the current regex is correct and doesn't false-positive
+  on incidental คะ substrings elsewhere in the caption.
+
+Questions I want answered:
+
+  1. **Validation regex correctness** — the polite-particle
+     validator strips trailing hashtags/URLs/punctuation/emoji
+     before checking for ค่ะ|ค่า|คะ|นะคะ|นะค่ะ at end. Any edge
+     cases where this false-negatives (valid caption rejected) or
+     false-positives (caption sneaks through without a particle)?
+     Specifically worried about: captions whose trailing hashtag
+     run has unusual whitespace, captions where the particle is
+     followed by a closing emoji, multi-paragraph captions where
+     a middle paragraph contains คะ but the last doesn't.
+
+  2. **Child-process spawn pattern** — the translate-caption API
+     route spawns node as a child process. Is error surfacing
+     robust? We read stderr for a message if exit code != 0,
+     but if the CLI crashes hard (uncaught throw), the UI shows
+     a cryptic "Translator exited -1". Worth tightening?
+
+  3. **Caption save race condition** — the detail page has EN
+     and TH textareas. If the user is mid-edit in EN, clicks
+     Regenerate Thai, the route reads copy_en from the DB (their
+     unsaved edit isn't there yet). The UI guards this with
+     "Save your English edit first, then translate" but the
+     guard is client-side only. Is that acceptable, or should
+     the API route also check?
+
+  4. **handleTranslate auth flow** — the detail page's
+     handleTranslate() fetches a session, attaches Bearer token.
+     If session is expired, we fetch anyway and let the route
+     return 401. Is this the right pattern, or should we refresh
+     the session first?
+
+  5. **Dirty-state tracking** — `dirty = draftEn !== (post.copy_en || '') || draftTh !== (post.copy_th || '')`
+     — this relies on the post state being refreshed after every
+     save (via `await load()`). If load() races with another
+     user action, could dirty ever flicker incorrectly?
+
+  6. **Migration idempotency** — the SQL uses `add column if not
+     exists`. Already applied. Anything wrong with it for when
+     we replay on a branch/preview DB?
+
+  7. **Prompt drift risk** — the translate-caption.js prompt is
+     now ~30 lines of voice + preservation rules. If Claude ever
+     starts ignoring a rule (e.g. forgetting to preserve a URL),
+     the validator will catch some cases (URL regex) but not
+     others (tone drift). Is there a lightweight regression test
+     I should add, e.g. a fixture EN caption + expected structural
+     properties of the TH output?
+
+  8. **Anything obvious I'm missing that'll bite in production.**
+
+Known blind spots you can skip (I'll verify elsewhere):
+  - UI visual polish (I'll browser-test on the Tailscale dev URL)
+  - Real-data migration test (already applied + verified via DB query)
+  - Performance (translation is ~30s one-off, not a hot path)
+
+Format your findings the usual way: numbered, severity order,
+file:line references. If the implementation is basically sound
+and I should just commit, say so plainly so I can move on.
+
+
+════════════════════════════════════════════════════════════════
+  00-overview.md
+════════════════════════════════════════════════════════════════
+
+# Thai Caption Feature — Post-Build Review Overview
+
+## What was built
+
+End-to-end Thai translation for social captions, admin-triggered (opt-in, not auto).
+
+**Flow:**
+1. Admin opens a post detail or queue card.
+2. Clicks 🇹🇭 Generate Thai (or 🔄 Regenerate if `copy_th` already exists).
+3. Next.js route spawns `translate-caption.js --post=<uuid>`.
+4. CLI loads `copy_en` + school context, calls Claude Sonnet 4.6 via CLI binary, validates output (Thai unicode, URL/hashtag/number preservation, polite-particle at end), writes `copy_th` + `copy_th_generated_at` + `copy_th_model` back.
+5. Route returns the saved Thai caption; UI updates optimistically.
+6. Admin can inline-edit either EN or TH via textareas on the detail page (`PATCH /admin/content/api/post/[id]/caption` saves).
+
+## File map
+
+| File | Kind | Lines |
+|---|---|---|
+| `scripts/migrations/2026-04-24-thai-caption.sql` | new | 23 |
+| `scripts/social-media-planner/translate-caption.js` | new | 266 |
+| `website/app/admin/content/api/post/[id]/translate-caption/route.ts` | new | 104 |
+| `website/app/admin/content/api/post/[id]/caption/route.ts` | new | 37 |
+| `website/app/admin/content/[id]/page.tsx` | modified | +170/-40 |
+| `website/app/admin/content/page.tsx` | modified | +80/-10 |
+| `website/app/admin/layout.tsx` | modified | +30/-10 |
+| `website/app/admin/content/plan/page.tsx` | modified | -6 |
+
+## Risky spots I want you to pressure-test
+
+### A. Validator regex for the polite particle
+File: `01-translate-caption.js` — `validateTranslation()` near end.
+
+The rule: every Thai caption body (after stripping trailing hashtags/URLs/punct/emoji) MUST end with one of `ค่ะ | ค่า | คะ | นะคะ | นะค่ะ`. First version only allowed 4 of those — rejected a legitimate `ลองเปิดดูสิคะ` ending. Now accepts all 5. Worried about:
+- False negatives: caption with unusual trailing whitespace, multi-line endings with emoji after the particle.
+- False positives: particles appearing mid-body but body ending on bare declarative.
+
+### B. Child-process spawn + error surfacing
+File: `02-translate-caption-route.ts`
+
+If the CLI crashes hard vs returns an error message, the UI currently surfaces `stderr.split('\n').pop()`. Edge case: CLI prints a warning to stderr and succeeds — we'd show the warning as an error title. Haven't seen it in practice but worth checking.
+
+### C. Race between EN edit and Thai regenerate
+File: `05-diff-detail-page.patch` — see `handleTranslate()`.
+
+If EN textarea is dirty and user clicks Regenerate Thai, we refuse client-side with "Save your English edit first, then translate." API doesn't enforce this. Deliberate — admin is trusted — but double-check the user journey makes sense.
+
+### D. Auth token refresh
+File: `05-diff-detail-page.patch` — all fetch calls use `supabase.auth.getSession()` and attach Bearer token. If token is expired at fetch time, we just 401 and show the error. Consider whether to trigger a refresh.
+
+### E. Dirty-state tracking
+File: `05-diff-detail-page.patch` — `const dirty = draftEn !== (post.copy_en || '') || draftTh !== (post.copy_th || '')`
+
+Relies on `post` state being re-fetched after every save. If another action races, `dirty` could briefly show stale.
+
+## Not risky — already verified
+
+- **Migration applied**: `copy_th`, `copy_th_generated_at`, `copy_th_model` exist on `social_posts` in the live Supabase project `ckofdbjfbxoxxxtedmqa`. Confirmed via `information_schema.columns` query.
+- **End-to-end live**: 3 posts currently have Thai captions generated via this pipeline. All read naturally; all end on polite particles.
+- **Preservation rules**: manual inspection confirms school names, curriculum codes (IB/IGCSE/AP), URLs, hashtags, and Arabic numerals survive the round-trip.
+- **Type-check passes**: the 2 website files I touched have zero errors under the project tsconfig.
+
+## Out of scope (don't review)
+
+- Auto-generating Thai at album creation time (deliberately opt-in).
+- Thai hashtags (hashtags stay in English).
+- Thai alt text (`image_alt_en`).
+- Scheduling / Facebook auto-posting.
+- Multi-language support beyond Thai (if we add Chinese/Japanese, we'd promote copy_th to a JSONB column — tracked as future work, not this review's concern).
+
+
+════════════════════════════════════════════════════════════════
+  01-translate-caption.js
+════════════════════════════════════════════════════════════════
+
+#!/usr/bin/env node
+/**
+ * translate-caption.js — Thai translation of social post captions.
+ *
+ * Dual purpose:
+ *   - ES-module exports: buildPrompt, validateTranslation, translateCaption
+ *     so other scripts / future bulk jobs can reuse the pieces.
+ *   - CLI entry: `node translate-caption.js --post=<uuid>` loads the post,
+ *     translates copy_en → copy_th via Claude, validates the result,
+ *     writes copy_th + copy_th_generated_at + copy_th_model back to the
+ *     row, and exits 0. Non-zero exit on any failure with a terse stderr
+ *     message.
+ *
+ * Backend toggle mirrors claude-album-brief.js — CLAUDE_BACKEND=cli|api.
+ * Everything else (model, timeout, retries) uses the same env vars as
+ * the album generator so operators only configure one set.
+ */
+
+import 'dotenv/config'
+import { execFileSync } from 'child_process'
+import { existsSync } from 'fs'
+import { db } from './db.js'
+
+const CLAUDE_BIN = '/opt/homebrew/bin/claude'
+const MODEL = process.env.SOCIAL_CLAUDE_MODEL || 'claude-sonnet-4-6'
+const BACKEND = (process.env.CLAUDE_BACKEND || 'cli').toLowerCase()
+
+// ─── Public API ──────────────────────────────────────────────────────────────
+
+/**
+ * Translate an English caption into Thai. Returns { copy_th, model } on
+ * success or throws with a descriptive Error on any failure (Claude call,
+ * empty output, validation mismatch).
+ */
+export async function translateCaption({ copyEn, school = null, pillarSlug = null }) {
+  if (!copyEn || typeof copyEn !== 'string') {
+    throw new Error('translateCaption: copyEn (non-empty string) is required')
+  }
+  const prompt = buildPrompt({ copyEn, school, pillarSlug })
+  let raw
+  if (BACKEND === 'cli') raw = callCLI(prompt)
+  else if (BACKEND === 'api') raw = await callAPI(prompt)
+  else throw new Error(`Unknown CLAUDE_BACKEND=${BACKEND}`)
+
+  const copyTh = (raw || '').trim()
+  validateTranslation({ copyEn, copyTh })
+  return { copy_th: copyTh, model: MODEL }
+}
+
+/**
+ * Build the translation prompt. Location context is derived from the
+ * school row when provided; the prompt never hardcodes Bangkok because
+ * the queue legitimately contains non-Bangkok schools (UK boarders,
+ * Singapore internationals, etc.) whose Thai audience still cares.
+ */
+export function buildPrompt({ copyEn, school, pillarSlug }) {
+  const name = school?.name || '(school name not provided)'
+  const city = school?.city || '(city not provided)'
+  const country = school?.country || '(country not provided)'
+  const pillar = pillarSlug ? `\n  Pillar: ${pillarSlug}` : ''
+
+  return `You are NanaSays — a friendly Thai parent-to-parent voice on Facebook who shares practical tips about international schools in Bangkok. Translate the English caption below into the voice you'd use when chatting with another mum in your LINE group.
+
+VOICE (most important):
+  - Direct, helpful, a little bit "I learned this the hard way" — you're sharing something useful, not lecturing.
+  - Address Thai parents directly as คุณพ่อคุณแม่ wherever the English refers to parents, families, or the reader. Also use ผู้ปกครอง / ลูก / เรา where they feel natural. This is the NanaSays voice — a mum talking to other mums — so these address terms should appear in almost every caption, not once in a while.
+  - Rhetorical questions work well ("เคยสงสัยไหมคะว่า...", "ลองถามดูสิคะ"). End every mid-caption question with คะ (not ค่ะ).
+  - REQUIRED — polite particles at the end: the main body of every caption MUST end with one of: ค่ะ / ค่า / คะ / นะคะ / นะค่ะ. Pick the one that fits the final sentence:
+      • ค่ะ — neutral-polite declarative ("…ได้เลยค่ะ")
+      • ค่า — warmer, more affectionate declarative ("…คุ้มมากค่า")
+      • คะ — softer suggestion or rhetorical question close ("…ลองดูสิคะ", "…ใช่ไหมคะ")
+      • นะคะ — gentle reminder ("…ลองดูนะคะ")
+      • นะค่ะ — emphasized polite close ("…ขอบคุณนะค่ะ")
+    Never end the body on a bare declarative with no particle — it sounds cold. If the caption ends with hashtags, the particle goes on the last sentence BEFORE the hashtag run.
+  - Particles นะ, เลย, สิ, กัน are welcome in moderation — they humanize the line — but don't overuse or stack them. Never childish.
+  - Restructure aggressively. Break one long English sentence into two or three shorter Thai ones. Convert passive to active. Convert dramatic English reveals into rhetorical questions. A Thai parent should read this and feel another parent wrote it — not a translator.
+  - AVOID: news-writing register, academic framing ("แบ่งออกเป็นสองกลุ่มที่มีโครงสร้างต่างกันอย่างชัดเจน"), stiff listings without connectives, anything that sounds word-for-word translated.
+  - Length can grow 1.2–1.6× vs source — friendlier phrasing takes a few more syllables. Don't exceed 2×.
+
+PRESERVE EXACTLY (no translation):
+  - School names (e.g. "Bangkok Patana School"), campus names, teacher names.
+  - Curriculum/programme names in English: IB, IGCSE, A Levels, AP, MYP, PYP.
+  - Numbers in Arabic numerals (2,300 not ๒,๓๐๐).
+  - URLs, @handles, dates, email addresses, and hashtags — character-for-character.
+  - Existing emojis (do not add new ones the source doesn't have).
+  - Paragraph breaks (blank lines).
+
+OUTPUT:
+  Return ONLY the Thai caption text. No preamble, no "here is the translation:", no JSON, no markdown fences, no explanation.
+
+Context (for cultural accuracy — do NOT translate this):
+  School: ${name}
+  Location: ${city}, ${country}${pillar}
+  Audience: Thai-speaking parents considering international schools
+
+English source to translate:
+${copyEn}`
+}
+
+/**
+ * Validate Claude's output before we write it to the DB. Rejects silent
+ * failures (empty response), wrong-language responses, and common prompt
+ * regressions like Claude wrapping its answer in a "Here is the
+ * translation:" preamble or a markdown fence. Also checks that
+ * literal fragments we told it to preserve (URLs, the school name)
+ * actually survived the round-trip.
+ */
+export function validateTranslation({ copyEn, copyTh }) {
+  if (!copyTh || copyTh.length === 0) {
+    throw new Error('Translation validation: empty output')
+  }
+  // Must contain at least some Thai script. Unicode block U+0E00-U+0E7F.
+  if (!/[฀-๿]/.test(copyTh)) {
+    throw new Error('Translation validation: no Thai characters in output')
+  }
+  // Catch "Here is the Thai translation:" preamble Claude sometimes adds.
+  if (/^(here('?s)?\s+(is\s+)?(the\s+)?(thai\s+)?translation|translation:)/i.test(copyTh)) {
+    throw new Error('Translation validation: output starts with a preamble')
+  }
+  // Catch markdown fences / JSON wrapping.
+  if (copyTh.startsWith('```') || copyTh.startsWith('{') || copyTh.startsWith('[')) {
+    throw new Error('Translation validation: output is wrapped in markdown/JSON')
+  }
+  // Reasonable length. Thai is often ~60-90% the character count of English
+  // (no spaces between words, denser glyphs) but can vary. Allow 0.3x-2.5x.
+  const ratio = copyTh.length / Math.max(1, copyEn.length)
+  if (ratio < 0.3 || ratio > 2.5) {
+    throw new Error(`Translation validation: length ratio out of bounds (${ratio.toFixed(2)}x)`)
+  }
+  // URLs from source must survive. If the source has a URL, the Thai
+  // output must contain that exact URL.
+  const urls = copyEn.match(/https?:\/\/[^\s]+/g) || []
+  for (const url of urls) {
+    if (!copyTh.includes(url)) {
+      throw new Error(`Translation validation: URL '${url}' missing from output`)
+    }
+  }
+  // Hashtags from source must survive exactly.
+  const hashtags = copyEn.match(/#[A-Za-z0-9_]+/g) || []
+  for (const tag of hashtags) {
+    if (!copyTh.includes(tag)) {
+      throw new Error(`Translation validation: hashtag '${tag}' missing from output`)
+    }
+  }
+  // NanaSays voice: the caption body MUST end with a Thai polite particle.
+  // Accepted endings cover the common parent-to-parent closings:
+  //   ค่ะ   — neutral-polite declarative
+  //   ค่า   — warmer/affectionate declarative
+  //   คะ    — softer suggestion or rhetorical-question close ("ลองดูสิคะ")
+  //   นะคะ  — gentle reminder/suggestion
+  //   นะค่ะ — emphasized polite close
+  // We strip trailing hashtags/URLs/whitespace/punctuation first so the
+  // particle can sit before a #hashtag run and still count.
+  const body = copyTh
+    .replace(/(\s*#[^\s#]+)+\s*$/u, '')    // drop trailing hashtag run
+    .replace(/(\s*https?:\/\/\S+)+\s*$/u, '') // drop trailing URL run
+    .replace(/[\s\p{P}\p{S}]+$/gu, '')     // drop trailing punctuation/emoji/whitespace
+  const tail = body.slice(-20)
+  if (!/(ค่ะ|ค่า|คะ|นะคะ|นะค่ะ)\s*$/.test(body)) {
+    throw new Error(`Translation validation: caption body must end with Thai polite particle ค่ะ / ค่า / คะ / นะคะ / นะค่ะ (last chars: "${tail}")`)
+  }
+}
+
+// ─── Claude backends ─────────────────────────────────────────────────────────
+
+function callCLI(prompt) {
+  if (!existsSync(CLAUDE_BIN)) {
+    throw new Error(`Claude CLI not found at ${CLAUDE_BIN}`)
+  }
+  // execFileSync with an args array — no shell, no quoting surprises.
+  // Prompt flows in on stdin so copy_en can contain arbitrary characters.
+  return execFileSync(CLAUDE_BIN, ['--model', MODEL, '-p', '-'], {
+    input: prompt,
+    encoding: 'utf8',
+    maxBuffer: 8 * 1024 * 1024,
+    timeout: 120_000,
+  }).trim()
+}
+
+async function callAPI(prompt) {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error('CLAUDE_BACKEND=api but ANTHROPIC_API_KEY is not set.')
+  const { default: Anthropic } = await import('@anthropic-ai/sdk')
+  const client = new Anthropic({ apiKey })
+  const msg = await client.messages.create({
+    model: MODEL,
+    max_tokens: 2048,
+    messages: [{ role: 'user', content: prompt }],
+  })
+  const block = msg.content.find(b => b.type === 'text')
+  if (!block) throw new Error('Claude API returned no text')
+  return block.text.trim()
+}
+
+// ─── CLI entry ───────────────────────────────────────────────────────────────
+
+async function main() {
+  const args = parseArgs(process.argv.slice(2))
+  const postId = args.post
+  if (!postId) {
+    console.error('Usage: node translate-caption.js --post=<uuid>')
+    process.exit(2)
+  }
+
+  const { data: post, error: fetchErr } = await db
+    .from('social_posts')
+    .select('id, copy_en, source_data, social_pillars(slug)')
+    .eq('id', postId)
+    .single()
+  if (fetchErr || !post) {
+    console.error(`Post not found: ${postId} (${fetchErr?.message || 'no row'})`)
+    process.exit(1)
+  }
+  if (!post.copy_en) {
+    console.error(`Post ${postId} has no copy_en to translate`)
+    process.exit(1)
+  }
+
+  const school = post.source_data?.school_snapshot || null
+  const pillarSlug = post.social_pillars?.slug || null
+
+  console.log(`[translate] post=${postId.slice(0, 8)}… backend=${BACKEND} model=${MODEL}`)
+  const t0 = Date.now()
+  let result
+  try {
+    result = await translateCaption({ copyEn: post.copy_en, school, pillarSlug })
+  } catch (err) {
+    console.error(`Translation failed: ${err.message}`)
+    process.exit(1)
+  }
+  console.log(`[translate] ✓ ${Math.round((Date.now() - t0) / 1000)}s, ${result.copy_th.length} chars`)
+
+  const { error: updateErr } = await db
+    .from('social_posts')
+    .update({
+      copy_th: result.copy_th,
+      copy_th_generated_at: new Date().toISOString(),
+      copy_th_model: result.model,
+    })
+    .eq('id', postId)
+  if (updateErr) {
+    console.error(`DB write failed: ${updateErr.message}`)
+    process.exit(1)
+  }
+  console.log(`[translate] saved to post ${postId}`)
+}
+
+function parseArgs(argv) {
+  const out = {}
+  for (const a of argv) {
+    if (a.startsWith('--')) {
+      const [k, v] = a.slice(2).split('=')
+      out[k] = v === undefined ? true : v
+    }
+  }
+  return out
+}
+
+// Only run main() when invoked as CLI, not when imported.
+const isCliEntry = import.meta.url === `file://${process.argv[1]}`
+if (isCliEntry) {
+  main().catch(err => {
+    console.error(`Fatal: ${err.message}`)
+    process.exit(1)
+  })
+}
+
+
+════════════════════════════════════════════════════════════════
+  02-translate-caption-route.ts
+════════════════════════════════════════════════════════════════
+
+// POST /admin/content/api/post/[id]/translate-caption
+//
+// Spawns scripts/social-media-planner/translate-caption.js which
+// translates the post's copy_en into Thai via Claude, validates, and
+// writes copy_th + copy_th_generated_at + copy_th_model back to the
+// row. Returns the resulting copy_th so the UI can update optimistically
+// without another round-trip.
+//
+// Pattern mirrors api/generate/route.ts — admin auth, spawn CLI,
+// parse stdout + exit code. Translation is short (~10s) so no streaming
+// needed, but we give it a 60s ceiling in case Claude stalls.
+
+import { NextRequest, NextResponse } from 'next/server'
+import { spawn } from 'child_process'
+import path from 'path'
+import { supabaseService, verifyAdmin } from '@/lib/supabase-admin'
+
+export const maxDuration = 120
+
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await verifyAdmin(req)
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
+  const { id } = await params
+  if (!id || !/^[0-9a-f-]{36}$/i.test(id)) {
+    return NextResponse.json({ error: 'Invalid post id' }, { status: 400 })
+  }
+
+  const svc = supabaseService()
+
+  // Sanity check the post exists + has copy_en before we burn a Claude call.
+  const { data: post, error: fetchErr } = await svc
+    .from('social_posts')
+    .select('id, copy_en')
+    .eq('id', id)
+    .single()
+  if (fetchErr || !post) {
+    return NextResponse.json({ error: 'Post not found' }, { status: 404 })
+  }
+  if (!post.copy_en) {
+    return NextResponse.json({ error: 'Post has no English caption to translate' }, { status: 400 })
+  }
+
+  const scriptDir = path.resolve(process.cwd(), '../scripts')
+  const scriptPath = path.join(scriptDir, 'social-media-planner', 'translate-caption.js')
+  const args = ['--post=' + id]
+
+  let stdout = '', stderr = '', code = -1
+  try {
+    const result = await runScript(scriptPath, args, scriptDir)
+    stdout = result.stdout
+    stderr = result.stderr
+    code = result.code
+  } catch (err) {
+    return NextResponse.json({
+      error: err instanceof Error ? err.message : 'Translator spawn failed',
+    }, { status: 500 })
+  }
+
+  if (code !== 0) {
+    // Translation failed — row is unchanged. Surface the script's stderr
+    // (validation message, Claude error, etc.) so the UI can show it.
+    const message = (stderr.split('\n').filter(Boolean).pop() || `Translator exited ${code}`).slice(0, 300)
+    return NextResponse.json({
+      error: message,
+      stderr: stderr.slice(-500),
+      stdout: stdout.slice(-500),
+    }, { status: 500 })
+  }
+
+  // Read back the translation the script wrote so the UI has the final text.
+  const { data: updated, error: readErr } = await svc
+    .from('social_posts')
+    .select('copy_th, copy_th_generated_at, copy_th_model')
+    .eq('id', id)
+    .single()
+  if (readErr || !updated?.copy_th) {
+    return NextResponse.json({
+      error: 'Translation ran but copy_th is missing — check stderr',
+      stderr: stderr.slice(-500),
+    }, { status: 500 })
+  }
+
+  return NextResponse.json({
+    ok: true,
+    copy_th: updated.copy_th,
+    copy_th_generated_at: updated.copy_th_generated_at,
+    copy_th_model: updated.copy_th_model,
+  })
+}
+
+function runScript(scriptPath: string, args: string[], cwd: string): Promise<{ stdout: string; stderr: string; code: number }> {
+  return new Promise((resolve, reject) => {
+    const proc = spawn('node', [scriptPath, ...args], {
+      cwd,
+      env: process.env,
+    })
+    let stdout = '', stderr = ''
+    proc.stdout.on('data', d => { stdout += d.toString() })
+    proc.stderr.on('data', d => { stderr += d.toString() })
+    proc.on('error', reject)
+    proc.on('close', code => resolve({ stdout, stderr, code: code ?? -1 }))
+  })
+}
+
+
+════════════════════════════════════════════════════════════════
+  03-caption-route.ts
+════════════════════════════════════════════════════════════════
+
+// PATCH /admin/content/api/post/[id]/caption
+//
+// Updates copy_en and/or copy_th on a social_posts row. Used by the detail
+// page's inline caption editor — both captions are always-editable
+// textareas, and a Save button fires this when either is dirty.
+//
+// Scope is deliberately narrow: no status changes, no audit trail. If copy_en
+// is edited after a Thai translation was generated, we leave copy_th +
+// copy_th_generated_at alone — the UI shows the timestamp so the reviewer
+// can decide whether to regenerate.
+
+import { NextRequest, NextResponse } from 'next/server'
+import { supabaseService, verifyAdmin } from '@/lib/supabase-admin'
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const auth = await verifyAdmin(req)
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
+
+  const { id } = await params
+  if (!id || !/^[0-9a-f-]{36}$/i.test(id)) {
+    return NextResponse.json({ error: 'Invalid post id' }, { status: 400 })
+  }
+
+  const body = await req.json().catch(() => ({}))
+  const update: Record<string, unknown> = {}
+  if (typeof body.copy_en === 'string') update.copy_en = body.copy_en
+  if (typeof body.copy_th === 'string') update.copy_th = body.copy_th
+  if (!Object.keys(update).length) {
+    return NextResponse.json({ error: 'Nothing to update (copy_en or copy_th required)' }, { status: 400 })
+  }
+
+  const svc = supabaseService()
+  const { error } = await svc.from('social_posts').update(update).eq('id', id)
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  return NextResponse.json({ ok: true })
+}
+
+
+════════════════════════════════════════════════════════════════
+  04-thai-caption.sql
+════════════════════════════════════════════════════════════════
+
+-- Add Thai caption support to social_posts.
+--
+-- `copy_th` holds the Thai translation of `copy_en`. Nullable — translation
+-- is opt-in via the admin UI "Generate Thai caption" action, not auto-run
+-- at album creation time. Regenerating overwrites all three columns;
+-- history is not kept (if we later need it, promote to a
+-- social_post_translations table).
+
+alter table public.social_posts
+  add column if not exists copy_th text;
+
+alter table public.social_posts
+  add column if not exists copy_th_generated_at timestamptz;
+
+alter table public.social_posts
+  add column if not exists copy_th_model text;
+
+comment on column public.social_posts.copy_th is
+  'Thai translation of copy_en. Written by the admin "Generate Thai caption" action; nullable when never translated.';
+comment on column public.social_posts.copy_th_generated_at is
+  'Timestamp of the most recent Thai caption generation.';
+comment on column public.social_posts.copy_th_model is
+  'Claude model slug that produced the current Thai caption (e.g. claude-sonnet-4-6).';
+
+
+════════════════════════════════════════════════════════════════
+  05-diff-detail-page.patch
+════════════════════════════════════════════════════════════════
+
+diff --git a/app/admin/content/[id]/page.tsx b/app/admin/content/[id]/page.tsx
+index a943400..80a89b7 100644
+--- a/app/admin/content/[id]/page.tsx
++++ b/app/admin/content/[id]/page.tsx
+@@ -19,6 +19,9 @@ type Post = {
+   post_type: string | null
+   slide_count: number | null
+   copy_en: string | null
++  copy_th: string | null
++  copy_th_generated_at: string | null
++  copy_th_model: string | null
+   hashtags: string[] | null
+   image_url: string | null
+   image_urls: string[] | null
+@@ -45,12 +48,19 @@ export default function PostDetailPage() {
+   const [slideIndex, setSlideIndex] = useState(0)
+   const [showReasons, setShowReasons] = useState(false)
+   const [showSource, setShowSource] = useState(false)
++  // Local drafts for the caption editor. Initialised from the post on load
++  // and synced back on save. Dirty = draft !== saved; Save button only
++  // appears when something has actually changed.
++  const [draftEn, setDraftEn] = useState('')
++  const [draftTh, setDraftTh] = useState('')
++  const [savingCaption, setSavingCaption] = useState(false)
++  const [translating, setTranslating] = useState(false)
+ 
+   async function load() {
+     const { data } = await supabase
+       .from('social_posts')
+       .select(`
+-        id, status, post_type, slide_count, copy_en, hashtags,
++        id, status, post_type, slide_count, copy_en, copy_th, copy_th_generated_at, copy_th_model, hashtags,
+         image_url, image_urls, image_alt_en, channel_slug, link_url,
+         pick_reasons, source_data, generator_model, generator_backend,
+         requires_branded_content_disclosure, created_at,
+@@ -59,7 +69,10 @@ export default function PostDetailPage() {
+       `)
+       .eq('id', id)
+       .single()
+-    setPost(data as unknown as Post)
++    const p = data as unknown as Post
++    setPost(p)
++    setDraftEn(p?.copy_en || '')
++    setDraftTh(p?.copy_th || '')
+     setLoading(false)
+   }
+   useEffect(() => { load() }, [id])
+@@ -127,6 +140,64 @@ export default function PostDetailPage() {
+     setMessage('✓ Caption copied to clipboard')
+   }
+ 
++  async function saveCaption() {
++    if (!post) return
++    const body: Record<string, string> = {}
++    if (draftEn !== (post.copy_en || '')) body.copy_en = draftEn
++    if (draftTh !== (post.copy_th || '')) body.copy_th = draftTh
++    if (!Object.keys(body).length) return
++    setSavingCaption(true)
++    setMessage('')
++    try {
++      const { data: { session } } = await supabase.auth.getSession()
++      const res = await fetch(`/admin/content/api/post/${id}/caption`, {
++        method: 'PATCH',
++        headers: {
++          'Content-Type': 'application/json',
++          'Authorization': `Bearer ${session?.access_token}`,
++        },
++        body: JSON.stringify(body),
++      })
++      const resp = await res.json().catch(() => ({}))
++      if (!res.ok) throw new Error(resp.error || 'Save failed')
++      setMessage('✓ Caption saved')
++      await load()
++    } catch (err) {
++      setMessage(`✗ ${err instanceof Error ? err.message : 'Save failed'}`)
++    } finally {
++      setSavingCaption(false)
++    }
++  }
++
++  // Translate regenerates copy_th from whatever copy_en is saved in the DB.
++  // If the reviewer has edited copy_en without saving, we nudge them to
++  // save first so the translation matches the on-screen English.
++  async function handleTranslate() {
++    if (!post) return
++    if (draftEn !== (post.copy_en || '')) {
++      setMessage('✗ Save your English edit first, then translate.')
++      return
++    }
++    setTranslating(true)
++    setMessage('Translating… (~10s)')
++    try {
++      const { data: { session } } = await supabase.auth.getSession()
++      const res = await fetch(`/admin/content/api/post/${id}/translate-caption`, {
++        method: 'POST',
++        headers: { 'Authorization': `Bearer ${session?.access_token}` },
++      })
++      const resp = await res.json().catch(() => ({}))
++      if (!res.ok || !resp.ok) throw new Error(resp.error || `Translation failed (${res.status})`)
++      setDraftTh(resp.copy_th)
++      setMessage('✓ Thai caption generated')
++      await load()
++    } catch (err) {
++      setMessage(`✗ ${err instanceof Error ? err.message : 'Translation failed'}`)
++    } finally {
++      setTranslating(false)
++    }
++  }
++
+   if (loading) return <div style={{ padding: 40, color: '#6B7280' }}>Loading…</div>
+   if (!post) return <div style={{ padding: 40, color: '#B91C1C' }}>Post not found.</div>
+ 
+@@ -136,6 +207,7 @@ export default function PostDetailPage() {
+   const verifiedAgeDays = post.schools?.verified_at
+     ? Math.round((Date.now() - new Date(post.schools.verified_at).getTime()) / 86_400_000)
+     : null
++  const dirty = draftEn !== (post.copy_en || '') || draftTh !== (post.copy_th || '')
+ 
+   return (
+     <div>
+@@ -248,15 +320,74 @@ export default function PostDetailPage() {
+           )}
+ 
+           <div style={{ background: '#fff', padding: 16, borderRadius: 8, border: '1px solid #E2E8F0', marginBottom: 16 }}>
+-            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, color: '#6B7280', marginBottom: 8 }}>CAPTION</div>
+-            <div style={{ fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-wrap', color: '#1F2937' }}>
+-              {post.copy_en || '(no copy)'}
++            {/* English caption — editable */}
++            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
++              <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, color: '#6B7280' }}>CAPTION · ENGLISH</span>
++              {dirty && (
++                <button onClick={saveCaption} disabled={savingCaption} style={{
++                  padding: '4px 12px', fontSize: 11, fontWeight: 700,
++                  background: savingCaption ? '#94A3B8' : TEAL, color: '#fff',
++                  border: 'none', borderRadius: 5, cursor: savingCaption ? 'not-allowed' : 'pointer',
++                }}>{savingCaption ? 'Saving…' : '✓ Save changes'}</button>
++              )}
+             </div>
++            <textarea
++              value={draftEn}
++              onChange={e => setDraftEn(e.target.value)}
++              rows={Math.max(4, Math.min(14, draftEn.split('\n').length + 1))}
++              style={{
++                width: '100%', padding: 10, border: '1px solid #E2E8F0', borderRadius: 6,
++                fontSize: 14, lineHeight: 1.6, color: '#1F2937', fontFamily: 'inherit',
++                resize: 'vertical', boxSizing: 'border-box',
++                background: draftEn !== (post.copy_en || '') ? '#FFFBEB' : '#fff',
++              }}
++            />
+             {post.hashtags?.length ? (
+               <div style={{ marginTop: 12, fontSize: 13, color: '#3730A3' }}>
+                 {post.hashtags.map(h => `#${h}`).join(' ')}
+               </div>
+             ) : null}
++
++            {/* Thai caption — editable + on-demand generator */}
++            <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid #F1F5F9' }}>
++              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 8 }}>
++                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap' }}>
++                  <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, color: '#6B7280' }}>CAPTION · THAI</span>
++                  {post.copy_th_generated_at && (
++                    <span style={{ fontSize: 11, color: '#94A3B8' }}>
++                      translated {relativeTime(post.copy_th_generated_at)}
++                      {post.copy_th_model ? ` · ${post.copy_th_model}` : ''}
++                    </span>
++                  )}
++                </div>
++                <button onClick={handleTranslate} disabled={translating || !post.copy_en} style={{
++                  padding: '4px 12px', fontSize: 11, fontWeight: 600,
++                  background: translating ? '#F3F4F6' : '#fff',
++                  color: translating ? '#94A3B8' : '#4338CA',
++                  border: '1px solid #E2E8F0', borderRadius: 5,
++                  cursor: (translating || !post.copy_en) ? 'not-allowed' : 'pointer',
++                }}>
++                  {translating ? '⏳ Translating…' : post.copy_th ? '🔄 Regenerate Thai' : '🇹🇭 Generate Thai'}
++                </button>
++              </div>
++              {draftTh ? (
++                <textarea
++                  value={draftTh}
++                  onChange={e => setDraftTh(e.target.value)}
++                  rows={Math.max(4, Math.min(14, draftTh.split('\n').length + 1))}
++                  style={{
++                    width: '100%', padding: 10, border: '1px solid #E2E8F0', borderRadius: 6,
++                    fontSize: 14, lineHeight: 1.6, color: '#1F2937', fontFamily: 'inherit',
++                    resize: 'vertical', boxSizing: 'border-box',
++                    background: draftTh !== (post.copy_th || '') ? '#FFFBEB' : '#fff',
++                  }}
++                />
++              ) : (
++                <div style={{ padding: '12px 10px', fontSize: 13, color: '#94A3B8', fontStyle: 'italic', background: '#F9FAFB', borderRadius: 6 }}>
++                  No Thai translation yet. Click &quot;Generate Thai&quot; to create one.
++                </div>
++              )}
++            </div>
+           </div>
+ 
+           <Collapsible title="Why these picks?" open={showReasons} onToggle={() => setShowReasons(!showReasons)}>
+@@ -366,3 +497,14 @@ function btnStyle(bg: string, disabled: boolean): React.CSSProperties {
+     fontSize: 13, fontWeight: 700,
+   }
+ }
++
++function relativeTime(iso: string): string {
++  const diffMs = Date.now() - new Date(iso).getTime()
++  const mins = Math.round(diffMs / 60_000)
++  if (mins < 1) return 'just now'
++  if (mins < 60) return `${mins}m ago`
++  const hrs = Math.round(mins / 60)
++  if (hrs < 24) return `${hrs}h ago`
++  const days = Math.round(hrs / 24)
++  return `${days}d ago`
++}
+
+
+════════════════════════════════════════════════════════════════
+  06-diff-queue-page.patch
+════════════════════════════════════════════════════════════════
+
+diff --git a/app/admin/content/page.tsx b/app/admin/content/page.tsx
+index f461838..60ea906 100644
+--- a/app/admin/content/page.tsx
++++ b/app/admin/content/page.tsx
+@@ -21,6 +21,8 @@ type PostRow = {
+   channel_slug: string | null
+   image_url: string | null
+   copy_en: string | null
++  copy_th: string | null
++  copy_th_generated_at: string | null
+   created_at: string
+   source_data: {
+     plan_item_id?: string | null
+@@ -51,12 +53,15 @@ export default function QueuePage() {
+   const [genLog, setGenLog] = useState<string>('')
+   const [selected, setSelected] = useState<Set<string>>(new Set())
+   const [deleting, setDeleting] = useState(false)
++  // Post IDs currently mid-translation. Drives button spinner + disabled
++  // state. Multiple cards can translate in parallel (different IDs).
++  const [translatingIds, setTranslatingIds] = useState<Set<string>>(new Set())
+ 
+   async function load() {
+     setLoading(true)
+     let q = supabase
+       .from('social_posts')
+-      .select('id, status, post_type, slide_count, school_id, channel_slug, image_url, copy_en, created_at, source_data, social_pillars(slug, name_en), schools(name)')
++      .select('id, status, post_type, slide_count, school_id, channel_slug, image_url, copy_en, copy_th, copy_th_generated_at, created_at, source_data, social_pillars(slug, name_en), schools(name)')
+       .order('created_at', { ascending: false })
+       .limit(100)
+     if (filter !== 'all') q = q.eq('status', filter)
+@@ -111,6 +116,37 @@ export default function QueuePage() {
+     }
+   }
+ 
++  async function handleTranslate(postId: string) {
++    setTranslatingIds(prev => new Set(prev).add(postId))
++    setMessage(`Translating… (~10s)`)
++    try {
++      const { data: { session } } = await supabase.auth.getSession()
++      const res = await fetch(`/admin/content/api/post/${postId}/translate-caption`, {
++        method: 'POST',
++        headers: { 'Authorization': `Bearer ${session?.access_token}` },
++      })
++      const resp = await res.json().catch(() => ({}))
++      if (!res.ok || !resp.ok) {
++        setMessage(`✗ ${resp.error || `Translation failed (${res.status})`}`)
++        return
++      }
++      // Splice the new Thai caption into local state so the card updates
++      // without waiting for a full reload round-trip.
++      setPosts(prev => prev.map(p => p.id === postId
++        ? { ...p, copy_th: resp.copy_th, copy_th_generated_at: resp.copy_th_generated_at }
++        : p))
++      setMessage(`✓ Thai caption generated`)
++    } catch (err) {
++      setMessage(`✗ ${err instanceof Error ? err.message : 'Translation failed'}`)
++    } finally {
++      setTranslatingIds(prev => {
++        const next = new Set(prev)
++        next.delete(postId)
++        return next
++      })
++    }
++  }
++
+   function toggleSelect(id: string) {
+     setSelected(prev => {
+       const next = new Set(prev)
+@@ -152,18 +188,6 @@ export default function QueuePage() {
+ 
+   return (
+     <div>
+-      {/* Tab nav */}
+-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: `1px solid #E2E8F0` }}>
+-        <span style={{
+-          padding: '10px 16px', fontSize: 14, fontWeight: 700, color: NAVY,
+-          borderBottom: `3px solid ${TEAL}`, marginBottom: -1, cursor: 'default',
+-        }}>Queue</span>
+-        <Link href="/admin/content/plan" style={{
+-          padding: '10px 16px', fontSize: 14, fontWeight: 700, color: '#6B7280',
+-          textDecoration: 'none', borderBottom: '3px solid transparent', marginBottom: -1,
+-        }}>Plan</Link>
+-      </div>
+-
+       {/* Top bar */}
+       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 24, gap: 16, flexWrap: 'wrap' }}>
+ 
+@@ -341,8 +365,38 @@ export default function QueuePage() {
+                       {p.schools?.name || p.social_pillars?.name_en || '(no school)'}
+                     </div>
+                     <div style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.5, maxHeight: 54, overflow: 'hidden' }}>
+-                      {p.copy_en?.slice(0, 120) || '(no copy)'}{p.copy_en && p.copy_en.length > 120 ? '…' : ''}
++                      <span style={{ fontSize: 9, fontWeight: 700, color: '#94A3B8', marginRight: 6, letterSpacing: 0.4 }}>EN</span>
++                      {p.copy_en?.slice(0, 110) || '(no copy)'}{p.copy_en && p.copy_en.length > 110 ? '…' : ''}
+                     </div>
++
++                    {p.copy_th && (
++                      <div style={{ fontSize: 12, color: '#6B7280', lineHeight: 1.5, maxHeight: 54, overflow: 'hidden', marginTop: 6 }}>
++                        <span style={{ fontSize: 9, fontWeight: 700, color: '#94A3B8', marginRight: 6, letterSpacing: 0.4 }}>TH</span>
++                        {p.copy_th.slice(0, 110)}{p.copy_th.length > 110 ? '…' : ''}
++                      </div>
++                    )}
++
++                    {p.copy_en && (
++                      <button
++                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleTranslate(p.id) }}
++                        disabled={translatingIds.has(p.id)}
++                        style={{
++                          marginTop: 10,
++                          fontSize: 11,
++                          fontWeight: 600,
++                          padding: '4px 10px',
++                          border: '1px solid #E2E8F0',
++                          borderRadius: 5,
++                          background: translatingIds.has(p.id) ? '#F3F4F6' : '#fff',
++                          color: translatingIds.has(p.id) ? '#94A3B8' : '#4338CA',
++                          cursor: translatingIds.has(p.id) ? 'wait' : 'pointer',
++                        }}
++                      >
++                        {translatingIds.has(p.id)
++                          ? '⏳ Translating…'
++                          : p.copy_th ? '🔄 Regenerate Thai' : '🇹🇭 Generate Thai'}
++                      </button>
++                    )}
+                   </div>
+                 </div>
+               </Link>
+
+
+════════════════════════════════════════════════════════════════
+  07-diff-admin-nav.patch
+════════════════════════════════════════════════════════════════
+
+diff --git a/app/admin/content/plan/page.tsx b/app/admin/content/plan/page.tsx
+index 9c3b4ab..7b3ddea 100644
+--- a/app/admin/content/plan/page.tsx
++++ b/app/admin/content/plan/page.tsx
+@@ -272,12 +272,6 @@ export default function PlanPage() {
+ 
+   return (
+     <div>
+-      {/* Tab nav */}
+-      <div style={{ display: 'flex', gap: 4, marginBottom: 20, borderBottom: `1px solid #E2E8F0` }}>
+-        <Link href="/admin/content" style={tabStyle(false)}>Queue</Link>
+-        <span style={tabStyle(true)}>Plan</span>
+-      </div>
+-
+       <h1 style={{ fontSize: 24, fontWeight: 800, color: NAVY, margin: '0 0 6px' }}>Content plan</h1>
+       <p style={{ fontSize: 13, color: '#6B7280', margin: '0 0 20px' }}>
+         A content brief for every planned post — headline, audience, insight, proof points — that you can review, edit, and regenerate before committing production time.
+diff --git a/app/admin/layout.tsx b/app/admin/layout.tsx
+index dd57305..936c186 100644
+--- a/app/admin/layout.tsx
++++ b/app/admin/layout.tsx
+@@ -68,11 +68,15 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
+     )
+   }
+ 
++  // `soon: true` tabs route to stub pages — kept visible so the roadmap is
++  // always in sight, but rendered with a muted style + "SOON" pill so we
++  // don't click into them by reflex.
+   const tabs = [
+-    { label: 'Queue',    href: '/admin/content' },
+-    { label: 'Schedule', href: '/admin/content/schedule' },
+-    { label: 'Design',   href: '/admin/content/design' },
+-    { label: 'Layout',   href: '/admin/content/layout' },
++    { label: 'Queue',    href: '/admin/content',          soon: false },
++    { label: 'Plan',     href: '/admin/content/plan',     soon: false },
++    { label: 'Schedule', href: '/admin/content/schedule', soon: true  },
++    { label: 'Design',   href: '/admin/content/design',   soon: true  },
++    { label: 'Layout',   href: '/admin/content/layout',   soon: true  },
+   ]
+ 
+   return (
+@@ -106,15 +110,40 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
+         padding: '0 32px', display: 'flex', gap: 2,
+       }}>
+         {tabs.map(t => {
+-          const active = pathname === t.href || (t.href === '/admin/content' && pathname.startsWith('/admin/content/') && !pathname.includes('/schedule') && !pathname.includes('/design') && !pathname.includes('/layout'))
++          // Queue is active for /admin/content and any child route that isn't
++          // one of the other known tabs. The simpler `pathname === t.href`
++          // works for the explicit ones (Plan, Schedule, Design, Layout).
++          const isQueueCatchAll =
++            t.href === '/admin/content' &&
++            pathname.startsWith('/admin/content/') &&
++            !pathname.startsWith('/admin/content/plan') &&
++            !pathname.startsWith('/admin/content/schedule') &&
++            !pathname.startsWith('/admin/content/design') &&
++            !pathname.startsWith('/admin/content/layout')
++          const active = pathname === t.href || isQueueCatchAll
+           return (
+             <Link key={t.href} href={t.href} style={{
+-              padding: '14px 20px', fontSize: 14, fontWeight: 600,
+-              color: active ? NAVY : '#6B7280',
++              padding: '14px 20px', fontSize: 14,
++              fontWeight: t.soon ? 500 : 600,
++              color: active ? NAVY : (t.soon ? '#94A3B8' : '#6B7280'),
+               borderBottom: `3px solid ${active ? TEAL : 'transparent'}`,
+               textDecoration: 'none',
++              display: 'inline-flex',
++              alignItems: 'center',
++              gap: 6,
+             }}>
+               {t.label}
++              {t.soon && (
++                <span style={{
++                  fontSize: 10,
++                  fontWeight: 700,
++                  color: '#94A3B8',
++                  background: '#F1F5F9',
++                  padding: '2px 6px',
++                  borderRadius: 10,
++                  letterSpacing: 0.3,
++                }}>SOON</span>
++              )}
+             </Link>
+           )
+         })}

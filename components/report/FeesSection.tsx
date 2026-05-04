@@ -53,6 +53,10 @@ type Props = {
   scholarships?: string[] | null
   bursariesNote?: string | null
   feesSourceUrl?: string | null
+  /* Anchor for the inner scholarships subsection. Defaults to "scholarships"
+     to preserve the existing /report TOC link. The school detail page passes
+     "fees-scholarships" to avoid colliding with its outer #scholarships. */
+  scholarshipsId?: string
 }
 
 function fmt(n: number | null | undefined, prefix = '£') {
@@ -84,6 +88,7 @@ function normalizeFeesByGrade(raw: FeesByGrade | null | undefined, fallbackCurre
 export default function FeesSection({
   feesMin, feesMax, currency, feesByGrade,
   includesBoarding, applicationFee, scholarships, bursariesNote, feesSourceUrl,
+  scholarshipsId = 'scholarships',
 }: Props) {
   const normalized = normalizeFeesByGrade(feesByGrade, currency)
   const hasGradeTable = !!(normalized && normalized.rows && normalized.rows.length > 0)
@@ -116,12 +121,7 @@ export default function FeesSection({
                 <tr key={i}>
                   <td>{row.phase || '—'}</td>
                   <td>{fmt(row.per_term, prefix)}</td>
-                  <td>
-                    {fmt(row.per_year, prefix)}
-                    {row.source === 'computed' && (
-                      <small style={{ color: 'var(--muted)', marginLeft: 4 }}>(computed)</small>
-                    )}
-                  </td>
+                  <td>{fmt(row.per_year, prefix)}</td>
                 </tr>
               ))}
             </tbody>
@@ -134,21 +134,22 @@ export default function FeesSection({
                 <thead>
                   <tr>
                     <th>Item</th>
-                    <th>Per term</th>
-                    <th>Per year</th>
+                    <th>Frequency</th>
+                    <th>Amount</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {normalized!.compulsory_extras!.map((e, i) => (
-                    <tr key={i}>
-                      <td>
-                        {e.name || '—'}
-                        {e.notes && <><br /><small style={{ color: 'var(--muted)' }}>{e.notes}</small></>}
-                      </td>
-                      <td>{fmt(e.per_term, prefix)}</td>
-                      <td>{fmt(e.per_year, prefix)}</td>
-                    </tr>
-                  ))}
+                  {normalized!.compulsory_extras!.map((e, i) => {
+                    const isOneTime = /one.?time|non.?refundable/i.test(e.notes || '')
+                    const amount = e.per_year ?? e.per_term
+                    return (
+                      <tr key={i}>
+                        <td>{e.name || '—'}</td>
+                        <td><small style={{ color: 'var(--muted)' }}>{isOneTime ? 'One-time' : (e.per_year ? 'Per year' : 'Per term')}</small></td>
+                        <td>{fmt(amount, prefix)}</td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </>
@@ -156,7 +157,7 @@ export default function FeesSection({
         </>
       ) : feesMin ? (
         <p>
-          <strong><FeeText min={feesMin} max={feesMax ?? feesMin} originalCurrency={currency ?? 'GBP'} /></strong> per year
+          <strong><FeeText feesUsdMin={feesMin} feesUsdMax={feesMax ?? feesMin} feesOriginal={currency ?? 'GBP'} /></strong> per year
           {includesBoarding ? ' (boarding fee)' : ''}.
           {applicationFee && <> Application fee: {fmt(applicationFee, prefix)}.</>}
         </p>
@@ -174,7 +175,7 @@ export default function FeesSection({
       </div>
 
       {(scholarships?.length || bursariesNote) && (
-        <div className="schol-section" id="scholarships">
+        <div className="schol-section" id={scholarshipsId}>
           <div className="schol-section-title">Scholarships & financial assistance</div>
 
           {scholarships && scholarships.length > 0 && (

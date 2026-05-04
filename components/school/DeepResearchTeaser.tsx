@@ -39,10 +39,10 @@ export default function DeepResearchTeaser({ slug, schoolName, structured }: Pro
 
   // Locked list is consistent across schools
   const locked = [
-    'Charity Commission filings',
-    'ISI inspection quotes',
-    'Safeguarding record',
-    'Parent-fit verdict + 5 tour questions',
+    'Charity Commission & financial filings',
+    'Full ISI inspection quotes + safeguarding record',
+    'Parent-fit verdict: is this school right for your child?',
+    '5 tailored tour questions to ask on the day',
   ]
 
   return (
@@ -78,14 +78,14 @@ export default function DeepResearchTeaser({ slug, schoolName, structured }: Pro
         fontSize: 22, fontWeight: 900, color: 'var(--navy, #1B3252)',
         marginBottom: 10, letterSpacing: '-.01em', lineHeight: 1.2,
       }}>
-        Beyond the marketing: what {schoolName}&apos;s data says
+        Make the right call on {schoolName}
       </h2>
 
       <p style={{
         fontSize: 14, color: 'var(--body, #374151)',
         marginBottom: 20, lineHeight: 1.6, maxWidth: 640,
       }}>
-        We analysed this school&apos;s published materials, exam results, university destinations, and inspection history. The full Deep Research report unlocks regulatory and financial verification.
+        Most parents visit 4–6 schools, spend months comparing brochures, and still feel uncertain on decision day. Nana reads the inspection records, financial filings, and exam data so you walk in knowing exactly what to ask — and what to watch out for.
       </p>
 
       <div style={{
@@ -145,16 +145,16 @@ export default function DeepResearchTeaser({ slug, schoolName, structured }: Pro
           lineHeight: 1, height: 30, overflow: 'hidden',
         }}>
           <div className="dr-price-track">
-            <span>£29</span>
-            <span>$37</span>
-            <span>฿1,300</span>
-            <span>£29</span>
+            <span>£39/mo</span>
+            <span>$49/mo</span>
+            <span>฿1,700/mo</span>
+            <span>£39/mo</span>
           </div>
         </div>
       </div>
 
       <Link
-        href={`/schools/${slug}/report`}
+        href={`/unlock?from=/schools/${slug}/report`}
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 14,
           background: 'var(--navy, #1B3252)', color: '#fff',
@@ -166,7 +166,7 @@ export default function DeepResearchTeaser({ slug, schoolName, structured }: Pro
           transition: 'transform .15s, box-shadow .15s',
         }}
       >
-        Open Deep Research →
+        See the full research report →
       </Link>
 
     </div>

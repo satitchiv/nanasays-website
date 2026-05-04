@@ -48,8 +48,6 @@ interface Session {
 }
 
 interface Props {
-  slug: string
-  schoolName: string
   initialSession: Session | null
   initialMessages: any[]
   allSessions: Session[]
@@ -57,9 +55,6 @@ interface Props {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function slugToName(slug: string) {
-  return slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-}
 
 function signalLabel(s: DecisionSummary['signals']) {
   return {
@@ -303,8 +298,6 @@ function DecisionPanel({ summary, generating }: { summary: DecisionSummary | nul
 // ── Main component ───────────────────────────────────────────────────────────
 
 export function NanaFullScreen({
-  slug,
-  schoolName,
   initialSession,
   initialMessages,
 }: Props) {
@@ -361,7 +354,7 @@ export function NanaFullScreen({
     setQuestion('')
 
     try {
-      const res = await fetch(`/api/nana-research/${slug}`, {
+      const res = await fetch(`/api/nana-research`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: q, sessionId: session?.id }),
@@ -424,7 +417,7 @@ export function NanaFullScreen({
               setIsStreaming(false)
               if (localParsed || hasContent) {
                 setMessages(prev => [...prev, {
-                  id:        crypto.randomUUID(),
+                  id:        (crypto.randomUUID?.() ?? Math.random().toString(36).slice(2)),
                   question:  q,
                   parsed:    localParsed,
                   shareToken,
@@ -454,7 +447,7 @@ export function NanaFullScreen({
       // Ensure isStreaming is cleared even on error/abort
       setIsStreaming(false)
     }
-  }, [question, isStreaming, session, slug])
+  }, [question, isStreaming, session])
 
   const stopStream = () => {
     abortRef.current?.abort()
@@ -477,13 +470,13 @@ export function NanaFullScreen({
     <div className="rs-shell">
       {/* ── Header ── */}
       <header className="rs-header">
-        <Link href={`/schools/${slug}/report`} className="rs-back">
-          ← Report
+        <Link href="/schools" className="rs-back">
+          ← Directory
         </Link>
         <div className="rs-header-school">
           <span className="rs-header-pulse" />
-          <span className="rs-header-name">{schoolName}</span>
-          <span className="rs-header-mode">Research Mode</span>
+          <span className="rs-header-name">Nana</span>
+          <span className="rs-header-mode">UK Schools Research</span>
         </div>
         <div className="rs-header-right">
           <span className="rs-header-count">
@@ -553,17 +546,17 @@ export function NanaFullScreen({
             ) : (
               <div className="rs-empty-state">
                 <div className="rs-empty-pulse" />
-                <h2 className="rs-empty-title">Research {schoolName}</h2>
+                <h2 className="rs-empty-title">Research UK Independent Schools</h2>
                 <p className="rs-empty-hint">
-                  Ask anything — fees, pastoral, sport, admissions, inspection results.
-                  Nana builds a decision brief as you go.
+                  Ask about any school — or ask Nana to compare, recommend, or find schools that match your criteria.
+                  She searches 140 UK schools and builds a decision brief as you go.
                 </p>
                 <div className="rs-starter-chips">
                   {[
-                    'What are the boarding fees?',
-                    'How strong is the pastoral care?',
-                    'What sports does the school excel at?',
-                    'How selective is admissions?',
+                    'Which boarding schools near London have strong cricket?',
+                    'Compare Wellington College and Eton on pastoral care',
+                    'Which schools offer strong art and music programmes under £40k?',
+                    'What are the best schools for a sporty girl who wants to board?',
                   ].map(q => (
                     <button
                       key={q}
@@ -583,7 +576,7 @@ export function NanaFullScreen({
             <textarea
               ref={inputRef}
               className="rs-input"
-              placeholder={`Ask Nana about ${schoolName}…`}
+              placeholder="Ask about any UK independent school…"
               value={question}
               onChange={e => setQuestion(e.target.value)}
               onKeyDown={handleKey}

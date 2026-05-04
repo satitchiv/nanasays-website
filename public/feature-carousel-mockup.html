@@ -1,0 +1,2178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nanasays — Feature Carousel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+<!-- Leaflet for the real country map (matches /countries/[slug] page) -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy:    #1B3252;
+  --navy-lt: #243F66;
+  --teal:    #34C3A0;
+  --teal-dk: #239C80;
+  --teal-bg: #E8FAF6;
+  --off:     #F6F8FA;
+  --off2:    #EEF1F5;
+  --border:  #E5E7EB;
+  --bmd:     #D1D5DB;
+  --muted:   #6B7280;
+  --body:    #374151;
+  --shadow:  rgba(27,50,82,0.08);
+  --shadow-lg: rgba(27,50,82,0.16);
+  --sans:    'Nunito Sans', system-ui, sans-serif;
+  --head:    'Nunito', 'Nunito Sans', system-ui, sans-serif;
+}
+
+html, body { font-family: var(--sans); background: var(--off); color: var(--body); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+
+/* ── PAGE ── */
+.page { max-width: 1120px; margin: 0 auto; padding: 64px 24px 80px; }
+
+.eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; color: var(--teal-dk); margin-bottom: 14px; text-align: center; }
+
+.headline {
+  font-family: var(--head); font-size: clamp(28px, 4vw, 46px);
+  font-weight: 900; text-align: center; color: var(--navy);
+  line-height: 1.1; letter-spacing: -1px; margin-bottom: 14px;
+}
+.headline em { color: var(--teal); font-style: normal; }
+
+.sub { text-align: center; font-size: 16px; font-weight: 400; color: var(--muted); max-width: 520px; margin: 0 auto 36px; line-height: 1.65; }
+
+/* ── AUDIENCE TOGGLE ── */
+.aud-wrap { display: flex; justify-content: center; margin-bottom: 44px; }
+.audience-toggle {
+  display: flex; gap: 3px; align-items: center;
+  background: #fff; border: 1.5px solid var(--border);
+  border-radius: 100px; padding: 4px;
+  box-shadow: 0 2px 8px var(--shadow);
+}
+.aud-btn {
+  padding: 9px 24px; border-radius: 100px;
+  font-size: 13px; font-weight: 800; border: none; cursor: pointer;
+  background: transparent; color: var(--muted); font-family: var(--sans);
+  transition: background .18s, color .18s;
+}
+.aud-btn.active { background: var(--navy); color: #fff; }
+
+/* ── CAROUSEL CARD ── */
+.carousel-card {
+  background: #fff; border-radius: 18px;
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 24px var(--shadow), 0 1px 3px var(--shadow);
+  overflow: hidden;
+}
+
+/* ── TAB BAR ── */
+.tab-bar {
+  display: flex; background: #fff;
+  border-bottom: 1px solid var(--border);
+  padding: 0 6px; gap: 0;
+}
+.tab-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: 16px 18px 14px; border: none; background: transparent;
+  cursor: pointer; font-family: var(--sans); position: relative; text-align: left;
+}
+.tab-icon { font-size: 17px; line-height: 1; margin-bottom: 2px; }
+.tab-label { font-size: 10px; font-weight: 800; color: var(--navy); opacity: .4; text-transform: uppercase; letter-spacing: .1em; white-space: nowrap; transition: opacity .2s, color .2s; }
+.tab-desc  { font-size: 13px; font-weight: 700; color: var(--navy); opacity: .4; line-height: 1.3; transition: opacity .2s; }
+.tab-btn.active .tab-label { opacity: 1; color: var(--teal-dk); }
+.tab-btn.active .tab-desc  { opacity: 1; }
+.tab-progress { position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: var(--teal); transform: scaleX(0); transform-origin: left; }
+.tab-btn.active .tab-progress { animation: tab-adv 5000ms linear forwards; }
+.tab-btn.active.paused .tab-progress { animation-play-state: paused; }
+@keyframes tab-adv { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* ── PANEL ── */
+.panel-content { display: none; }
+.panel-content.active { display: block; }
+.panel-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  padding: 26px 28px 0; gap: 16px;
+}
+.panel-title { font-family: var(--head); font-size: 20px; font-weight: 900; color: var(--navy); line-height: 1.2; }
+.panel-hint { font-size: 11px; font-weight: 600; color: var(--muted); margin-top: 5px; display: flex; align-items: center; gap: 5px; }
+.panel-hint::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--teal); }
+.pause-btn {
+  width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid var(--border);
+  background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 13px; color: var(--muted); flex-shrink: 0; margin-top: 2px;
+  transition: border-color .15s, color .15s;
+}
+.pause-btn:hover { border-color: var(--navy); color: var(--navy); }
+
+.panel-body { display: flex; gap: 28px; padding: 18px 28px 28px; min-height: 340px; max-height: 480px; }
+.panel-copy { flex: 1; min-width: 0; padding-top: 4px; }
+.panel-copy p { font-size: 14px; line-height: 1.7; color: var(--muted); margin-top: 8px; max-width: 300px; }
+.panel-copy ul { margin-top: 16px; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+.panel-copy li { display: flex; align-items: flex-start; gap: 9px; font-size: 13px; font-weight: 600; color: var(--navy); }
+.panel-copy li::before {
+  content: "✓"; display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 50%; background: var(--teal-bg); color: var(--teal-dk);
+  font-size: 10px; font-weight: 900; flex-shrink: 0; margin-top: 1px;
+}
+.panel-mock {
+  flex: 1.4; min-width: 0; background: var(--off); border-radius: 12px;
+  border: 1px solid var(--border); overflow: hidden;
+  min-height: 260px; max-height: 440px;
+  display: flex; flex-direction: column;
+}
+
+/* ── BROWSER CHROME ── */
+.chrome { background: #fff; border-bottom: 1px solid var(--border); padding: 9px 12px; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.dot { width: 9px; height: 9px; border-radius: 50%; }
+.dot.r { background: #FF5F57; } .dot.y { background: #FFBD2E; } .dot.g { background: #28C840; }
+.url { flex: 1; background: var(--off2); border-radius: 5px; padding: 4px 10px; font-size: 11px; color: var(--muted); font-weight: 600; margin-left: 4px; }
+
+/* ── CTA ── */
+.cta-strip { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 40px; }
+.cta-primary {
+  background: var(--navy); color: #fff; border: none; border-radius: 100px;
+  padding: 14px 32px; font-size: 15px; font-weight: 800; font-family: var(--sans);
+  cursor: pointer; text-decoration: none; transition: background .15s;
+  display: inline-block;
+}
+.cta-primary:hover { background: var(--navy-lt); }
+.cta-link { color: var(--navy); font-size: 14px; font-weight: 700; border-bottom: 2px solid var(--teal); padding-bottom: 1px; text-decoration: none; }
+
+/* ══════════════════════════════════════════
+   PANEL 1 — DISCOVER (drag to compare)
+══════════════════════════════════════════ */
+.disc-search { display: flex; gap: 8px; padding: 10px 12px; background: #fff; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.disc-search-input { flex: 1; background: var(--off); border: 1px solid var(--border); border-radius: 8px; padding: 7px 11px; font-size: 12px; color: var(--navy); font-family: var(--sans); }
+.disc-search-btn { background: var(--navy); color: #fff; border: none; border-radius: 8px; padding: 7px 13px; font-size: 12px; font-weight: 800; cursor: default; }
+
+.disc-chips { display: flex; gap: 5px; flex-wrap: wrap; padding: 8px 12px; background: #fff; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.chip { padding: 4px 11px; border-radius: 100px; font-size: 11px; font-weight: 700; border: 1.5px solid var(--border); color: var(--muted); background: #fff; cursor: default; }
+.chip.on { background: var(--navy); color: #fff; border-color: var(--navy); }
+
+.disc-list { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+
+.school-card-drag {
+  background: #fff; border-radius: 10px; border: 1.5px solid var(--border);
+  padding: 9px 12px; display: flex; align-items: center; gap: 10px;
+  cursor: grab; user-select: none;
+  transition: border-color .15s, box-shadow .15s, opacity .15s, transform .15s;
+  position: relative;
+}
+.school-card-drag:hover { border-color: var(--teal); box-shadow: 0 4px 14px rgba(52,195,160,.15); }
+.school-card-drag.dragging { opacity: .45; transform: scale(.98); cursor: grabbing; }
+.school-card-drag.in-compare { border-color: var(--teal); background: var(--teal-bg); }
+.school-card-drag.saved .save-btn { color: #e74c3c; }
+
+.s-badge { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; color: #fff; flex-shrink: 0; }
+.s-info { flex: 1; min-width: 0; }
+.s-name { font-size: 13px; font-weight: 800; color: var(--navy); }
+.s-meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.s-tag { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 100px; background: var(--teal-bg); color: var(--teal-dk); flex-shrink: 0; }
+.save-btn { background: none; border: none; cursor: pointer; font-size: 15px; color: var(--bmd); padding: 2px; transition: color .15s, transform .2s; flex-shrink: 0; }
+.save-btn:hover { color: #e74c3c; transform: scale(1.2); }
+
+.drag-hint { display: flex; align-items: center; gap: 6px; padding: 6px 12px 10px; font-size: 11px; font-weight: 600; color: var(--muted); flex-shrink: 0; }
+
+/* Compare tray */
+.compare-tray {
+  background: #fff; border-top: 1.5px solid var(--border); padding: 10px 12px;
+  display: flex; gap: 8px; align-items: center; flex-shrink: 0;
+}
+.tray-label { font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .12em; white-space: nowrap; }
+.tray-slots { display: flex; gap: 6px; flex: 1; }
+.tray-slot {
+  flex: 1; height: 38px; border-radius: 8px; border: 2px dashed var(--bmd);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; color: var(--muted); font-weight: 600;
+  transition: border-color .15s, background .15s;
+  position: relative; overflow: hidden;
+}
+.tray-slot.drag-over { border-color: var(--teal); background: var(--teal-bg); }
+.tray-slot.filled {
+  border-style: solid; border-color: var(--teal); background: var(--teal-bg);
+  font-size: 11px; font-weight: 800; color: var(--teal-dk);
+  cursor: pointer;
+}
+.tray-slot .remove-x { position: absolute; top: 2px; right: 4px; font-size: 11px; color: var(--muted); background: none; border: none; cursor: pointer; padding: 0; line-height: 1; }
+.compare-tray-btn {
+  background: var(--navy); color: #fff; border: none; border-radius: 8px;
+  padding: 0 14px; height: 38px; font-size: 12px; font-weight: 800; cursor: default;
+  white-space: nowrap; opacity: .4; transition: opacity .2s;
+}
+.compare-tray-btn.ready { opacity: 1; }
+
+/* Heart pop animation */
+@keyframes heart-pop { 0%{transform:scale(1)} 40%{transform:scale(1.6)} 70%{transform:scale(.9)} 100%{transform:scale(1)} }
+.heart-popped { animation: heart-pop .35s ease forwards; color: #e74c3c !important; }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px);
+  background: var(--navy); color: #fff; padding: 10px 20px; border-radius: 100px;
+  font-size: 13px; font-weight: 700; z-index: 9999; transition: transform .3s ease;
+  pointer-events: none; white-space: nowrap;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+
+/* ══════════════════════════════════════════
+   PANEL 2 — REPORTS
+══════════════════════════════════════════ */
+.rep-header { background: var(--navy); padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.rep-school { font-family: var(--head); font-size: 15px; font-weight: 900; color: #fff; }
+.rep-badge { background: var(--teal); color: #fff; font-size: 10px; font-weight: 900; letter-spacing: .1em; padding: 3px 10px; border-radius: 100px; }
+.rep-stats { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: var(--border); flex-shrink: 0; }
+.rep-stat { background: #fff; padding: 10px 12px; text-align: center; }
+.rep-val { font-family: var(--head); font-size: 19px; font-weight: 900; color: var(--navy); }
+.rep-val em { color: var(--teal); font-style: normal; }
+.rep-lbl { font-size: 10px; color: var(--muted); margin-top: 1px; font-weight: 600; }
+.rep-sections { padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; flex: 1; }
+.rep-row { display: flex; align-items: center; gap: 10px; padding: 8px 11px; background: #fff; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; transition: border-color .15s; }
+.rep-row:hover { border-color: var(--teal); }
+.rep-row-icon { font-size: 14px; }
+.rep-row-label { font-size: 12px; font-weight: 700; color: var(--navy); flex: 1; }
+.rep-chip { font-size: 10px; font-weight: 800; padding: 3px 9px; border-radius: 100px; }
+.chip-good { background: var(--teal-bg); color: var(--teal-dk); }
+.chip-mid  { background: #FFF8E6; color: #B07800; }
+.chip-na   { background: var(--off2); color: var(--muted); }
+/* expand animation */
+.rep-expand { max-height: 0; overflow: hidden; transition: max-height .3s ease; font-size: 12px; color: var(--muted); line-height: 1.6; padding: 0 11px; }
+.rep-row.open + .rep-expand { max-height: 120px; padding: 6px 11px 10px; }
+
+/* ══════════════════════════════════════════
+   PANEL 3 — NANA CHAT
+══════════════════════════════════════════ */
+.chat-header { display: flex; align-items: center; gap: 8px; padding: 10px 14px; background: #fff; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.nana-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--teal); animation: pulse 2s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.35} }
+.chat-nana-label { font-size: 12px; font-weight: 800; color: var(--teal-dk); }
+.chat-school-lbl { font-size: 12px; color: var(--muted); font-weight: 600; margin-left: auto; }
+.chat-msgs { flex: 1; overflow-y: auto; padding: 12px 12px 8px; display: flex; flex-direction: column; gap: 9px; }
+.msg { max-width: 88%; font-size: 13px; line-height: 1.55; padding: 9px 13px; border-radius: 14px; }
+.msg.user { align-self: flex-end; background: var(--navy); color: #fff; border-bottom-right-radius: 4px; }
+.msg.nana { align-self: flex-start; background: #fff; color: var(--body); border: 1px solid var(--border); border-bottom-left-radius: 4px; }
+.msg.nana strong { color: var(--teal-dk); }
+.msg.typing { align-self: flex-start; }
+.typing-dots { display: flex; gap: 4px; align-items: center; padding: 4px 0; }
+.typing-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--bmd); animation: typing-bounce 1.4s infinite; }
+.typing-dot:nth-child(2) { animation-delay: .2s; }
+.typing-dot:nth-child(3) { animation-delay: .4s; }
+@keyframes typing-bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+.hint-pills { display: flex; gap: 5px; flex-wrap: wrap; padding: 0 12px 8px; flex-shrink: 0; }
+.hint-pill { background: var(--teal-bg); border: 1px solid rgba(52,195,160,.3); color: var(--teal-dk); font-size: 11px; font-weight: 700; padding: 5px 11px; border-radius: 100px; cursor: pointer; transition: background .15s; }
+.hint-pill:hover { background: var(--teal); color: #fff; }
+.chat-input-row { display: flex; gap: 7px; padding: 8px 12px; border-top: 1px solid var(--border); background: #fff; flex-shrink: 0; }
+.chat-field { flex: 1; background: var(--off); border: 1px solid var(--border); border-radius: 8px; padding: 8px 11px; font-size: 12px; color: var(--muted); font-family: var(--sans); }
+.chat-send { background: var(--teal); color: #fff; border: none; border-radius: 8px; padding: 8px 12px; font-size: 14px; cursor: pointer; transition: background .15s; }
+.chat-send:hover { background: var(--teal-dk); }
+
+/* ══════════════════════════════════════════
+   PANEL 4 — COMPARE (drag to reorder)
+══════════════════════════════════════════ */
+.cmp-wrap { padding: 12px 12px; display: flex; flex-direction: column; gap: 0; flex: 1; overflow: hidden; }
+.cmp-school-cols { display: grid; gap: 0; margin-bottom: 1px; }
+.cmp-cell { padding: 8px 10px; font-size: 11px; background: #fff; border: 1px solid var(--border); border-bottom: none; }
+.cmp-cell:first-child { background: var(--off); color: var(--muted); font-weight: 800; text-transform: uppercase; letter-spacing: .08em; font-size: 10px; }
+.cmp-school-hdr {
+  background: var(--navy); color: #fff; font-family: var(--head);
+  font-size: 12px; font-weight: 900; text-align: center;
+  cursor: grab; user-select: none;
+  transition: background .15s, opacity .15s;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.cmp-school-hdr:hover { background: var(--navy-lt); }
+.cmp-school-hdr.dragging { opacity: .4; cursor: grabbing; }
+.cmp-school-hdr .drag-icon { font-size: 10px; opacity: .4; }
+.cmp-row { display: grid; gap: 0; }
+.cmp-row:nth-child(odd) .cmp-cell { background: var(--off); }
+.cmp-row:nth-child(odd) .cmp-cell:first-child { background: var(--off2); }
+.cmp-val { font-size: 12px; font-weight: 700; color: var(--navy); text-align: center; }
+.cmp-val.better { color: var(--teal-dk); font-weight: 900; }
+.cmp-val.worse  { color: var(--muted); font-weight: 400; }
+.cmp-winner { display: flex; align-items: center; gap: 8px; background: var(--teal-bg); border-top: 1px solid #c4ede3; padding: 9px 12px; font-size: 12px; font-weight: 700; color: var(--teal-dk); flex-shrink: 0; margin-top: auto; }
+
+/* ══════════════════════════════════════════
+   AGENTS — PANEL A1 CLIENTS (drag pills)
+══════════════════════════════════════════ */
+.clients-list { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+.client-row { background: #fff; border-radius: 10px; border: 1.5px solid var(--border); padding: 10px 12px; display: flex; align-items: flex-start; gap: 10px; transition: border-color .15s; }
+.client-row.drag-over { border-color: var(--teal); background: var(--teal-bg); }
+.c-avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; color: #fff; flex-shrink: 0; margin-top: 2px; }
+.c-info { flex: 1; min-width: 0; }
+.c-name { font-size: 13px; font-weight: 800; color: var(--navy); }
+.c-sub  { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.c-pills { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 7px; }
+.c-pill {
+  font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 100px;
+  background: var(--teal-bg); color: var(--teal-dk); border: 1px solid rgba(52,195,160,.3);
+  cursor: grab; user-select: none;
+  transition: box-shadow .15s, transform .15s, opacity .15s;
+  display: flex; align-items: center; gap: 5px;
+}
+.c-pill:hover { box-shadow: 0 2px 8px rgba(52,195,160,.3); transform: translateY(-1px); }
+.c-pill.dragging { opacity: .4; cursor: grabbing; }
+.c-pill .pill-x { font-size: 12px; opacity: .5; cursor: pointer; }
+.c-pill .pill-x:hover { opacity: 1; }
+
+/* ══════════════════════════════════════════
+   AGENTS — PANEL A2 INTELLIGENCE
+══════════════════════════════════════════ */
+.intel-hdr { background: var(--navy); padding: 13px 14px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
+.intel-name { font-family: var(--head); font-size: 14px; font-weight: 900; color: #fff; }
+.intel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); flex-shrink: 0; }
+.intel-cell { background: #fff; padding: 10px 12px; }
+.intel-val { font-family: var(--head); font-size: 18px; font-weight: 900; color: var(--navy); }
+.intel-val em { color: var(--teal); font-style: normal; }
+.intel-lbl { font-size: 10px; color: var(--muted); margin-top: 1px; font-weight: 600; }
+.intel-rows { padding: 10px; display: flex; flex-direction: column; gap: 5px; flex: 1; overflow: hidden; }
+.intel-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #fff; border-radius: 8px; border: 1px solid var(--border); cursor: pointer; transition: border-color .15s; }
+.intel-row:hover { border-color: var(--teal); }
+.intel-icon { font-size: 14px; }
+.intel-text { font-size: 12px; font-weight: 600; color: var(--navy); flex: 1; }
+.intel-badge { font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 100px; }
+.b-g { background: var(--teal-bg); color: var(--teal-dk); }
+.b-a { background: #FFF8E6; color: #B07800; }
+
+/* ══════════════════════════════════════════
+   AGENTS — PANEL A3 SHARE
+══════════════════════════════════════════ */
+.share-body { padding: 12px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.share-report-box { background: #fff; border-radius: 10px; border: 1.5px solid var(--teal); padding: 11px 13px; display: flex; align-items: center; gap: 11px; }
+.share-report-icon { font-size: 22px; }
+.share-report-name { font-size: 13px; font-weight: 800; color: var(--navy); }
+.share-report-meta { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.share-client-box { background: #fff; border-radius: 10px; border: 1px solid var(--border); padding: 10px 13px; }
+.share-client-lbl { font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
+.share-client-row { display: flex; align-items: center; gap: 8px; }
+.share-avatar { width: 26px; height: 26px; border-radius: 50%; background: #F5A623; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 900; color: #fff; }
+.share-client-name { font-size: 13px; font-weight: 700; color: var(--navy); flex: 1; }
+.share-tick { font-size: 15px; color: var(--teal); }
+.share-btn-box { background: var(--navy); color: #fff; border: none; border-radius: 10px; padding: 11px 16px; font-size: 13px; font-weight: 800; font-family: var(--sans); cursor: pointer; text-align: center; transition: background .15s; }
+.share-btn-box:hover { background: var(--navy-lt); }
+.share-sent { background: var(--teal-bg); border-radius: 10px; padding: 10px 13px; border: 1px solid #c4ede3; font-size: 12px; font-weight: 600; color: var(--teal-dk); display: flex; align-items: center; gap: 8px; }
+
+/* ══════════════════════════════════════════
+   AGENTS — PANEL A4 SPECIALISTS
+══════════════════════════════════════════ */
+.niche-body { padding: 10px; display: flex; flex-direction: column; gap: 8px; flex: 1; overflow: hidden; }
+.niche-group-label { font-size: 10px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .12em; padding: 0 2px; }
+.niche-chips { display: flex; gap: 5px; flex-wrap: wrap; }
+.niche-chip { padding: 5px 12px; border-radius: 100px; font-size: 11px; font-weight: 700; border: 1.5px solid var(--border); color: var(--muted); background: #fff; cursor: pointer; transition: all .15s; }
+.niche-chip:hover { border-color: var(--navy); color: var(--navy); }
+.niche-chip.on { background: var(--navy); color: #fff; border-color: var(--navy); }
+.niche-results { display: flex; flex-direction: column; gap: 5px; }
+.niche-row { background: #fff; border-radius: 8px; border: 1px solid var(--border); padding: 8px 11px; display: flex; align-items: center; gap: 9px; transition: border-color .15s; }
+.niche-row:hover { border-color: var(--teal); }
+.niche-row.top { border-color: var(--teal); }
+.niche-num { font-size: 11px; font-weight: 900; color: var(--muted); width: 16px; text-align: center; }
+.niche-name { font-size: 12px; font-weight: 800; color: var(--navy); flex: 1; }
+.niche-pct { font-size: 11px; font-weight: 700; color: var(--teal-dk); }
+
+/* ══════════════════════════════════════════════════════════════════════
+   NEW STYLES — section dividers, dossier, verdict, research panel,
+   UK map, view tabs, capability badges
+══════════════════════════════════════════════════════════════════════ */
+
+/* ── Section divider ── */
+.section-block { margin-top: 88px; }
+.section-eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .18em; text-transform: uppercase; color: var(--teal-dk); margin-bottom: 12px; text-align: center; }
+.section-headline { font-family: var(--head); font-size: clamp(24px,3.4vw,38px); font-weight: 900; text-align: center; color: var(--navy); line-height: 1.15; letter-spacing: -.5px; margin-bottom: 10px; }
+.section-headline em { color: var(--teal); font-style: normal; }
+.section-sub { text-align: center; font-size: 15px; color: var(--muted); max-width: 480px; margin: 0 auto 32px; line-height: 1.6; }
+
+/* ── DOSSIER (Parents Tab 2 left pane) ── */
+.dossier-pane { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+.dossier-hdr { padding: 14px 18px 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; background: #fff; }
+.dossier-kicker { font-size: 10px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; color: var(--teal-dk); margin-bottom: 5px; }
+.dossier-title { font-family: var(--head); font-size: 15px; font-weight: 900; color: var(--navy); line-height: 1.25; }
+.dossier-stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; background: var(--border); flex-shrink: 0; }
+.dossier-stat { background: #fff; padding: 8px 6px; text-align: center; }
+.dossier-stat-val { font-family: var(--head); font-size: 16px; font-weight: 900; color: var(--navy); }
+.dossier-stat-val em { color: var(--teal); font-style: normal; }
+.dossier-stat-lbl { font-size: 9px; color: var(--muted); margin-top: 1px; font-weight: 700; line-height: 1.2; }
+
+/* ── 22-row TOC ── */
+.toc-list { flex: 1; overflow-y: auto; padding: 8px; display: flex; flex-direction: column; gap: 3px; background: var(--off); }
+.toc-row { display: flex; align-items: center; gap: 8px; padding: 7px 10px; background: #fff; border-radius: 7px; border: 1px solid var(--border); cursor: pointer; transition: border-color .15s, background .15s; }
+.toc-row:hover { border-color: var(--teal); }
+.toc-row.open { border-color: var(--teal); background: var(--teal-bg); }
+.toc-num { font-size: 10px; font-weight: 900; color: var(--muted); width: 18px; text-align: center; flex-shrink: 0; }
+.toc-row.open .toc-num { color: var(--teal-dk); }
+.toc-label { font-size: 12px; font-weight: 700; color: var(--navy); flex: 1; line-height: 1.3; }
+.toc-chip { font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 100px; background: var(--off2); color: var(--muted); flex-shrink: 0; }
+.toc-chip.green { background: var(--teal-bg); color: var(--teal-dk); }
+.toc-chip.amber { background: #FFF3CD; color: #856404; }
+.toc-expand { max-height: 0; overflow: hidden; transition: max-height .35s ease; padding: 0 10px 0 36px; background: #fff; border-radius: 0 0 7px 7px; }
+.toc-row.open + .toc-expand { max-height: 320px; padding: 8px 12px 12px 36px; border-left: 1px solid var(--border); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); margin-top: -3px; border-top: none; border-radius: 0 0 7px 7px; }
+.toc-expand-text { font-size: 11px; color: var(--body); line-height: 1.6; }
+.toc-expand-table { width: 100%; font-size: 11px; border-collapse: collapse; margin-top: 6px; }
+.toc-expand-table th { background: var(--off); padding: 5px 8px; text-align: left; font-weight: 800; color: var(--navy); border: 1px solid var(--border); font-size: 10px; }
+.toc-expand-table td { padding: 5px 8px; border: 1px solid var(--border); color: var(--body); }
+.toc-expand-table .tier-1 { color: var(--teal-dk); font-weight: 800; }
+.toc-quote { background: var(--off); border-left: 3px solid var(--teal); padding: 8px 12px; font-style: italic; font-size: 11px; color: var(--body); margin-top: 6px; line-height: 1.5; border-radius: 0 6px 6px 0; }
+.toc-quote-cite { display: block; font-style: normal; font-size: 10px; color: var(--muted); margin-top: 4px; font-weight: 700; }
+
+/* ── Verdict box (right pane Parents Tab 2) ── */
+.verdict-pane { background: var(--navy); padding: 16px 18px; height: 100%; overflow-y: auto; color: #fff; }
+.verdict-kicker { display: flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; color: var(--teal); margin-bottom: 8px; }
+.verdict-kicker::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--teal); }
+.verdict-headline { font-family: var(--head); font-size: 14px; font-weight: 900; line-height: 1.3; margin-bottom: 7px; color: #fff; }
+.verdict-body { font-size: 11px; line-height: 1.55; color: rgba(255,255,255,.75); margin-bottom: 12px; }
+.verdict-lights { display: grid; grid-template-columns: repeat(2,1fr); gap: 5px; margin-bottom: 12px; }
+.vlight { background: rgba(255,255,255,.06); border-radius: 7px; padding: 7px 9px; }
+.vlight-label { font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.6); margin-bottom: 2px; }
+.vlight-value { display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; color: #fff; }
+.vlight-dot { width: 8px; height: 8px; border-radius: 50%; }
+.vlight.green .vlight-dot { background: #34C3A0; box-shadow: 0 0 0 2px rgba(52,195,160,.25); }
+.vlight.amber .vlight-dot { background: #F5A623; box-shadow: 0 0 0 2px rgba(245,166,35,.25); }
+.vlight.red .vlight-dot { background: #E5616E; box-shadow: 0 0 0 2px rgba(229,97,110,.25); }
+.vsplit { background: rgba(255,255,255,.06); border-radius: 7px; padding: 8px 10px; margin-bottom: 5px; border-left: 3px solid var(--teal); }
+.vsplit.warn { border-left-color: #F5A623; }
+.vsplit-label { font-size: 9px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.55); margin-bottom: 3px; }
+.vsplit-text { font-size: 11px; line-height: 1.4; color: rgba(255,255,255,.92); }
+.verdict-qs-label { font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: rgba(255,255,255,.55); margin: 14px 0 7px; }
+.verdict-q { background: rgba(255,255,255,.06); border-radius: 7px; padding: 7px 10px; margin-bottom: 4px; }
+.verdict-q-cat { font-size: 9px; font-weight: 800; color: var(--teal); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 2px; }
+.verdict-q-text { font-size: 11px; color: rgba(255,255,255,.92); line-height: 1.4; }
+
+/* ── RESEARCH SOURCES PANEL (Parents Tab 3 left) ── */
+.research-pane { width: 38%; flex-shrink: 0; background: var(--off); border-right: 1px solid var(--border); display: flex; flex-direction: column; overflow: hidden; }
+.research-hdr { display: flex; align-items: center; gap: 7px; padding: 10px 13px; background: #fff; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.research-pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--teal); animation: pulse 2s infinite; flex-shrink: 0; }
+.research-title { font-size: 11px; font-weight: 800; color: var(--navy); }
+.research-section-label { font-size: 9px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); padding: 8px 13px 5px; flex-shrink: 0; }
+.source-list { flex: 1; overflow-y: auto; padding: 0 8px 8px; display: flex; flex-direction: column; gap: 5px; }
+.source-card { background: #fff; border: 1.5px solid var(--border); border-radius: 8px; padding: 8px 10px; transition: border-color .25s, background .25s, box-shadow .25s; position: relative; }
+.source-card.active { border-color: var(--teal); background: var(--teal-bg); box-shadow: 0 4px 14px rgba(52,195,160,.2); }
+.source-card.active .source-reading { display: flex; }
+.source-row { display: flex; align-items: flex-start; gap: 7px; }
+.source-icon { font-size: 14px; flex-shrink: 0; line-height: 1; padding-top: 1px; }
+.source-name { font-size: 11px; font-weight: 800; color: var(--navy); line-height: 1.3; }
+.source-meta { font-size: 10px; color: var(--muted); margin-top: 2px; line-height: 1.3; }
+.source-verified { font-size: 9px; color: var(--muted); margin-top: 3px; opacity: .7; }
+.source-reading { display: none; align-items: center; gap: 4px; font-size: 9px; font-weight: 800; color: var(--teal-dk); margin-top: 5px; padding: 3px 7px; background: rgba(52,195,160,.15); border-radius: 100px; width: fit-content; letter-spacing: .08em; text-transform: uppercase; }
+.source-reading::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--teal); animation: pulse 1.2s infinite; }
+
+/* Right side of split — wider chat */
+.research-chat { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+/* ── UK MAP (Walkthrough Step 3) ── */
+.map-wrap { background: #0d1f35; border-radius: 12px; padding: 14px; position: relative; overflow: hidden; }
+.map-area { position: relative; height: 290px; width: 100%; }
+.map-area svg { display: block; max-height: 100%; margin: 0 auto; filter: drop-shadow(0 0 12px rgba(52,195,160,.12)); }
+.map-dot-wrap { position: absolute; pointer-events: none; transform: translate(-50%,-50%); }
+.map-dot { width: 12px; height: 12px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 4px rgba(52,195,160,.25), 0 0 12px rgba(52,195,160,.5); cursor: pointer; pointer-events: auto; position: relative; }
+.map-dot.lg { width: 16px; height: 16px; box-shadow: 0 0 0 6px rgba(52,195,160,.25), 0 0 16px rgba(52,195,160,.6); }
+.map-dot::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 2px solid var(--teal); animation: map-pulse 2s ease-out infinite; }
+@keyframes map-pulse { 0%{opacity:.8;transform:scale(.6)} 70%{opacity:0;transform:scale(1.6)} 100%{opacity:0} }
+.map-dot-label { position: absolute; left: 50%; top: 100%; transform: translateX(-50%); margin-top: 8px; background: #fff; color: var(--navy); font-size: 10px; font-weight: 800; padding: 3px 8px; border-radius: 4px; white-space: nowrap; opacity: 0; transition: opacity .15s; pointer-events: none; }
+.map-dot-wrap:hover .map-dot-label { opacity: 1; }
+.map-legend { position: absolute; top: 12px; right: 12px; background: rgba(255,255,255,.08); backdrop-filter: blur(6px); border: 1px solid rgba(255,255,255,.15); border-radius: 8px; padding: 6px 10px; font-size: 10px; color: rgba(255,255,255,.85); font-weight: 700; }
+.map-legend strong { color: var(--teal); }
+
+/* Region breakdown grid below map */
+.region-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 6px; padding: 10px 14px 14px; background: var(--off); }
+.region-card { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 9px 8px; text-align: center; cursor: pointer; transition: border-color .15s, transform .15s; }
+.region-card:hover { border-color: var(--teal); transform: translateY(-1px); }
+.region-name { font-size: 10px; font-weight: 800; color: var(--navy); line-height: 1.2; }
+.region-count { font-size: 13px; font-family: var(--head); font-weight: 900; color: var(--teal-dk); margin-top: 3px; }
+
+/* ── VIEW TABS (Walkthrough Step 5) ── */
+.view-tabs-row { display: flex; gap: 4px; padding: 12px 16px; background: #fff; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.view-tab { flex: 1; padding: 9px 14px; border-radius: 8px; font-size: 12px; font-weight: 800; font-family: var(--sans); border: 1.5px solid var(--border); background: #fff; color: var(--muted); cursor: pointer; transition: all .15s; text-align: center; position: relative; }
+.view-tab:hover { border-color: var(--navy); color: var(--navy); }
+.view-tab.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+.view-tab .vtab-pulse { display: none; position: absolute; top: 6px; right: 7px; width: 6px; height: 6px; border-radius: 50%; background: var(--teal); animation: pulse 2.4s infinite; }
+.view-tab:not(.active) .vtab-pulse { display: block; }
+.view-content { flex: 1; overflow-y: auto; padding: 0; }
+.view-pane { display: none; padding: 14px 16px; opacity: 0; transition: opacity .25s; }
+.view-pane.show { display: block; opacity: 1; }
+
+/* ── CAPABILITY BADGES (Walkthrough Step 2) ── */
+.cap-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; padding: 16px; }
+.cap-badge { background: #fff; border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; display: flex; align-items: center; gap: 8px; }
+.cap-icon { font-size: 16px; flex-shrink: 0; }
+.cap-text { font-size: 11px; font-weight: 700; color: var(--navy); line-height: 1.3; }
+
+/* ── ENHANCED COUNTRY GRID (Walkthrough Step 1) ── */
+.country-grid { display: grid; grid-template-columns: repeat(6,1fr); gap: 5px; padding: 0 16px 14px; }
+.country-card-mini { background: #fff; border: 1px solid var(--border); border-radius: 8px; padding: 8px 6px; text-align: center; cursor: pointer; transition: border-color .15s, transform .15s; }
+.country-card-mini:hover { border-color: var(--teal); transform: translateY(-1px); }
+.cc-flag { font-size: 18px; display: block; margin-bottom: 2px; line-height: 1; }
+.cc-name { font-size: 9px; font-weight: 800; color: var(--navy); line-height: 1.2; }
+.cc-count { font-size: 9px; color: var(--muted); margin-top: 1px; }
+.region-strip { display: flex; gap: 6px; flex-wrap: wrap; padding: 0 16px 14px; }
+.region-pill { background: var(--navy); color: #fff; font-size: 10px; font-weight: 800; padding: 5px 11px; border-radius: 100px; cursor: pointer; }
+.region-pill em { color: var(--teal); font-style: normal; margin-left: 5px; }
+
+/* ── REPORT NAV (Walkthrough Step 4 left pane) ── */
+.rep-nav { display: flex; gap: 0; padding: 0 14px; background: #fff; border-bottom: 1px solid var(--border); overflow-x: auto; flex-shrink: 0; }
+.rep-nav-tab { padding: 9px 11px; font-size: 11px; font-weight: 700; color: var(--muted); border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; transition: color .15s; }
+.rep-nav-tab.active { color: var(--navy); border-bottom-color: var(--teal); }
+.rep-nav-tab:hover { color: var(--navy); }
+.isi-callout { background: var(--teal-bg); border-left: 3px solid var(--teal); padding: 9px 12px; border-radius: 0 6px 6px 0; margin: 10px 0; font-size: 11px; line-height: 1.5; color: var(--body); }
+.isi-callout strong { color: var(--teal-dk); }
+.sport-tier-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 11px; }
+.sport-tier-table th { background: var(--off); padding: 5px 7px; text-align: left; font-size: 10px; font-weight: 800; color: var(--navy); border: 1px solid var(--border); }
+.sport-tier-table td { padding: 5px 7px; border: 1px solid var(--border); color: var(--body); }
+.sport-tier-table .tier-1 { color: var(--teal-dk); font-weight: 800; }
+.fees-mini { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: var(--border); margin-top: 8px; }
+.fees-mini-cell { background: #fff; padding: 8px; text-align: center; }
+.fees-mini-val { font-family: var(--head); font-size: 14px; font-weight: 900; color: var(--navy); }
+.fees-mini-val em { color: var(--teal); font-style: normal; }
+.fees-mini-lbl { font-size: 9px; color: var(--muted); margin-top: 1px; font-weight: 600; }
+
+/* ── HOMEPAGE NAV STRIP (walkthrough step 1) ── */
+.wt-section-header { padding: 12px 18px 8px; }
+.wt-section-label { font-size: 10px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+
+/* ══════════════════════════════════════════════════════════════════════
+   PRICING CARD + CONTEXT TOGGLE (above Parents carousel)
+══════════════════════════════════════════════════════════════════════ */
+.context-toggle-wrap { display: flex; justify-content: center; margin-bottom: 20px; }
+.context-toggle { display: flex; gap: 3px; background: #fff; border: 1.5px solid var(--border); border-radius: 100px; padding: 4px; box-shadow: 0 2px 8px var(--shadow); }
+.ctx-btn { padding: 8px 18px; border-radius: 100px; font-size: 12px; font-weight: 800; border: none; cursor: pointer; background: transparent; color: var(--muted); font-family: var(--sans); transition: background .18s, color .18s; }
+.ctx-btn.active { background: var(--navy); color: #fff; }
+
+.pricing-card { background: var(--navy); border-radius: 16px; padding: 24px 28px; margin-bottom: 28px; color: #fff; box-shadow: 0 8px 32px var(--shadow-lg); }
+.pricing-row { display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
+.pricing-left { flex: 1; min-width: 240px; }
+.pricing-eyebrow { font-size: 10px; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; color: var(--teal); margin-bottom: 8px; }
+.pricing-headline { font-family: var(--head); font-size: 22px; font-weight: 900; color: #fff; line-height: 1.2; margin-bottom: 6px; }
+.pricing-headline em { color: var(--teal); font-style: normal; }
+.pricing-price { font-family: var(--head); font-size: 32px; font-weight: 900; color: #fff; }
+.pricing-price small { font-size: 14px; font-weight: 700; color: rgba(255,255,255,.5); margin-left: 6px; }
+.pricing-cancel { font-size: 11px; color: rgba(255,255,255,.55); margin-top: 4px; font-weight: 600; }
+.pricing-bullets { flex: 1.4; min-width: 280px; }
+.pricing-bullets ul { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 7px 16px; }
+.pricing-bullets li { display: flex; align-items: flex-start; gap: 7px; font-size: 12px; color: rgba(255,255,255,.92); line-height: 1.4; font-weight: 600; }
+.pricing-bullets li::before { content: "✓"; display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background: rgba(52,195,160,.2); color: var(--teal); font-size: 10px; font-weight: 900; flex-shrink: 0; margin-top: 1px; }
+.pricing-cta { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.pricing-cta-btn { background: var(--teal); color: #fff; border: none; border-radius: 100px; padding: 12px 24px; font-size: 13px; font-weight: 900; font-family: var(--sans); cursor: pointer; white-space: nowrap; transition: background .15s; }
+.pricing-cta-btn:hover { background: var(--teal-dk); }
+.pricing-cta-mini { font-size: 11px; color: rgba(255,255,255,.5); font-weight: 600; }
+
+@media (max-width: 720px) {
+  .pricing-bullets ul { grid-template-columns: 1fr; }
+  .pricing-row { flex-direction: column; align-items: stretch; }
+}
+
+</style>
+</head>
+<body>
+
+<!-- Inline SVG icon sprite (matches /components/IconSprite.tsx) -->
+<svg width="0" height="0" style="position:absolute;pointer-events:none;overflow:hidden;">
+<defs>
+  <symbol id="ic-nana" viewBox="0 0 48 48">
+    <circle cx="24" cy="24" r="24" fill="#1B3252"/>
+    <ellipse cx="24" cy="42" rx="13" ry="9" fill="#C17A4A"/>
+    <rect x="21" y="31" width="6" height="6" rx="2" fill="#F5C8A0"/>
+    <circle cx="24" cy="23" r="11" fill="#F5C8A0"/>
+    <ellipse cx="24" cy="14" rx="7.5" ry="5" fill="#E0E0E0"/>
+    <circle cx="24" cy="11" r="4.5" fill="#EBEBEB"/>
+    <ellipse cx="14" cy="20" rx="4" ry="6" fill="#E0E0E0"/>
+    <ellipse cx="34" cy="20" rx="4" ry="6" fill="#E0E0E0"/>
+    <ellipse cx="17" cy="26" rx="3" ry="2" fill="#F4A0A0" opacity="0.4"/>
+    <ellipse cx="31" cy="26" rx="3" ry="2" fill="#F4A0A0" opacity="0.4"/>
+    <circle cx="20.5" cy="23" r="1.6" fill="#4A3728"/>
+    <circle cx="27.5" cy="23" r="1.6" fill="#4A3728"/>
+    <circle cx="21.2" cy="22.3" r="0.5" fill="#fff"/>
+    <circle cx="28.2" cy="22.3" r="0.5" fill="#fff"/>
+    <circle cx="20.5" cy="23" r="3.5" stroke="#8B6347" stroke-width="1" fill="none"/>
+    <circle cx="27.5" cy="23" r="3.5" stroke="#8B6347" stroke-width="1" fill="none"/>
+    <line x1="23.5" y1="23" x2="24.5" y2="23" stroke="#8B6347" stroke-width="1"/>
+    <line x1="13" y1="21.5" x2="17" y2="22.3" stroke="#8B6347" stroke-width="1"/>
+    <line x1="31" y1="22.3" x2="35" y2="21.5" stroke="#8B6347" stroke-width="1"/>
+    <path d="M20 28 Q24 31.5 28 28" stroke="#C07850" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+    <circle cx="21" cy="35" r="1.2" fill="#F0EDE8"/>
+    <circle cx="24" cy="36.2" r="1.2" fill="#F0EDE8"/>
+    <circle cx="27" cy="35" r="1.2" fill="#F0EDE8"/>
+  </symbol>
+  <symbol id="ic-globe" viewBox="0 0 32 32" fill="none">
+    <circle cx="16" cy="16" r="13" stroke="currentColor" stroke-width="1.8"/>
+    <ellipse cx="16" cy="16" rx="5" ry="13" stroke="currentColor" stroke-width="1.4" fill="none"/>
+    <line x1="3" y1="16" x2="29" y2="16" stroke="currentColor" stroke-width="1.4"/>
+    <path d="M6 10 Q16 8 26 10" stroke="currentColor" stroke-width="1.1" fill="none"/>
+    <path d="M6 22 Q16 24 26 22" stroke="currentColor" stroke-width="1.1" fill="none"/>
+  </symbol>
+  <symbol id="ic-search" viewBox="0 0 32 32" fill="none">
+    <circle cx="13.5" cy="13.5" r="8" stroke="currentColor" stroke-width="2"/>
+    <line x1="19.5" y1="19.5" x2="28" y2="28" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="ic-map" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/>
+    <line x1="8" y1="2" x2="8" y2="18"/>
+    <line x1="16" y1="6" x2="16" y2="22"/>
+  </symbol>
+  <symbol id="ic-school" viewBox="0 0 32 32" fill="none">
+    <path d="M4 28 L4 14 L16 5 L28 14 L28 28" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <rect x="11" y="18" width="10" height="10" rx="1.5" stroke="currentColor" stroke-width="1.8" fill="none"/>
+    <rect x="14" y="21" width="4" height="7" fill="currentColor" rx="1"/>
+    <path d="M1 14 L16 4 L31 14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="ic-grad" viewBox="0 0 32 32" fill="none">
+    <polygon points="16,5 30,12 16,19 2,12" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linejoin="round"/>
+    <rect x="12.5" y="4" width="7" height="4" rx="1" fill="currentColor"/>
+    <line x1="29.5" y1="12" x2="29.5" y2="22" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    <circle cx="29.5" cy="23.5" r="2" fill="currentColor"/>
+    <path d="M11 19 L11 28" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M21 19 L21 28" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+    <line x1="11" y1="28" x2="21" y2="28" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+  </symbol>
+  <symbol id="ic-award" viewBox="0 0 32 32" fill="none">
+    <polygon points="16,3 19.5,12.5 30,12.5 21.5,18.5 24.5,28 16,22 7.5,28 10.5,18.5 2,12.5 12.5,12.5" fill="currentColor"/>
+  </symbol>
+</defs>
+</svg>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<div class="page">
+  <div class="eyebrow">Everything in one place</div>
+  <h1 class="headline">The smarter way to choose a<br><em>UK independent school</em></h1>
+  <p class="sub">Deep research, honest answers, side-by-side comparison — powered by Nana, your AI school advisor.</p>
+
+  <!-- ══════ SECTION 1: SCHOOL DETAIL PAGE EMBED ══════ -->
+  <div class="section-block" style="margin-top:0">
+    <div class="section-eyebrow">🏫 Embed on school detail pages</div>
+    <h2 class="section-headline">Smarter choices on <em>100+ UK schools</em></h2>
+    <p class="section-sub">Pricing card + 3 interactive tabs. Designed for parents already viewing a specific school.</p>
+  </div>
+
+  <!-- Pricing card (school detail page) -->
+  <div class="pricing-card" id="pricing-card">
+    <div class="pricing-row">
+      <div class="pricing-left">
+        <div class="pricing-eyebrow">Unlock everything for this school</div>
+        <div class="pricing-headline">Smarter choices on <em>100+ UK schools</em></div>
+        <div class="pricing-price">£39<small>/month</small></div>
+        <div class="pricing-cancel">Cancel anytime · No long-term commitment</div>
+      </div>
+      <div class="pricing-bullets">
+        <ul>
+          <li>Full 34-page deep dossier (22 sections)</li>
+          <li>Ask Nana — backed by 6 verified sources</li>
+          <li>ISI inspection quotes + SOCS data</li>
+          <li>Compare up to <strong>5 schools</strong> side-by-side</li>
+          <li>Save schools to your shortlist</li>
+          <li>Mobile + desktop access</li>
+        </ul>
+      </div>
+      <div class="pricing-cta">
+        <button class="pricing-cta-btn">Try it out →</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="car-parents" class="carousel-card">
+    <div class="tab-bar" id="tabs-parents">
+      <button class="tab-btn active" data-tab="0" onclick="selTab('parents',0)">
+        <span class="tab-icon">📋</span><span class="tab-label">Reports</span>
+        <span class="tab-desc">Read everything</span><div class="tab-progress"></div>
+      </button>
+      <button class="tab-btn" data-tab="1" onclick="selTab('parents',1)">
+        <span class="tab-icon">💬</span><span class="tab-label">Ask Nana</span>
+        <span class="tab-desc">Honest answers</span><div class="tab-progress"></div>
+      </button>
+      <button class="tab-btn" data-tab="2" onclick="selTab('parents',2)">
+        <span class="tab-icon">⚖️</span><span class="tab-label">Compare</span>
+        <span class="tab-desc">Side by side</span><div class="tab-progress"></div>
+      </button>
+    </div>
+
+    <!-- P0: DEEP REPORT (rich dossier + verdict) -->
+    <div class="panel-content active" data-panel="parents-0">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Read everything — 34 pages</div>
+          <div class="panel-hint">Click any of the 22 sections to expand · Verdict on the right</div>
+        </div>
+        <button class="pause-btn" onclick="togglePause('parents')">⏸</button>
+      </div>
+      <div class="panel-body" style="padding:18px 20px 24px">
+        <div class="panel-mock" style="flex:1.2;display:flex;flex-direction:row;min-height:420px;background:#fff;padding:0">
+          <!-- LEFT: Dossier (55%) -->
+          <div class="dossier-pane" style="flex:1.22;border-right:1px solid var(--border)">
+            <div class="dossier-hdr">
+              <div class="dossier-kicker">Deep Research Dossier</div>
+              <div class="dossier-title">Queen Ethelburga's · York</div>
+            </div>
+            <div class="dossier-stats">
+              <div class="dossier-stat"><div class="dossier-stat-val"><em>34</em></div><div class="dossier-stat-lbl">pages of analysis</div></div>
+              <div class="dossier-stat"><div class="dossier-stat-val"><em>18</em></div><div class="dossier-stat-lbl">data tables</div></div>
+              <div class="dossier-stat"><div class="dossier-stat-val"><em>12,400+</em></div><div class="dossier-stat-lbl">words of research</div></div>
+              <div class="dossier-stat"><div class="dossier-stat-val"><em>22</em></div><div class="dossier-stat-lbl">primary sources</div></div>
+            </div>
+            <div class="toc-list" id="parents-toc">
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">01</span><span class="toc-label">Verified school overview</span><span class="toc-chip green">✓</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Co-educational independent boarding & day school. Founded 1912. 1,500 pupils ages 0–19. North Yorkshire campus, 220 acres. ISI inspected April 2024 (Excellent across all areas).</div></div>
+
+              <div class="toc-row open" onclick="toggleToc(this)"><span class="toc-num">02</span><span class="toc-label">Academic profile & outcomes</span><span class="toc-chip green">B+ mean</span></div>
+              <div class="toc-expand"><div class="toc-expand-text"><strong>A-Level mean grade: B+</strong>. 87% of cohort achieved ABB or above. 12 subjects offered. Sciences particularly strong — 42 pupils to Medicine over the past 3 years.</div>
+                <table class="toc-expand-table"><tr><th>Subject</th><th>A*–B</th><th>Cohort</th></tr><tr><td>Mathematics</td><td class="tier-1">94%</td><td>78</td></tr><tr><td>Chemistry</td><td class="tier-1">91%</td><td>62</td></tr><tr><td>Biology</td><td>88%</td><td>71</td></tr><tr><td>Economics</td><td>85%</td><td>54</td></tr></table>
+              </div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">03</span><span class="toc-label">GCSE results · grade distribution</span><span class="toc-chip green">8.2 avg</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Mean GCSE grade 8.2. 65% achieved 9–7 (A*/A equivalent). Top performers in Maths, English Lit, History.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">04</span><span class="toc-label">A-Level results · subject-by-subject</span><span class="toc-chip green">12 subjects</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Detailed breakdown across all 12 A-Level subjects with 3-year trend lines, comparing cohort performance to national averages.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">05</span><span class="toc-label">University destinations (UK + int'l)</span><span class="toc-chip green">85% RG</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">85% of 2024 leavers to Russell Group. 12% to Oxbridge. International destinations include Yale, MIT, McGill, ETH Zurich.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">06</span><span class="toc-label">Oxbridge & Russell Group analysis</span><span class="toc-chip green">12% Oxbridge</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">12% of cohort to Oxford or Cambridge. Top placement subjects: Medicine, Engineering, Natural Sciences, Law.</div></div>
+
+              <div class="toc-row open" onclick="toggleToc(this)"><span class="toc-num">07</span><span class="toc-label">Sports profile & competitive tier</span><span class="toc-chip green">Tier 1</span></div>
+              <div class="toc-expand">
+                <table class="toc-expand-table"><tr><th>Sport</th><th>Tier</th><th>Teams</th><th>Recent</th></tr><tr><td>Rugby</td><td class="tier-1">Tier 1</td><td>28</td><td>County champs '24</td></tr><tr><td>Cricket</td><td class="tier-1">Tier 1</td><td>18</td><td>Nat. schools final</td></tr><tr><td>Hockey</td><td class="tier-1">Tier 1</td><td>16</td><td>County finalists</td></tr><tr><td>Tennis</td><td>Tier 2</td><td>12</td><td>SE regional</td></tr></table>
+              </div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">08</span><span class="toc-label">Coaching staff & alumni athletes</span><span class="toc-chip green">3 internationals</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Director of Sport: ex-Saracens 1st XV. 14 specialist coaches. 3 alumni currently playing professional rugby & cricket.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">09</span><span class="toc-label">Facilities audit</span><span class="toc-chip green">Tier 1</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">25m indoor pool, 12 tennis courts, two astroturf pitches, 80-acre grounds, 3 dedicated science blocks, theatre (450 seats), music school.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">10</span><span class="toc-label">Pastoral care model</span><span class="toc-chip green">Excellent</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">House-based pastoral system. 8 boarding houses (4 boys, 4 girls). Each house has 2 resident tutors and a houseparent couple.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">11</span><span class="toc-label">Wellbeing team & ratios</span><span class="toc-chip green">1:90 ratio</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Full-time school counsellor (1 per 90 pupils). Mental health first-aid trained matrons in every boarding house. CAMHS-linked GP onsite weekly.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">12</span><span class="toc-label">Safeguarding record</span><span class="toc-chip green">Met</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">All ISI safeguarding standards met. DSL on staff, all teaching staff DBS-checked & Level 3 trained.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">13</span><span class="toc-label">Student community & nationalities</span><span class="toc-chip green">28 nationalities</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">28 nationalities represented. ~12% international student body. EAL support available for non-native English speakers.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">14</span><span class="toc-label">Fees & hidden extras</span><span class="toc-chip amber">£47k–£52k</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Boarding £47,250/yr. Day £29,400/yr. Music lessons £750/term extra. School trips £200–£2,000/yr.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">15</span><span class="toc-label">Scholarships & bursaries</span><span class="toc-chip green">Up to 100%</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Means-tested bursaries up to 100% of fees. Academic, music, art, drama, and sport scholarships available at 11+ and 13+.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">16</span><span class="toc-label">Admissions & entry requirements</span><span class="toc-chip green">11+, 13+, 16+</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Entry at 11+, 13+ (CE) and 16+. Pre-test for 13+. Average CE score 70%+. 16+ entry needs 8 GCSEs at 7+.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">17</span><span class="toc-label">Regulatory status & filings</span><span class="toc-chip green">Charity 312068</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Registered charity (No. 312068). Companies House filings up to date. ISC member.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">18</span><span class="toc-label">Financial health (3-year trend)</span><span class="toc-chip green">Surplus stable</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Operating surplus stable over 3 years. Reserves: £18M. No outstanding liabilities flagged.</div></div>
+
+              <div class="toc-row open" onclick="toggleToc(this)"><span class="toc-num">19</span><span class="toc-label">ISI inspection record</span><span class="toc-chip green">Excellent</span></div>
+              <div class="toc-expand"><blockquote class="toc-quote">"Pupils are exceptionally well supported by knowledgeable and caring staff. The quality of pupils' personal development is excellent."<span class="toc-quote-cite">— ISI Inspection Report, April 2024</span></blockquote></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">20</span><span class="toc-label">Parent-fit verdict (8 dimensions)</span><span class="toc-chip green">8.2/10</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Scored across 8 parent-fit dimensions: academic rigour, sport, pastoral, value, location, community, facilities, alumni network.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">21</span><span class="toc-label">5 pointed tour questions · with scripts</span><span class="toc-chip green">Ready</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">5 pre-prepared tour questions with the data behind each — designed to surface what brochures hide.</div></div>
+
+              <div class="toc-row" onclick="toggleToc(this)"><span class="toc-num">22</span><span class="toc-label">Methodology & sources</span><span class="toc-chip green">22 sources</span></div>
+              <div class="toc-expand"><div class="toc-expand-text">Cross-checked against ISI reports, school prospectus, SOCS sport database, fees register, charity commission filings, and university destination data.</div></div>
+            </div>
+          </div>
+
+          <!-- RIGHT: Verdict (45%) -->
+          <div class="verdict-pane" style="flex:1">
+            <div class="verdict-kicker">The one-minute verdict</div>
+            <div class="verdict-headline">Strong across the board — exceptional for the sporty, well-rounded co-ed family</div>
+            <div class="verdict-body">Queen Ethelburga's delivers a well-resourced, co-educational boarding experience on a 220-acre North Yorkshire campus. Academic results are strong without being pressurised. The sport programme is genuinely Tier 1. Pastoral care rated Excellent by ISI.</div>
+            <div class="verdict-lights">
+              <div class="vlight green"><div class="vlight-label">Academic</div><div class="vlight-value"><span class="vlight-dot"></span>B+ mean</div></div>
+              <div class="vlight green"><div class="vlight-label">Sport</div><div class="vlight-value"><span class="vlight-dot"></span>Tier 1</div></div>
+              <div class="vlight green"><div class="vlight-label">Pastoral</div><div class="vlight-value"><span class="vlight-dot"></span>Excellent</div></div>
+              <div class="vlight amber"><div class="vlight-label">Value</div><div class="vlight-value"><span class="vlight-dot"></span>Mid-range</div></div>
+            </div>
+            <div class="vsplit"><div class="vsplit-label">✓ Best fit for</div><div class="vsplit-text">Sporty, well-rounded pupils seeking co-ed boarding on a spacious campus with strong pastoral support.</div></div>
+            <div class="vsplit warn"><div class="vsplit-label">— Harder fit for</div><div class="vsplit-text">Families seeking a high-pressure academic environment or single-sex school.</div></div>
+            <div class="verdict-qs-label">Top 3 tour questions</div>
+            <div class="verdict-q"><div class="verdict-q-cat">Academic</div><div class="verdict-q-text">"What % of Year 13 leavers go to Russell Group universities?"</div></div>
+            <div class="verdict-q"><div class="verdict-q-cat">Pastoral</div><div class="verdict-q-text">"How does the house system handle concerns for new boarders?"</div></div>
+            <div class="verdict-q"><div class="verdict-q-cat">Sport</div><div class="verdict-q-text">"Which sports offer county or national competition at U15?"</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- P1: ASK NANA (chat only — sources removed) -->
+    <div class="panel-content" data-panel="parents-1">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Ask Nana anything</div>
+          <div class="panel-hint">Click a suggested question · Or type your own</div>
+        </div>
+        <button class="pause-btn" onclick="togglePause('parents')">⏸</button>
+      </div>
+      <div class="panel-body" style="padding:18px 20px 24px">
+        <div class="panel-mock" style="flex:1;display:flex;flex-direction:column;min-height:420px;background:#fff;padding:0">
+          <div class="chat-header">
+            <div class="nana-dot"></div>
+            <div class="chat-nana-label">Nana · AI School Advisor</div>
+            <div class="chat-school-lbl" id="nana-school-lbl">Queen Ethelburga's</div>
+          </div>
+          <div class="chat-msgs" id="chat-msgs">
+            <div class="msg nana">Hi! I'm Nana, your AI school advisor. I've read every source on Queen Ethelburga's — ISI report, prospectus, SOCS sports data, fees, university destinations. Ask me anything.</div>
+          </div>
+          <div class="hint-pills" id="hint-pills">
+            <div class="hint-pill" onclick="askNanaSimple(this,'Is it good for a sporty boy?')">Is it good for a sporty boy?</div>
+            <div class="hint-pill" onclick="askNanaSimple(this,'What are the boarding fees?')">What are the boarding fees?</div>
+            <div class="hint-pill" onclick="askNanaSimple(this,'Is there EAL support?')">Is there EAL support?</div>
+          </div>
+          <div class="chat-input-row">
+            <input class="chat-field" placeholder="Ask about this school…" onkeydown="if(event.key==='Enter')sendChat(this)">
+            <button class="chat-send" onclick="sendChatBtn(this)">↑</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- P2: COMPARE (drag to reorder cols) -->
+    <div class="panel-content" data-panel="parents-2">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Compare side by side</div>
+          <div class="panel-hint">Drag column headers to reorder</div>
+        </div>
+        <button class="pause-btn" onclick="togglePause('parents')">⏸</button>
+      </div>
+      <div class="panel-body" style="padding:18px 20px 24px">
+        <div class="panel-mock" style="flex:1;display:flex;flex-direction:column;min-height:420px">
+          <div class="chrome"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div><div class="url">nanasays.com/compare</div></div>
+          <div class="cmp-wrap" id="cmp-table">
+            <!-- built by JS -->
+          </div>
+          <div class="cmp-winner">✦ Nana recommends <strong id="cmp-winner-name">Queen Ethelburga's</strong> — earlier entry + lower fees for Year 7 joiners.</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /car-parents -->
+
+
+  <!-- ══════ SECTION 2: AGENTS ══════ -->
+  <div class="section-block">
+    <div class="section-eyebrow">🎓 For Education Agents</div>
+    <h2 class="section-headline">Your professional toolkit for <em>UK school placements</em></h2>
+    <p class="section-sub">Manage clients, share reports, and pull school intelligence in seconds.</p>
+  </div>
+
+  <div id="car-agents" class="carousel-card">
+    <div class="tab-bar" id="tabs-agents">
+      <button class="tab-btn active" data-tab="0" onclick="selTab('agents',0)">
+        <span class="tab-icon">👥</span><span class="tab-label">Clients</span>
+        <span class="tab-desc">Manage shortlists</span><div class="tab-progress"></div>
+      </button>
+      <button class="tab-btn" data-tab="1" onclick="selTab('agents',1)">
+        <span class="tab-icon">⚡</span><span class="tab-label">Intelligence</span>
+        <span class="tab-desc">Instant school data</span><div class="tab-progress"></div>
+      </button>
+      <button class="tab-btn" data-tab="2" onclick="selTab('agents',2)">
+        <span class="tab-icon">📤</span><span class="tab-label">Share</span>
+        <span class="tab-desc">Send reports to clients</span><div class="tab-progress"></div>
+      </button>
+      <button class="tab-btn" data-tab="3" onclick="selTab('agents',3)">
+        <span class="tab-icon">🎯</span><span class="tab-label">Specialists</span>
+        <span class="tab-desc">Find niche schools</span><div class="tab-progress"></div>
+      </button>
+    </div>
+
+    <!-- A0: CLIENTS (drag pills between clients) -->
+    <div class="panel-content active" data-panel="agents-0">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Manage every client's shortlist</div>
+          <div class="panel-hint">Drag school pills between client rows · Double-click pill to remove</div>
+        </div>
+        <button class="pause-btn" onclick="togglePause('agents')">⏸</button>
+      </div>
+      <div class="panel-body">
+        <div class="panel-copy">
+          <p>Keep track of every family, their shortlisted schools, and their child's profile — all in one dashboard.</p>
+          <ul>
+            <li>One dashboard, all your clients</li>
+            <li>Tag schools per family</li>
+            <li>Track progress & applications</li>
+            <li>Instant switch between client views</li>
+          </ul>
+        </div>
+        <div class="panel-mock" style="display:flex;flex-direction:column;">
+          <div class="chrome"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div><div class="url">nanasays.com/agent/clients</div></div>
+          <div class="clients-list" id="clients-list">
+            <!-- built by JS -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- A1: INTELLIGENCE -->
+    <div class="panel-content" data-panel="agents-1">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Instant intelligence on any school</div>
+          <div class="panel-hint">Click any row to expand details</div>
+        </div>
+        <button class="pause-btn" onclick="togglePause('agents')">⏸</button>
+      </div>
+      <div class="panel-body">
+        <div class="panel-copy">
+          <p>Pull up a full data brief on any UK independent school in seconds. No more digging through PDFs before a client call.</p>
+          <ul>
+            <li>ISI inspection findings summarised</li>
+            <li>Up-to-date fees & bursaries</li>
+            <li>Sports, arts & specialist programmes</li>
+            <li>Entry requirements & CE averages</li>
+          </ul>
+        </div>
+        <div class="panel-mock" style="display:flex;flex-direction:column;">
+          <div class="chrome"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div><div class="url">nanasays.com/schools/kings-college-wimbledon</div></div>
+          <div class="intel-hdr">
+            <div class="intel-name">King's College School, Wimbledon</div>
+            <div class="rep-badge">ISI: Excellent</div>
+          </div>
+          <div class="intel-grid">
+            <div class="intel-cell"><div class="intel-val">£<em>26k</em></div><div class="intel-lbl">Day fees / year</div></div>
+            <div class="intel-cell"><div class="intel-val"><em>1,450</em></div><div class="intel-lbl">Pupils (Boys 7–18)</div></div>
+          </div>
+          <div class="intel-rows">
+            <div class="intel-row" onclick="toggleRepRow(this)"><span class="intel-icon">🎓</span><span class="intel-text">Top 10 nationally for A-Level results</span><span class="intel-badge b-g">Verified</span></div>
+            <div class="intel-row" onclick="toggleRepRow(this)"><span class="intel-icon">🏏</span><span class="intel-text">Cricket — SOCS Tier 1, 18 teams</span><span class="intel-badge b-g">Strong</span></div>
+            <div class="intel-row" onclick="toggleRepRow(this)"><span class="intel-icon">🎭</span><span class="intel-text">Music & drama — dedicated theatre</span><span class="intel-badge b-g">Excellent</span></div>
+            <div class="intel-row" onclick="toggleRepRow(this)"><span class="intel-icon">💷</span><span class="intel-text">Bursaries — limited, competitive</span><span class="intel-badge b-a">Check</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- A2: SHARE -->
+    <div class="panel-content" data-panel="agents-2">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Share school reports directly to families</div>
+          <div class="panel-hint">Click the send button to see it in action</div>
+        </div>
+        <button class="pause-btn" onclick="togglePause('agents')">⏸</button>
+      </div>
+      <div class="panel-body">
+        <div class="panel-copy">
+          <p>Found the perfect school? Send the full Nanasays report to a family with one click — branded as your recommendation.</p>
+          <ul>
+            <li>One-click share from any report page</li>
+            <li>Client gets a personalised summary</li>
+            <li>You see when they've read it</li>
+            <li>Add your own agent notes</li>
+          </ul>
+        </div>
+        <div class="panel-mock" style="display:flex;flex-direction:column;">
+          <div class="chrome"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div><div class="url">nanasays.com/agent/share</div></div>
+          <div class="share-body">
+            <div class="share-report-box">
+              <div class="share-report-icon">📋</div>
+              <div><div class="share-report-name">Queen Ethelburga's — Full Report</div><div class="share-report-meta">12 sections · Updated April 2025 · ISI: Excellent</div></div>
+            </div>
+            <div class="share-client-box">
+              <div class="share-client-lbl">Sending to</div>
+              <div class="share-client-row">
+                <div class="share-avatar">TA</div>
+                <div class="share-client-name">Tanaka Family · tanaka@email.com</div>
+                <div class="share-tick">✓</div>
+              </div>
+            </div>
+            <button class="share-btn-box" id="share-btn" onclick="doShare()">📤 Send report to client</button>
+            <div class="share-sent" id="share-sent" style="display:none">✅ Report sent! Tanaka family viewed it 3 times — they're interested.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- A3: SPECIALISTS -->
+    <div class="panel-content" data-panel="agents-3">
+      <div class="panel-header">
+        <div>
+          <div class="panel-title">Find specialist schools for unique needs</div>
+          <div class="panel-hint">Click filters to see ranked matches update</div>
+        </div>
+        <button class="pause-btn" onclick="togglePause('agents')">⏸</button>
+      </div>
+      <div class="panel-body">
+        <div class="panel-copy">
+          <p>Filter by specialist criteria — EAL, music scholarships, sport academies, SEN — and get a ranked match list instantly.</p>
+          <ul>
+            <li>Filter by EAL / international intake</li>
+            <li>Sport scholarship schools</li>
+            <li>Music & arts specialist provision</li>
+            <li>SEN & learning support rated</li>
+          </ul>
+        </div>
+        <div class="panel-mock" style="display:flex;flex-direction:column;">
+          <div class="chrome"><div class="dot r"></div><div class="dot y"></div><div class="dot g"></div><div class="url">nanasays.com/schools?specialist=true</div></div>
+          <div class="niche-body">
+            <div class="niche-group-label">Needs</div>
+            <div class="niche-chips" id="niche-needs">
+              <div class="niche-chip on" onclick="toggleNiche(this)">EAL support</div>
+              <div class="niche-chip on" onclick="toggleNiche(this)">High intl. intake</div>
+              <div class="niche-chip" onclick="toggleNiche(this)">SEN provision</div>
+              <div class="niche-chip" onclick="toggleNiche(this)">Dyslexia</div>
+            </div>
+            <div class="niche-group-label">Specialism</div>
+            <div class="niche-chips" id="niche-spec">
+              <div class="niche-chip on" onclick="toggleNiche(this)">Music scholarship</div>
+              <div class="niche-chip" onclick="toggleNiche(this)">Drama</div>
+              <div class="niche-chip" onclick="toggleNiche(this)">Sport academy</div>
+              <div class="niche-chip" onclick="toggleNiche(this)">STEM</div>
+            </div>
+            <div class="niche-group-label">Matched schools</div>
+            <div class="niche-results" id="niche-results">
+              <div class="niche-row top"><div class="niche-num">1</div><div class="niche-name">Brooke House College</div><div class="niche-pct">96% match</div></div>
+              <div class="niche-row"><div class="niche-num">2</div><div class="niche-name">MPW London</div><div class="niche-pct">88% match</div></div>
+              <div class="niche-row"><div class="niche-num">3</div><div class="niche-name">Abbey College Cambridge</div><div class="niche-pct">81% match</div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /car-agents -->
+
+  <!-- ══════ SECTION 3: HOMEPAGE EMBED ══════ -->
+  <div class="section-block">
+    <div class="section-eyebrow">🏠 Embed on the homepage</div>
+    <h2 class="section-headline">Browse the site — <em>see how it works</em></h2>
+    <p class="section-sub">A 5-step interactive walkthrough showing parents exactly what they'll experience on nanasays.school.</p>
+
+    <!-- Step indicators -->
+    <div class="wt-steps" id="wt-steps"></div>
+
+    <!-- Mini browser -->
+    <div class="wt-browser">
+      <!-- Browser chrome -->
+      <div class="wt-chrome">
+        <div style="display:flex;gap:5px;align-items:center">
+          <div class="dot r"></div><div class="dot y"></div><div class="dot g"></div>
+        </div>
+        <button class="wt-nav-btn" id="wt-back" onclick="wtNav(-1)">‹</button>
+        <button class="wt-nav-btn" id="wt-fwd"  onclick="wtNav(1)">›</button>
+        <div class="wt-url-bar" id="wt-url">nanasays.school</div>
+        <div class="wt-reload">↻</div>
+      </div>
+
+      <!-- Page viewport -->
+      <div class="wt-viewport" id="wt-viewport"></div>
+
+      <!-- Step navigation footer -->
+      <div class="wt-footer">
+        <button class="wt-arrow" id="wt-prev-btn" onclick="wtNav(-1)">← Previous</button>
+        <div class="wt-step-label" id="wt-step-label"></div>
+        <button class="wt-arrow wt-arrow-next" id="wt-next-btn" onclick="wtNav(1)">Next →</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="cta-strip" style="margin-top:48px">
+    <a class="cta-primary" href="#">Start exploring — it's free</a>
+    <a class="cta-link" href="#">See all 64 UK schools →</a>
+  </div>
+</div>
+
+<style>
+/* ── WALKTHROUGH ── */
+.wt-steps {
+  display: flex; gap: 0; justify-content: center; margin-bottom: 20px;
+}
+.wt-step-dot {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  flex: 1; max-width: 160px; cursor: pointer; padding: 0 8px;
+  position: relative;
+}
+.wt-step-dot:not(:last-child)::after {
+  content:''; position:absolute; top:14px; left:calc(50% + 14px); right:0;
+  height:2px; background:var(--border);
+}
+.wt-step-dot.done::after { background:var(--teal); }
+.wt-dot-circle {
+  width:28px; height:28px; border-radius:50%;
+  border:2px solid var(--border); background:#fff;
+  display:flex; align-items:center; justify-content:center;
+  font-size:12px; font-weight:900; color:var(--muted);
+  transition:all .2s; z-index:1; position:relative;
+}
+.wt-step-dot.active .wt-dot-circle { border-color:var(--teal); background:var(--teal); color:#fff; }
+.wt-step-dot.done .wt-dot-circle   { border-color:var(--teal); background:var(--teal-bg); color:var(--teal-dk); }
+.wt-dot-label { font-size:11px; font-weight:700; color:var(--muted); text-align:center; }
+.wt-step-dot.active .wt-dot-label { color:var(--navy); }
+
+.wt-browser {
+  background:#fff; border-radius:18px;
+  border:1px solid var(--border);
+  box-shadow:0 8px 40px var(--shadow), 0 1px 3px var(--shadow);
+  overflow:hidden;
+}
+.wt-chrome {
+  display:flex; align-items:center; gap:8px;
+  background:#f0f0f0; padding:10px 14px;
+  border-bottom:1px solid var(--border);
+}
+.wt-nav-btn {
+  width:24px; height:24px; border-radius:50%; border:none;
+  background:rgba(0,0,0,.08); color:#555;
+  font-size:14px; cursor:pointer; display:flex; align-items:center; justify-content:center;
+  font-family:var(--sans); line-height:1;
+  transition:background .15s;
+}
+.wt-nav-btn:hover { background:rgba(0,0,0,.14); }
+.wt-nav-btn:disabled { opacity:.3; cursor:default; }
+.wt-url-bar {
+  flex:1; background:#fff; border-radius:20px; border:1px solid var(--bmd);
+  padding:5px 14px; font-size:12px; color:var(--muted); font-weight:600;
+  text-align:center; transition:all .3s;
+}
+.wt-reload { font-size:15px; color:var(--muted); cursor:default; }
+
+.wt-viewport {
+  height:480px; overflow:hidden; position:relative;
+  background:var(--off);
+}
+.wt-page {
+  position:absolute; inset:0;
+  opacity:0; transform:translateX(30px);
+  transition:opacity .3s ease, transform .3s ease;
+  pointer-events:none; overflow-y:auto;
+}
+.wt-page.active {
+  opacity:1; transform:translateX(0); pointer-events:auto;
+}
+.wt-page.exit-left { opacity:0; transform:translateX(-30px); }
+.wt-page.exit-right { opacity:0; transform:translateX(30px); }
+
+.wt-footer {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px 20px; border-top:1px solid var(--border);
+  background:#fafafa;
+}
+.wt-arrow {
+  font-size:13px; font-weight:800; color:var(--navy);
+  background:none; border:1.5px solid var(--border); border-radius:100px;
+  padding:8px 18px; cursor:pointer; font-family:var(--sans);
+  transition:border-color .15s, background .15s;
+}
+.wt-arrow:hover { border-color:var(--navy); background:var(--off); }
+.wt-arrow:disabled { opacity:.3; cursor:default; }
+.wt-arrow-next { background:var(--navy); color:#fff; border-color:var(--navy); }
+.wt-arrow-next:hover { background:var(--navy-lt); border-color:var(--navy-lt); }
+.wt-step-label { font-size:13px; font-weight:700; color:var(--muted); }
+
+/* ── PAGE MOCKS ── */
+
+/* NAV mock (shared) */
+.m-nav {
+  display:flex; align-items:center; gap:16px; padding:0 24px;
+  height:52px; background:rgba(255,255,255,.97);
+  border-bottom:1px solid var(--border);
+  position:sticky; top:0; z-index:10;
+  backdrop-filter:blur(10px);
+}
+.m-logo { display:flex; align-items:center; gap:7px; }
+.m-logo-icon { width:28px; height:28px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; overflow:hidden; }
+.m-logo-icon svg { width:100%; height:100%; display:block; }
+/* Step icon SVGs */
+.wt-step-icon-svg { width:14px; height:14px; color:currentColor; vertical-align:middle; margin-right:3px; }
+.m-logo-text { font-family:var(--head); font-size:17px; font-weight:800; color:var(--navy); }
+.m-logo-text em { color:var(--teal); font-style:normal; }
+.m-nav-right { margin-left:auto; display:flex; align-items:center; gap:8px; }
+.m-nav-pill { padding:6px 13px; border-radius:7px; font-size:12px; font-weight:700; border:1px solid var(--border); background:var(--off); color:var(--navy); }
+.m-nav-cta  { padding:6px 14px; border-radius:7px; font-size:12px; font-weight:800; background:var(--teal); color:#fff; }
+
+/* PAGE 1 — HOMEPAGE */
+.m-hero {
+  background:var(--navy); padding:52px 28px 48px; text-align:center;
+  position:relative; overflow:hidden;
+}
+.m-hero-eyebrow { font-size:10px; font-weight:800; letter-spacing:.2em; text-transform:uppercase; color:var(--teal); margin-bottom:14px; }
+.m-hero-h1 { font-family:var(--head); font-size:clamp(22px,4vw,34px); font-weight:900; color:#fff; line-height:1.15; letter-spacing:-1px; margin-bottom:10px; }
+.m-hero-h1 em { color:var(--teal); font-style:normal; }
+.m-hero-sub { font-size:13px; color:rgba(255,255,255,.55); max-width:380px; margin:0 auto 26px; line-height:1.6; }
+.m-hero-search {
+  display:flex; max-width:440px; margin:0 auto; gap:0;
+  background:#fff; border-radius:12px; overflow:hidden;
+  box-shadow:0 8px 32px rgba(0,0,0,.2);
+}
+.m-hero-input { flex:1; padding:13px 16px; font-size:13px; border:none; outline:none; font-family:var(--sans); color:var(--navy); background:transparent; }
+.m-hero-btn { padding:13px 20px; background:var(--teal); color:#fff; border:none; font-size:13px; font-weight:800; cursor:pointer; font-family:var(--sans); white-space:nowrap; }
+.m-hero-proof { display:flex; gap:28px; justify-content:center; margin-top:22px; }
+.m-proof-stat { text-align:center; }
+.m-proof-num { font-family:var(--head); font-size:20px; font-weight:900; color:#fff; }
+.m-proof-num em { color:var(--teal); font-style:normal; }
+.m-proof-label { font-size:10px; color:rgba(255,255,255,.4); font-weight:600; margin-top:2px; }
+
+.m-dest-section { padding:28px 24px; }
+.m-dest-label { font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.12em; margin-bottom:12px; }
+.m-dest-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.m-dest-card {
+  background:#fff; border:1px solid var(--border); border-radius:10px;
+  padding:12px 10px; text-align:center; cursor:pointer;
+  transition:border-color .15s, box-shadow .15s;
+}
+.m-dest-card:hover { border-color:var(--teal); box-shadow:0 4px 12px rgba(52,195,160,.15); }
+.m-dest-flag { font-size:22px; display:block; margin-bottom:4px; }
+.m-dest-name { font-size:11px; font-weight:700; color:var(--navy); }
+.m-dest-count { font-size:10px; color:var(--muted); }
+
+/* PAGE 2 — SEARCH RESULTS / TYPE ANIMATION */
+.m-search-anim { position:relative; }
+.m-typing-cursor { display:inline-block; width:2px; height:14px; background:var(--teal); margin-left:2px; animation:blink .8s step-end infinite; vertical-align:middle; }
+@keyframes blink { 0%,100%{opacity:1}50%{opacity:0} }
+
+/* PAGE 3 — DIRECTORY */
+.m-dir-header { background:var(--navy); padding:28px 24px 20px; }
+.m-dir-h1 { font-family:var(--head); font-size:22px; font-weight:900; color:#fff; letter-spacing:-.5px; margin-bottom:4px; }
+.m-dir-sub { font-size:12px; color:rgba(255,255,255,.45); }
+.m-dir-controls { background:var(--navy); padding:0 24px 20px; display:flex; gap:8px; flex-wrap:wrap; }
+.m-dir-search-box {
+  flex:1; min-width:160px; padding:8px 12px;
+  border:1px solid rgba(255,255,255,.2); background:rgba(255,255,255,.08);
+  border-radius:8px; color:rgba(255,255,255,.8); font-size:12px; font-family:var(--sans);
+}
+.m-dir-pill {
+  padding:6px 13px; border-radius:100px; font-size:11px; font-weight:700;
+  border:1px solid rgba(255,255,255,.25); background:transparent; color:rgba(255,255,255,.7);
+  cursor:pointer; font-family:var(--sans); transition:all .15s;
+}
+.m-dir-pill.on { background:var(--teal); color:var(--navy); border-color:var(--teal); }
+.m-dir-results-bar { padding:10px 24px; font-size:11px; font-weight:700; color:var(--muted); background:#fff; border-bottom:1px solid var(--border); }
+.m-dir-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; padding:16px 24px; background:var(--off); }
+.m-dir-card {
+  background:#fff; border:1px solid var(--border); border-radius:12px;
+  padding:14px; cursor:pointer;
+  transition:border-color .18s, box-shadow .18s, transform .15s;
+}
+.m-dir-card:hover { border-color:var(--teal); box-shadow:0 4px 16px rgba(27,50,82,.1); transform:translateY(-2px); }
+.m-dir-card.hl { border-color:var(--teal); box-shadow:0 4px 20px rgba(52,195,160,.2); transform:translateY(-2px); }
+.m-dir-card-name { font-size:13px; font-weight:900; color:var(--navy); margin-bottom:3px; }
+.m-dir-card-city { font-size:11px; color:var(--muted); margin-bottom:8px; }
+.m-dir-card-tags { display:flex; gap:4px; flex-wrap:wrap; }
+.m-dir-tag { font-size:10px; font-weight:700; padding:2px 7px; border-radius:100px; background:var(--off); color:var(--muted); border:1px solid var(--border); }
+.m-dir-tag.sport { background:var(--teal-bg); color:var(--teal-dk); }
+
+/* PAGE 4 — SCHOOL PROFILE */
+.m-school-hero { background:var(--navy); padding:24px; }
+.m-school-flag { font-size:11px; font-weight:800; color:rgba(255,255,255,.4); letter-spacing:.1em; text-transform:uppercase; margin-bottom:6px; }
+.m-school-name { font-family:var(--head); font-size:22px; font-weight:900; color:#fff; margin-bottom:10px; letter-spacing:-.5px; }
+.m-school-tags-row { display:flex; gap:6px; flex-wrap:wrap; }
+.m-school-tag { font-size:10px; font-weight:800; padding:4px 10px; border-radius:100px; background:rgba(255,255,255,.1); color:rgba(255,255,255,.7); }
+.m-school-tag.teal { background:rgba(52,195,160,.2); color:var(--teal); }
+.m-school-tabs { display:flex; background:#fff; border-bottom:1px solid var(--border); padding:0 24px; }
+.m-school-tab { padding:12px 16px; font-size:12px; font-weight:700; color:var(--muted); border-bottom:2px solid transparent; cursor:pointer; margin-bottom:-1px; transition:color .15s; }
+.m-school-tab.active { color:var(--navy); border-bottom-color:var(--teal); }
+.m-school-body { padding:20px 24px; background:var(--off); }
+.m-school-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:12px; }
+.m-school-stat-card { background:#fff; border:1px solid var(--border); border-radius:10px; padding:12px; }
+.m-school-stat-val { font-family:var(--head); font-size:18px; font-weight:900; color:var(--navy); }
+.m-school-stat-val em { color:var(--teal); font-style:normal; }
+.m-school-stat-lbl { font-size:10px; color:var(--muted); margin-top:2px; font-weight:600; }
+.m-school-section { background:#fff; border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:8px; }
+.m-school-sec-label { font-size:11px; font-weight:800; color:var(--muted); text-transform:uppercase; letter-spacing:.1em; margin-bottom:6px; }
+.m-school-sec-text { font-size:12px; color:var(--body); line-height:1.6; }
+.m-nana-teaser {
+  background:var(--navy); border-radius:12px; padding:16px;
+  display:flex; align-items:center; gap:12px; margin-top:0;
+}
+.m-nana-icon { font-size:22px; }
+.m-nana-text { flex:1; }
+.m-nana-text strong { font-size:13px; font-weight:800; color:#fff; display:block; margin-bottom:2px; }
+.m-nana-text span { font-size:11px; color:rgba(255,255,255,.5); }
+.m-nana-btn { background:var(--teal); color:#fff; border:none; border-radius:8px; padding:8px 14px; font-size:12px; font-weight:800; cursor:pointer; font-family:var(--sans); white-space:nowrap; }
+
+/* PAGE 5 — REPORT + NANA */
+.m-report-layout { display:flex; height:100%; overflow:hidden; }
+.m-report-main { flex:1; overflow-y:auto; }
+.m-report-hdr { background:var(--navy); padding:20px 20px 16px; }
+.m-report-eyebrow { font-size:10px; font-weight:800; letter-spacing:.15em; text-transform:uppercase; color:var(--teal); margin-bottom:6px; }
+.m-report-school { font-family:var(--head); font-size:18px; font-weight:900; color:#fff; margin-bottom:10px; }
+.m-report-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--border); }
+.m-rep-stat { background:#fff; padding:10px 12px; text-align:center; }
+.m-rep-val { font-family:var(--head); font-size:17px; font-weight:900; color:var(--navy); }
+.m-rep-val em { color:var(--teal); font-style:normal; }
+.m-rep-lbl { font-size:10px; color:var(--muted); margin-top:1px; }
+.m-report-sections { padding:12px; display:flex; flex-direction:column; gap:6px; }
+.m-rep-row { display:flex; align-items:center; gap:9px; padding:9px 11px; background:#fff; border-radius:8px; border:1px solid var(--border); cursor:pointer; }
+.m-rep-row:hover { border-color:var(--teal); }
+.m-rep-icon { font-size:14px; }
+.m-rep-label { font-size:12px; font-weight:700; color:var(--navy); flex:1; }
+.m-rep-chip { font-size:10px; font-weight:800; padding:3px 9px; border-radius:100px; background:var(--teal-bg); color:var(--teal-dk); }
+/* Nana side panel */
+.m-nana-panel {
+  width:240px; flex-shrink:0; border-left:1px solid var(--border);
+  background:#fff; display:flex; flex-direction:column; overflow:hidden;
+}
+.m-nana-panel-hdr {
+  background:var(--navy); padding:12px 14px;
+  display:flex; align-items:center; gap:8px;
+}
+.m-nana-panel-dot { width:7px; height:7px; border-radius:50%; background:var(--teal); animation:pulse 2s infinite; }
+.m-nana-panel-label { font-size:12px; font-weight:800; color:#fff; }
+.m-nana-msgs { flex:1; overflow-y:auto; padding:10px; display:flex; flex-direction:column; gap:7px; }
+.m-nmsg { font-size:11px; line-height:1.5; padding:8px 10px; border-radius:10px; }
+.m-nmsg.user { background:var(--navy); color:#fff; align-self:flex-end; max-width:85%; }
+.m-nmsg.nana { background:var(--off); border:1px solid var(--border); color:var(--body); align-self:flex-start; max-width:92%; }
+.m-nmsg.nana strong { color:var(--teal-dk); }
+.m-nana-input-row { display:flex; gap:5px; padding:8px; border-top:1px solid var(--border); }
+.m-nana-field { flex:1; background:var(--off); border:1px solid var(--border); border-radius:6px; padding:6px 9px; font-size:11px; font-family:var(--sans); }
+.m-nana-send { background:var(--teal); color:#fff; border:none; border-radius:6px; padding:6px 9px; font-size:12px; cursor:pointer; }
+
+/* click-me pulse */
+.click-cue {
+  position:absolute; pointer-events:none;
+  width:40px; height:40px; border-radius:50%;
+  border:2px solid var(--teal); opacity:0;
+  animation:click-pulse 2.5s ease-out infinite;
+}
+@keyframes click-pulse { 0%{opacity:.8;transform:scale(.5)} 70%{opacity:0;transform:scale(1.5)} 100%{opacity:0} }
+</style>
+
+<script>
+// ─── STATE ────────────────────────────────────────────
+const S = {
+  parents: { active:0, paused:false, timer:null, count:3 },
+  agents:  { active:0, paused:false, timer:null, count:4 },
+  current: 'parents'
+}
+const ADV = 5000
+
+// ─── TABS ────────────────────────────────────────────
+function selTab(aud, idx, resetTimer=true) {
+  const s = S[aud]
+  s.active = idx
+  document.querySelectorAll(`#tabs-${aud} .tab-btn`).forEach((t,i) => {
+    t.classList.toggle('active', i===idx)
+    t.classList.remove('paused')
+    if (i===idx) { const p=t.querySelector('.tab-progress'); p.style.animation='none'; p.offsetHeight; p.style.animation=''; }
+  })
+  document.querySelectorAll(`[data-panel^="${aud}-"]`).forEach(p => p.classList.toggle('active', p.dataset.panel===`${aud}-${idx}`))
+  if (resetTimer) { clearInterval(s.timer); if(!s.paused) startTimer(aud) }
+}
+function startTimer(aud) {
+  const s = S[aud]
+  s.timer = setInterval(() => { if(!s.paused) selTab(aud, (s.active+1)%s.count) }, ADV)
+}
+function togglePause(aud) {
+  const s = S[aud]; s.paused = !s.paused
+  document.querySelectorAll(`#car-${aud} .pause-btn`).forEach(b => { b.textContent = s.paused ? '▶' : '⏸'; b.title = s.paused ? 'Resume':'Pause' })
+  const at = document.querySelector(`#tabs-${aud} .tab-btn.active`)
+  if (at) at.classList.toggle('paused', s.paused)
+  s.paused ? clearInterval(s.timer) : startTimer(aud)
+}
+function switchAud(aud) {
+  S.current = aud
+  document.querySelectorAll('.aud-btn').forEach(b => b.classList.toggle('active', b.dataset.aud===aud))
+  document.getElementById('car-parents').style.display = aud==='parents' ? '' : 'none'
+  document.getElementById('car-agents').style.display  = aud==='agents'  ? '' : 'none'
+  selTab(aud, 0)
+}
+
+// ─── TOAST ────────────────────────────────────────────
+function toast(msg) {
+  const t = document.getElementById('toast')
+  t.textContent = msg; t.classList.add('show')
+  setTimeout(() => t.classList.remove('show'), 2200)
+}
+
+// ─── DRAG: SCHOOL → COMPARE TRAY ─────────────────────
+let dragging = { id:null, name:null }
+const slots = [null, null, null]
+
+function startDrag(e, id, name) {
+  dragging = { id, name }
+  e.currentTarget.classList.add('dragging')
+  e.dataTransfer.effectAllowed = 'move'
+}
+function endDrag(e) { e.currentTarget.classList.remove('dragging') }
+function allowDrop(e, i) { e.preventDefault(); document.getElementById(`slot-${i}`).classList.add('drag-over') }
+function leaveDrop(i) { document.getElementById(`slot-${i}`).classList.remove('drag-over') }
+function dropSchool(e, i) {
+  e.preventDefault()
+  leaveDrop(i)
+  if (!dragging.id) return
+  if (slots.includes(dragging.id)) { toast('Already in compare tray'); return }
+  slots[i] = dragging.id
+  const slot = document.getElementById(`slot-${i}`)
+  slot.classList.add('filled')
+  slot.innerHTML = `<span>${dragging.name.split(' ')[0]}</span><button class="remove-x" onclick="removeSlot(${i})">✕</button>`
+  // mark card
+  const card = document.querySelector(`[data-id="${dragging.id}"]`)
+  if (card) card.classList.add('in-compare')
+  const filled = slots.filter(Boolean).length
+  document.getElementById('cmp-btn').classList.toggle('ready', filled >= 2)
+  toast(`${dragging.name} added to compare`)
+}
+function removeSlot(i) {
+  const id = slots[i]; if (!id) return
+  slots[i] = null
+  const slot = document.getElementById(`slot-${i}`)
+  slot.classList.remove('filled','drag-over')
+  slot.innerHTML = 'Drop here'
+  const card = document.querySelector(`[data-id="${id}"]`)
+  if (card) card.classList.remove('in-compare')
+  document.getElementById('cmp-btn').classList.toggle('ready', slots.filter(Boolean).length>=2)
+}
+
+// ─── DOUBLE CLICK: SAVE SCHOOL ───────────────────────
+const saved = new Set()
+function saveSchool(card, id) {
+  const btn = card.querySelector('.save-btn')
+  if (saved.has(id)) {
+    saved.delete(id); btn.textContent='♡'; btn.classList.remove('heart-popped'); card.classList.remove('saved')
+    toast('Removed from saved schools')
+  } else {
+    saved.add(id); btn.textContent='♥'; btn.classList.add('heart-popped'); card.classList.add('saved')
+    toast('❤️ Saved to your shortlist!')
+    btn.addEventListener('animationend', () => btn.classList.remove('heart-popped'), {once:true})
+  }
+}
+
+// ─── CLICK: EXPAND REPORT ROW ────────────────────────
+function toggleRepRow(row) {
+  const wasOpen = row.classList.contains('open')
+  document.querySelectorAll('.rep-row.open, .intel-row.open').forEach(r => r.classList.remove('open'))
+  if (!wasOpen) row.classList.add('open')
+}
+
+// ─── COMPARE TABLE (drag cols) ────────────────────────
+const CMP_SCHOOLS = [
+  { name:"Queen Ethelburga's", fees:'£44,500', isi:'Excellent', type:'Co-ed', entry:'11+, 13+', sports:'14' },
+  { name:'Cranleigh School', fees:'£52,350', isi:'Excellent', type:'Co-ed', entry:'13+ only', sports:'15' },
+  { name:'Reed\'s School', fees:'£44,100', isi:'Excellent', type:'Boys', entry:'11+, 13+', sports:'10' },
+]
+const CMP_ROWS = [
+  { label:'ISI Rating',    key:'isi',    better:(a,b)=>true },
+  { label:'Boarding Fees', key:'fees',   better:(a,b)=>a<b },
+  { label:'Type',          key:'type',   better:()=>null },
+  { label:'Entry Age',     key:'entry',  better:(a,b)=>a.includes('11+')&&!b.includes('11+') },
+  { label:'Sports',        key:'sports', better:(a,b)=>parseInt(a)>parseInt(b) },
+]
+let cmpOrder = [0,1,2]
+let cmpDragIdx = null
+
+function buildCmpTable() {
+  const wrap = document.getElementById('cmp-table')
+  const schools = cmpOrder.map(i=>CMP_SCHOOLS[i])
+  const cols = schools.length + 1
+  const gridCols = `110px repeat(${schools.length},1fr)`
+  let html = `<div class="cmp-school-cols" style="display:grid;grid-template-columns:${gridCols};gap:1px;background:var(--border);flex-shrink:0">`
+  html += `<div class="cmp-cell" style="background:var(--off2)"></div>`
+  schools.forEach((s,i) => {
+    html += `<div class="cmp-cell cmp-school-hdr" draggable="true" data-ci="${i}" ondragstart="cmpDragStart(${i})" ondragover="cmpDragOver(event,${i})" ondrop="cmpDrop(${i})" ondragend="cmpDragEnd()">
+      <span class="drag-icon">⠿</span>${s.name.split(' ')[0]}
+    </div>`
+  })
+  html += '</div>'
+  CMP_ROWS.forEach(row => {
+    html += `<div class="cmp-row" style="display:grid;grid-template-columns:${gridCols};gap:1px;background:var(--border)">`
+    html += `<div class="cmp-cell" style="color:var(--muted);font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.08em">${row.label}</div>`
+    schools.forEach((s,si) => {
+      const others = schools.filter((_,oi)=>oi!==si)
+      let cls = 'cmp-val'
+      if (row.better) {
+        const isBetter = others.every(o => row.better(s[row.key], o[row.key]))
+        const isWorse  = others.every(o => row.better(o[row.key], s[row.key]))
+        if (isBetter===true) cls += ' better'
+        else if (isWorse===true) cls += ' worse'
+      }
+      html += `<div class="cmp-cell ${cls}">${s[row.key]}</div>`
+    })
+    html += '</div>'
+  })
+  wrap.innerHTML = html
+  document.getElementById('cmp-winner-name').textContent = schools[0].name
+}
+function cmpDragStart(i) { cmpDragIdx=i; setTimeout(()=>document.querySelectorAll('.cmp-school-hdr').forEach(h=>{ if(parseInt(h.dataset.ci)===i) h.classList.add('dragging') }),0) }
+function cmpDragOver(e,i) { e.preventDefault() }
+function cmpDrop(i) {
+  if (cmpDragIdx===null||cmpDragIdx===i) return
+  const tmp=cmpOrder[cmpDragIdx]; cmpOrder[cmpDragIdx]=cmpOrder[i]; cmpOrder[i]=tmp
+  buildCmpTable()
+  toast('Order updated')
+}
+function cmpDragEnd() { cmpDragIdx=null; buildCmpTable() }
+
+// ─── CLIENTS PANEL (pill drag) ────────────────────────
+const CLIENTS = [
+  { id:'ta', name:'Tanaka Family', sub:'Son, 12 · Boarding · Surrey/Kent', color:'#F5A623', init:'TA',
+    schools:["Queen Ethelburga's",'Cranleigh','Reed\'s'] },
+  { id:'rm', name:'Rodriguez-Mora', sub:'Daughter, 10 · Girls\' boarding · Oxfordshire', color:'#8B5CF6', init:'RM',
+    schools:['Wycombe Abbey','Headington'] },
+  { id:'kp', name:'Kim-Park Family', sub:'Twins, 13 · Co-ed day · London', color:'#1B3252', init:'KP',
+    schools:['King\'s College Wimbledon','Dulwich'] },
+]
+let clientData = CLIENTS.map(c=>({...c, schools:[...c.schools]}))
+let pillDrag = { from:null, school:null }
+
+function buildClients() {
+  const list = document.getElementById('clients-list')
+  list.innerHTML = clientData.map((c,ci) => `
+    <div class="client-row" data-ci="${ci}" ondragover="clientDragOver(event,${ci})" ondragleave="clientDragLeave(${ci})" ondrop="clientDrop(event,${ci})">
+      <div class="c-avatar" style="background:${c.color}">${c.init}</div>
+      <div class="c-info">
+        <div class="c-name">${c.name}</div>
+        <div class="c-sub">${c.sub}</div>
+        <div class="c-pills" id="pills-${ci}">
+          ${c.schools.map(s=>`<div class="c-pill" draggable="true" ondragstart="pillDragStart(event,${ci},'${s.replace(/'/g,"\\'")}')" ondragend="pillDragEnd()" ondblclick="removePill(${ci},'${s.replace(/'/g,"\\'")}')">
+            ${s}<span class="pill-x" onclick="event.stopPropagation();removePill(${ci},'${s.replace(/'/g,"\\'")}')">✕</span>
+          </div>`).join('')}
+        </div>
+      </div>
+    </div>`).join('')
+}
+function pillDragStart(e,ci,school) {
+  pillDrag={from:ci,school}
+  e.currentTarget.classList.add('dragging')
+  e.dataTransfer.effectAllowed='move'
+}
+function pillDragEnd() { document.querySelectorAll('.c-pill.dragging').forEach(p=>p.classList.remove('dragging')) }
+function clientDragOver(e,ci) { e.preventDefault(); document.querySelector(`[data-ci="${ci}"]`).classList.add('drag-over') }
+function clientDragLeave(ci) { document.querySelector(`[data-ci="${ci}"]`).classList.remove('drag-over') }
+function clientDrop(e,ci) {
+  e.preventDefault(); clientDragLeave(ci)
+  if (pillDrag.from===null||pillDrag.from===ci) return
+  if (clientData[ci].schools.includes(pillDrag.school)) { toast('Already on this shortlist'); return }
+  clientData[pillDrag.from].schools = clientData[pillDrag.from].schools.filter(s=>s!==pillDrag.school)
+  clientData[ci].schools.push(pillDrag.school)
+  buildClients()
+  toast(`Moved to ${clientData[ci].name.split(' ')[0]}`)
+}
+function removePill(ci, school) {
+  clientData[ci].schools = clientData[ci].schools.filter(s=>s!==school)
+  buildClients()
+  toast('Removed from shortlist')
+}
+
+// ─── NANA CHAT ────────────────────────────────────────
+const NANA_ANSWERS = {
+  'Is it good for a shy artistic girl?': 'Yes — with caveats. Wycombe\'s arts programme is <strong>genuinely strong</strong>: dedicated studios, ceramics, thriving drama. ISI praised the nurturing pastoral care. Sport is compulsory but there\'s breadth — yoga, riding, fencing. A shy, artistic child will likely find her tribe here.',
+  'What are the boarding fees?': '<strong>£50,850/year</strong> for full boarders (2024–25). Bursaries available up to 100% — means-tested. Scholarship exams held each January.',
+  'How strong is the sport?': 'Sport is <strong>mandatory</strong> and well-resourced — lacrosse, tennis, rowing, swimming are all strong. County and national fixtures. It\'s not optional, so if your child dislikes sport entirely, worth factoring that in.',
+}
+function askNana(pillEl, q) {
+  if (pillEl) pillEl.remove()
+  appendMsg('user', q)
+  const typing = appendTyping()
+  setTimeout(()=>{ typing.remove(); appendMsg('nana', NANA_ANSWERS[q]||'That\'s a great question! Based on the ISI report and school data, I\'d say Wycombe Abbey handles this well.') }, 1100)
+}
+function sendChat(input) { if(input.value.trim()) { askNana(null, input.value.trim()); input.value=''; } }
+function sendChatBtn(btn) { const f=btn.closest('.chat-input-row').querySelector('.chat-field'); sendChat(f) }
+function appendMsg(type, html) {
+  const msgs=document.getElementById('chat-msgs')
+  const d=document.createElement('div'); d.className=`msg ${type}`; d.innerHTML=html; msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight; return d
+}
+function appendTyping() {
+  const msgs=document.getElementById('chat-msgs')
+  const d=document.createElement('div'); d.className='msg nana typing'; d.innerHTML='<div class="typing-dots"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>'; msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight; return d
+}
+
+// ─── SHARE BUTTON ─────────────────────────────────────
+function doShare() {
+  const btn=document.getElementById('share-btn')
+  btn.textContent='Sending…'; btn.style.opacity='.6'; btn.onclick=null
+  setTimeout(()=>{ document.getElementById('share-sent').style.display='flex'; btn.style.display='none' },900)
+}
+
+// ─── NICHE FILTER ─────────────────────────────────────
+const NICHE_RESULTS = [
+  ['Brooke House College','96%'],['MPW London','88%'],['Abbey College Cambridge','81%'],
+  ['Concord College','74%'],['DLD College London','68%'],
+]
+function toggleNiche(el) {
+  el.classList.toggle('on')
+  const on = document.querySelectorAll('.niche-chip.on').length
+  const list=document.getElementById('niche-results')
+  const count = Math.max(2, Math.min(on+1, NICHE_RESULTS.length))
+  list.innerHTML = NICHE_RESULTS.slice(0,count).map((r,i)=>`
+    <div class="niche-row ${i===0?'top':''}">
+      <div class="niche-num">${i+1}</div>
+      <div class="niche-name">${r[0]}</div>
+      <div class="niche-pct">${r[1]} match</div>
+    </div>`).join('')
+}
+
+// ─── BOOT ─────────────────────────────────────────────
+buildCmpTable()
+buildClients()
+startTimer('parents')
+
+// ══════════════════════════════════════════════════════
+//  SITE WALKTHROUGH
+// ══════════════════════════════════════════════════════
+const WT_STEPS = [
+  { label:'Homepage',     icon:'ic-globe',  url:'nanasays.school' },
+  { label:'Search',       icon:'ic-search', url:'nanasays.school/search' },
+  { label:'Country + Map', icon:'ic-map',   url:'nanasays.school/countries/united-kingdom' },
+  { label:'School page',   icon:'ic-school', url:'nanasays.school/schools/queen-ethelburgas-collegiate' },
+  { label:'Report + Nana', icon:'ic-nana',  url:'nanasays.school/schools/queen-ethelburgas-collegiate/report' },
+  { label:'Report Views',  icon:'ic-award', url:'nanasays.school/schools/queen-ethelburgas-collegiate/report#verdict' },
+]
+
+const WT_PAGES = [
+  // PAGE 1 — Homepage (many countries)
+  () => `
+  <div class="m-nav">
+    <div class="m-logo"><div class="m-logo-icon"><svg viewBox="0 0 48 48"><use href="#ic-nana"/></svg></div><div class="m-logo-text">nana<em>says</em></div></div>
+    <div class="m-nav-right"><div class="m-nav-pill">GBP</div><div class="m-nav-pill">EN</div><div class="m-nav-cta">For Schools</div></div>
+  </div>
+  <div class="m-hero" style="padding:36px 24px 30px">
+    <div class="m-hero-eyebrow">Trusted by international families worldwide</div>
+    <div class="m-hero-h1" style="font-size:26px">Find the right school for<br>your <em>child abroad</em></div>
+    <div class="m-hero-sub" style="margin-bottom:18px">10,000+ verified international schools across 166 countries — with honest AI guidance from Nana.</div>
+    <div class="m-hero-search">
+      <input class="m-hero-input" placeholder="Search by school name, country, or curriculum…" readonly>
+      <button class="m-hero-btn" onclick="wtNav(1)">Search</button>
+    </div>
+    <div class="m-hero-proof" style="margin-top:18px">
+      <div class="m-proof-stat"><div class="m-proof-num">10,<em>000</em>+</div><div class="m-proof-label">Schools</div></div>
+      <div class="m-proof-stat"><div class="m-proof-num"><em>166</em></div><div class="m-proof-label">Countries</div></div>
+      <div class="m-proof-stat"><div class="m-proof-num"><em>64</em></div><div class="m-proof-label">Deep UK reports</div></div>
+    </div>
+  </div>
+  <div class="wt-section-header"><div class="wt-section-label">Popular destinations</div></div>
+  <div class="country-grid">
+    <div class="country-card-mini" onclick="wtNav(1)"><span class="cc-flag">🇬🇧</span><div class="cc-name">United Kingdom</div><div class="cc-count">140</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇸🇬</span><div class="cc-name">Singapore</div><div class="cc-count">86</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇨🇭</span><div class="cc-name">Switzerland</div><div class="cc-count">54</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇹🇭</span><div class="cc-name">Thailand</div><div class="cc-count">286</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇦🇪</span><div class="cc-name">UAE</div><div class="cc-count">142</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇲🇾</span><div class="cc-name">Malaysia</div><div class="cc-count">68</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇺🇸</span><div class="cc-name">United States</div><div class="cc-count">812</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇯🇵</span><div class="cc-name">Japan</div><div class="cc-count">94</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇨🇳</span><div class="cc-name">China</div><div class="cc-count">228</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇩🇪</span><div class="cc-name">Germany</div><div class="cc-count">72</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇫🇷</span><div class="cc-name">France</div><div class="cc-count">88</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇪🇸</span><div class="cc-name">Spain</div><div class="cc-count">110</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇮🇹</span><div class="cc-name">Italy</div><div class="cc-count">62</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇦🇺</span><div class="cc-name">Australia</div><div class="cc-count">156</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇨🇦</span><div class="cc-name">Canada</div><div class="cc-count">128</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇳🇿</span><div class="cc-name">New Zealand</div><div class="cc-count">42</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇿🇦</span><div class="cc-name">South Africa</div><div class="cc-count">58</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇧🇷</span><div class="cc-name">Brazil</div><div class="cc-count">74</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇮🇳</span><div class="cc-name">India</div><div class="cc-count">142</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇰🇷</span><div class="cc-name">South Korea</div><div class="cc-count">52</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇭🇰</span><div class="cc-name">Hong Kong</div><div class="cc-count">38</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇸🇦</span><div class="cc-name">Saudi Arabia</div><div class="cc-count">42</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇶🇦</span><div class="cc-name">Qatar</div><div class="cc-count">28</div></div>
+    <div class="country-card-mini"><span class="cc-flag">🇹🇼</span><div class="cc-name">Taiwan</div><div class="cc-count">32</div></div>
+  </div>
+  <div class="wt-section-header"><div class="wt-section-label">By region</div></div>
+  <div class="region-strip">
+    <div class="region-pill">Europe <em>2,400</em></div>
+    <div class="region-pill">Asia Pacific <em>3,100</em></div>
+    <div class="region-pill">Americas <em>1,800</em></div>
+    <div class="region-pill">Middle East <em>620</em></div>
+    <div class="region-pill">Africa <em>340</em></div>
+  </div>
+  <div style="padding:10px 16px 20px;font-size:11px;font-weight:700;color:var(--teal-dk);text-align:center" onclick="wtNav(1)">👆 Click 🇬🇧 United Kingdom or hit Next →</div>`,
+
+  // PAGE 2 — Search (cycling typer + capabilities)
+  () => `
+  <div class="m-nav">
+    <div class="m-logo"><div class="m-logo-icon"><svg viewBox="0 0 48 48"><use href="#ic-nana"/></svg></div><div class="m-logo-text">nana<em>says</em></div></div>
+    <div class="m-nav-right"><div class="m-nav-pill">GBP</div><div class="m-nav-pill">EN</div><div class="m-nav-cta">For Schools</div></div>
+  </div>
+  <div class="m-hero" style="padding:54px 28px 30px">
+    <div class="m-hero-eyebrow">Search 10,000+ schools</div>
+    <div class="m-hero-h1" style="font-size:24px;margin-bottom:18px">What can you search for?</div>
+    <div class="m-hero-search" style="max-width:480px">
+      <div class="m-hero-input" style="padding:14px 18px;font-size:14px;color:var(--navy);font-weight:700;display:flex;align-items:center;text-align:left;min-height:46px">
+        <span id="wt-typed"></span><span class="m-typing-cursor"></span>
+      </div>
+      <button class="m-hero-btn" onclick="wtNav(1)">Search</button>
+    </div>
+    <div style="margin-top:14px;font-size:11px;color:rgba(255,255,255,.5);font-weight:600">By region · country · school name · curriculum · sport · fees</div>
+  </div>
+  <div class="wt-section-header"><div class="wt-section-label">What's in the database</div></div>
+  <div class="cap-grid">
+    <div class="cap-badge"><span class="cap-icon">🌍</span><div class="cap-text">166 Countries</div></div>
+    <div class="cap-badge"><span class="cap-icon">🏫</span><div class="cap-text">10,000+ Schools</div></div>
+    <div class="cap-badge"><span class="cap-icon">🇬🇧</span><div class="cap-text">64 Deep UK Reports</div></div>
+    <div class="cap-badge"><span class="cap-icon">🏉</span><div class="cap-text">Sports filters</div></div>
+    <div class="cap-badge"><span class="cap-icon">🎓</span><div class="cap-text">Curriculum filters</div></div>
+    <div class="cap-badge"><span class="cap-icon">💷</span><div class="cap-text">Fee range filter</div></div>
+    <div class="cap-badge"><span class="cap-icon">🏠</span><div class="cap-text">Boarding type</div></div>
+    <div class="cap-badge"><span class="cap-icon">👥</span><div class="cap-text">Gender filter</div></div>
+    <div class="cap-badge"><span class="cap-icon">📋</span><div class="cap-text">ISI rating</div></div>
+  </div>`,
+
+  // PAGE 3 — Country page with UK map
+  () => `
+  <div class="m-nav">
+    <div class="m-logo"><div class="m-logo-icon"><svg viewBox="0 0 48 48"><use href="#ic-nana"/></svg></div><div class="m-logo-text">nana<em>says</em></div></div>
+    <div class="m-nav-right"><div class="m-nav-pill">GBP</div><div class="m-nav-cta">For Schools</div></div>
+  </div>
+  <div class="m-dir-header" style="padding:22px 24px 16px">
+    <div style="font-size:11px;font-weight:800;color:rgba(255,255,255,.5);letter-spacing:.1em;text-transform:uppercase;margin-bottom:5px">🇬🇧 Country profile</div>
+    <div class="m-dir-h1" style="font-size:20px">United Kingdom</div>
+    <div class="m-dir-sub">140 independent schools · deep research reports · ISI inspection data</div>
+  </div>
+  <div style="padding:14px 16px 0;background:var(--off)">
+    <!-- Real Leaflet map (matches /countries/[slug] page) -->
+    <div id="wt-leaflet-map" style="height:300px;width:100%;background:#f0f4f8;border-radius:12px;border:1px solid var(--border);position:relative;overflow:hidden">
+      <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--muted);font-weight:700">Loading map…</div>
+    </div>
+  </div>
+  <div class="wt-section-header" style="background:var(--off)"><div class="wt-section-label">Schools by region</div></div>
+  <div class="region-grid">
+    <div class="region-card"><div class="region-name">SE England</div><div class="region-count">52</div></div>
+    <div class="region-card"><div class="region-name">Home Counties</div><div class="region-count">28</div></div>
+    <div class="region-card"><div class="region-name">Midlands</div><div class="region-count">18</div></div>
+    <div class="region-card"><div class="region-name">North</div><div class="region-count">22</div></div>
+    <div class="region-card"><div class="region-name">Scotland & Wales</div><div class="region-count">20</div></div>
+  </div>
+  <div style="padding:0 16px 16px;font-size:11px;font-weight:700;color:var(--teal-dk);text-align:center;background:var(--off);cursor:pointer" onclick="wtNav(1)">👆 Click a region or hit Next → to view a school report</div>`,
+
+  // PAGE 4 — School detail page (free overview)
+  () => `
+  <div class="m-nav">
+    <div class="m-logo"><div class="m-logo-icon"><svg viewBox="0 0 48 48"><use href="#ic-nana"/></svg></div><div class="m-logo-text">nana<em>says</em></div></div>
+    <div class="m-nav-right"><div class="m-nav-pill">GBP</div><div class="m-nav-cta">For Schools</div></div>
+  </div>
+  <div class="m-school-hero">
+    <div class="m-school-flag">🇬🇧 United Kingdom · York</div>
+    <div class="m-school-name">Queen Ethelburga's</div>
+    <div class="m-school-tags-row">
+      <span class="m-school-tag">Co-ed</span>
+      <span class="m-school-tag">Boarding</span>
+      <span class="m-school-tag">Ages 11–18</span>
+      <span class="m-school-tag teal">ISI: Excellent</span>
+    </div>
+  </div>
+  <div class="m-school-tabs">
+    <div class="m-school-tab active">Overview</div>
+    <div class="m-school-tab">Sports</div>
+    <div class="m-school-tab">Fees</div>
+    <div class="m-school-tab">Admissions</div>
+  </div>
+  <div class="m-school-body" style="padding:14px 20px;max-height:300px;overflow-y:auto">
+    <div class="m-school-grid" style="gap:8px;margin-bottom:10px">
+      <div class="m-school-stat-card" style="padding:10px"><div class="m-school-stat-val">£<em>47k</em></div><div class="m-school-stat-lbl">Boarding fees / year</div></div>
+      <div class="m-school-stat-card" style="padding:10px"><div class="m-school-stat-val"><em>900</em></div><div class="m-school-stat-lbl">Pupils</div></div>
+      <div class="m-school-stat-card" style="padding:10px"><div class="m-school-stat-val"><em>12</em></div><div class="m-school-stat-lbl">Sports offered</div></div>
+      <div class="m-school-stat-card" style="padding:10px"><div class="m-school-stat-val"><em>8</em></div><div class="m-school-stat-lbl">Boarding houses</div></div>
+    </div>
+    <div class="m-school-section" style="padding:11px;margin-bottom:8px">
+      <div class="m-school-sec-label">About</div>
+      <div class="m-school-sec-text">Co-educational independent boarding & day school in North Yorkshire. Founded 1912. 220-acre campus, strong pastoral care, excellent sport, equestrian and aviation programmes. ISI Excellent.</div>
+    </div>
+    <div class="m-school-section" style="padding:11px;margin-bottom:8px">
+      <div class="m-school-sec-label">Quick facts</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+        <span style="font-size:10px;font-weight:700;color:var(--navy);background:var(--teal-bg);padding:3px 8px;border-radius:100px">🎓 Russell Group 85%</span>
+        <span style="font-size:10px;font-weight:700;color:var(--navy);background:var(--teal-bg);padding:3px 8px;border-radius:100px">🏉 Tier 1 Rugby</span>
+        <span style="font-size:10px;font-weight:700;color:var(--navy);background:var(--teal-bg);padding:3px 8px;border-radius:100px">💷 Bursaries up to 100%</span>
+      </div>
+    </div>
+    <div class="m-nana-teaser" onclick="wtNav(1)" style="cursor:pointer;padding:12px">
+      <div class="m-nana-icon">📋</div>
+      <div class="m-nana-text">
+        <strong>Want the full picture?</strong>
+        <span>34-page deep report · 22 sections · ISI quotes · Ask Nana anything</span>
+      </div>
+      <button class="m-nana-btn">Open report →</button>
+    </div>
+  </div>`,
+
+  // PAGE 5 — School report + Nana split
+  () => `
+  <div class="m-nav">
+    <div class="m-logo"><div class="m-logo-icon"><svg viewBox="0 0 48 48"><use href="#ic-nana"/></svg></div><div class="m-logo-text">nana<em>says</em></div></div>
+    <div class="m-nav-right"><div class="m-nav-pill">GBP</div><div class="m-nav-cta">For Schools</div></div>
+  </div>
+  <div class="m-report-layout" style="height:calc(100% - 52px)">
+    <div class="m-report-main">
+      <div class="rep-nav">
+        <div class="rep-nav-tab active">Overview</div>
+        <div class="rep-nav-tab">Academic</div>
+        <div class="rep-nav-tab">Sport</div>
+        <div class="rep-nav-tab">Pastoral</div>
+        <div class="rep-nav-tab">Fees</div>
+        <div class="rep-nav-tab">ISI</div>
+        <div class="rep-nav-tab">Verdict</div>
+      </div>
+      <div class="m-report-hdr" style="padding:16px 18px 12px">
+        <div class="m-report-eyebrow">Deep school report · 34 pages</div>
+        <div class="m-report-school" style="font-size:17px">Queen Ethelburga's</div>
+      </div>
+      <div class="m-report-stats">
+        <div class="m-rep-stat"><div class="m-rep-val">£<em>47k</em></div><div class="m-rep-lbl">Boarding/yr</div></div>
+        <div class="m-rep-stat"><div class="m-rep-val"><em>900</em></div><div class="m-rep-lbl">Pupils</div></div>
+        <div class="m-rep-stat"><div class="m-rep-val"><em>ISI ✓</em></div><div class="m-rep-lbl">Excellent</div></div>
+      </div>
+      <div style="padding:10px 14px 14px">
+        <div class="isi-callout"><strong>ISI April 2024:</strong> "Pupils are exceptionally well supported. The quality of personal development is excellent."</div>
+        <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin:8px 0 6px">Sports tier breakdown</div>
+        <table class="sport-tier-table">
+          <tr><th>Sport</th><th>Tier</th><th>Teams</th></tr>
+          <tr><td>Rugby</td><td class="tier-1">Tier 1</td><td>28</td></tr>
+          <tr><td>Cricket</td><td class="tier-1">Tier 1</td><td>18</td></tr>
+          <tr><td>Hockey</td><td class="tier-1">Tier 1</td><td>16</td></tr>
+          <tr><td>Tennis</td><td>Tier 2</td><td>12</td></tr>
+        </table>
+        <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin:10px 0 6px">Fees breakdown</div>
+        <div class="fees-mini">
+          <div class="fees-mini-cell"><div class="fees-mini-val">£<em>29k</em></div><div class="fees-mini-lbl">Day</div></div>
+          <div class="fees-mini-cell"><div class="fees-mini-val">£<em>47k</em></div><div class="fees-mini-lbl">Boarding</div></div>
+          <div class="fees-mini-cell"><div class="fees-mini-val">£<em>40k</em></div><div class="fees-mini-lbl">Weekly Flexi</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="m-nana-panel" style="width:42%">
+      <div class="m-nana-panel-hdr">
+        <div class="m-nana-panel-dot"></div>
+        <div class="m-nana-panel-label">Nana · AI Advisor</div>
+      </div>
+      <div class="m-nana-msgs">
+        <div class="m-nmsg nana">Hi! I've read all 6 sources on Queen Ethelburga's. Ask me anything.</div>
+        <div class="m-nmsg user">Is it good for a sporty boy?</div>
+        <div class="m-nmsg nana"><strong>Yes — very strong.</strong> 12 sports, county-level fixtures in rugby & cricket. SOCS Tier 1 ranking. ISI praised the "exceptional" PE provision.</div>
+        <div class="m-nmsg user">Bursaries available?</div>
+        <div class="m-nmsg nana">Yes — means-tested up to <strong>100% of fees</strong>. Academic & sport scholarships at 11+ and 13+. Apply by January.</div>
+      </div>
+      <div class="m-nana-input-row">
+        <input class="m-nana-field" placeholder="Ask Nana…" readonly>
+        <button class="m-nana-send">↑</button>
+      </div>
+    </div>
+  </div>`,
+
+  // PAGE 6 — Report Views (Verdict / Compare / Report tabs)
+  () => `
+  <div class="m-nav">
+    <div class="m-logo"><div class="m-logo-icon"><svg viewBox="0 0 48 48"><use href="#ic-nana"/></svg></div><div class="m-logo-text">nana<em>says</em></div></div>
+    <div class="m-nav-right"><div class="m-nav-pill">GBP</div><div class="m-nav-cta">For Schools</div></div>
+  </div>
+  <div style="display:flex;flex-direction:column;height:calc(100% - 52px);background:var(--off)">
+    <div style="background:var(--navy);padding:14px 16px">
+      <div style="font-size:10px;font-weight:800;color:var(--teal);letter-spacing:.15em;text-transform:uppercase;margin-bottom:4px">Deep school report</div>
+      <div style="font-family:var(--head);font-size:18px;font-weight:900;color:#fff">Queen Ethelburga's — 3 ways to read it</div>
+    </div>
+    <div class="view-tabs-row">
+      <button class="view-tab" data-vtab="report" onclick="switchReportView('report')">📋 Report<span class="vtab-pulse"></span></button>
+      <button class="view-tab active" data-vtab="verdict" onclick="switchReportView('verdict')">⭐ Verdict</button>
+      <button class="view-tab" data-vtab="compare" onclick="switchReportView('compare')">⚖️ Compare<span class="vtab-pulse"></span></button>
+    </div>
+    <div class="view-content">
+
+      <!-- VERDICT VIEW (default) -->
+      <div class="view-pane show" data-vpane="verdict">
+        <div style="background:var(--navy);border-radius:12px;padding:14px 16px;color:#fff">
+          <div class="verdict-kicker">The one-minute verdict</div>
+          <div class="verdict-headline">Strong across the board — exceptional for sporty co-ed family</div>
+          <div class="verdict-body">Well-resourced co-ed boarding in North Yorkshire. Strong academics without pressure. Tier 1 sport. ISI Excellent pastoral.</div>
+          <div class="verdict-lights">
+            <div class="vlight green"><div class="vlight-label">Academic</div><div class="vlight-value"><span class="vlight-dot"></span>B+ mean</div></div>
+            <div class="vlight green"><div class="vlight-label">Sport</div><div class="vlight-value"><span class="vlight-dot"></span>Tier 1</div></div>
+            <div class="vlight green"><div class="vlight-label">Pastoral</div><div class="vlight-value"><span class="vlight-dot"></span>Excellent</div></div>
+            <div class="vlight amber"><div class="vlight-label">Value</div><div class="vlight-value"><span class="vlight-dot"></span>Mid-range</div></div>
+          </div>
+          <div class="vsplit"><div class="vsplit-label">✓ Best fit for</div><div class="vsplit-text">Sporty, well-rounded pupils seeking co-ed boarding in North Yorkshire.</div></div>
+          <div class="vsplit warn"><div class="vsplit-label">— Harder fit for</div><div class="vsplit-text">Families seeking high-pressure or single-sex environment.</div></div>
+          <div class="verdict-qs-label">Top 3 tour questions</div>
+          <div class="verdict-q"><div class="verdict-q-cat">Academic</div><div class="verdict-q-text">"What % of Year 13 leavers go to Russell Group?"</div></div>
+          <div class="verdict-q"><div class="verdict-q-cat">Pastoral</div><div class="verdict-q-text">"How does the house system handle new boarders?"</div></div>
+          <div class="verdict-q"><div class="verdict-q-cat">Sport</div><div class="verdict-q-text">"Which sports compete at U15 county level?"</div></div>
+        </div>
+      </div>
+
+      <!-- COMPARE VIEW -->
+      <div class="view-pane" data-vpane="compare">
+        <div style="background:#fff;border-radius:10px;border:1px solid var(--border);overflow:hidden">
+          <div style="display:grid;grid-template-columns:120px repeat(3,1fr);gap:1px;background:var(--border)">
+            <div style="background:var(--off);padding:8px 10px;font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.08em"></div>
+            <div style="background:var(--navy);color:#fff;font-family:var(--head);font-size:11px;font-weight:900;text-align:center;padding:8px">Queen E</div>
+            <div style="background:var(--navy);color:#fff;font-family:var(--head);font-size:11px;font-weight:900;text-align:center;padding:8px">Cranleigh</div>
+            <div style="background:var(--navy);color:#fff;font-family:var(--head);font-size:11px;font-weight:900;text-align:center;padding:8px">Reed's</div>
+            ${[
+              ['ISI Rating','Excellent','Excellent','Excellent', 'all'],
+              ['Boarding Fees','£47,250','£52,350','£44,100', 'reeds'],
+              ['Type','Co-ed','Co-ed','Boys', null],
+              ['Entry Age','11+, 13+','13+ only','11+, 13+', 'epsom_reeds'],
+              ['Pupils','900','675','750', null],
+              ['Sport Tier','Tier 1','Tier 1','Tier 2', 'epsom_cranleigh'],
+              ['Sixth Form','Mixed','Mixed','Mixed', null],
+              ['Bursaries','100%','75%','50%', 'epsom'],
+            ].map((r,i) => `
+              <div style="background:${i%2?'var(--off)':'#fff'};padding:7px 10px;font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">${r[0]}</div>
+              <div style="background:${i%2?'var(--off)':'#fff'};padding:7px 10px;font-size:11px;font-weight:${r[4]==='epsom'||r[4]==='all'||r[4]==='epsom_reeds'||r[4]==='epsom_cranleigh'?'900':'700'};color:${r[4]==='epsom'||r[4]==='epsom_reeds'||r[4]==='epsom_cranleigh'?'var(--teal-dk)':'var(--navy)'};text-align:center">${r[1]}</div>
+              <div style="background:${i%2?'var(--off)':'#fff'};padding:7px 10px;font-size:11px;font-weight:${r[4]==='all'||r[4]==='epsom_cranleigh'?'900':'700'};color:${r[4]==='epsom_cranleigh'?'var(--teal-dk)':'var(--navy)'};text-align:center">${r[2]}</div>
+              <div style="background:${i%2?'var(--off)':'#fff'};padding:7px 10px;font-size:11px;font-weight:${r[4]==='reeds'||r[4]==='all'||r[4]==='epsom_reeds'?'900':'700'};color:${r[4]==='reeds'||r[4]==='epsom_reeds'?'var(--teal-dk)':'var(--navy)'};text-align:center">${r[3]}</div>
+            `).join('')}
+          </div>
+        </div>
+        <div style="background:var(--teal-bg);border:1px solid #c4ede3;border-radius:10px;padding:11px 14px;margin-top:10px;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--teal-dk);font-weight:700">
+          <span style="font-size:14px">✦</span>
+          <span>Nana recommends <strong>Queen Ethelburga's</strong> — strongest fit for a Year 9 joiner prioritising sport + pastoral.</span>
+        </div>
+      </div>
+
+      <!-- REPORT VIEW (full TOC) -->
+      <div class="view-pane" data-vpane="report">
+        <div style="font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px">22 sections of research</div>
+        <div style="display:flex;flex-direction:column;gap:3px">
+          ${['Verified school overview','Academic profile & outcomes','GCSE results · grade distribution','A-Level results · subject-by-subject','University destinations','Oxbridge & Russell Group analysis','Sports profile & competitive tier','Coaching staff & alumni athletes','Facilities audit','Pastoral care model','Wellbeing team & ratios','Safeguarding record','Student community & nationalities','Fees & hidden extras','Scholarships & bursaries','Admissions & entry requirements','Regulatory status & filings','Financial health (3-year)','ISI inspection record','Parent-fit verdict (8 dim)','5 pointed tour questions','Methodology & sources'].map((label,i) => `
+            <div class="toc-row"><span class="toc-num">${String(i+1).padStart(2,'0')}</span><span class="toc-label">${label}</span><span class="toc-chip green">✓</span></div>
+          `).join('')}
+        </div>
+      </div>
+
+    </div>
+  </div>`,
+]
+
+let wtCurrent = 0
+
+function buildWtSteps() {
+  const wrap = document.getElementById('wt-steps')
+  wrap.innerHTML = WT_STEPS.map((s,i) => `
+    <div class="wt-step-dot ${i===0?'active':''}" data-wi="${i}" onclick="wtGoTo(${i})">
+      <div class="wt-dot-circle">${i < wtCurrent ? '✓' : i+1}</div>
+      <div class="wt-dot-label"><svg class="wt-step-icon-svg"><use href="#${s.icon}"/></svg>${s.label}</div>
+    </div>`).join('')
+}
+
+function renderWtPage(idx, dir=1) {
+  const vp = document.getElementById('wt-viewport')
+  const old = vp.querySelector('.wt-page.active')
+  if (old) {
+    old.classList.add(dir>0 ? 'exit-left' : 'exit-right')
+    setTimeout(()=>old.remove(),300)
+  }
+
+  const page = document.createElement('div')
+  page.className = 'wt-page'
+  page.innerHTML = WT_PAGES[idx]()
+  vp.appendChild(page)
+  requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ page.classList.add('active') }) })
+
+  // URL bar
+  document.getElementById('wt-url').textContent = WT_STEPS[idx].url
+
+  // step dots
+  document.querySelectorAll('.wt-step-dot').forEach((d,i) => {
+    d.classList.toggle('active', i===idx)
+    d.classList.toggle('done', i<idx)
+    d.querySelector('.wt-dot-circle').textContent = i<idx ? '✓' : i+1
+  })
+
+  // nav btns
+  document.getElementById('wt-back').disabled = idx===0
+  document.getElementById('wt-fwd').disabled  = idx===WT_STEPS.length-1
+  document.getElementById('wt-prev-btn').disabled = idx===0
+  document.getElementById('wt-next-btn').textContent = idx===WT_STEPS.length-1 ? '✓ Done' : 'Next →'
+  document.getElementById('wt-step-label').textContent = `Step ${idx+1} of ${WT_STEPS.length} — ${WT_STEPS[idx].label}`
+
+  // step-specific behaviour
+  if (idx===1) startCyclingTyper()
+  else stopCyclingTyper()
+  if (idx===2) initLeafletMap()
+}
+
+function wtNav(dir) {
+  const next = wtCurrent + dir
+  if (next<0||next>=WT_STEPS.length) return
+  wtGoTo(next, dir)
+}
+function wtGoTo(idx, dir) {
+  const dir2 = idx > wtCurrent ? 1 : -1
+  wtCurrent = idx
+  renderWtPage(idx, dir2)
+}
+
+// ── Cycling search typer (Walkthrough Step 2) ──
+const SEARCH_TERMS = [
+  'Rugby boarding schools in Surrey',
+  'Singapore',
+  'Wycombe Abbey',
+  'IB schools in Switzerland',
+]
+let typerState = { running:false, termIdx:0, charIdx:0, mode:'typing', timer:null }
+function startCyclingTyper() {
+  stopCyclingTyper()
+  typerState.running = true
+  typerState.termIdx = 0
+  typerState.charIdx = 0
+  typerState.mode = 'typing'
+  typerTick()
+}
+function stopCyclingTyper() {
+  typerState.running = false
+  if (typerState.timer) { clearTimeout(typerState.timer); typerState.timer = null }
+}
+function typerTick() {
+  if (!typerState.running) return
+  const el = document.getElementById('wt-typed')
+  if (!el) { stopCyclingTyper(); return }
+  const term = SEARCH_TERMS[typerState.termIdx]
+  if (typerState.mode === 'typing') {
+    if (typerState.charIdx < term.length) {
+      el.textContent = term.substring(0, ++typerState.charIdx)
+      typerState.timer = setTimeout(typerTick, 45)
+    } else {
+      typerState.mode = 'pausing'
+      typerState.timer = setTimeout(typerTick, 1200)
+    }
+  } else if (typerState.mode === 'pausing') {
+    typerState.mode = 'erasing'
+    typerTick()
+  } else if (typerState.mode === 'erasing') {
+    if (typerState.charIdx > 0) {
+      el.textContent = term.substring(0, --typerState.charIdx)
+      typerState.timer = setTimeout(typerTick, 25)
+    } else {
+      typerState.termIdx = (typerState.termIdx + 1) % SEARCH_TERMS.length
+      typerState.mode = 'typing'
+      typerState.timer = setTimeout(typerTick, 350)
+    }
+  }
+}
+
+// ── Real Leaflet map (Walkthrough Step 3) — matches /countries/[slug] page ──
+let leafletMap = null
+const UK_SCHOOLS = [
+  { name: "Queen Ethelburga's",    city: 'York, N. Yorkshire',   lat: 54.005, lng: -1.268, slug: 'queen-ethelburgas-collegiate' },
+  { name: 'Epsom College',         city: 'Epsom, Surrey',        lat: 51.331, lng: -0.265, slug: 'epsom-college' },
+  { name: "Reed's School",         city: 'Cobham, Surrey',       lat: 51.328, lng: -0.408, slug: 'reeds-school' },
+  { name: 'Cranleigh School',      city: 'Cranleigh, Surrey',    lat: 51.143, lng: -0.487, slug: 'cranleigh-school' },
+  { name: 'Charterhouse',          city: 'Godalming, Surrey',    lat: 51.187, lng: -0.612, slug: 'charterhouse' },
+  { name: 'Eton College',          city: 'Windsor, Berkshire',   lat: 51.487, lng: -0.610, slug: 'eton-college' },
+  { name: 'Harrow School',         city: 'Harrow, London',       lat: 51.572, lng: -0.337, slug: 'harrow-school' },
+  { name: 'Wycombe Abbey',         city: 'High Wycombe, Bucks',  lat: 51.624, lng: -0.751, slug: 'wycombe-abbey' },
+  { name: 'King\'s College School', city: 'Wimbledon, London',   lat: 51.422, lng: -0.214, slug: 'kings-college-school' },
+  { name: 'Wellington College',    city: 'Crowthorne, Berks',    lat: 51.388, lng: -0.787, slug: 'wellington-college' },
+  { name: 'Sherborne Girls',       city: 'Sherborne, Dorset',    lat: 50.948, lng: -2.516, slug: 'sherborne-girls' },
+  { name: 'Cheltenham Ladies',     city: 'Cheltenham, Glos',     lat: 51.900, lng: -2.077, slug: 'cheltenham-ladies' },
+  { name: 'Sedbergh School',       city: 'Sedbergh, Cumbria',    lat: 54.323, lng: -2.527, slug: 'sedbergh-school' },
+  { name: 'Fettes College',        city: 'Edinburgh',            lat: 55.964, lng: -3.214, slug: 'fettes-college' },
+  { name: 'The King\'s School',    city: 'Canterbury, Kent',     lat: 51.279, lng:  1.082, slug: 'kings-school-canterbury' },
+  { name: 'St Catherine\'s',       city: 'Bramley, Surrey',      lat: 51.190, lng: -0.560, slug: 'st-catherines' },
+]
+function initLeafletMap() {
+  const container = document.getElementById('wt-leaflet-map')
+  if (!container || typeof L === 'undefined') return
+
+  // Clean up existing map
+  if (leafletMap) { try { leafletMap.remove() } catch(e){} ; leafletMap = null }
+  if (container._leaflet_id) delete container._leaflet_id
+  container.innerHTML = ''
+
+  // Init map (centered on UK)
+  leafletMap = L.map(container, {
+    center: [54.0, -2.5],
+    zoom: 5,
+    scrollWheelZoom: false,
+    zoomControl: true,
+  })
+
+  // Same CartoDB light tiles as country page
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap contributors © CARTO',
+    subdomains: 'abcd',
+    maxZoom: 19,
+  }).addTo(leafletMap)
+
+  // Add school pins (teal, same style as CountryMap.tsx). First entry = featured.
+  let featuredMarker = null
+  UK_SCHOOLS.forEach((s, i) => {
+    const featured = i === 0
+    const size = featured ? 18 : 13
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="width:${size}px;height:${size}px;border-radius:50%;background:#34C3A0;border:${featured?3:2.5}px solid #fff;box-shadow:0 2px 8px rgba(27,50,82,0.35)${featured?', 0 0 0 4px rgba(52,195,160,.25)':''};cursor:pointer;"></div>`,
+      iconSize: [size, size],
+      iconAnchor: [size/2, size/2],
+    })
+    const marker = L.marker([s.lat, s.lng], { icon }).addTo(leafletMap)
+    marker.bindPopup(`
+      <div style="padding:8px 10px;font-family:'Nunito Sans',sans-serif;min-width:160px;">
+        ${featured ? '<div style="font-size:9px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#239C80;margin-bottom:3px;">★ Featured</div>' : ''}
+        <div style="font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;color:#1B3252;line-height:1.3;margin-bottom:3px;">${s.name}</div>
+        <div style="font-size:11px;color:#6B7280;margin-bottom:8px;">${s.city}</div>
+        <a href="/schools/${s.slug}" style="display:block;text-align:center;padding:7px 12px;background:#1B3252;color:#fff;border-radius:7px;font-size:12px;font-weight:700;text-decoration:none;">View profile →</a>
+      </div>`, { maxWidth: 220 })
+    marker.on('mouseover', function () { this.openPopup() })
+    if (featured) featuredMarker = marker
+  })
+  // Auto-open the featured popup once the map settles
+  setTimeout(() => { if (featuredMarker) featuredMarker.openPopup() }, 600)
+
+  // Force a resize tick after the page transition
+  setTimeout(() => { if (leafletMap) leafletMap.invalidateSize() }, 320)
+}
+
+// ── 22-row TOC expand (Parents Tab 2) ──
+function toggleToc(row) {
+  const wasOpen = row.classList.contains('open')
+  // close all in same list
+  const list = row.parentElement
+  list.querySelectorAll('.toc-row.open').forEach(r => r.classList.remove('open'))
+  if (!wasOpen) row.classList.add('open')
+}
+
+// ── Ask Nana (chat-only, no sources panel) ──
+function askNanaSimple(pillEl, q) {
+  if (pillEl) pillEl.remove()
+  appendMsg('user', q)
+  const typing = appendTyping()
+  setTimeout(() => {
+    typing.remove()
+    const answers = {
+      'Is it good for a sporty boy?': '<strong>Yes — very strong.</strong> 12 sports, county-level fixtures in rugby & cricket. SOCS Tier 1. ISI praised the "exceptional" PE provision.',
+      'What are the boarding fees?': '<strong>£47,250/year</strong> (2024–25). Day option £29,400/yr. Bursaries available up to 100% — means-tested.',
+      'Is there EAL support?': '<strong>Yes.</strong> ~12% international intake across 28 nationalities. Dedicated EAL provision referenced in prospectus and ISI report.',
+    }
+    appendMsg('nana', answers[q] || "Based on the ISI report and school data — yes, this is one of Queen Ethelburga's strengths.")
+  }, 1400)
+}
+
+// ── Context toggle (Homepage vs School page) ──
+const CTX_COPY = {
+  home: {
+    eyebrow: 'Full access membership',
+    headline: 'Unlock <em>any UK school report</em>',
+    cancel: 'Cancel anytime · 7-day free trial',
+    cta: 'Start free trial →',
+  },
+  school: {
+    eyebrow: 'Unlock this school',
+    headline: 'Read the full <em>Queen Ethelburga's</em> dossier',
+    cancel: 'Includes all 64 UK schools · cancel anytime',
+    cta: 'Unlock Queen Ethelburga's →',
+  },
+}
+function switchCtx(ctx) {
+  document.querySelectorAll('.ctx-btn').forEach(b => b.classList.toggle('active', b.dataset.ctx === ctx))
+  const c = CTX_COPY[ctx]
+  document.getElementById('pc-eyebrow').textContent = c.eyebrow
+  document.getElementById('pc-headline').innerHTML = c.headline
+  document.getElementById('pc-cancel').textContent = c.cancel
+  document.getElementById('pc-cta-btn').textContent = c.cta
+}
+
+// ── View tabs switcher (Walkthrough Step 5) ──
+function switchReportView(view) {
+  document.querySelectorAll('.view-tab').forEach(t => t.classList.toggle('active', t.dataset.vtab === view))
+  document.querySelectorAll('.view-pane').forEach(p => p.classList.toggle('show', p.dataset.vpane === view))
+}
+
+// Init walkthrough
+buildWtSteps()
+renderWtPage(0)
+
+// Start agents carousel timer too (since both are now visible)
+startTimer('agents')
+</script>
+</body>
+</html>

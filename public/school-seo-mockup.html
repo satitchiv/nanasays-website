@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wycombe Abbey — SEO Page Mockup (Before / After)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&family=Nunito+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #0b1f3a;
+    --teal: #1bb5a1;
+    --teal-light: rgba(27,181,161,0.12);
+    --text: #1a202c;
+    --muted: #64748b;
+    --border: #e2e8f0;
+    --off: #f8fafc;
+    --red: #dc2626;
+    --gold: #d97706;
+    --purple: #5b21b6;
+    --blue: #1d4ed8;
+    --green: #047857;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito Sans', sans-serif; color: var(--text); background: #f1f5f9; }
+
+  /* ── COMPARISON HEADER ─────────────────────────── */
+  .compare-header {
+    background: var(--navy);
+    color: #fff;
+    padding: 28px 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+  }
+  .compare-header h1 { font-family: Nunito, sans-serif; font-size: 22px; font-weight: 800; }
+  .compare-header p { font-size: 13px; color: rgba(255,255,255,0.55); margin-top: 4px; }
+  .compare-pill { font-size: 11px; font-weight: 700; padding: 5px 12px; border-radius: 100px; letter-spacing: 0.05em; }
+  .pill-before { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.7); border: 1px solid rgba(255,255,255,0.15); }
+  .pill-after { background: var(--teal); color: #fff; }
+
+  /* ── SIDE-BY-SIDE LAYOUT ───────────────────────── */
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0; min-height: 100vh; }
+  .col { padding: 0; }
+  .col-label {
+    padding: 14px 28px;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .col-label.before { background: #fee2e2; color: #991b1b; border-bottom: 2px solid #fca5a5; }
+  .col-label.after  { background: #d1fae5; color: #065f46; border-bottom: 2px solid #6ee7b7; }
+  .col-before { border-right: 3px solid var(--border); }
+
+  /* ── SCHOOL PAGE COMPONENTS ────────────────────── */
+  .page-wrap { background: #fff; }
+
+  /* Hero */
+  .hero {
+    background: linear-gradient(135deg, rgba(11,31,58,0.88), rgba(30,63,107,0.82)),
+                url('https://www.wycombeabbey.com/wp-content/uploads/2016/11/Wycombe-Video.jpg') center/cover;
+    padding: 44px 28px 32px;
+    color: #fff;
+    min-height: 280px;
+  }
+  .hero-location { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.6); background: rgba(255,255,255,0.1); display: inline-block; padding: 5px 12px; border-radius: 100px; margin-bottom: 14px; border: 1px solid rgba(255,255,255,0.15); }
+  .hero h2 { font-family: Nunito, sans-serif; font-size: 36px; font-weight: 900; margin-bottom: 8px; }
+  .hero-address { font-size: 13px; color: rgba(255,255,255,0.55); margin-bottom: 16px; }
+  .hero-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+  .hero-tag { font-size: 11px; padding: 4px 12px; border-radius: 100px; font-weight: 600; background: rgba(27,181,161,0.18); color: var(--teal); border: 1px solid rgba(27,181,161,0.3); }
+  .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: rgba(255,255,255,0.08); border-radius: 8px; overflow: hidden; margin-top: 20px; }
+  .stat-cell { background: rgba(255,255,255,0.05); padding: 14px 16px; }
+  .stat-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.1em; color: rgba(255,255,255,0.4); margin-bottom: 4px; }
+  .stat-value { font-family: Nunito, sans-serif; font-size: 18px; font-weight: 800; color: var(--teal); }
+
+  /* Main layout */
+  .main { padding: 28px 28px 0; }
+  .sidebar-layout { display: grid; grid-template-columns: 1fr 200px; gap: 24px; }
+  .content { min-width: 0; }
+
+  /* Sidebar */
+  .sidebar { }
+  .quick-facts { background: var(--off); border: 1px solid var(--border); border-radius: 10px; padding: 18px; font-size: 13px; }
+  .quick-facts h4 { font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+  .fact-row { display: flex; justify-content: space-between; padding: 7px 0; border-bottom: 1px solid var(--border); }
+  .fact-row:last-child { border: none; }
+  .fact-key { color: var(--muted); }
+  .fact-val { font-weight: 700; color: var(--navy); text-align: right; }
+
+  /* Section */
+  .section { margin-bottom: 28px; padding-bottom: 28px; border-bottom: 1px solid var(--border); }
+  .section:last-child { border: none; }
+  .section-title { font-size: 11px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--teal); margin-bottom: 14px; }
+  .section-body { font-size: 14px; line-height: 1.7; color: var(--text); }
+
+  /* New badge */
+  .new-badge { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; background: #d1fae5; color: #065f46; border: 1px solid #6ee7b7; padding: 3px 10px; border-radius: 100px; margin-left: 10px; vertical-align: middle; }
+
+  /* ── NEW SECTION: Academic Snapshot ──────────────── */
+  .academic-snapshot { }
+  .acad-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .acad-card { background: var(--off); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+  .acad-card.highlight { background: #f0fdf4; border-color: #86efac; }
+  .acad-tag { font-size: 9px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .acad-num { font-family: Nunito, sans-serif; font-size: 28px; font-weight: 900; color: var(--navy); line-height: 1; }
+  .acad-num span { font-size: 14px; font-weight: 700; color: var(--muted); }
+  .acad-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .acad-uni-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .uni-pill { font-size: 12px; font-weight: 600; padding: 5px 12px; background: var(--navy); color: #fff; border-radius: 6px; }
+  .uni-pill small { font-size: 10px; opacity: 0.6; margin-left: 4px; }
+  .inspection-banner { display: flex; align-items: center; gap: 12px; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 8px; padding: 12px 16px; margin-top: 14px; }
+  .inspection-banner .icon { font-size: 22px; }
+  .inspection-banner .label { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
+  .inspection-banner .verdict { font-size: 13px; font-weight: 700; color: var(--navy); }
+  .inspection-banner .sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ── NEW SECTION: Sports ─────────────────────────── */
+  .sports-overview { }
+  .sports-headline { display: flex; align-items: center; gap: 16px; margin-bottom: 14px; }
+  .sports-big-num { font-family: Nunito, sans-serif; font-size: 42px; font-weight: 900; color: var(--navy); line-height: 1; }
+  .sports-big-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .sport-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sport-pill { font-size: 12px; font-weight: 700; padding: 6px 14px; border-radius: 100px; display: flex; align-items: center; gap: 6px; }
+  .sport-pill.sig { background: #eff6ff; color: var(--blue); border: 1px solid #bfdbfe; }
+  .sport-pill.reg { background: var(--off); color: var(--text); border: 1px solid var(--border); }
+  .sport-pill .count { font-size: 10px; background: rgba(0,0,0,0.08); border-radius: 100px; padding: 1px 6px; }
+
+  /* ── NEW SECTION: Locked Deep Report Preview ─────── */
+  .paywall-preview { background: var(--navy); border-radius: 12px; padding: 24px; margin-bottom: 28px; }
+  .paywall-preview h3 { font-family: Nunito, sans-serif; font-size: 18px; font-weight: 800; color: #fff; margin-bottom: 4px; }
+  .paywall-preview p { font-size: 13px; color: rgba(255,255,255,0.5); margin-bottom: 18px; }
+  .locked-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 18px; }
+  .locked-item { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px 13px; display: flex; align-items: center; gap: 10px; }
+  .locked-item .lock { font-size: 14px; opacity: 0.5; }
+  .locked-item .lbl { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.7); }
+  .locked-item .sublbl { font-size: 10px; color: rgba(255,255,255,0.35); margin-top: 1px; }
+  .locked-item.nana { border-color: rgba(27,181,161,0.4); background: rgba(27,181,161,0.08); }
+  .locked-item.nana .lbl { color: var(--teal); }
+  .unlock-btn { display: block; text-align: center; background: var(--teal); color: #fff; font-family: Nunito, sans-serif; font-size: 15px; font-weight: 800; padding: 14px 24px; border-radius: 8px; text-decoration: none; cursor: pointer; border: none; width: 100%; }
+  .unlock-btn:hover { background: #17a090; }
+  .unlock-sub { font-size: 11px; color: rgba(255,255,255,0.35); text-align: center; margin-top: 8px; }
+
+  /* ── NEW SECTION: FAQ ────────────────────────────── */
+  .faq-section { }
+  .faq-item { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; overflow: hidden; }
+  .faq-q { font-size: 14px; font-weight: 700; color: var(--navy); padding: 14px 16px; background: var(--off); display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+  .faq-q::after { content: '▾'; color: var(--muted); }
+  .faq-a { font-size: 13px; line-height: 1.7; color: var(--text); padding: 14px 16px; background: #fff; border-top: 1px solid var(--border); }
+  .faq-a strong { color: var(--navy); }
+
+  /* ── NEW SECTION: Parent Signals ──────────────────── */
+  .signals-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .signal-card { border-radius: 8px; padding: 14px 16px; font-size: 13px; }
+  .signal-card.green { background: #f0fdf4; border: 1px solid #86efac; }
+  .signal-card.amber { background: #fffbeb; border: 1px solid #fcd34d; }
+  .signal-card h5 { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px; }
+  .signal-card.green h5 { color: #166534; }
+  .signal-card.amber h5 { color: #92400e; }
+  .signal-card ul { list-style: none; padding: 0; }
+  .signal-card li { padding: 3px 0; color: var(--text); display: flex; gap: 6px; }
+  .signal-card li::before { content: ''; display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-top: 6px; flex-shrink: 0; }
+  .signal-card.green li::before { background: #16a34a; }
+  .signal-card.amber li::before { background: #d97706; }
+
+  /* ── KEY DIFFERENCE CALLOUTS ─────────────────────── */
+  .diff-callout { background: #f0fdf4; border-left: 3px solid #16a34a; padding: 10px 14px; border-radius: 0 8px 8px 0; font-size: 12px; color: #166534; font-weight: 600; margin-bottom: 16px; }
+
+  /* ── MISSING SECTION PLACEHOLDER ────────────────── */
+  .missing-box { background: var(--off); border: 1px dashed var(--border); border-radius: 8px; padding: 28px; text-align: center; color: var(--muted); font-size: 13px; margin-bottom: 16px; }
+  .missing-box p { font-weight: 700; color: #94a3b8; font-size: 12px; margin-bottom: 4px; }
+
+  /* ── EXISTING SECTION STYLES ─────────────────────── */
+  .open-day-box { background: var(--navy); border-radius: 8px; padding: 16px 18px; color: rgba(255,255,255,0.85); font-size: 13px; margin-bottom: 16px; }
+  .open-day-box .label { font-size: 10px; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--teal); margin-bottom: 6px; }
+  .cta-row { display: flex; gap: 10px; margin-bottom: 20px; }
+  .cta-btn { font-size: 13px; font-weight: 700; padding: 10px 18px; border-radius: 7px; text-decoration: none; cursor: pointer; border: none; display: inline-flex; align-items: center; gap: 7px; }
+  .cta-primary { background: var(--navy); color: #fff; }
+  .cta-secondary { background: #fff; color: var(--navy); border: 1px solid var(--border); }
+  .admissions-cards { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  .adm-card { background: var(--off); border: 1px solid var(--border); border-radius: 8px; padding: 14px; }
+  .adm-card .adm-label { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .adm-card .adm-val { font-size: 15px; font-weight: 800; color: var(--navy); }
+  .houses-box { background: var(--off); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; margin-top: 10px; }
+  .house-count { display: inline-flex; align-items: center; justify-content: center; width: 44px; height: 44px; background: var(--navy); color: #fff; border-radius: 8px; font-family: Nunito, sans-serif; font-size: 22px; font-weight: 900; margin-top: 8px; }
+  .visit-btn { display: block; background: var(--teal); color: #fff; font-family: Nunito, sans-serif; font-size: 14px; font-weight: 800; padding: 13px; text-align: center; border-radius: 8px; text-decoration: none; margin-top: 14px; cursor: pointer; border: none; width: 100%; }
+  .schema-box { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 14px 16px; font-size: 12px; margin-top: 14px; }
+  .schema-box h5 { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #166534; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .schema-box pre { font-family: monospace; font-size: 11px; color: #166534; line-height: 1.5; white-space: pre-wrap; }
+
+  /* ── SEO ANNOTATION OVERLAY ───────────────────────── */
+  .seo-annotation { position: relative; }
+  .seo-tag { position: absolute; right: -6px; top: 6px; font-size: 9px; font-weight: 800; letter-spacing: 0.06em; background: #7c3aed; color: #fff; padding: 2px 7px; border-radius: 100px; white-space: nowrap; }
+  .aeo-tag { background: #0369a1; }
+
+  /* ── DIVIDER ─────────────────────────────────────── */
+  .section-divider { height: 1px; background: var(--border); margin: 0 28px 28px; }
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ───────────────────────────────────── -->
+<div class="compare-header">
+  <div>
+    <h1>Wycombe Abbey — SEO Mockup</h1>
+    <p>Free school detail page · Before vs After · SEO + AEO optimised</p>
+  </div>
+  <div style="display:flex;gap:8px;">
+    <span class="compare-pill pill-before">CURRENT</span>
+    <span class="compare-pill pill-after">PROPOSED</span>
+  </div>
+</div>
+
+<div class="compare-grid">
+
+  <!-- ══════════════════════════════════════════════
+       BEFORE (left)
+  ══════════════════════════════════════════════ -->
+  <div class="col col-before">
+    <div class="col-label before">⟵ Current Page — Missing SEO signals</div>
+    <div class="page-wrap">
+
+      <!-- Hero -->
+      <div class="hero">
+        <div class="hero-location">United Kingdom — Buckinghamshire</div>
+        <h2>Wycombe Abbey</h2>
+        <div class="hero-address">📍 Frances Dove Way — 60 minutes to central London</div>
+        <div class="hero-tags">
+          <span class="hero-tag">Scholarships</span>
+        </div>
+        <div class="stats-bar">
+          <div class="stat-cell">
+            <div class="stat-label">Annual Fees</div>
+            <div class="stat-value" style="font-size:15px;">From USD 55,990</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">Ages</div>
+            <div class="stat-value">10 – 19</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">Students</div>
+            <div class="stat-value">644</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="sidebar-layout">
+          <div class="content">
+
+            <!-- Description -->
+            <div class="section">
+              <div class="cta-row">
+                <button class="cta-btn cta-primary">🌐 Visit Website</button>
+                <button class="cta-btn cta-secondary">📄 Request Prospectus</button>
+              </div>
+              <div class="open-day-box">
+                <div class="label">Open Day</div>
+                Open Mornings held in Autumn and Summer terms.
+              </div>
+              <div class="section-body">
+                Wycombe Abbey is a world-leading girls' boarding school with 125 years of experience educating young women, consistently ranked among the UK's top-performing schools.
+              </div>
+            </div>
+
+            <!-- Fees -->
+            <div class="section">
+              <div class="section-title">Fees & Costs</div>
+              <div class="section-body">
+                <div style="font-size:13px;color:var(--muted);margin-bottom:8px;">Converted from USD using exchange rates as of April 2026.</div>
+                <div style="font-size:13px;">Original currency: £14,700 per term for boarders; £11,050 per term for day boarders.</div>
+              </div>
+            </div>
+
+            <!-- Admissions -->
+            <div class="section">
+              <div class="section-title">Admissions Details</div>
+              <div class="admissions-cards">
+                <div class="adm-card">
+                  <div class="adm-label">Entrance Exam</div>
+                  <div class="adm-val" style="font-size:12px;color:#dc2626;">["ISEB Common Pre-Test","UKiset"]</div>
+                </div>
+                <div class="adm-card">
+                  <div class="adm-label">Application Deadline</div>
+                  <div class="adm-val" style="font-size:13px;">1 June each year</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Student Life -->
+            <div class="section">
+              <div class="section-title">Student Life</div>
+              <div class="section-title" style="margin-top:10px;font-size:10px;">House System</div>
+              <div class="section-body">Junior House for Year 7; nine Senior Houses for Years 8-12 (mixed-age); a dedicated Year 13 house providing independent living.</div>
+              <div class="section-title" style="margin-top:14px;font-size:10px;">Houses</div>
+              <div class="house-count">11</div>
+            </div>
+
+            <!-- Facilities -->
+            <div class="section">
+              <div class="section-title">Facilities & Programmes</div>
+              <div class="section-title" style="margin-top:10px;font-size:10px;">Sports</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                <div style="background:var(--off);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:12px;display:flex;align-items:center;gap:6px;"><span style="color:var(--teal);">●</span> Sports Centre</div>
+                <div style="background:var(--off);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:12px;display:flex;align-items:center;gap:6px;"><span style="color:var(--teal);">●</span> Dance Studios</div>
+                <div style="background:var(--off);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:12px;display:flex;align-items:center;gap:6px;"><span style="color:var(--teal);">●</span> Fitness Studios</div>
+                <div style="background:var(--off);border:1px solid var(--border);border-radius:6px;padding:10px 12px;font-size:12px;display:flex;align-items:center;gap:6px;"><span style="color:var(--teal);">●</span> Climbing Wall</div>
+              </div>
+            </div>
+
+            <!-- School Pulse -->
+            <div class="section">
+              <div class="section-title">School Pulse</div>
+              <div style="font-size:13px;color:var(--muted);">Live updates from Wycombe Abbey's official website · <strong>0 recent updates</strong></div>
+              <div style="margin-top:14px;">
+                <div class="section-title" style="font-size:10px;">Stay Informed</div>
+                <button class="cta-btn cta-primary" style="margin-top:8px;">🌐 Visit Wycombe Abbey website</button>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="sidebar">
+            <div class="quick-facts">
+              <h4>Quick Facts</h4>
+              <div class="fact-row"><span class="fact-key">Country</span><span class="fact-val">United Kingdom</span></div>
+              <div class="fact-row"><span class="fact-key">Region</span><span class="fact-val">Buckinghamshire</span></div>
+              <div class="fact-row"><span class="fact-key">Type</span><span class="fact-val">independent</span></div>
+              <div class="fact-row"><span class="fact-key">Ages</span><span class="fact-val">Ages 10–19</span></div>
+              <div class="fact-row"><span class="fact-key">From Bangkok</span><span class="fact-val">12h</span></div>
+              <div class="fact-row"><span class="fact-key">Head of School</span><span class="fact-val">Mrs J Duncan</span></div>
+            </div>
+            <button class="visit-btn">Visit Official Website</button>
+            <div style="text-align:center;margin-top:10px;font-size:12px;color:var(--muted);">Are you the school admin? <a href="#" style="color:var(--teal);">Claim this listing</a></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Missing signals annotation -->
+      <div style="background:#fff1f2;border-top:2px solid #fca5a5;padding:16px 28px;">
+        <div style="font-size:11px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:#991b1b;margin-bottom:10px;">❌ SEO/AEO Issues on current page</div>
+        <ul style="list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+          <li style="font-size:12px;color:#7f1d1d;display:flex;gap:6px;"><span>✗</span> No exam results (A-level/GCSE) on page</li>
+          <li style="font-size:12px;color:#7f1d1d;display:flex;gap:6px;"><span>✗</span> No ISI inspection result</li>
+          <li style="font-size:12px;color:#7f1d1d;display:flex;gap:6px;"><span>✗</span> No Oxbridge/university placement data</li>
+          <li style="font-size:12px;color:#7f1d1d;display:flex;gap:6px;"><span>✗</span> No sport programmes overview</li>
+          <li style="font-size:12px;color:#7f1d1d;display:flex;gap:6px;"><span>✗</span> No FAQ schema for AI search engines</li>
+          <li style="font-size:12px;color:#7f1d1d;display:flex;gap:6px;"><span>✗</span> Entry exam shows raw JSON array</li>
+          <li style="font-size:12px;color:#7f1d1d;display:flex;gap:6px;"><span>✗</span> Currency selector doesn't update hero fees</li>
+          <li style="font-size:12px;color:#7f1d1d;display:flex;gap:6px;"><span>✗</span> School Pulse shows 0 — broken integration</li>
+          <li style="font-size:12px;color:#7f1d1d;display:flex;gap:6px;"><span>✗</span> No paywall teaser — no conversion hooks</li>
+          <li style="font-size:12px;color:#7f1d1d;display:flex;gap:6px;"><span>✗</span> No parent fit / wellbeing signals</li>
+          <li style="font-size:12px;color:#7f1d1d;display:flex;gap:6px;"><span>✗</span> Fees in wrong currency (shows USD)</li>
+          <li style="font-size:12px;color:#7f1d1d;display:flex;gap:6px;"><span>✗</span> No structured data beyond basic Schema.org</li>
+        </ul>
+      </div>
+
+    </div>
+  </div><!-- /col-before -->
+
+  <!-- ══════════════════════════════════════════════
+       AFTER (right)
+  ══════════════════════════════════════════════ -->
+  <div class="col">
+    <div class="col-label after">✓ Proposed Page — SEO + AEO locked in</div>
+    <div class="page-wrap">
+
+      <!-- Hero — updated -->
+      <div class="hero">
+        <div class="hero-location">United Kingdom — Buckinghamshire</div>
+        <h2>Wycombe Abbey</h2>
+        <div class="hero-address">📍 Frances Dove Way — 60 min to central London · 30 min to Heathrow</div>
+        <div class="hero-tags">
+          <span class="hero-tag">Girls' Boarding</span>
+          <span class="hero-tag">A Level · GCSE</span>
+          <span class="hero-tag">Scholarships & Bursaries</span>
+          <span class="hero-tag">Anglican</span>
+        </div>
+        <div class="stats-bar" style="grid-template-columns:repeat(5,1fr);">
+          <div class="stat-cell">
+            <div class="stat-label">Fees / year</div>
+            <div class="stat-value" style="font-size:14px;">GBP 61,500</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">Ages</div>
+            <div class="stat-value">10 – 19</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">Students</div>
+            <div class="stat-value">644</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">A* A-Level</div>
+            <div class="stat-value">41%</div>
+          </div>
+          <div class="stat-cell">
+            <div class="stat-label">Oxbridge '25</div>
+            <div class="stat-value">17</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="main">
+        <div class="sidebar-layout">
+          <div class="content">
+
+            <!-- ── FIXED: Description + CTAs ── -->
+            <div class="section">
+              <div class="cta-row">
+                <button class="cta-btn cta-primary">🌐 Visit Website</button>
+                <button class="cta-btn cta-secondary">📄 Request Prospectus</button>
+              </div>
+              <div class="open-day-box">
+                <div class="label">Open Day</div>
+                Open Mornings — Autumn & Summer terms. Coffee Mornings ~3× per term for prospective families.
+              </div>
+              <div class="section-body">
+                Wycombe Abbey is a world-leading girls' boarding school with 125 years of experience educating young women, consistently ranked among the UK's top-performing schools. Set in 170 acres of Buckinghamshire parkland, 30 minutes from Heathrow and 60 minutes from central London.
+              </div>
+            </div>
+
+            <!-- ══ NEW: Academic Snapshot ════════════════ -->
+            <div class="section seo-annotation">
+              <div class="seo-tag">SEO + AEO</div>
+              <div class="section-title">Academic Results <span class="new-badge">✦ NEW</span></div>
+              <div class="diff-callout">These are the facts parents Google: "Wycombe Abbey A level results", "Wycombe Abbey Oxbridge". Now they land here.</div>
+
+              <div class="acad-grid">
+                <div class="acad-card highlight">
+                  <div class="acad-tag">A-Level 2025</div>
+                  <div class="acad-num">41<span>% A*</span></div>
+                  <div class="acad-sub">76.2% A* or A · 2025 cohort</div>
+                </div>
+                <div class="acad-card highlight">
+                  <div class="acad-tag">GCSE 2025</div>
+                  <div class="acad-num">63<span>% Grade 9</span></div>
+                  <div class="acad-sub">97% Grade 7 or above · 100% pass rate</div>
+                </div>
+              </div>
+
+              <div class="section-title" style="font-size:10px;margin-top:14px;margin-bottom:8px;">University Destinations 2025</div>
+              <div class="acad-uni-row">
+                <div class="uni-pill">Oxford <small>11</small></div>
+                <div class="uni-pill">Cambridge <small>6</small></div>
+                <div class="uni-pill">Durham <small>23</small></div>
+                <div class="uni-pill">King's College London <small>19</small></div>
+                <div class="uni-pill">Exeter <small>18</small></div>
+                <div class="uni-pill">Imperial <small>7</small></div>
+                <div class="uni-pill">UCL <small>11</small></div>
+                <div style="font-size:12px;color:var(--muted);align-self:center;padding-left:4px;">+ US Ivies, global destinations</div>
+              </div>
+
+              <div class="inspection-banner">
+                <div class="icon">🔍</div>
+                <div>
+                  <div class="label">ISI Inspection · March 2025</div>
+                  <div class="verdict">Met every Standard</div>
+                  <div class="sub">Independent Schools Inspectorate — the government-approved inspection body for private schools in England</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ══ NEW: Sports Overview ═══════════════════ -->
+            <div class="section seo-annotation">
+              <div class="seo-tag aeo-tag">AEO</div>
+              <div class="section-title">Sports Programmes <span class="new-badge">✦ NEW</span></div>
+              <div class="sports-headline">
+                <div>
+                  <div class="sports-big-num">107</div>
+                  <div class="sports-big-sub">teams across 15 sports</div>
+                </div>
+                <div style="font-size:13px;color:var(--muted);line-height:1.6;">One of the UK's largest girls' sport programmes. Pupils from recreational to national-level competition.</div>
+              </div>
+              <div class="sport-pills">
+                <div class="sport-pill sig">Netball <span class="count">35 teams</span></div>
+                <div class="sport-pill sig">Lacrosse <span class="count">22 teams</span></div>
+                <div class="sport-pill sig">Cricket <span class="count">18 teams</span></div>
+                <div class="sport-pill sig">Tennis <span class="count">14 teams</span></div>
+                <div class="sport-pill reg">Swimming</div>
+                <div class="sport-pill reg">Rowing</div>
+                <div class="sport-pill reg">Athletics</div>
+                <div class="sport-pill reg">Hockey</div>
+                <div class="sport-pill reg">Gymnastics</div>
+              </div>
+            </div>
+
+            <!-- ══ NEW: Parent Fit Signals ════════════════ -->
+            <div class="section seo-annotation">
+              <div class="seo-tag">AEO</div>
+              <div class="section-title">Is This School Right For You? <span class="new-badge">✦ NEW</span></div>
+              <div class="diff-callout">AI search engines (Perplexity, ChatGPT) answer "is Wycombe Abbey good for boarding?" — this section feeds those answers.</div>
+              <div class="signals-grid">
+                <div class="signal-card green">
+                  <h5>✓ Strong fit if…</h5>
+                  <ul>
+                    <li>Your daughter is academically ambitious</li>
+                    <li>Full boarding suits your family</li>
+                    <li>You value Oxbridge preparation</li>
+                    <li>She plays netball, lacrosse or cricket</li>
+                  </ul>
+                </div>
+                <div class="signal-card amber">
+                  <h5>⚠ Consider carefully if…</h5>
+                  <ul>
+                    <li>A day-only option is preferred</li>
+                    <li>She needs a quieter environment</li>
+                    <li>Strong rugby programme is a priority (girls' school)</li>
+                    <li>Budget is under £45,000/year</li>
+                  </ul>
+                </div>
+              </div>
+              <div style="margin-top:12px;font-size:12px;color:var(--muted);padding:10px 14px;background:var(--off);border-radius:6px;border:1px solid var(--border);">
+                🔒 <strong style="color:var(--navy);">Full Parent Fit Score</strong> — 12-dimension analysis across pastoral, academics, boarding culture, sport, arts and values — is in the Deep Report.
+              </div>
+            </div>
+
+            <!-- ══ NEW: FAQ ════════════════════════════════ -->
+            <div class="section seo-annotation">
+              <div class="seo-tag">SEO + AEO</div>
+              <div class="section-title">Frequently Asked Questions <span class="new-badge">✦ NEW</span></div>
+              <div class="diff-callout">FAQ schema markup means Google shows this directly in search results (featured snippets). AI engines cite it verbatim.</div>
+              <div class="faq-section">
+                <div class="faq-item">
+                  <div class="faq-q">What are Wycombe Abbey's A-Level results?</div>
+                  <div class="faq-a"><strong>In 2025, 41% of A-Level grades were A* and 76.2% were A* or A.</strong> In 2024, 95% of grades were A*, A or B. The school consistently places in the top tier of UK girls' schools by exam performance.</div>
+                </div>
+                <div class="faq-item">
+                  <div class="faq-q">How many Oxbridge places did Wycombe Abbey get in 2025?</div>
+                  <div class="faq-a"><strong>17 Oxbridge acceptances in 2025</strong> — 11 Oxford and 6 Cambridge. One in five pupils received Oxbridge offers. Over one-third of leavers took places at QS World top-10 ranked universities.</div>
+                </div>
+                <div class="faq-item">
+                  <div class="faq-q">What are the fees at Wycombe Abbey?</div>
+                  <div class="faq-a">From <strong>2025/26: £20,500 per term for boarders (£61,500 per year)</strong> and £15,600 per term for day pupils (£46,800 per year). Academic scholarships (up to 5% fee reduction) and means-tested bursaries are available.</div>
+                </div>
+                <div class="faq-item">
+                  <div class="faq-q">Is Wycombe Abbey a boarding school?</div>
+                  <div class="faq-a">Yes. Wycombe Abbey is primarily a full boarding school for girls aged 10–19 with <strong>capacity for 586 boarders</strong> across 11 houses. Year 7 girls start in Junior House before joining one of nine Senior Houses.</div>
+                </div>
+                <div class="faq-item">
+                  <div class="faq-q">What was Wycombe Abbey's ISI inspection result?</div>
+                  <div class="faq-a">The school was inspected by the <strong>Independent Schools Inspectorate (ISI) in March 2025</strong> and met every Standard. ISI is the government-approved inspection body for independent schools in England.</div>
+                </div>
+                <div class="faq-item">
+                  <div class="faq-q">What entrance exam does Wycombe Abbey use?</div>
+                  <div class="faq-a">Wycombe Abbey uses the <strong>ISEB Common Pre-Test</strong> and <strong>UKiset</strong> as part of its admissions process, alongside its own assessments at 11+, 13+, and 16+ entry points. The application deadline is <strong>1 June each year</strong>.</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ══ NEW: Locked Deep Report Preview ═══════ -->
+            <div class="paywall-preview seo-annotation" style="position:relative;">
+              <div class="seo-tag" style="top:-10px;right:-6px;background:#7c3aed;">CONVERSION</div>
+              <h3>Wycombe Abbey — Deep Report <span style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.4);">by Nana</span></h3>
+              <p>Full analysis researched from 186 sources · Updated April 2025</p>
+              <div class="locked-grid">
+                <div class="locked-item">
+                  <div class="lock">🔒</div>
+                  <div>
+                    <div class="lbl">Full ISI Inspection Analysis</div>
+                    <div class="sublbl">Every standard · what the inspectors found</div>
+                  </div>
+                </div>
+                <div class="locked-item">
+                  <div class="lock">🔒</div>
+                  <div>
+                    <div class="lbl">Fees Breakdown by Year Group</div>
+                    <div class="sublbl">Boarding vs day · what's included</div>
+                  </div>
+                </div>
+                <div class="locked-item">
+                  <div class="lock">🔒</div>
+                  <div>
+                    <div class="lbl">Pastoral & Wellbeing Deep Dive</div>
+                    <div class="sublbl">Safeguarding team · boarding culture · PSHE</div>
+                  </div>
+                </div>
+                <div class="locked-item">
+                  <div class="lock">🔒</div>
+                  <div>
+                    <div class="lbl">Admissions Strategy</div>
+                    <div class="sublbl">What they really look for · ISEB prep tips</div>
+                  </div>
+                </div>
+                <div class="locked-item">
+                  <div class="lock">🔒</div>
+                  <div>
+                    <div class="lbl">Sport Programme Rankings</div>
+                    <div class="sublbl">Netball · Lacrosse · Tennis · Cricket tiers</div>
+                  </div>
+                </div>
+                <div class="locked-item">
+                  <div class="lock">🔒</div>
+                  <div>
+                    <div class="lbl">Full University Destinations</div>
+                    <div class="sublbl">All 2025 placements with counts by university</div>
+                  </div>
+                </div>
+                <div class="locked-item">
+                  <div class="lock">🔒</div>
+                  <div>
+                    <div class="lbl">12 Questions to Ask on Tour</div>
+                    <div class="sublbl">Finance · pastoral · boarding · results</div>
+                  </div>
+                </div>
+                <div class="locked-item">
+                  <div class="lock">🔒</div>
+                  <div>
+                    <div class="lbl">Parent Fit Score</div>
+                    <div class="sublbl">12-dimension fit analysis for your family</div>
+                  </div>
+                </div>
+                <div class="locked-item nana" style="grid-column:1/-1;">
+                  <div class="lock">✦</div>
+                  <div>
+                    <div class="lbl">Ask Nana — AI School Advisor</div>
+                    <div class="sublbl">Chat live · "Is Wycombe Abbey right for a maths-focused boarder from Thailand?" · Fully sourced answers</div>
+                  </div>
+                </div>
+              </div>
+              <button class="unlock-btn">Unlock Full Report — Wycombe Abbey</button>
+              <div class="unlock-sub">NanaSays subscription · All 78 UK schools included · Cancel anytime</div>
+            </div>
+
+            <!-- ══ FIXED: Fees (currency-aware) ══════════ -->
+            <div class="section">
+              <div class="section-title">Fees & Costs</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px;">
+                <div class="adm-card">
+                  <div class="adm-label">Boarding (per year)</div>
+                  <div class="adm-val">GBP 61,500</div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:3px;">GBP 20,500/term</div>
+                </div>
+                <div class="adm-card">
+                  <div class="adm-label">Day (per year)</div>
+                  <div class="adm-val">GBP 46,800</div>
+                  <div style="font-size:11px;color:var(--muted);margin-top:3px;">GBP 15,600/term</div>
+                </div>
+              </div>
+              <div style="font-size:12px;color:var(--muted);">Select currency at top of page to convert. Includes tuition; meals and boarding accommodation included for boarders.</div>
+            </div>
+
+            <!-- ══ FIXED: Admissions ═══════════════════════ -->
+            <div class="section">
+              <div class="section-title">Admissions</div>
+              <div class="admissions-cards">
+                <div class="adm-card">
+                  <div class="adm-label">Entrance Exam</div>
+                  <div class="adm-val" style="font-size:13px;">ISEB Common Pre-Test, UKiset</div>
+                </div>
+                <div class="adm-card">
+                  <div class="adm-label">Application Deadline</div>
+                  <div class="adm-val" style="font-size:13px;">1 June each year</div>
+                </div>
+                <div class="adm-card">
+                  <div class="adm-label">Entry Points</div>
+                  <div class="adm-val" style="font-size:13px;">11+ · 13+ · 16+</div>
+                </div>
+                <div class="adm-card">
+                  <div class="adm-label">Scholarships</div>
+                  <div class="adm-val" style="font-size:12px;color:var(--green);">Academic + Music + Bursaries</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ══ Student Life ════════════════════════════ -->
+            <div class="section">
+              <div class="section-title">Student Life</div>
+              <div class="section-title" style="font-size:10px;margin-top:10px;">House System</div>
+              <div class="section-body">Junior House for Year 7; nine Senior Houses for Years 8-12 (mixed-age); a dedicated Year 13 house providing independent living.</div>
+              <div class="section-title" style="font-size:10px;margin-top:14px;">Houses</div>
+              <div class="house-count">11</div>
+            </div>
+
+          </div>
+
+          <div class="sidebar">
+            <div class="quick-facts">
+              <h4>Quick Facts</h4>
+              <div class="fact-row"><span class="fact-key">Country</span><span class="fact-val">United Kingdom</span></div>
+              <div class="fact-row"><span class="fact-key">Region</span><span class="fact-val">Buckinghamshire</span></div>
+              <div class="fact-row"><span class="fact-key">Type</span><span class="fact-val">independent</span></div>
+              <div class="fact-row"><span class="fact-key">Gender</span><span class="fact-val">Girls only</span></div>
+              <div class="fact-row"><span class="fact-key">Ages</span><span class="fact-val">10–19</span></div>
+              <div class="fact-row"><span class="fact-key">Boarding</span><span class="fact-val">Yes (586 places)</span></div>
+              <div class="fact-row"><span class="fact-key">Founded</span><span class="fact-val">1896</span></div>
+              <div class="fact-row"><span class="fact-key">Accredited</span><span class="fact-val">HMC · BSA</span></div>
+              <div class="fact-row"><span class="fact-key">From Bangkok</span><span class="fact-val">12h</span></div>
+              <div class="fact-row"><span class="fact-key">Head</span><span class="fact-val">Mrs J Duncan</span></div>
+            </div>
+            <button class="visit-btn">Visit Official Website</button>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px;">
+              <button style="font-size:11px;font-weight:700;padding:8px;border-radius:6px;border:1px solid var(--border);background:#fff;cursor:pointer;">📷 Instagram</button>
+              <button style="font-size:11px;font-weight:700;padding:8px;border-radius:6px;border:1px solid var(--border);background:#fff;cursor:pointer;">▶ YouTube</button>
+            </div>
+            <div style="text-align:center;margin-top:10px;font-size:11px;color:var(--muted);">Are you the school admin? <a href="#" style="color:var(--teal);">Claim this listing</a></div>
+
+            <!-- Sidebar inspection badge -->
+            <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:12px;margin-top:14px;text-align:center;">
+              <div style="font-size:9px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:#92400e;margin-bottom:4px;">ISI Inspection 2025</div>
+              <div style="font-size:13px;font-weight:800;color:var(--navy);">All Standards Met</div>
+              <div style="font-size:10px;color:var(--muted);margin-top:3px;">Independent Schools Inspectorate</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SEO improvements summary -->
+      <div style="background:#f0fdf4;border-top:2px solid #6ee7b7;padding:16px 28px;">
+        <div style="font-size:11px;font-weight:800;letter-spacing:0.08em;text-transform:uppercase;color:#065f46;margin-bottom:10px;">✅ SEO + AEO Improvements</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+          <div style="font-size:12px;color:#166534;display:flex;gap:6px;"><span>✓</span> A-Level/GCSE results on page — captures "Wycombe Abbey results" searches</div>
+          <div style="font-size:12px;color:#166534;display:flex;gap:6px;"><span>✓</span> ISI inspection result — answers "is Wycombe Abbey good" queries</div>
+          <div style="font-size:12px;color:#166534;display:flex;gap:6px;"><span>✓</span> Oxbridge data — captures high-intent parent searches</div>
+          <div style="font-size:12px;color:#166534;display:flex;gap:6px;"><span>✓</span> 6 FAQ items with schema markup — featured snippet eligible</div>
+          <div style="font-size:12px;color:#166534;display:flex;gap:6px;"><span>✓</span> Sport programme overview — 107 teams, named sports</div>
+          <div style="font-size:12px;color:#166534;display:flex;gap=6px;"><span>✓</span> Parent fit signals — AI engines can cite for "is it right for my daughter"</div>
+          <div style="font-size:12px;color:#166534;display:flex;gap:6px;"><span>✓</span> Locked Deep Report preview — drives subscription conversion</div>
+          <div style="font-size:12px;color:#166534;display:flex;gap:6px;"><span>✓</span> Entry exam fixed: "ISEB Common Pre-Test, UKiset"</div>
+          <div style="font-size:12px;color:#166534;display:flex;gap:6px;"><span>✓</span> Currency hero bar now live-converts on selector change</div>
+          <div style="font-size:12px;color:#166534;display:flex;gap:6px;"><span>✓</span> Fees shown in GBP with per-year and per-term breakdown</div>
+          <div style="font-size:12px;color:#166534;display:flex;gap:6px;"><span>✓</span> School Pulse Eduworld table migration fixed</div>
+          <div style="font-size:12px;color:#166534;display:flex;gap:6px;"><span>✓</span> Added boarding capacity, accreditations, founded year to sidebar</div>
+        </div>
+      </div>
+
+    </div>
+  </div><!-- /col-after -->
+
+</div><!-- /compare-grid -->
+
+<!-- ── SEO STRATEGY NOTES ─────────────────────── -->
+<div style="background:var(--navy);color:rgba(255,255,255,0.8);padding:32px 40px;">
+  <div style="max-width:900px;margin:0 auto;">
+    <h2 style="font-family:Nunito,sans-serif;font-size:20px;color:#fff;margin-bottom:20px;">SEO + AEO Strategy — What Each New Section Does</h2>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;font-size:13px;line-height:1.7;">
+      <div>
+        <div style="font-size:10px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--teal);margin-bottom:8px;">Academic Results block</div>
+        <p><strong style="color:#fff;">SEO:</strong> Captures high-intent searches like "Wycombe Abbey A level results 2025", "Wycombe Abbey GCSE", "Wycombe Abbey Oxbridge 2025". These terms have real search volume and zero competition from other directories.</p>
+        <p style="margin-top:8px;"><strong style="color:#fff;">AEO:</strong> Perplexity/ChatGPT cite factual sentences. "In 2025, 41% of A-Level grades were A*" is exactly the format AI engines pull verbatim.</p>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--teal);margin-bottom:8px;">FAQ Schema</div>
+        <p><strong style="color:#fff;">SEO:</strong> Google's FAQ rich results show your Q&amp;A directly in SERPs — free real estate below your blue link. Each FAQ answer is 2–3 sentences with the key fact bolded, matching the featured snippet format.</p>
+        <p style="margin-top:8px;"><strong style="color:#fff;">AEO:</strong> AI search answers "what entrance exam does Wycombe Abbey use?" by citing you. Without this, it cites the school's own site or nothing.</p>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--teal);margin-bottom:8px;">ISI Inspection Banner</div>
+        <p><strong style="color:#fff;">SEO + Trust:</strong> "ISI" is a named entity Google understands. Inspection result + year + body name = authoritative signal. Also answers "is Wycombe Abbey safe / good?" intent directly.</p>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--teal);margin-bottom:8px;">Parent Fit Signals</div>
+        <p><strong style="color:#fff;">AEO:</strong> Conversational AI searches like "is Wycombe Abbey good for a shy girl?" or "Wycombe Abbey vs Cheltenham Ladies" need comparative signals. The fit cards feed those comparisons without giving away the full paid analysis.</p>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--teal);margin-bottom:8px;">Sport Overview</div>
+        <p><strong style="color:#fff;">SEO:</strong> "Wycombe Abbey netball" / "Wycombe Abbey lacrosse" are long-tail searches from sport-focused parents. 107 teams is a compelling, citable fact that no other directory surfaces.</p>
+      </div>
+      <div>
+        <div style="font-size:10px;font-weight:800;letter-spacing:0.1em;text-transform:uppercase;color:var(--teal);margin-bottom:8px;">Locked Deep Report Preview</div>
+        <p><strong style="color:#fff;">Conversion:</strong> Parents can see the sections exist — Pastoral Deep Dive, Nana AI, 12 Questions to Ask. The padlock + named sections is stronger than a generic "subscribe" button. Scarcity + specificity = higher CTR to paywall.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

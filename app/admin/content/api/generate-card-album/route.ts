@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   const template = String(body?.template ?? 'glossary')
   if (!KNOWN_TEMPLATES.has(template)) {
     return NextResponse.json({
-      error: `Unknown template '${template}'. Known: ${[...KNOWN_TEMPLATES].join(', ')}`,
+      error: `Unknown template '${template}'. Known: ${Array.from(KNOWN_TEMPLATES).join(', ')}`,
     }, { status: 400 })
   }
   let count = parseInt(String(body?.count ?? 5), 10)

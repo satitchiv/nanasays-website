@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nana Research — Wellington College — Intelligence Dossier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&family=Source+Serif+4:ital,opsz,wght@0,8..60,300;0,8..60,400;0,8..60,500;1,8..60,400&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --sidebar-bg: #0e0e1c;
+  --sidebar-deeper: #07070f;
+  --nav-bg: #0a0a16;
+  --main-bg: #F5F0E8;
+  --amber: #C97B2A;
+  --amber-light: #E8960A;
+  --amber-dim: rgba(201,123,42,0.12);
+  --navy: #0d1b3e;
+  --cream: #F5F0E8;
+  --cream-dim: rgba(245,240,232,0.08);
+  --sidebar-text: rgba(245,240,232,0.65);
+  --sidebar-muted: rgba(245,240,232,0.3);
+  --border-dark: rgba(245,240,232,0.06);
+  --border-amber: rgba(201,123,42,0.25);
+  --mono: 'IBM Plex Mono', monospace;
+  --serif-display: 'Playfair Display', Georgia, serif;
+  --serif-body: 'Source Serif 4', Georgia, serif;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--sidebar-bg);
+  color: var(--navy);
+  font-family: var(--serif-body);
+  font-size: 15px;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(201,123,42,0.25); border-radius: 2px; }
+
+/* ========= TOP NAV ========= */
+.nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 48px;
+  background: var(--nav-bg);
+  border-bottom: 2px solid var(--amber);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  z-index: 100;
+}
+
+.nav-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-back {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--sidebar-muted);
+  text-decoration: none;
+  letter-spacing: 0.05em;
+  transition: color 0.2s;
+}
+.nav-back:hover { color: var(--amber); }
+
+.nav-sep { color: rgba(245,240,232,0.15); font-family: var(--mono); font-size: 11px; }
+
+.nav-school {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.pulse-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: #4ade80;
+  box-shadow: 0 0 8px #4ade80;
+  animation: pulse-green 2s ease-in-out infinite;
+}
+
+@keyframes pulse-green {
+  0%, 100% { opacity: 1; box-shadow: 0 0 6px #4ade80; }
+  50% { opacity: 0.5; box-shadow: 0 0 14px #4ade80; }
+}
+
+.nav-school-name {
+  font-family: var(--serif-display);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--cream);
+  letter-spacing: 0.02em;
+}
+
+.research-badge {
+  background: rgba(201,123,42,0.15);
+  border: 1px solid rgba(201,123,42,0.35);
+  color: var(--amber);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  padding: 2px 8px;
+  border-radius: 2px;
+  text-transform: uppercase;
+}
+
+/* FUNNEL */
+.funnel {
+  display: flex;
+  align-items: center;
+}
+
+.funnel-step {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: rgba(245,240,232,0.2);
+  text-transform: uppercase;
+}
+
+.funnel-step.done { color: rgba(201,123,42,0.7); }
+.funnel-step.active { color: var(--cream); }
+.funnel-step.next { color: var(--amber); }
+
+.funnel-dot {
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  border: 1px solid rgba(245,240,232,0.15);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 9px; font-weight: 700; flex-shrink: 0;
+}
+
+.funnel-step.done .funnel-dot { background: rgba(201,123,42,0.6); border-color: var(--amber); color: var(--cream); }
+.funnel-step.active .funnel-dot { background: rgba(245,240,232,0.1); border-color: var(--cream); color: var(--cream); }
+.funnel-step.next .funnel-dot { background: rgba(201,123,42,0.15); border-color: var(--amber); color: var(--amber); }
+
+.funnel-line {
+  width: 24px; height: 1px;
+  background: rgba(245,240,232,0.08);
+  margin: 0 5px;
+}
+.funnel-line.done { background: rgba(201,123,42,0.3); }
+
+.nav-right .q-counter {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--amber);
+  background: rgba(201,123,42,0.1);
+  border: 1px solid rgba(201,123,42,0.25);
+  padding: 3px 9px;
+  border-radius: 2px;
+  letter-spacing: 0.06em;
+}
+
+/* ========= LAYOUT ========= */
+.layout {
+  display: flex;
+  height: 100vh;
+  padding-top: 48px;
+}
+
+/* ========= SIDEBAR ========= */
+.sidebar {
+  width: 260px;
+  min-width: 260px;
+  background: var(--sidebar-bg);
+  border-right: 1px solid var(--border-dark);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* faint ruled lines background */
+.sidebar::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent,
+    transparent 29px,
+    rgba(245,240,232,0.025) 29px,
+    rgba(245,240,232,0.025) 30px
+  );
+  pointer-events: none;
+}
+
+/* MINI MAP */
+.map-section {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-dark);
+  position: relative;
+  z-index: 1;
+}
+
+.map-container {
+  background: #050510;
+  border: 1px solid rgba(201,123,42,0.15);
+  border-radius: 4px;
+  padding: 12px 10px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.map-svg-wrap {
+  width: 100px; height: 160px;
+}
+
+.uk-svg { width: 100%; height: 100%; }
+
+@keyframes amber-pulse {
+  0%, 100% { r: 4; filter: drop-shadow(0 0 4px #C97B2A); opacity: 1; }
+  50% { r: 6; filter: drop-shadow(0 0 12px #C97B2A); opacity: 0.8; }
+}
+
+.map-dot-pulse { animation: amber-pulse 2.5s ease-in-out infinite; }
+
+.map-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--sidebar-muted);
+  letter-spacing: 0.05em;
+  text-align: center;
+  line-height: 1.5;
+}
+.map-label strong { color: var(--amber); }
+
+/* SECTION LABEL */
+.sb-section-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: rgba(245,240,232,0.2);
+  padding: 14px 16px 5px;
+  position: relative;
+  z-index: 1;
+}
+
+/* THREAD ITEMS */
+.thread-list {
+  padding: 0 10px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  position: relative;
+  z-index: 1;
+}
+
+.thread-item {
+  background: rgba(245,240,232,0.03);
+  border: 1px solid rgba(245,240,232,0.05);
+  border-left: 2px solid transparent;
+  border-radius: 2px;
+  padding: 9px 10px;
+  cursor: pointer;
+  transition: all 0.18s;
+}
+
+.thread-item:hover { background: rgba(245,240,232,0.05); }
+.thread-item.active {
+  border-left-color: var(--amber);
+  background: rgba(201,123,42,0.07);
+  border-color: rgba(201,123,42,0.12);
+  border-left-color: var(--amber);
+}
+
+.thread-num {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--amber);
+  letter-spacing: 0.08em;
+  margin-bottom: 3px;
+  opacity: 0.7;
+}
+.thread-item.active .thread-num { opacity: 1; }
+
+.thread-title {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--sidebar-muted);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.thread-item.active .thread-title { color: var(--sidebar-text); }
+
+/* DECISION BRIEF */
+.decision-brief {
+  margin: 0 10px 8px;
+  background: var(--cream-dim);
+  border: 1px solid var(--border-dark);
+  border-radius: 3px;
+  padding: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.mixed-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(201,123,42,0.12);
+  border: 1px solid rgba(201,123,42,0.3);
+  color: var(--amber);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 2px;
+  margin-bottom: 8px;
+}
+
+.brief-summary {
+  font-family: var(--serif-body);
+  font-size: 11px;
+  color: var(--sidebar-muted);
+  line-height: 1.6;
+  margin-bottom: 10px;
+  font-style: italic;
+}
+
+.brief-sub-label {
+  font-family: var(--mono);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(245,240,232,0.2);
+  margin-bottom: 5px;
+}
+
+.brief-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+
+.brief-list li {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--sidebar-muted);
+  display: flex;
+  gap: 6px;
+  line-height: 1.45;
+}
+
+.brief-list.know li .marker { color: var(--amber); }
+.brief-list.unknown li .marker { color: var(--amber); opacity: 0.6; }
+
+/* CTAs */
+.sidebar-ctas {
+  padding: 10px;
+  border-top: 1px solid var(--border-dark);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: auto;
+  position: relative;
+  z-index: 1;
+}
+
+.btn-shortlist {
+  background: var(--amber);
+  color: var(--navy);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  border: none;
+  border-radius: 3px;
+  padding: 10px 12px;
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+  transition: all 0.18s;
+}
+.btn-shortlist:hover { background: var(--amber-light); box-shadow: 0 4px 20px rgba(201,123,42,0.25); }
+
+.btn-openday {
+  background: transparent;
+  color: var(--cream);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  border: 1px solid rgba(245,240,232,0.15);
+  border-radius: 3px;
+  padding: 8px 12px;
+  cursor: pointer;
+  width: 100%;
+  text-align: center;
+  transition: all 0.18s;
+}
+.btn-openday:hover { border-color: rgba(245,240,232,0.3); background: rgba(245,240,232,0.04); }
+
+.compare-link {
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--amber);
+  cursor: pointer;
+  opacity: 0.75;
+  transition: opacity 0.2s;
+  letter-spacing: 0.02em;
+}
+.compare-link:hover { opacity: 1; }
+
+/* ========= MAIN AREA ========= */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: var(--main-bg);
+  overflow: hidden;
+  position: relative;
+}
+
+/* subtle paper texture */
+.main::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    url("data:image/svg+xml,%3Csvg width='4' height='4' viewBox='0 0 4 4' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 3h1v1H1V3zm2-2h1v1H3V1z' fill='%230d1b3e' fill-opacity='0.015'/%3E%3C/svg%3E");
+  pointer-events: none;
+}
+
+.main-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 44px 60px 180px;
+  max-width: 780px;
+  margin: 0 auto;
+  width: 100%;
+  position: relative;
+}
+
+/* amber line at top of content */
+.content-rule {
+  width: 48px;
+  height: 3px;
+  background: var(--amber);
+  margin-bottom: 20px;
+}
+
+/* SECOND OPINION */
+.second-opinion-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(201,123,42,0.1);
+  border: 1px solid rgba(201,123,42,0.2);
+  color: var(--amber);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  padding: 3px 9px;
+  border-radius: 2px;
+  margin-bottom: 14px;
+  text-transform: uppercase;
+}
+
+/* QUESTION HEADING */
+.question-heading {
+  font-family: var(--serif-display);
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--navy);
+  line-height: 1.3;
+  margin-bottom: 32px;
+  max-width: 640px;
+}
+
+/* SECTION */
+.section-block {
+  margin-bottom: 28px;
+}
+
+.section-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.section-label::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(201,123,42,0.2);
+  max-width: 100px;
+}
+.section-label.navy { color: var(--navy); }
+.section-label.navy::after { background: rgba(13,27,62,0.15); }
+.section-label.muted { color: #94a3b8; }
+.section-label.muted::after { background: rgba(0,0,0,0.08); }
+
+.short-answer-text {
+  font-family: var(--serif-body);
+  font-size: 17px;
+  color: var(--navy);
+  line-height: 1.9;
+}
+
+.reasoning-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.reasoning-list li {
+  display: flex;
+  gap: 10px;
+  font-family: var(--serif-body);
+  font-size: 15px;
+  color: var(--navy);
+  line-height: 1.75;
+}
+
+.reasoning-list li .diamond { color: var(--amber); flex-shrink: 0; margin-top: 3px; }
+
+/* DEVIL'S ADVOCATE */
+.da-callout {
+  background: #FEF3C7;
+  border-left: 3px solid var(--amber);
+  border-radius: 0 4px 4px 0;
+  padding: 16px 18px;
+}
+
+.da-header {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--amber);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.da-text {
+  font-family: var(--serif-body);
+  font-size: 14.5px;
+  color: #78350f;
+  line-height: 1.8;
+}
+
+/* WHAT WE DON'T KNOW */
+.wddk-text {
+  font-family: var(--serif-body);
+  font-size: 14px;
+  color: #64748b;
+  font-style: italic;
+  line-height: 1.8;
+}
+
+/* SUGGESTED NEXT STEP */
+.next-step-card {
+  background: #EEF2FF;
+  border-left: 2px solid var(--navy);
+  border-radius: 0 4px 4px 0;
+  padding: 16px 18px;
+}
+
+.next-step-header {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--navy);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.next-step-text {
+  font-family: var(--serif-body);
+  font-size: 14.5px;
+  color: var(--navy);
+  line-height: 1.8;
+}
+
+/* SOURCE PILLS */
+.source-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.source-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--main-bg);
+  border: 1px solid rgba(13,27,62,0.2);
+  color: var(--navy);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 5px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.18s;
+  letter-spacing: 0.01em;
+}
+.source-pill:hover { background: var(--navy); color: var(--cream); border-color: var(--navy); }
+
+/* ACTION ROW */
+.action-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 18px;
+  border-top: 1px solid rgba(0,0,0,0.08);
+}
+
+.action-left { display: flex; gap: 10px; }
+
+.action-btn {
+  background: transparent;
+  border: 1px solid rgba(13,27,62,0.2);
+  color: var(--navy);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 7px 14px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: all 0.18s;
+  letter-spacing: 0.03em;
+}
+.action-btn:hover { background: var(--navy); color: var(--cream); border-color: var(--navy); }
+
+.followup-link {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: color 0.2s;
+  letter-spacing: 0.02em;
+}
+.followup-link:hover { color: var(--amber); }
+
+/* CHIPS */
+.ask-next-section { margin-top: 22px; }
+
+.ask-next-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #94a3b8;
+  margin-bottom: 8px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.chip {
+  background: var(--main-bg);
+  border: 1px solid rgba(201,123,42,0.25);
+  color: var(--amber);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  padding: 6px 13px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.18s;
+  letter-spacing: 0.01em;
+}
+.chip:hover {
+  background: rgba(201,123,42,0.08);
+  border-color: var(--amber);
+}
+
+/* ========= INPUT BAR ========= */
+.input-bar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: linear-gradient(to top, var(--main-bg) 65%, transparent);
+  padding: 20px 60px 26px;
+}
+
+.input-hint {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: #94a3b8;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+
+.input-wrap {
+  display: flex;
+  gap: 10px;
+  background: white;
+  border: 1px solid rgba(13,27,62,0.15);
+  border-bottom: 2px solid var(--navy);
+  border-radius: 3px;
+  padding: 11px 14px;
+  transition: all 0.2s;
+  max-width: 660px;
+  box-shadow: 0 2px 20px rgba(13,27,62,0.06);
+}
+
+.input-wrap:focus-within {
+  border-color: var(--navy);
+  box-shadow: 0 4px 30px rgba(13,27,62,0.12);
+}
+
+.input-field {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--navy);
+  font-family: var(--serif-display);
+  font-style: italic;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.input-field::placeholder { color: rgba(13,27,62,0.3); }
+
+.ask-btn {
+  background: var(--navy);
+  color: var(--cream);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  border: none;
+  border-radius: 3px;
+  padding: 7px 16px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s;
+  flex-shrink: 0;
+}
+.ask-btn:hover { background: #1a2f60; box-shadow: 0 4px 16px rgba(13,27,62,0.25); }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav class="nav">
+  <div class="nav-left">
+    <a href="#" class="nav-back">← Report</a>
+    <span class="nav-sep">|</span>
+    <div class="nav-school">
+      <div class="pulse-dot"></div>
+      <span class="nav-school-name">Wellington College</span>
+    </div>
+    <span class="nav-sep">|</span>
+    <span class="research-badge">Research Mode</span>
+  </div>
+
+  <div class="funnel">
+    <div class="funnel-step done">
+      <div class="funnel-dot">✓</div>
+      <span>Research</span>
+    </div>
+    <div class="funnel-line done"></div>
+    <div class="funnel-step next">
+      <div class="funnel-dot">2</div>
+      <span>Shortlist</span>
+    </div>
+    <div class="funnel-line"></div>
+    <div class="funnel-step">
+      <div class="funnel-dot">3</div>
+      <span>Open Day</span>
+    </div>
+    <div class="funnel-line"></div>
+    <div class="funnel-step">
+      <div class="funnel-dot">4</div>
+      <span>Compare</span>
+    </div>
+    <div class="funnel-line"></div>
+    <div class="funnel-step">
+      <div class="funnel-dot">5</div>
+      <span>Decide</span>
+    </div>
+  </div>
+
+  <div class="nav-right">
+    <span class="q-counter">3 questions</span>
+  </div>
+</nav>
+
+<!-- LAYOUT -->
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+
+    <!-- MAP -->
+    <div class="map-section">
+      <div class="map-container">
+        <div class="map-svg-wrap">
+          <svg class="uk-svg" viewBox="0 0 100 165" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M 50,5 L 55,8 L 60,12 L 58,18 L 62,22 L 65,28 L 70,32 L 72,38 L 68,44 L 72,50 L 75,55 L 78,62 L 75,68 L 70,72 L 65,78 L 60,82 L 55,88 L 52,95 L 48,100 L 45,106 L 42,112 L 38,116 L 35,120 L 40,124 L 45,128 L 42,134 L 38,138 L 34,142 L 30,146 L 26,150 L 28,155 L 32,158 L 36,160 L 32,156 L 28,152 L 32,148 L 36,144 L 30,140 L 26,136 L 22,130 L 20,124 L 24,118 L 28,112 L 32,106 L 28,100 L 24,94 L 20,88 L 18,82 L 22,76 L 26,70 L 30,64 L 28,58 L 24,52 L 20,46 L 16,40 L 18,34 L 22,28 L 26,22 L 30,16 L 35,10 L 40,6 L 45,4 Z"
+              fill="rgba(245,240,232,0.04)" stroke="rgba(245,240,232,0.25)" stroke-width="1.2" stroke-linejoin="round"/>
+            <circle class="map-dot-pulse" cx="60" cy="82" r="4.5" fill="#C97B2A"/>
+            <circle cx="60" cy="82" r="9" fill="rgba(201,123,42,0.1)" stroke="rgba(201,123,42,0.2)" stroke-width="1"/>
+          </svg>
+        </div>
+        <div class="map-label"><strong>Wellington</strong> · Berkshire · 35mi from London</div>
+      </div>
+    </div>
+
+    <!-- THREAD -->
+    <div class="sb-section-label">Research Thread</div>
+    <div class="thread-list">
+      <div class="thread-item">
+        <div class="thread-num">01 /</div>
+        <div class="thread-title">What are the boarding fees?</div>
+      </div>
+      <div class="thread-item">
+        <div class="thread-num">02 /</div>
+        <div class="thread-title">How strong is football at Wellington?</div>
+      </div>
+      <div class="thread-item active">
+        <div class="thread-num">03 / ACTIVE</div>
+        <div class="thread-title">If my son wants to be a professional footballer, is Wellington the best place?</div>
+      </div>
+    </div>
+
+    <!-- DECISION BRIEF -->
+    <div class="sb-section-label">Decision Brief</div>
+    <div class="decision-brief">
+      <div class="mixed-badge">⚡ Mixed Signals</div>
+      <p class="brief-summary">Strong programme, premium fees — but limited evidence of professional player pathways. Wellington excels academically with competitive sport, not sport-first development.</p>
+
+      <div class="brief-sub-label">What We Know</div>
+      <ul class="brief-list know">
+        <li><span class="marker">◆</span>25 football teams, ISFA Cup Final 2025-26</li>
+        <li><span class="marker">◆</span>U18A ranked 71st nationally (SOCS)</li>
+        <li><span class="marker">◆</span>Full-boarding fees ~£63,000/yr</li>
+        <li><span class="marker">◆</span>ISI: Excellent pastoral + academic</li>
+      </ul>
+
+      <div class="brief-sub-label">Outstanding Questions</div>
+      <ul class="brief-list unknown">
+        <li><span class="marker">◉</span>EFL academy partnerships?</li>
+        <li><span class="marker">◉</span>Alumni professional contracts?</li>
+        <li><span class="marker">◉</span>Head of Football credentials?</li>
+        <li><span class="marker">◉</span>Training hours vs. academic load?</li>
+      </ul>
+    </div>
+
+    <!-- CTAs -->
+    <div class="sidebar-ctas">
+      <button class="btn-shortlist">＋ Add Wellington to Shortlist</button>
+      <button class="btn-openday">📅 Book Open Day — Sat 14 Jun 2026</button>
+      <div class="compare-link">Compare with Bryanston or Marlborough →</div>
+    </div>
+
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="main-scroll">
+
+      <div class="content-rule"></div>
+
+      <div class="second-opinion-badge">⚡ Second Opinion Mode</div>
+
+      <h1 class="question-heading">If my son wants to be a professional footballer, is Wellington the best place?</h1>
+
+      <!-- SHORT ANSWER -->
+      <div class="section-block">
+        <div class="section-label">Short Answer</div>
+        <p class="short-answer-text">Wellington has a competitive football programme (25 teams, SOCS-ranked, ISFA Cup Final 2025–26) but lacks documented pathways to professional football. It is an excellent school for a boy who loves football — not a clear specialist route to a professional career.</p>
+      </div>
+
+      <!-- MY REASONING -->
+      <div class="section-block">
+        <div class="section-label">My Reasoning</div>
+        <ul class="reasoning-list">
+          <li><span class="diamond">◆</span>The 25-team structure and cup final appearances confirm Wellington takes football seriously. U18A ranked 71st in SOCS nationally — top quartile for independent schools.</li>
+          <li><span class="diamond">◆</span>But 'competitive fixture list' ≠ 'professional player pipeline.' No data on EFL academy links, county development squad partnerships, or alumni who turned professional.</li>
+          <li><span class="diamond">◆</span>At USD 79,058/yr (~£63,000), the fees are substantial. If professional football is the primary goal, a specialist academy affiliated with a Championship club offers a more direct pathway at lower cost.</li>
+        </ul>
+      </div>
+
+      <!-- DEVIL'S ADVOCATE -->
+      <div class="section-block">
+        <div class="da-callout">
+          <div class="da-header">⚠ Devil's Advocate</div>
+          <p class="da-text">Wellington's football is impressive for an independent school — but independent schools rarely produce professional footballers. The professional pathway in England runs through academy systems (Category 1–3 academies affiliated with professional clubs), not through independent schools. If your son is genuinely elite level, he may be better served by a Category 1 academy than by Wellington.</p>
+        </div>
+      </div>
+
+      <!-- WHAT WE DON'T KNOW -->
+      <div class="section-block">
+        <div class="section-label muted">What We Don't Know</div>
+        <p class="wddk-text">Whether any Wellington pupils have progressed to professional contracts; whether the school has EFL academy partnerships; the Head of Football's coaching credentials (UEFA A/B licence, professional playing career); how much dedicated training time top squad players receive vs. academic load.</p>
+      </div>
+
+      <!-- SUGGESTED NEXT STEP -->
+      <div class="section-block">
+        <div class="next-step-card">
+          <div class="next-step-header">Suggested Next Step</div>
+          <p class="next-step-text">Ask Wellington directly: <em>"Can you name any former pupils who have signed professional football contracts, and does the school have formal links with any EFL academy or county FA development programme?"</em> This question separates schools with genuine elite pathways from those with strong recreational programmes.</p>
+        </div>
+      </div>
+
+      <!-- SOURCE PILLS -->
+      <div class="section-block">
+        <div class="section-label muted">Sources</div>
+        <div class="source-pills">
+          <div class="source-pill">📄 ISI Report 2024 ↗</div>
+          <div class="source-pill">📊 SOCS Rankings 2025 ↗</div>
+          <div class="source-pill">⚖ Charity Commission ↗</div>
+          <div class="source-pill">💷 Fee Schedule ↗</div>
+        </div>
+      </div>
+
+      <!-- ACTION ROW -->
+      <div class="action-row">
+        <div class="action-left">
+          <button class="action-btn">Share with my partner →</button>
+          <button class="action-btn">Save this answer →</button>
+        </div>
+        <div class="followup-link">Ask a follow-up about this →</div>
+      </div>
+
+      <!-- CHIPS -->
+      <div class="ask-next-section">
+        <div class="ask-next-label">Ask Next:</div>
+        <div class="chips">
+          <div class="chip">What did the ISI flag about Wellington's pastoral?</div>
+          <div class="chip">Compare Wellington vs Bryanston on football</div>
+          <div class="chip">Show me bursary options for talented footballers</div>
+          <div class="chip">Which UK boarding school has the strongest football pathway?</div>
+        </div>
+      </div>
+
+    </div><!-- /main-scroll -->
+
+    <!-- INPUT BAR -->
+    <div class="input-bar">
+      <div class="input-hint">↑ Shift+Enter for new line</div>
+      <div class="input-wrap">
+        <input class="input-field" type="text" placeholder="Ask Nana about Wellington College…">
+        <button class="ask-btn">Ask →</button>
+      </div>
+    </div>
+
+  </main>
+
+</div>
+</body>
+</html>

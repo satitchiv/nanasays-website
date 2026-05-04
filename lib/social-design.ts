@@ -83,7 +83,7 @@ export const DEFAULT_TOKENS: Tokens = {
   'color.ink':       '#1F2937',
   'color.muted':     '#6B7280',
   'color.border':    '#E5E7EB',
-  'text.footer_url': 'nanasays.com',
+  'text.footer_url': 'nanasays.school',
   'bool.show_verification_badge': 'true',
   'bool.show_wordmark':           'true',
   'bool.show_pillar_chip':        'true',

@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Deep Report Sales — Mock 2 v4: short + bullet-pointed</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@400;500;600;700&family=Lora:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --navy: #1B3252;
+    --teal: #34C3A0;
+    --teal-dk: #239C80;
+    --teal-bg: #E8FAF6;
+    --cream: #FDFCF7;
+    --body: #374151;
+    --muted: #6B7280;
+    --border: #E5E7EB;
+    --off: #F9FAFB;
+    --warn: #F59E0B;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: 'Nunito Sans', sans-serif;
+    background: #FAFAF7; color: var(--body);
+    margin: 0; padding: 60px 24px; line-height: 1.6;
+  }
+  .label {
+    max-width: 900px; margin: 0 auto 16px; font-size: 11px; font-weight: 800;
+    color: var(--teal-dk); letter-spacing: 0.18em; text-transform: uppercase;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .label::after { content: ''; flex: 1; height: 1px; background: #DDD; }
+  .container { max-width: 900px; margin: 0 auto 80px; }
+
+  .m {
+    background: linear-gradient(180deg, var(--cream) 0%, #fff 60%);
+    border: 1.5px solid #E5DFCC;
+    border-radius: 24px; padding: 44px 44px 36px;
+    box-shadow: 0 16px 40px rgba(27,50,82,0.06);
+  }
+
+  .m-eyebrow {
+    font-size: 11px; font-weight: 900; color: var(--teal-dk);
+    letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 14px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .m-eyebrow::after { content: ''; flex: 1; height: 1px; background: #DDD4C0; }
+
+  .m-headline {
+    font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 32px; letter-spacing: -0.02em; line-height: 1.15;
+    color: var(--navy); margin-bottom: 12px; max-width: 600px;
+  }
+  .m-lede {
+    font-family: 'Lora', serif; font-size: 16px; color: #4B5563;
+    line-height: 1.6; margin-bottom: 28px; max-width: 640px;
+  }
+
+  /* "What's in the report" — 4 bullet lock items, 2x2 */
+  .m-bullets {
+    display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;
+    margin-bottom: 24px;
+  }
+  .m-bullet {
+    background: #fff; border: 1px solid var(--border);
+    border-radius: 12px; padding: 14px 16px;
+    display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: flex-start;
+    box-shadow: 0 4px 10px rgba(27,50,82,0.03);
+  }
+  .m-bullet-icon {
+    font-size: 14px; flex-shrink: 0; margin-top: 1px;
+  }
+  .m-bullet-title {
+    font-family: 'Nunito', sans-serif; font-weight: 800;
+    font-size: 14px; color: var(--navy); margin-bottom: 2px; line-height: 1.3;
+  }
+  .m-bullet-sub {
+    font-size: 12.5px; color: var(--muted); line-height: 1.45;
+  }
+
+  /* Three pillars stripe */
+  .m-pillars {
+    background: var(--off); border: 1px solid var(--border);
+    border-radius: 14px; padding: 18px 20px;
+    margin-bottom: 24px;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+  }
+  .m-pillar { padding: 0 2px; }
+  .m-pillar-icon {
+    width: 30px; height: 30px; border-radius: 8px;
+    background: var(--teal-bg); color: var(--teal-dk);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; margin-bottom: 8px;
+  }
+  .m-pillar-h {
+    font-family: 'Nunito', sans-serif; font-weight: 800;
+    font-size: 13.5px; color: var(--navy); margin-bottom: 3px; line-height: 1.25;
+  }
+  .m-pillar-text {
+    font-size: 12px; color: var(--muted); line-height: 1.45;
+  }
+
+  /* "+ 139 other schools" preview — 4 sample cards horizontal */
+  .m-lib-h {
+    font-family: 'Nunito', sans-serif; font-weight: 800;
+    font-size: 15px; color: var(--navy); margin-bottom: 4px;
+  }
+  .m-lib-sub {
+    font-size: 12.5px; color: var(--muted); margin-bottom: 12px; line-height: 1.5;
+  }
+  .m-lib-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+    margin-bottom: 8px;
+  }
+  .m-lib-card {
+    background: #fff; border: 1px solid var(--border);
+    border-radius: 10px; padding: 11px 12px;
+    text-align: center;
+  }
+  .m-lib-score {
+    font-family: 'Nunito', sans-serif; font-weight: 900;
+    color: var(--teal-dk); font-size: 18px; line-height: 1;
+    margin-bottom: 5px;
+  }
+  .m-lib-name {
+    font-family: 'Nunito', sans-serif; font-weight: 700;
+    font-size: 12px; color: var(--navy); line-height: 1.25;
+  }
+  .m-lib-more {
+    text-align: center; font-size: 12.5px; color: var(--muted);
+    padding: 8px 0 0;
+  }
+  .m-lib-more strong { color: var(--navy); font-weight: 700; }
+
+  /* CTA */
+  .m-divider { height: 1px; background: #E5DFCC; margin: 24px 0 22px; }
+  .m-cta {
+    background: var(--navy); color: #fff;
+    border-radius: 14px; padding: 22px 26px;
+    display: grid; grid-template-columns: 1fr auto; gap: 22px; align-items: center;
+    position: relative; overflow: hidden;
+  }
+  .m-cta::before {
+    content: ''; position: absolute; top: -40%; left: -10%;
+    width: 240px; height: 240px;
+    background: radial-gradient(circle, rgba(52,195,160,0.15) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .m-cta-h {
+    font-family: 'Nunito', sans-serif; font-weight: 800;
+    font-size: 18px; line-height: 1.25; position: relative; margin-bottom: 4px;
+  }
+  .m-cta-sub { font-size: 13px; color: rgba(255,255,255,0.65); position: relative; line-height: 1.5; }
+  .m-cta-side { position: relative; text-align: right; }
+  .m-cta-price {
+    font-family: 'Nunito', sans-serif; font-weight: 900;
+    font-size: 24px; color: #fff; line-height: 1;
+  }
+  .m-cta-price small { font-size: 12px; color: rgba(255,255,255,0.5); font-weight: 600; }
+  .m-cta-btn {
+    display: inline-block; margin-top: 8px;
+    background: var(--teal); color: #fff;
+    font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 13px;
+    padding: 11px 20px; border-radius: 100px; text-decoration: none;
+    box-shadow: 0 8px 20px rgba(52,195,160,0.4); letter-spacing: 0.04em;
+  }
+  .m-cta-note { font-size: 10.5px; color: rgba(255,255,255,0.45); margin-top: 6px; }
+
+  @media (max-width: 720px) {
+    .m { padding: 32px 24px; }
+    .m-headline { font-size: 26px; }
+    .m-bullets { grid-template-columns: 1fr; }
+    .m-pillars { grid-template-columns: 1fr; }
+    .m-lib-grid { grid-template-columns: repeat(2, 1fr); }
+    .m-cta { grid-template-columns: 1fr; }
+    .m-cta-side { text-align: left; }
+  }
+</style>
+</head>
+<body>
+
+<div class="label">Mock 2 v4 · short + bullet-pointed</div>
+
+<div class="container">
+  <div class="m">
+
+    <div class="m-eyebrow">Deep Research · free preview</div>
+    <h1 class="m-headline">The independent verdict on Queen Ethelburga's</h1>
+    <p class="m-lede">194 sources cross-referenced — published materials, ISI inspection record, Charity Commission filings and SOCS sport rankings — into one decision-ready report.</p>
+
+    <!-- 4 lock bullets -->
+    <div class="m-bullets">
+      <div class="m-bullet">
+        <span class="m-bullet-icon">🔒</span>
+        <div>
+          <div class="m-bullet-title">Full ISI Analysis</div>
+          <div class="m-bullet-sub">Every standard rated</div>
+        </div>
+      </div>
+      <div class="m-bullet">
+        <span class="m-bullet-icon">🔒</span>
+        <div>
+          <div class="m-bullet-title">Parent Fit Verdict</div>
+          <div class="m-bullet-sub">Is this right for your child?</div>
+        </div>
+      </div>
+      <div class="m-bullet">
+        <span class="m-bullet-icon">🔒</span>
+        <div>
+          <div class="m-bullet-title">5 Tour Questions</div>
+          <div class="m-bullet-sub">Tailored to this school</div>
+        </div>
+      </div>
+      <div class="m-bullet">
+        <span class="m-bullet-icon">🔒</span>
+        <div>
+          <div class="m-bullet-title">Financial Health</div>
+          <div class="m-bullet-sub">Charity filings + reserves</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 pillars: also get -->
+    <div class="m-pillars">
+      <div class="m-pillar">
+        <div class="m-pillar-icon">⚖</div>
+        <div class="m-pillar-h">Side-by-side compare</div>
+        <div class="m-pillar-text">Up to 4 schools across 12 metrics.</div>
+      </div>
+      <div class="m-pillar">
+        <div class="m-pillar-icon">✦</div>
+        <div class="m-pillar-h">Decision Assistant</div>
+        <div class="m-pillar-text">Ask Nana anything · 24/7 across 140 schools.</div>
+      </div>
+      <div class="m-pillar">
+        <div class="m-pillar-icon">★</div>
+        <div class="m-pillar-h">Verdict score</div>
+        <div class="m-pillar-text">0–100 fit score with trade-offs.</div>
+      </div>
+    </div>
+
+    <!-- + 139 other schools -->
+    <div>
+      <div class="m-lib-h">Plus deep reports on every UK independent</div>
+      <div class="m-lib-sub">Same depth, same Verdict score. A few examples:</div>
+      <div class="m-lib-grid">
+        <div class="m-lib-card"><div class="m-lib-score">94</div><div class="m-lib-name">Eton College</div></div>
+        <div class="m-lib-card"><div class="m-lib-score">91</div><div class="m-lib-name">Wycombe Abbey</div></div>
+        <div class="m-lib-card"><div class="m-lib-score">89</div><div class="m-lib-name">Marlborough</div></div>
+        <div class="m-lib-card"><div class="m-lib-score">87</div><div class="m-lib-name">Wellington</div></div>
+      </div>
+      <div class="m-lib-more">+ <strong>135 more</strong> — Sevenoaks, Harrow, Cheltenham Ladies', Sherborne, Tonbridge, Charterhouse, Bryanston, Stowe…</div>
+    </div>
+
+    <!-- CTA -->
+    <div class="m-divider"></div>
+    <div class="m-cta">
+      <div>
+        <div class="m-cta-h">One subscription. 140 UK schools.</div>
+        <div class="m-cta-sub">Full report on QE + Decision Assistant + every other UK independent.</div>
+      </div>
+      <div class="m-cta-side">
+        <div class="m-cta-price">£39<small> /month</small></div>
+        <a href="/unlock" class="m-cta-btn">Unlock full access →</a>
+        <div class="m-cta-note">Cancel anytime · No contract</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

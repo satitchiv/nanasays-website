@@ -8,11 +8,11 @@ import './about.css'
 export const metadata: Metadata = {
   title: 'Nanasays — The independent school guide parents actually trust',
   description: 'Deep research reports on 140 UK independent schools. Full fees breakdown, ISI inspection history, financial health, safeguarding record, and Nana — your AI school advisor.',
-  alternates: { canonical: 'https://nanasays.com/about' },
+  alternates: { canonical: 'https://nanasays.school/about' },
   openGraph: {
     title: 'Nanasays — The independent school guide parents actually trust',
     description: 'Deep research reports on 140 UK independent schools. Unlock the risk file parents need before making a £15k–£50k/year decision.',
-    images: [{ url: 'https://nanasays.com/og-image.jpg', width: 1200, height: 630 }],
+    images: [{ url: 'https://nanasays.school/og-image.jpg', width: 1200, height: 630 }],
   },
 }
 

@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>PPT Mock 02 — Heritage</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --navy: #14233f;
+    --navy-deep: #0a1428;
+    --cream: #f1ead8;
+    --gold: #c8a45a;
+    --gold-deep: #9d7e3d;
+    --ink: #1c1a17;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #2a2826; font-family: 'EB Garamond', serif; padding: 48px 0; }
+  .topbar { text-align: center; color: #aaa; font-family: 'Inter', sans-serif; font-size: 12px; letter-spacing: 0.18em; margin-bottom: 32px; text-transform: uppercase; }
+  .topbar b { color: #fff; font-weight: 500; }
+  .topbar a { color: #d4a85a; text-decoration: none; margin-left: 16px; }
+  .slide { width: 1280px; height: 720px; margin: 0 auto 28px; box-shadow: 0 24px 80px rgba(0,0,0,0.5); position: relative; overflow: hidden; }
+
+  /* COVER */
+  .cover {
+    background: var(--navy);
+    background-image:
+      radial-gradient(ellipse at 50% 50%, rgba(200,164,90,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse at 50% 110%, rgba(0,0,0,0.5) 0%, transparent 50%);
+    color: var(--cream);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 80px;
+  }
+  .cover .crest { width: 130px; height: 160px; margin-bottom: 36px; }
+  .cover .crest-rule {
+    width: 60px; height: 1px; background: var(--gold); margin: 0 auto 24px;
+  }
+  .cover .est {
+    font-family: 'Cinzel', serif; font-size: 13px;
+    letter-spacing: 0.45em; color: var(--gold); margin-bottom: 32px;
+  }
+  .cover h1 {
+    font-family: 'Cinzel', serif; font-weight: 500;
+    font-size: 76px; letter-spacing: 0.12em; color: var(--gold);
+    margin: 0 0 24px; text-align: center; line-height: 1;
+  }
+  .cover .tagline {
+    font-family: 'EB Garamond', serif; font-style: italic;
+    font-size: 26px; color: var(--cream); opacity: 0.85;
+    margin-bottom: 56px; text-align: center;
+  }
+  .cover .footer {
+    position: absolute; bottom: 56px; left: 96px; right: 96px;
+    display: flex; justify-content: space-between;
+    font-family: 'Cinzel', serif; font-size: 11px;
+    letter-spacing: 0.35em; color: var(--gold); text-transform: uppercase;
+    border-top: 1px solid rgba(200,164,90,0.3); padding-top: 18px;
+  }
+
+  /* CONTENT */
+  .content { background: var(--cream); color: var(--navy); padding: 80px 96px; }
+  .content::before {
+    content: ""; position: absolute; inset: 0;
+    background-image: radial-gradient(circle at 20% 80%, rgba(200,164,90,0.05), transparent 40%);
+    pointer-events: none;
+  }
+  .content .head {
+    display: flex; align-items: center; gap: 24px; margin-bottom: 48px;
+    font-family: 'Cinzel', serif; font-size: 12px;
+    letter-spacing: 0.4em; color: var(--gold-deep); text-transform: uppercase;
+  }
+  .content .head::before, .content .head::after {
+    content: ""; flex: 1; height: 1px; background: var(--gold);
+  }
+  .content h2 {
+    font-family: 'Cinzel', serif; font-weight: 500;
+    font-size: 52px; letter-spacing: 0.04em; color: var(--navy);
+    margin: 0 0 56px; text-align: center; line-height: 1.1;
+  }
+  .content .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; }
+  .content .col p {
+    font-size: 19px; line-height: 1.7; margin: 0 0 16px; color: #1f2d4a;
+  }
+  .content .col p:first-child::first-letter {
+    font-family: 'Cinzel', serif; font-weight: 600;
+    font-size: 64px; float: left; line-height: 0.85;
+    padding: 6px 12px 0 0; color: var(--gold-deep);
+  }
+
+  /* DATA */
+  .data { background: var(--cream); padding: 80px 144px; color: var(--navy); display: flex; flex-direction: column; }
+  .data .head {
+    font-family: 'Cinzel', serif; font-size: 12px;
+    letter-spacing: 0.4em; color: var(--gold-deep); text-transform: uppercase;
+    text-align: center; margin-bottom: 16px;
+  }
+  .data h2 {
+    font-family: 'Cinzel', serif; font-weight: 500;
+    font-size: 44px; letter-spacing: 0.05em;
+    margin: 0 0 56px; text-align: center;
+  }
+  .data .ledger { width: 100%; border-collapse: collapse; }
+  .data .ledger tr { border-bottom: 1px solid rgba(200,164,90,0.5); }
+  .data .ledger tr:first-child { border-top: 1px solid rgba(200,164,90,0.5); }
+  .data .ledger td { padding: 22px 0; font-size: 22px; }
+  .data .ledger td.lbl {
+    font-family: 'Cinzel', serif; font-weight: 400;
+    letter-spacing: 0.3em; text-transform: uppercase;
+    font-size: 13px; color: var(--gold-deep);
+  }
+  .data .ledger td.val {
+    font-family: 'EB Garamond', serif; font-size: 32px;
+    font-weight: 500; text-align: right; color: var(--navy);
+  }
+</style>
+</head>
+<body>
+  <div class="topbar"><b>Mock 02 — Heritage</b> &nbsp;·&nbsp; Oxbridge / Crest &amp; Rule <a href="mockup-ppt-index.html">← all mocks</a></div>
+
+  <!-- Cover -->
+  <div class="slide cover">
+    <svg class="crest" viewBox="0 0 130 160" fill="none" stroke="#c8a45a" stroke-width="1.2">
+      <path d="M65 8 L120 28 L120 92 Q120 130, 65 152 Q10 130, 10 92 L10 28 Z" fill="rgba(200,164,90,0.05)"/>
+      <path d="M65 30 L65 130 M22 80 L108 80" stroke-width="0.8"/>
+      <circle cx="65" cy="80" r="14" fill="none"/>
+      <path d="M58 73 L72 87 M72 73 L58 87" stroke-width="0.8"/>
+      <path d="M36 50 L52 62 M94 50 L78 62 M36 110 L52 98 M94 110 L78 98" stroke-width="0.6"/>
+      <text x="65" y="120" text-anchor="middle" fill="#c8a45a" stroke="none" font-family="Cinzel" font-size="8" letter-spacing="2">VERITAS</text>
+    </svg>
+    <div class="crest-rule"></div>
+    <div class="est">EST · MDCCCXCVI</div>
+    <h1>Wycombe Abbey</h1>
+    <div class="tagline">In dignitate et veritate.</div>
+    <div class="footer">
+      <span>Buckinghamshire</span>
+      <span>Annual Report — MMXXVI</span>
+      <span>England</span>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="slide content">
+    <div class="head">Section II — Heritage</div>
+    <h2>A House of<br>Old Standing</h2>
+    <div class="cols">
+      <div class="col">
+        <p>Founded in the closing years of the nineteenth century, Wycombe Abbey was conceived not as a school in the Victorian mould, but as something rarer: a house of learning where young women might be cultivated with the same gravity afforded their brothers at Eton and Harrow.</p>
+        <p>Frances Dove, its first headmistress, brought from Cheltenham a quiet certainty that has never quite left the place.</p>
+      </div>
+      <div class="col">
+        <p>The estate itself — a Wyatt house on a Buckinghamshire ridge — was once the seat of Lord Carrington. Its corridors carry the weight of a former century without performing the part.</p>
+        <p>Today, six hundred and forty-two pupils pass through these doors. Not all will be remembered, but each is shaped by the rule of the place.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Data -->
+  <div class="slide data">
+    <div class="head">Section III — Of the Estate</div>
+    <h2>By the Record</h2>
+    <table class="ledger">
+      <tr><td class="lbl">Founded</td><td class="val">1896</td></tr>
+      <tr><td class="lbl">Pupils, in residence</td><td class="val">642</td></tr>
+      <tr><td class="lbl">Acres of grounds</td><td class="val">170</td></tr>
+      <tr><td class="lbl">Russell Group offers</td><td class="val">98 per cent</td></tr>
+      <tr><td class="lbl">Annual fees, boarding</td><td class="val">£51,930</td></tr>
+    </table>
+  </div>
+</body>
+</html>

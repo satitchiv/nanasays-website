@@ -50,7 +50,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
     })
 
     const safeSlug = slug.replace(/[^a-z0-9-]/gi, '-')
-    return new Response(pdf, {
+    return new Response(pdf as unknown as BodyInit, {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',

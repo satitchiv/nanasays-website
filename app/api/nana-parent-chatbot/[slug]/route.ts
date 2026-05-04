@@ -27,7 +27,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { checkRateLimit } from '@/lib/rateLimit'
 // @ts-ignore — brain is plain JS, types not generated
-import { runOneQuestionStream } from '../../../../../scripts/lib/nana-brain.js'
+import { runOneQuestionStream } from '@/lib/server/nana-brain.js'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'

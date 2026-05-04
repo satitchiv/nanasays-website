@@ -1,7 +1,7 @@
 // Thin wrapper around the Resend API — no SDK needed, existing codebase uses raw fetch.
 // All functions fail silently so email errors never break the main request flow.
 
-const FROM = 'Nanasays <noreply@nanasays.com>'
+const FROM = 'Nanasays <noreply@nanasays.school>'
 const RESEND_URL = 'https://api.resend.com/emails'
 
 async function send(opts: {
@@ -49,8 +49,8 @@ function baseLayout(content: string) {
         <tr><td style="background:#F6F8FA;border:1px solid #E5E7EB;border-top:none;border-radius:0 0 14px 14px;padding:20px 36px;">
           <p style="margin:0;font-size:12px;color:#9CA3AF;line-height:1.6;">
             Nanasays · UK Independent Schools Research<br>
-            <a href="https://nanasays.com/privacy" style="color:#9CA3AF;">Privacy Policy</a> ·
-            <a href="https://nanasays.com/terms" style="color:#9CA3AF;">Terms of Service</a>
+            <a href="https://nanasays.school/privacy" style="color:#9CA3AF;">Privacy Policy</a> ·
+            <a href="https://nanasays.school/terms" style="color:#9CA3AF;">Terms of Service</a>
           </p>
         </td></tr>
 
@@ -73,7 +73,7 @@ export async function sendWelcomeEmail(to: string): Promise<void> {
       ${[
         ['🔍', 'Browse 140 UK schools', 'Every school profile is free — search by boarding type, sport, location, or fees range.'],
         ['📄', 'See the free report', 'Each school shows an overview, key facts, location, and a sports summary at no cost.'],
-        ['🔒', 'Unlock the full dossier', 'One payment of £39 unlocks ISI inspection history, financial health, safeguarding record, policy analysis, and Nana chat across all 140 schools.'],
+        ['🔒', 'Unlock the full dossier', '£39/month unlocks ISI inspection history, financial health, safeguarding record, policy analysis, and Nana chat across all 140 schools.'],
       ].map(([icon, title, desc]) => `
         <tr><td style="padding:10px 0;border-top:1px solid #F3F4F6;vertical-align:top;">
           <table cellpadding="0" cellspacing="0"><tr>
@@ -86,7 +86,7 @@ export async function sendWelcomeEmail(to: string): Promise<void> {
         </td></tr>
       `).join('')}
     </table>
-    <a href="https://nanasays.com/schools"
+    <a href="https://nanasays.school/schools"
        style="display:inline-block;background:#34C3A0;color:#1B3252;padding:13px 26px;border-radius:9px;font-size:14px;font-weight:800;text-decoration:none;">
       Browse schools →
     </a>
@@ -111,7 +111,7 @@ export async function sendPurchaseConfirmationEmail(to: string): Promise<void> {
       You&rsquo;re in. Reports unlocked.
     </h1>
     <p style="margin:0 0 24px;font-size:15px;color:#374151;line-height:1.7;text-align:center;">
-      Your one-time payment is confirmed. You now have full access to all 140 UK independent school reports — including every new school we add.
+      Your subscription is confirmed. You now have full access to all 140 UK independent school reports — including every new school we add.
     </p>
     <table width="100%" cellpadding="0" cellspacing="0" style="background:#F6F8FA;border-radius:10px;padding:20px;margin:0 0 28px;border:1px solid #E5E7EB;">
       ${[
@@ -120,7 +120,7 @@ export async function sendPurchaseConfirmationEmail(to: string): Promise<void> {
         ['Financial health', 'Charity Commission filings, 3–5 year trend'],
         ['Safeguarding record', 'Regulatory status and any flagged concerns'],
         ['Policy analysis', 'Transparency ratings from 30–50 docs per school'],
-        ['Nana AI chat', 'Ask anything — cited answers from the full research file'],
+        ['Nana AI + Decision Hub', 'Ask anything — cited answers from the full research file, compare shortlisted schools'],
       ].map(([title, desc]) => `
         <tr><td style="padding:8px 0;border-top:1px solid #E5E7EB;">
           <span style="font-size:14px;font-weight:700;color:#34C3A0;">✓</span>
@@ -129,12 +129,12 @@ export async function sendPurchaseConfirmationEmail(to: string): Promise<void> {
         </td></tr>
       `).join('')}
     </table>
-    <a href="https://nanasays.com/schools"
+    <a href="https://nanasays.school/schools"
        style="display:block;text-align:center;background:#1B3252;color:#fff;padding:14px 26px;border-radius:9px;font-size:15px;font-weight:800;text-decoration:none;margin-bottom:12px;">
       Start reading reports →
     </a>
     <p style="margin:0;font-size:13px;color:#9CA3AF;line-height:1.5;text-align:center;">
-      Problems with your purchase? Email <a href="mailto:support@nanasays.com" style="color:#34C3A0;">support@nanasays.com</a>
+      Problems with your purchase? Email <a href="mailto:support@nanasays.school" style="color:#34C3A0;">support@nanasays.school</a>
     </p>
   `)
 

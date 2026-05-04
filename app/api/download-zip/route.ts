@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
 
   const zipped = zipSync(files, { level: 0 }) // level 0 = store (PNGs don't compress)
 
-  return new NextResponse(zipped, {
+  return new NextResponse(zipped as unknown as BodyInit, {
     status: 200,
     headers: {
       'Content-Type': 'application/zip',

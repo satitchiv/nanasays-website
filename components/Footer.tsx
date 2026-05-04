@@ -33,7 +33,7 @@ export default function Footer() {
             <span className="site-footer-col-head">Legal</span>
             <Link href="/privacy">Privacy policy</Link>
             <Link href="/terms">Terms of service</Link>
-            <a href="mailto:support@nanasays.com">Contact us</a>
+            <a href="mailto:support@nanasays.school">Contact us</a>
             <Link href="/portal">School portal</Link>
           </div>
         </div>

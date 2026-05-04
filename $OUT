@@ -1,0 +1,36 @@
+# Codex Review — Sports & Athletics banner wrapping SportsSection + TennisSection
+
+## Intent
+
+Group the existing generic sports block and the specialist TennisSection under one visual "Sports & Athletics" banner so readers see them as one coherent area, with room to add more academy deep-dives (cricket, rugby) as siblings later.
+
+## Scope — intentionally narrow
+
+- NEW: `components/report/SportsBlockHeader.tsx` (static banner component, no props)
+- MODIFIED: `app/schools/[slug]/report/page.tsx` — wrap existing SportsSection + TennisSection in a `<div className="sports-block-group">`, add banner and two subdividers, conditional on tennis data for the academy divider
+- MODIFIED: `app/schools/[slug]/report/report.css` — banner + group + subdivider styles, scoped under `.report-page .sports-block-group`
+
+SportsSection.tsx and TennisSection.tsx are NOT modified. Their existing h2 block-titles are demoted visually via CSS (font-size 22px, no margin-top) so they read as subsections rather than parallel top-level blocks.
+
+## Graceful degradation
+
+For schools without a tennis block (`structured?.sports_profile?.tennis` falsy), the Academy Programmes subdivider + TennisSection are skipped. Banner + Overview subdivider + SportsSection still render.
+
+Verified on:
+- 7 tennis schools (Reed's, Bradfield, Wycombe Abbey, Eton, Epsom, Millfield, Culford): HTTP 200, banner + Academy divider both present
+- Winchester (no tennis data): HTTP 200, banner + Overview divider present, Academy divider correctly absent
+
+## Questions for you
+
+1. The CSS uses `margin: -24px -24px 16px` on .sports-block-banner to make it flush with the card border-radius. Any risk of visual break on narrow viewports (mobile already has a 16px override)?
+2. `.report-page .sports-block-group .block-title { font-size: 22px; }` demotes child h2s inside the group. Is this specificity right — won't bleed out to unrelated h2 elsewhere?
+3. Section.block > margin-top: 0 override — same scoped-enough question; does it risk collapsing spacing on sibling sections outside the group?
+4. Conditional `{structured?.sports_profile?.tennis && (...)}` — TennisSection itself already has a `hasMeaningfulData()` guard that hides it if nothing useful exists. So we'd still render the "Academy programmes" divider with nothing under it if tennis data exists but is too thin. Should I also gate the divider on `hasMeaningfulData(tennis)` to avoid a lonely divider? (It's a tiny UX polish; asking before bloating the file.)
+5. Any accessibility concerns with the aria-hidden on the icon + `&amp;` in the title?
+
+## Files
+
+### `website/${FILES[@]}`
+
+```$lang
+```

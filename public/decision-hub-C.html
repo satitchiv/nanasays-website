@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Decision Hub — Layout C: Chat dominant</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,700;1,400&family=Nunito+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --navy: #1B3252; --teal: #34C3A0; --cream: #fdfcf7;
+    --border: #DDD4C0; --amber: #F5A623;
+    --sans: 'Nunito Sans', system-ui, sans-serif;
+    --serif: 'Lora', Georgia, serif;
+  }
+  html, body { height: 100%; font-family: var(--sans); background: var(--cream); color: var(--navy); overflow: hidden; }
+  .shell { display: flex; flex-direction: column; height: 100vh; }
+
+  /* ── Header ── */
+  .header {
+    height: 52px; display: flex; align-items: center; gap: 14px;
+    padding: 0 20px; background: #fff; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .back { font-size: 12px; font-weight: 700; color: var(--navy); opacity: 0.45; text-decoration: none; }
+  .pulse { width: 8px; height: 8px; background: var(--teal); border-radius: 50%; box-shadow: 0 0 0 3px rgba(52,195,160,0.2); animation: pulse 2.4s infinite; }
+  .brand { font-family: var(--serif); font-size: 15px; font-weight: 700; }
+  .mode-tag { font-size: 10px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--teal); }
+  .school-tag { font-size: 13px; color: var(--navy); opacity: 0.5; }
+  .sep { color: var(--border); }
+  .toggle { margin-left: auto; display: flex; gap: 2px; background: rgba(27,50,82,0.06); border-radius: 8px; padding: 3px; }
+  .pill { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 5px; border: none; background: transparent; color: var(--navy); opacity: 0.5; cursor: pointer; transition: all 0.15s; }
+  .pill--on { background: white; opacity: 1; box-shadow: 0 1px 3px rgba(27,50,82,0.12); }
+
+  /* ── Body: chat left (55%) + panel right (45%) ── */
+  .body { display: flex; flex: 1; min-height: 0; }
+
+  /* ── Chat (left, dominant) ── */
+  .chat-col {
+    flex: 55; display: flex; flex-direction: column;
+    border-right: 1px solid var(--border); min-width: 0;
+  }
+
+  .chat-top {
+    padding: 16px 24px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+    background: white; flex-shrink: 0;
+  }
+  .nana-pulse { width: 10px; height: 10px; background: var(--teal); border-radius: 50%; box-shadow: 0 0 0 3px rgba(52,195,160,0.2); animation: pulse 2.4s infinite; }
+  .nana-name { font-family: var(--serif); font-size: 18px; font-weight: 700; }
+  .nana-sub { font-size: 12px; color: var(--navy); opacity: 0.42; margin-top: 1px; }
+  .devil-btn { margin-left: auto; font-size: 11px; font-weight: 700; color: var(--navy); background: rgba(27,50,82,0.06); border: none; border-radius: 6px; padding: 5px 11px; cursor: pointer; opacity: 0.65; }
+
+  .msgs { flex: 1; overflow-y: auto; padding: 24px 32px; display: flex; flex-direction: column; gap: 20px; }
+
+  /* User bubble */
+  .m-user { align-self: flex-end; max-width: 70%; background: var(--navy); color: white; border-radius: 18px 18px 4px 18px; padding: 12px 18px; font-size: 14px; line-height: 1.5; }
+
+  /* Nana answer — full width, card style */
+  .m-nana { background: white; border: 1px solid var(--border); border-radius: 4px 18px 18px 18px; padding: 18px 22px; }
+  .m-eyebrow { font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--navy); opacity: 0.3; margin-bottom: 6px; }
+  .m-lead { font-family: var(--serif); font-size: 16px; line-height: 1.55; color: var(--navy); margin-bottom: 12px; }
+  .m-what { margin-bottom: 12px; }
+  .m-what-label { font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--navy); opacity: 0.35; margin-bottom: 6px; }
+  .m-bullets { list-style: disc; padding-left: 18px; }
+  .m-bullets li { font-size: 13px; line-height: 1.55; color: var(--navy); opacity: 0.8; margin-bottom: 3px; }
+  .m-tradeoff { background: rgba(245,166,35,0.07); border-left: 3px solid var(--amber); border-radius: 0 8px 8px 0; padding: 11px 15px; margin: 12px 0; }
+  .m-tradeoff-label { font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: #8a5800; margin-bottom: 5px; }
+  .m-tradeoff-body { font-size: 13px; line-height: 1.55; color: var(--navy); }
+  .m-dim { font-size: 13px; color: var(--navy); opacity: 0.42; line-height: 1.6; margin-bottom: 12px; }
+  .m-tour { background: rgba(27,50,82,0.04); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+  .m-tour-label { font-size: 10px; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; color: var(--navy); opacity: 0.38; margin-bottom: 5px; }
+  .m-tour-q { font-size: 13px; font-style: italic; color: var(--navy); line-height: 1.5; }
+  .m-tour-target { font-size: 11px; color: var(--navy); opacity: 0.45; margin-top: 4px; }
+  .m-afford { font-size: 11px; font-weight: 700; color: var(--teal); margin-top: 10px; display: flex; align-items: center; gap: 5px; }
+  .src-pill { display: inline-flex; align-items: center; background: rgba(52,195,160,0.1); border-radius: 99px; padding: 3px 10px; font-size: 11px; font-weight: 700; color: #0d7a61; text-decoration: none; margin-top: 8px; }
+
+  .starters { padding: 0 32px 10px; display: flex; flex-wrap: wrap; gap: 7px; }
+  .chip { font-size: 12px; font-weight: 600; color: var(--navy); background: white; border: 1px solid var(--border); border-radius: 99px; padding: 7px 14px; cursor: pointer; transition: border-color 0.15s; }
+  .chip:hover { border-color: var(--teal); }
+
+  .input-bar { display: flex; align-items: flex-end; gap: 10px; padding: 14px 24px 18px; border-top: 1px solid var(--border); background: var(--cream); flex-shrink: 0; }
+  .inp { flex: 1; font-family: var(--sans); font-size: 14px; color: var(--navy); background: white; border: 1px solid var(--border); border-radius: 10px; padding: 11px 16px; resize: none; outline: none; }
+  .inp:focus { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(52,195,160,0.12); }
+  .ask-btn { font-family: var(--sans); font-size: 14px; font-weight: 800; background: var(--navy); color: white; border: none; border-radius: 8px; padding: 11px 20px; cursor: pointer; }
+
+  /* ── Right panel (45%) — verdict + matrix ── */
+  .right-panel {
+    flex: 45; display: flex; flex-direction: column; min-width: 0; overflow: hidden;
+  }
+
+  .rp-header {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    background: white; flex-shrink: 0;
+  }
+  .rp-school { font-family: var(--serif); font-size: 15px; font-weight: 700; }
+  .rp-change { font-size: 11px; font-weight: 700; color: var(--teal); background: none; border: none; cursor: pointer; }
+
+  .rp-scroll { flex: 1; overflow-y: auto; padding: 16px 20px; }
+
+  /* Verdict bar */
+  .v-bar { display: flex; height: 6px; border-radius: 99px; overflow: hidden; margin-bottom: 8px; }
+  .v-g { background: var(--teal); flex: 3; }
+  .v-a { background: var(--amber); flex: 2; }
+  .v-gr { background: var(--border); flex: 1; }
+  .v-counts { font-size: 11px; color: var(--navy); opacity: 0.5; margin-bottom: 16px; display: flex; gap: 10px; }
+  .v-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-right: 4px; vertical-align: middle; }
+
+  /* Compact check rows */
+  .checks { display: flex; flex-direction: column; gap: 6px; margin-bottom: 20px; }
+  .ck {
+    display: flex; align-items: flex-start; gap: 10px;
+    background: white; border: 1px solid var(--border); border-radius: 8px;
+    padding: 11px 13px; cursor: pointer;
+    border-left-width: 3px;
+    transition: box-shadow 0.12s;
+  }
+  .ck:hover { box-shadow: 0 2px 8px rgba(27,50,82,0.07); }
+  .ck--g { border-left-color: var(--teal); }
+  .ck--a { border-left-color: var(--amber); }
+  .ck--gr { border-left-color: var(--border); }
+  .ck-icon { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; margin-top: 1px; }
+  .ck-icon--g { background: rgba(52,195,160,0.12); color: #0d7a61; }
+  .ck-icon--a { background: rgba(245,166,35,0.12); color: #8a5800; }
+  .ck-icon--gr { background: rgba(27,50,82,0.06); color: var(--navy); opacity: 0.4; }
+  .ck-label { font-size: 12px; font-weight: 700; color: var(--navy); line-height: 1.3; }
+  .ck-sub { font-size: 11px; color: var(--navy); opacity: 0.5; line-height: 1.4; margin-top: 2px; }
+
+  /* Honest read */
+  .honest { background: rgba(52,195,160,0.06); border: 1px solid rgba(52,195,160,0.2); border-radius: 10px; padding: 14px 16px; }
+  .honest-label { font-size: 10px; font-weight: 800; letter-spacing: 0.14em; text-transform: uppercase; color: var(--teal); margin-bottom: 6px; }
+  .honest-body { font-family: var(--serif); font-size: 13px; line-height: 1.65; color: var(--navy); }
+
+  /* Matrix table (hidden by default) */
+  .matrix-view { display: none; flex-direction: column; height: 100%; }
+  .mtable { border-collapse: collapse; width: 100%; font-size: 12px; }
+  .mtable th { font-size: 11px; font-weight: 700; color: var(--navy); padding: 0 12px 12px; text-align: center; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--cream); }
+  .mtable th:first-child { text-align: left; }
+  .mtable td { padding: 10px 12px; border-bottom: 1px solid rgba(221,212,192,0.5); text-align: center; color: var(--navy); }
+  .mtable td:first-child { text-align: left; font-weight: 700; font-size: 11px; opacity: 0.65; }
+  .best { background: rgba(52,195,160,0.1); border-radius: 5px; padding: 3px 8px; color: #0d7a61; font-weight: 700; display: inline-block; }
+  .warn { background: rgba(245,166,35,0.1); border-radius: 5px; padding: 3px 8px; color: #8a5800; display: inline-block; }
+  .na { color: var(--navy); opacity: 0.28; font-size: 11px; }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 3px rgba(52,195,160,0.2); }
+    50% { box-shadow: 0 0 0 6px rgba(52,195,160,0.05); }
+  }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="header">
+    <a class="back" href="#">← Directory</a>
+    <span class="sep">·</span>
+    <div class="pulse"></div>
+    <span class="brand">Nana</span>
+    <span class="mode-tag">Research</span>
+    <span class="sep">·</span>
+    <span class="school-tag">Epsom College</span>
+    <div class="toggle">
+      <button class="pill pill--on" onclick="setView('verdict',this)">Verdict</button>
+      <button class="pill" onclick="setView('compare',this)">Compare schools</button>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- Left: chat (dominant 55%) -->
+    <div class="chat-col">
+      <div class="chat-top">
+        <div class="nana-pulse"></div>
+        <div>
+          <div class="nana-name">Nana</div>
+          <div class="nana-sub">Answers update your verdict panel on the right</div>
+        </div>
+        <button class="devil-btn">Second opinion</button>
+      </div>
+
+      <div class="msgs">
+
+        <div class="m-nana">
+          <p class="m-eyebrow">Opening verdict</p>
+          <p class="m-lead">I've run through your priorities against Epsom's data. Three things look solid, two need a closer look before you decide.</p>
+          <div class="m-what">
+            <p class="m-what-label">What we know</p>
+            <ul class="m-bullets">
+              <li>Fees: £44,880 boarding — within your £50k threshold, but rising at 6.2%/yr</li>
+              <li>Financial health: 4.3 months reserves, ISI Outstanding 2023</li>
+              <li>Boarding: 520 boarders, full + weekly options confirmed</li>
+            </ul>
+          </div>
+          <div class="m-tradeoff">
+            <p class="m-tradeoff-label">⚠ Watch out</p>
+            <p class="m-tradeoff-body">A-level results are solid but not exceptional — 62% A*–B. If academic ambition is genuinely your top priority, push the sixth-form team on Oxbridge and Russell Group outcomes specifically.</p>
+          </div>
+          <p class="m-afford">↻ Verdict updated on the right</p>
+        </div>
+
+        <div class="m-user">What are the actual Oxbridge numbers?</div>
+
+        <div class="m-nana">
+          <p class="m-eyebrow">Short answer</p>
+          <p class="m-lead">4 Oxbridge places in 2023 — that's 0.6% of sixth-form leavers, which is below the average for schools at this fee level.</p>
+          <div class="m-what">
+            <p class="m-what-label">What we know</p>
+            <ul class="m-bullets">
+              <li>Oxbridge 2023: 4 places (total leavers ~650)</li>
+              <li>Russell Group: not separately disclosed</li>
+              <li>A-level 2023: 62% A*–B, 28% A*–A</li>
+            </ul>
+          </div>
+          <div class="m-tradeoff">
+            <p class="m-tradeoff-label">⚠ Tradeoff</p>
+            <p class="m-tradeoff-body">Schools at a comparable fee level and similarly selective intake typically place 6–12 pupils at Oxbridge. Epsom's 4 placements suggest a broader-intake strategy — which may suit a child who wants a less pressurised environment, but less so if Oxbridge is the goal.</p>
+          </div>
+          <p class="m-dim">We don't have subject-level breakdown or medicine/law split — ask the head of sixth form directly.</p>
+          <div class="m-tour">
+            <p class="m-tour-label">Tour question</p>
+            <p class="m-tour-q">"What were your Oxbridge and Russell Group outcomes for the most recent year group, broken down by subject, and what structured support exists for competitive applications?"</p>
+            <p class="m-tour-target">Ask: Head of sixth form</p>
+          </div>
+          <a class="src-pill" href="#">↗ Results · Epsom College · 2023</a>
+        </div>
+
+      </div>
+
+      <div class="starters">
+        <button class="chip">What would you ask at the open day?</button>
+        <button class="chip">Any red flags?</button>
+        <button class="chip">Compare to Wellington</button>
+      </div>
+
+      <div class="input-bar">
+        <textarea class="inp" rows="1" placeholder="Ask Nana anything about this school…"></textarea>
+        <button class="ask-btn">Ask →</button>
+      </div>
+    </div>
+
+    <!-- Right: verdict panel (45%) -->
+    <div class="right-panel">
+      <div class="rp-header">
+        <div>
+          <p style="font-size:10px;font-weight:800;letter-spacing:0.14em;text-transform:uppercase;color:var(--navy);opacity:0.35;margin-bottom:2px">Stress-testing</p>
+          <p class="rp-school">Epsom College</p>
+        </div>
+        <button class="rp-change">Change school</button>
+      </div>
+
+      <!-- Verdict view -->
+      <div id="verdictPanel" class="rp-scroll">
+        <div class="v-bar"><div class="v-g"></div><div class="v-a"></div><div class="v-gr"></div></div>
+        <div class="v-counts">
+          <span><span class="v-dot" style="background:var(--teal)"></span>3 holding up</span>
+          <span><span class="v-dot" style="background:var(--amber)"></span>2 to watch</span>
+          <span><span class="v-dot" style="background:var(--border)"></span>1 limited data</span>
+        </div>
+
+        <div class="checks">
+          <div class="ck ck--g">
+            <div class="ck-icon ck-icon--g">✓</div>
+            <div><p class="ck-label">Fees within budget</p><p class="ck-sub">£44,880 vs your £50k threshold</p></div>
+          </div>
+          <div class="ck ck--g">
+            <div class="ck-icon ck-icon--g">✓</div>
+            <div><p class="ck-label">Financial health</p><p class="ck-sub">4.3 months reserves · ISI Outstanding</p></div>
+          </div>
+          <div class="ck ck--g">
+            <div class="ck-icon ck-icon--g">✓</div>
+            <div><p class="ck-label">Boarding type match</p><p class="ck-sub">Full + weekly confirmed</p></div>
+          </div>
+          <div class="ck ck--a">
+            <div class="ck-icon ck-icon--a">!</div>
+            <div><p class="ck-label">A-level performance</p><p class="ck-sub">62% A*–B · 4 Oxbridge places 2023</p></div>
+          </div>
+          <div class="ck ck--a">
+            <div class="ck-icon ck-icon--a">!</div>
+            <div><p class="ck-label">Bursary availability</p><p class="ck-sub">Policy exists · amounts undisclosed</p></div>
+          </div>
+          <div class="ck ck--gr">
+            <div class="ck-icon ck-icon--gr">—</div>
+            <div><p class="ck-label">SEND support</p><p class="ck-sub" style="font-style:italic">Limited data</p></div>
+          </div>
+        </div>
+
+        <div class="honest">
+          <p class="honest-label">Nana's honest read</p>
+          <p class="honest-body">Solid school, honest numbers. The fees and boarding setup fit your profile well. The A-level data is the one thing I'd push on — 4 Oxbridge places for a school this size is below what you might expect. Ask the sixth-form team directly before deciding.</p>
+        </div>
+      </div>
+
+      <!-- Compare/matrix view (hidden) -->
+      <div id="comparePanel" class="matrix-view" style="padding:16px 20px;overflow-y:auto">
+        <table class="mtable">
+          <thead><tr>
+            <th></th>
+            <th>Epsom</th>
+            <th>Wellington</th>
+            <th>Haileybury</th>
+          </tr></thead>
+          <tbody>
+            <tr><td>Boarding fees/yr</td><td><span class="best">£44,880</span></td><td>£49,950</td><td>£46,200</td></tr>
+            <tr><td>A*–B at A-level</td><td>62%</td><td><span class="best">74%</span></td><td class="na">—</td></tr>
+            <tr><td>Oxbridge places</td><td>4</td><td><span class="best">28</span></td><td class="na">—</td></tr>
+            <tr><td>Financial reserves</td><td><span class="best">4.3 mo</span></td><td>3.8 mo</td><td class="na">—</td></tr>
+            <tr><td>ISI rating</td><td><span class="best">Outstanding</span></td><td><span class="best">Outstanding</span></td><td class="na">—</td></tr>
+            <tr><td>Fee rise (3yr avg)</td><td><span class="warn">+6.2%</span></td><td><span class="warn">+7.1%</span></td><td class="na">—</td></tr>
+          </tbody>
+        </table>
+        <p style="text-align:center;padding:16px;font-size:12px;color:var(--navy);opacity:0.4;cursor:pointer">+ Ask Nana to add a row</p>
+      </div>
+
+    </div>
+
+  </div>
+</div>
+
+<script>
+  function setView(v, btn) {
+    document.querySelectorAll('.pill').forEach(p => p.classList.remove('pill--on'));
+    btn.classList.add('pill--on');
+    if (v === 'verdict') {
+      document.getElementById('verdictPanel').style.display = 'block';
+      document.getElementById('comparePanel').style.display = 'none';
+    } else {
+      document.getElementById('verdictPanel').style.display = 'none';
+      document.getElementById('comparePanel').style.display = 'block';
+    }
+  }
+  document.querySelector('.inp').addEventListener('input', function() {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 110) + 'px';
+  });
+</script>
+</body>
+</html>
