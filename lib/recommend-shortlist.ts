@@ -180,18 +180,14 @@ export async function recommendShortlist(
     .eq('is_international', true)
     .gte('confidence_score', 60)
 
-  // Region bucket
-  const bucket = REGION_BUCKETS[profile.home_region ?? '']
-  if (profile.home_region && profile.home_region !== 'overseas' && bucket && bucket.length > 0) {
-    q = q.in('region', [...bucket, 'England'])
-  }
-
-  // Boarding boolean
-  if (profile.boarding_pref === 'full' || profile.boarding_pref === 'weekly' || profile.boarding_pref === 'flexi') {
-    q = q.eq('boarding', true)
-  } else if (profile.boarding_pref === 'day') {
-    q = q.eq('boarding', false)
-  }
+  // Region: moved to JS scoring (not a hard SQL filter). Many famous
+  // schools have region=NULL (Westminster, St Paul's, Dulwich) and would
+  // be dropped by an .in() filter. We score region match instead.
+  //
+  // Boarding: SKIPPED in v1 — schools.boarding is broken in the source
+  // data (Eton, Harrow, Wycombe Abbey all incorrectly marked as
+  // boarding=false; profile_boarding_type is NULL for 83/140 schools).
+  // Once cleaned, add back as soft filter.
 
   // Budget hard cap (drop schools more than 30% over the ceiling)
   const ceiling = BUDGET_CEILING_USD[profile.budget_range ?? '']
@@ -199,10 +195,14 @@ export async function recommendShortlist(
     q = q.lte('fees_usd_min', Math.round(ceiling * 1.3))
   }
 
-  // Age range — entry age must fit between age_min and age_max
+  // Age range — entry age must fit between age_min and age_max, but
+  // NULL means "unknown" not "wrong" — many UK-evidence schools have
+  // age_min/max unset. Accept NULL as wildcard.
   const entryAge = YEAR_TO_ENTRY_AGE[profile.child_year ?? '']
   if (entryAge != null) {
-    q = q.lte('age_min', entryAge).gte('age_max', entryAge)
+    q = q
+      .or(`age_min.is.null,age_min.lte.${entryAge}`)
+      .or(`age_max.is.null,age_max.gte.${entryAge}`)
   }
 
   // SEN: if family needs strong support, drop schools that explicitly say
@@ -211,7 +211,7 @@ export async function recommendShortlist(
     q = q.or('sen_support.is.null,sen_support.eq.true')
   }
 
-  q = q.order('confidence_score', { ascending: false }).limit(40)
+  q = q.order('confidence_score', { ascending: false }).limit(80)
 
   const { data: candidates, error } = await q
   if (error || !candidates || candidates.length === 0) {
@@ -238,8 +238,26 @@ export async function recommendShortlist(
   }
 
   // 6. Score soft signals
+  const regionBucket = new Set(REGION_BUCKETS[profile.home_region ?? ''] ?? [])
+  // 'England' is treated as a regional fallback — schools tagged at the
+  // country level only, not penalized for being outside any bucket.
+  regionBucket.add('England')
+
   const scored = filtered.map(s => {
     let score = (s.confidence_score ?? 0) / 100  // 0..1 base
+
+    // Region match: in bucket → +0.6 (strong preference but not a hard
+    // filter, because region is NULL for many famous schools).
+    // NULL region → 0 (neutral). Other bucket → -0.5 (push down).
+    if (profile.home_region && profile.home_region !== 'overseas') {
+      if (s.region == null) {
+        // neutral
+      } else if (regionBucket.has(s.region)) {
+        score += 0.6
+      } else {
+        score -= 0.5
+      }
+    }
 
     // Budget closeness
     if (ceiling != null && s.fees_usd_min != null) {
