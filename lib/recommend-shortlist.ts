@@ -87,6 +87,93 @@ const YEAR_TO_ENTRY_AGE: Record<string, number | null> = {
 const BOY_COMPAT  = new Set(['boys', 'boys only', 'co-ed', 'co-educational', 'mixed'])
 const GIRL_COMPAT = new Set(['girls', 'girls only', 'co-ed', 'co-educational', 'mixed'])
 
+// Curriculum overlaps. IB shows up in the data under 5 different labels;
+// match any of them. A-Level is mostly a single label but rarely tagged
+// because it's the UK default — so a lot of A-Level schools have
+// curriculum=NULL or just []. We accept either explicit or empty/null.
+const IB_VARIANTS = [
+  'IB',
+  'IB Diploma',
+  'IB Diploma Programme',
+  'IB Middle Years Programme',
+  'IB Primary Years Programme',
+]
+const ALEVEL_VARIANTS = ['A-Level']
+
+// Boarding workaround — schools.boarding boolean is broken in source data
+// (Eton, Harrow, Wycombe Abbey all marked boarding=false). Until source is
+// cleaned, use these hardcoded lists. Maintenance cost: brittle. v3 should
+// replace with a clean boarding field on schools.
+const KNOWN_FULL_BOARDING_SLUGS = new Set<string>([
+  'eton-college', 'harrow-school', 'winchester-college',
+  'rugby-school', 'tonbridge-school', 'sherborne-school',
+  'sherborne-girls-school', 'marlborough-college', 'repton-school',
+  'uppingham-school', 'oundle-school', 'stowe-school', 'radley-college',
+  'wellington-college', 'bradfield-college', 'bedales-school',
+  'cheltenham-college', 'cheltenham-ladies-college', 'clifton-college',
+  'cranleigh-school', 'lancing-college', 'roedean-school',
+  'wycombe-abbey', 'st-marys-school-ascot', 'st-marys-calne',
+  'benenden-school', 'downe-house-school', 'queenswood-school',
+  'tudor-hall-school', 'woldingham-school', 'headington-school',
+  'malvern-college', 'malvern-st-james', 'bromsgrove-school',
+  'worth-school', 'stonyhurst-college', 'ampleforth-college',
+  'sedbergh-school', 'pocklington-school',
+  'queen-ethelburgas-collegiate', 'rossall-school', 'oakham-school',
+  'ellesmere-college', 'concord-college', 'gordonstoun',
+  'loretto-school', 'fettes-college', 'glenalmond-college',
+  'merchiston-castle-school', 'strathallan-school', 'millfield-school',
+  'shrewsbury-school', 'sevenoaks-school', 'felsted-school',
+  'kings-school-canterbury', 'kings-school-ely', 'st-edwards-oxford',
+  'leys-school', 'kent-college-canterbury', 'kings-college-taunton',
+  'taunton-school', 'monkton-combe-school', 'mount-kelly',
+  'kingswood-school-bath', 'wells-cathedral-school',
+  'dauntseys', 'canford-school', 'bryanston-school',
+  'eastbourne-college', 'ardingly-college', 'hurstpierpoint-college',
+  'caterham-school', 'shiplake-college', 'reeds-school-uk',
+  'reading-blue-coat-school', 'mill-hill-school-foundation',
+  'st-leonards-school', 'st-edmunds-canterbury',
+  'denstone-college', 'milton-abbey-school',
+])
+
+const KNOWN_DAY_ONLY_SLUGS = new Set<string>([
+  'westminster-school-uk',
+  'st-pauls-school-london', 'dulwich-college',
+  'highgate-school', 'alleyns-school', 'kings-college-school-wimbledon',
+  'haberdashers-boys-school-uk', 'city-of-london-school-uk',
+  'whitgift-school', 'jeannine-manuel-school',
+  'dwight-school-london',
+])
+
+// Sport quality scoring — competitive_tier is free-form prose (~120
+// distinct values), so keyword scan it. Caps the prose component at 1.0.
+function scoreCompetitiveTier(tier: string | null | undefined): number {
+  if (!tier) return 0
+  const lc = tier.toLowerCase()
+  if (/national.elite|elite.national|national.champion|leading.uk|top 1\b|top 1%|one of the uk's leading/.test(lc)) return 1.0
+  if (/national.strong|nationally.competitive|nationally.strong|national.level|nationally|leading independent|sector.leading|elite.tier/.test(lc)) return 0.7
+  if (/regional.strong|strong regional|regional.national|national.regional|strong national|strong.competitive/.test(lc)) return 0.5
+  if (/regional|county/.test(lc)) return 0.3
+  if (/local|school.level|recreational|inter.house/.test(lc)) return 0.1
+  return 0.3
+}
+
+// team_count_approx is stored as a JSON-string-inside-JSONB:
+//   '{"boys": 200, "girls": 5, "mixed": 30}'
+// — parse to a single total. Returns 0 on any failure.
+function parseTeamTotal(raw: unknown): number {
+  if (raw == null) return 0
+  let obj: unknown = raw
+  if (typeof raw === 'string') {
+    try { obj = JSON.parse(raw) } catch { return 0 }
+  }
+  if (!obj || typeof obj !== 'object') return 0
+  const o = obj as Record<string, unknown>
+  const sum = (typeof o.boys  === 'number' ? o.boys  : 0)
+            + (typeof o.girls === 'number' ? o.girls : 0)
+            + (typeof o.mixed === 'number' ? o.mixed : 0)
+  return Number.isFinite(sum) ? sum : 0
+}
+
 type Profile = {
   home_region:     string | null
   child_gender:    string | null
@@ -189,6 +276,17 @@ export async function recommendShortlist(
   // boarding=false; profile_boarding_type is NULL for 83/140 schools).
   // Once cleaned, add back as soft filter.
 
+  // Curriculum filter — IB has 5 label variants in the data, A-Level has
+  // 1. Use array overlap; skip filter for 'either' / 'no-preference' /
+  // null. Schools with curriculum=NULL/[] still pass for IB? No — we
+  // require explicit IB tag. For A-Level we accept NULL too because most
+  // UK independents teach A-Level by default but don't tag it.
+  if (profile.curriculum_pref === 'ib') {
+    q = q.overlaps('curriculum', IB_VARIANTS)
+  } else if (profile.curriculum_pref === 'a-level') {
+    q = q.or(`curriculum.ov.{${ALEVEL_VARIANTS.join(',')}},curriculum.is.null`)
+  }
+
   // Budget hard cap (drop schools more than 30% over the ceiling)
   const ceiling = BUDGET_CEILING_USD[profile.budget_range ?? '']
   if (ceiling != null) {
@@ -233,8 +331,38 @@ export async function recommendShortlist(
     })
   }
 
+  // 5b. Boarding workaround filter (after gender filter, before scoring)
+  // schools.boarding boolean is broken; use hardcoded slug lists instead.
+  if (
+    profile.boarding_pref === 'full' ||
+    profile.boarding_pref === 'weekly' ||
+    profile.boarding_pref === 'flexi'
+  ) {
+    // Drop known day-only schools. Boarding-list schools and unknown
+    // (probably mixed) schools both stay.
+    filtered = filtered.filter(s => !KNOWN_DAY_ONLY_SLUGS.has(s.slug))
+  } else if (profile.boarding_pref === 'day') {
+    // Drop known full-boarding schools.
+    filtered = filtered.filter(s => !KNOWN_FULL_BOARDING_SLUGS.has(s.slug))
+  }
+
   if (filtered.length === 0) {
     return { added: [], reason: 'no_matches' }
+  }
+
+  // 5c. Pull structured data for the surviving candidates (for class size +
+  // sport quality scoring). Single batch query; map by slug for lookups.
+  const slugs = filtered.map(s => s.slug)
+  const { data: structRows } = await supabase
+    .from('school_structured_data')
+    .select('school_slug, sports_profile, student_community')
+    .in('school_slug', slugs)
+  const structMap = new Map<string, { sports_profile: any; student_community: any }>()
+  for (const row of (structRows ?? [])) {
+    structMap.set(row.school_slug, {
+      sports_profile: row.sports_profile,
+      student_community: row.student_community,
+    })
   }
 
   // 6. Score soft signals
@@ -266,10 +394,28 @@ export async function recommendShortlist(
       else if (ratio <= 1.2) score += 0.2
     }
 
-    // Top priority match against the strengths array
+    // Sport quality (top_priority=sport) — combine prose-keyword tier
+    // score, team count, and signature-sport breadth from sports_profile
+    // JSONB. Fall back to strengths-tag match when the school has no
+    // structured sport data (~20% of UK-evidence schools).
+    const struct = structMap.get(s.slug)
     const strengthsLc = (s.strengths ?? []).map(x => x.toLowerCase())
-    if (profile.top_priority === 'sport' && strengthsLc.includes('sport')) {
-      score += 0.3
+    if (profile.top_priority === 'sport') {
+      const sp = struct?.sports_profile as Record<string, unknown> | undefined
+      let sportQ = 0
+      if (sp) {
+        sportQ += scoreCompetitiveTier(sp.competitive_tier as string | null)  // 0..1
+        const teams = parseTeamTotal(sp.team_count_approx)
+        if (teams >= 100)      sportQ += 0.3
+        else if (teams >= 50)  sportQ += 0.2
+        else if (teams >= 20)  sportQ += 0.1
+        const sigSports = Array.isArray(sp.signature_sports) ? sp.signature_sports.length : 0
+        if (sigSports >= 5)      sportQ += 0.2
+        else if (sigSports >= 3) sportQ += 0.1
+      }
+      // Tag fallback when JSONB has nothing useful
+      if (sportQ === 0 && strengthsLc.includes('sport')) sportQ = 0.3
+      score += Math.min(sportQ, 1.5)
     }
     if (
       profile.top_priority === 'arts' &&
@@ -281,6 +427,19 @@ export async function recommendShortlist(
     }
     if (profile.top_priority === 'all-round' && (s.strengths?.length ?? 0) >= 3) {
       score += 0.2
+    }
+
+    // Class size preference — student_community.total_pupils is the
+    // cleanest signal we have. NULL → no signal (neutral).
+    if (profile.class_size_pref === 'very-important' || profile.class_size_pref === 'nice-to-have') {
+      const totalPupils = struct?.student_community?.total_pupils as number | null | undefined
+      if (typeof totalPupils === 'number') {
+        const weight = profile.class_size_pref === 'very-important' ? 1 : 0.5
+        if (totalPupils <= 400)      score += 0.4 * weight
+        else if (totalPupils <= 800) score += 0.2 * weight
+        else if (totalPupils <= 1200) score += 0.0
+        else                          score -= 0.2 * weight
+      }
     }
 
     // SEN positive match (filter already dropped explicit-no)
