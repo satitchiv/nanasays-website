@@ -19,7 +19,11 @@ export async function PATCH(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const allowed = ['child_year', 'boarding_pref', 'budget_range', 'top_priority', 'home_region', 'onboarding_complete']
+  const allowed = [
+    'child_year', 'boarding_pref', 'budget_range', 'top_priority', 'home_region',
+    'child_gender', 'curriculum_pref', 'class_size_pref', 'sen_need',
+    'onboarding_complete',
+  ]
   const body = await req.json()
   const update: Record<string, unknown> = {}
   for (const key of allowed) {
