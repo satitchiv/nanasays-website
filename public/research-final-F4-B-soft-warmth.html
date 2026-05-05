@@ -1,0 +1,1205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>F4-B · Soft warmth · Research Room — Nanasays</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Nunito+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ════════════════════════════════════════════════════════════════════════════
+   F4-B · SOFT WARMTH
+   Same brand tokens as A, dialled up on warmth + air. Off-white body, larger
+   border-radii, softer shadows, more teal-bg accents, bigger comparison-table
+   text, bigger Nana presence in chat header, more breathing room in cells.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Brand tokens — exactly matching globals.css */
+  --white:    #FFFFFF;
+  --off:      #F6F8FA;
+  --off-2:    #EEF1F5;
+  --navy:     #1B3252;
+  --navy-lt:  #243F66;
+  --teal:     #34C3A0;
+  --teal-dk:  #239C80;
+  --teal-bg:  #E8FAF6;
+  --body:     #374151;
+  --muted:    #6B7280;
+  --border:   #E5E7EB;
+  --bmd:      #D1D5DB;
+  --shadow:   rgba(27,50,82,0.08);
+  --shadow-lg: rgba(27,50,82,0.16);
+  --amber:    #F5A623;
+  --amber-bg: #FFF6E5;
+  --rust:     #DC4F2A;
+  --rust-bg:  #FDEDE6;
+  --moss:     #2F8056;
+  --moss-bg:  #E5F4EB;
+  --highlight: #FFE99E;
+
+  --display: 'Nunito', system-ui, sans-serif;
+  --sans:    'Nunito Sans', system-ui, sans-serif;
+  --mono:    'JetBrains Mono', ui-monospace, monospace;
+
+  --chat-w-closed: 56px;
+  --chat-w-open:   400px;
+  --chat-w-focus:  620px;
+
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-pill: 100px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--off);
+  color: var(--body);
+  font-family: var(--sans);
+  font-size: 14.5px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  height: 100vh; overflow: hidden;
+}
+::selection { background: var(--teal-bg); color: var(--navy); }
+
+.num { font-family: var(--mono); font-feature-settings: "tnum" on, "lnum" on; }
+
+/* ─── Top bar ──────────────────────────────────────────────────────── */
+.top {
+  border-bottom: 1px solid var(--border);
+  background: rgba(255,255,255,0.97);
+  backdrop-filter: blur(12px);
+  height: 60px;
+  position: relative; z-index: 30;
+}
+.top-in {
+  height: 100%;
+  display: grid; grid-template-columns: auto 1fr auto auto; gap: 24px;
+  padding: 0 5%; align-items: center;
+}
+.brand-link { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+.brand-mark { width: 36px; height: 36px; flex-shrink: 0; }
+.brand-text {
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  color: var(--navy);
+  display: flex;
+  align-items: baseline;
+  gap: 0;
+}
+.brand-text em { color: var(--teal); font-style: normal; }
+.brand-sub {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  border-left: 1px solid var(--border);
+  padding-left: 14px;
+  margin-left: 12px;
+}
+
+/* tabs */
+.tabs { display: flex; gap: 2px; }
+.tab {
+  font-family: var(--sans); font-size: 13px; font-weight: 700;
+  padding: 7px 14px; border-radius: var(--r-sm);
+  background: transparent; border: 0;
+  color: var(--muted); cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+  transition: background .15s, color .15s;
+}
+.tab:hover { background: var(--off); color: var(--navy); }
+.tab.active { background: var(--navy); color: var(--white); }
+.tab .badge {
+  font-family: var(--mono); font-size: 9.5px; font-weight: 700;
+  padding: 2px 6px; background: var(--teal-bg); color: var(--teal-dk);
+  border-radius: var(--r-pill); letter-spacing: .04em;
+}
+.tab.active .badge { background: var(--teal); color: var(--navy); }
+.tab.privileged { font-size: 13px; }
+.tab.privileged::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--teal); margin-right: 4px; }
+
+.top-meta { display: flex; gap: 14px; font-family: var(--sans); font-size: 12px; color: var(--muted); }
+.top-meta strong { color: var(--navy); font-weight: 700; }
+.top-meta .live { color: var(--teal-dk); font-weight: 700; }
+.top-meta .live::before { content: "●"; color: var(--teal); margin-right: 4px; }
+
+.cta {
+  font-family: var(--sans); font-size: 13px; font-weight: 700;
+  padding: 8px 16px; border-radius: var(--r-sm);
+  background: var(--teal); color: var(--white);
+  border: 0; cursor: pointer; text-decoration: none;
+  display: inline-flex; align-items: center; gap: 6px;
+  transition: background .15s;
+}
+.cta:hover { background: var(--teal-dk); }
+.cta--ghost { background: transparent; color: var(--navy); border: 1px solid var(--border); }
+.cta--ghost:hover { background: var(--off); border-color: var(--navy); }
+
+/* ─── Page shell ──────────────────────────────────────────────────── */
+.shell {
+  height: calc(100vh - 60px);
+  display: grid;
+  grid-template-columns: 1fr var(--chat-w);
+  --chat-w: var(--chat-w-open);
+  transition: grid-template-columns .26s cubic-bezier(.2,.8,.2,1);
+}
+.shell.chat-closed { --chat-w: var(--chat-w-closed); }
+.shell.chat-focus  { --chat-w: var(--chat-w-focus); }
+
+.main {
+  min-width: 0; overflow-y: auto; overflow-x: hidden;
+  padding: 36px 48px 72px;
+  background: var(--off);
+}
+
+.view { display: none; max-width: 1480px; margin: 0 auto; }
+.view.active { display: block; }
+
+.view-head {
+  display: grid; grid-template-columns: 1fr auto; gap: 24px; align-items: end;
+  padding-bottom: 22px; margin-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+.view-eyebrow {
+  font-family: var(--sans); font-size: 11px; letter-spacing: 1.6px;
+  text-transform: uppercase; color: var(--teal-dk); font-weight: 800;
+  margin-bottom: 8px;
+}
+.view-title {
+  font-family: var(--display);
+  font-size: clamp(28px, 3.4vw, 38px);
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: -0.5px;
+  color: var(--navy);
+}
+.view-title em { color: var(--teal); font-style: normal; }
+.view-meta { font-family: var(--sans); font-size: 14px; color: var(--muted); margin-top: 10px; max-width: 70ch; line-height: 1.55; }
+.view-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ════════════════════════════════════════════════════════════════════
+   COMPARISON tab
+   ════════════════════════════════════════════════════════════════════ */
+.cmp-controls {
+  display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center;
+  margin-bottom: 16px;
+}
+.lens-tabs { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.lens-tabs-label {
+  font-family: var(--sans); font-size: 11px; letter-spacing: 1.4px;
+  text-transform: uppercase; color: var(--muted); font-weight: 800;
+  margin-right: 6px;
+}
+.lens-tab {
+  font-family: var(--sans); font-size: 13.5px; font-weight: 700;
+  padding: 9px 18px; border-radius: var(--r-pill);
+  background: var(--white); border: 1.5px solid var(--border); color: var(--muted); cursor: pointer;
+  transition: all .2s;
+  box-shadow: 0 2px 6px var(--shadow);
+}
+.lens-tab:hover { color: var(--teal-dk); border-color: var(--teal); transform: translateY(-2px); box-shadow: 0 6px 18px var(--shadow); }
+.lens-tab.active { background: var(--teal); color: var(--navy); border-color: var(--teal); transform: translateY(-1px); }
+.lens-tab.from-chat {
+  border-color: var(--teal); color: var(--teal-dk);
+  background: var(--teal-bg);
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.lens-tab.from-chat::before {
+  content: "✦"; color: var(--teal);
+}
+.lens-tab .new {
+  font-family: var(--mono); font-size: 9px; font-weight: 800;
+  padding: 1px 5px; background: var(--teal); color: var(--navy);
+  border-radius: var(--r-pill); letter-spacing: .04em;
+}
+
+.cmp-stats { font-family: var(--sans); font-size: 12px; color: var(--muted); text-align: right; }
+.cmp-stats strong { color: var(--navy); font-weight: 700; }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-lg); background: var(--white); -webkit-overflow-scrolling: touch; }
+.cmp {
+  display: grid;
+  grid-template-columns: 240px repeat(4, minmax(220px, 1fr));
+  min-width: 1100px;
+}
+.cmp > .corner { padding: 18px 20px; border-right: 1px solid var(--border); border-bottom: 2px solid var(--navy); position: sticky; left: 0; z-index: 4; background: var(--white); }
+.cmp > .head { padding: 16px 18px 14px; border-bottom: 2px solid var(--navy); border-right: 1px solid var(--border); position: sticky; top: 0; background: var(--white); transition: transform .2s; }
+.cmp > .head:hover { transform: translateY(-2px); }
+.cmp > .dim { padding: 16px 20px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); position: sticky; left: 0; z-index: 3; background: var(--white); }
+
+.corner-eyebrow { font-family: var(--sans); font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--muted); font-weight: 800; margin-bottom: 6px; }
+.corner-title { font-family: var(--display); font-size: 20px; font-weight: 900; line-height: 1.1; letter-spacing: -.3px; color: var(--navy); }
+.corner-title em { color: var(--teal); font-style: normal; }
+.corner-meta { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-top: 6px; letter-spacing: .04em; }
+
+.head-rank {
+  font-family: var(--mono); font-size: 10px; letter-spacing: 1px; color: var(--muted); margin-bottom: 6px; font-weight: 700;
+  text-transform: uppercase;
+}
+.head-rank strong { color: var(--teal-dk); font-weight: 800; }
+.head-name { font-family: var(--display); font-size: 22px; line-height: 1.1; font-weight: 800; letter-spacing: -.3px; color: var(--navy); }
+.head-meta { font-family: var(--sans); font-size: 12px; color: var(--muted); margin-top: 5px; }
+.head-fit { display: flex; gap: 12px; align-items: center; margin-top: 12px; }
+.head-fit .num-big { font-family: var(--display); font-size: 28px; line-height: 1; font-weight: 900; letter-spacing: -.6px; color: var(--moss); }
+.head-fit .num-big.warn { color: var(--amber); }
+.head-fit .num-big.softer { color: var(--rust); }
+.head-fit .num-big .pct { font-size: 13px; color: var(--muted); font-weight: 700; }
+.v-pill {
+  font-family: var(--sans); font-weight: 800; font-size: 11px;
+  letter-spacing: 1.2px; padding: 5px 10px; border-radius: var(--r-pill);
+  text-transform: uppercase;
+}
+.v-pill.visit { background: var(--teal); color: var(--navy); }
+.v-pill.hold  { background: var(--amber); color: var(--navy); }
+.v-pill.drop  { background: var(--white); color: var(--rust); border: 1.5px solid var(--rust); }
+
+.row-group {
+  grid-column: 1 / -1;
+  padding: 10px 22px;
+  background: var(--off);
+  font-family: var(--sans); font-size: 11px; letter-spacing: 1.4px;
+  text-transform: uppercase; color: var(--navy); font-weight: 800;
+  border-bottom: 1px solid var(--border);
+  display: flex; gap: 10px; align-items: center;
+  position: sticky; left: 0;
+}
+.row-group .rg-num { background: var(--navy); color: var(--white); padding: 3px 7px; border-radius: var(--r-sm); font-size: 10px; }
+.row-group .rg-tag {
+  margin-left: auto; font-family: var(--sans); font-size: 10px; font-weight: 800;
+  padding: 3px 8px; border-radius: var(--r-pill); letter-spacing: .8px;
+}
+.row-group .rg-tag.lens { background: var(--teal-bg); color: var(--teal-dk); }
+.row-group .rg-tag.raw  { background: var(--off-2); color: var(--muted); }
+
+.dim-name { font-family: var(--display); font-size: 17.5px; font-weight: 800; line-height: 1.2; color: var(--navy); }
+.dim-name em { color: var(--teal-dk); font-style: normal; }
+.dim-blurb { font-family: var(--sans); font-size: 13px; color: var(--muted); line-height: 1.5; margin-top: 5px; }
+.dim-meta { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 6px; font-family: var(--sans); font-size: 9.5px; letter-spacing: .8px; }
+.dim-meta .badge { padding: 3px 8px; border-radius: var(--r-pill); background: var(--off); color: var(--muted); font-weight: 800; text-transform: uppercase; }
+.dim-meta .badge.fit { background: var(--teal-bg); color: var(--teal-dk); }
+
+.cell {
+  padding: 22px 24px;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  position: relative;
+  cursor: pointer;
+  transition: background .15s;
+}
+.cell:nth-child(5n+5) { border-right: none; }
+.cell:hover { background: var(--off); }
+.cell.match-strong { background: var(--moss-bg); }
+.cell.match-strong:hover { background: #d8ecdf; }
+.cell.match-warn { background: var(--amber-bg); }
+.cell.match-warn:hover { background: #fff0d3; }
+.cell.match-friction { background: var(--rust-bg); }
+.cell.match-friction:hover { background: #fcdfd6; }
+.cell.is-best::before {
+  content: "BEST"; position: absolute; top: 8px; right: 10px;
+  font-family: var(--mono); font-size: 9px; font-weight: 800;
+  letter-spacing: 1px; color: var(--moss); padding: 2px 6px;
+  background: var(--white); border-radius: var(--r-sm);
+}
+.cell .v-num { font-family: var(--display); font-size: 26px; font-weight: 900; color: var(--navy); line-height: 1; letter-spacing: -.6px; }
+.cell .v-num .pct { font-size: 16px; color: var(--muted); font-weight: 700; }
+.cell .v-text { font-family: var(--sans); font-size: 15px; line-height: 1.45; color: var(--navy); font-weight: 600; }
+.cell .v-meta { font-family: var(--sans); font-size: 12.5px; color: var(--muted); margin-top: 7px; font-weight: 600; }
+.cell .v-meta.pos { color: var(--moss); font-weight: 700; }
+.cell .v-meta.neg { color: var(--rust); font-weight: 700; }
+.cell .src { display: block; font-family: var(--mono); font-size: 9.5px; color: var(--muted); margin-top: 6px; letter-spacing: .04em; }
+
+.fbar { margin-top: 8px; height: 5px; background: var(--off-2); border-radius: var(--r-pill); position: relative; }
+.fbar .ceil { position: absolute; top: -2px; bottom: -2px; width: 1.5px; background: var(--navy); }
+.fbar .mark { position: absolute; top: 0; bottom: 0; border-radius: var(--r-pill); }
+.fbar .mark.over { background: var(--rust); }
+.fbar .mark.warn { background: var(--amber); }
+.fbar .mark.under { background: var(--moss); }
+
+.stamp-row { display: flex; gap: 4px; flex-wrap: wrap; }
+.stamp { font-family: var(--sans); font-size: 10px; letter-spacing: .04em; padding: 3px 7px; border-radius: var(--r-pill); font-weight: 800; text-transform: uppercase; }
+.stamp.green { background: var(--moss-bg); color: var(--moss); }
+.stamp.amber { background: var(--amber-bg); color: var(--amber); }
+.stamp.red   { background: var(--rust-bg); color: var(--rust); }
+
+.cell.from-chat { background: var(--teal-bg); }
+.cell.from-chat::after { content: "↑ chat"; position: absolute; top: 6px; right: 6px; font-family: var(--mono); font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: var(--teal-dk); font-weight: 800; padding: 2px 6px; background: var(--white); border-radius: var(--r-sm); }
+.dim.from-chat .dim-name::after { content: " ✦"; color: var(--teal); }
+
+/* ════════════════════════════════════════════════════════════════════
+   VERDICT tab
+   ════════════════════════════════════════════════════════════════════ */
+.v-grid { display: grid; grid-template-columns: 280px 1fr; gap: 32px; align-items: start; }
+.v-rail {
+  background: var(--white); border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: 16px; display: flex; flex-direction: column; gap: 4px;
+  position: sticky; top: 16px;
+}
+.v-rail-h { font-family: var(--sans); font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--muted); font-weight: 800; padding: 6px 8px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+.v-rail-h .crosslink { color: var(--teal-dk); cursor: pointer; font-family: var(--sans); text-transform: none; letter-spacing: 0; font-size: 11px; font-weight: 700; }
+
+.v-lens-row {
+  display: grid; grid-template-columns: 32px 1fr; gap: 12px; padding: 10px 12px; border-radius: var(--r-md); cursor: pointer;
+  border: 1.5px solid transparent; align-items: baseline; transition: all .15s;
+}
+.v-lens-row:hover { background: var(--off); }
+.v-lens-row.active { background: var(--navy); color: var(--white); }
+.v-lens-row .vl-ic { font-family: var(--display); color: var(--teal-dk); font-size: 18px; line-height: 1; font-weight: 900; }
+.v-lens-row.active .vl-ic { color: var(--teal); }
+.v-lens-row .vl-name { font-family: var(--sans); font-size: 13.5px; font-weight: 800; line-height: 1.2; }
+.v-lens-row .vl-q { font-family: var(--sans); font-style: italic; font-size: 11.5px; line-height: 1.4; color: var(--muted); margin-top: 3px; font-weight: 400; }
+.v-lens-row.active .vl-q { color: rgba(255,255,255,.7); }
+.v-lens-row.from-chat { border-color: var(--teal); }
+.v-lens-row.from-chat::after { content: "✦"; color: var(--teal); align-self: center; padding-left: 4px; font-weight: 900; }
+
+.v-essay {
+  background: var(--white); border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: 30px 36px 28px;
+  box-shadow: 0 4px 18px var(--shadow);
+}
+.v-essay-stamp { font-family: var(--sans); font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--teal-dk); font-weight: 800; margin-bottom: 10px; }
+.v-essay-headline { font-family: var(--display); font-size: clamp(26px, 3vw, 34px); line-height: 1.1; font-weight: 900; margin-bottom: 18px; letter-spacing: -.5px; color: var(--navy); max-width: 22ch; }
+.v-essay-headline em { color: var(--teal); font-style: normal; }
+.v-essay-q { font-family: var(--sans); font-style: italic; font-size: 16px; color: var(--body); margin-bottom: 22px; padding-left: 16px; border-left: 3px solid var(--teal); line-height: 1.55; font-weight: 400; }
+.v-ranking { margin-bottom: 22px; background: var(--off); border-radius: var(--r-lg); padding: 14px 18px; }
+.v-rank-row { display: grid; grid-template-columns: 32px 1fr auto; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--border); align-items: baseline; }
+.v-rank-row:last-child { border-bottom: none; }
+.v-rank-num { font-family: var(--display); color: var(--teal-dk); font-size: 20px; font-weight: 900; }
+.v-rank-school { font-family: var(--display); font-weight: 800; font-size: 17px; color: var(--navy); }
+.v-rank-school small { display: block; font-family: var(--sans); font-size: 13px; color: var(--muted); font-weight: 400; line-height: 1.5; margin-top: 4px; max-width: 60ch; }
+.v-rank-score { font-family: var(--display); font-size: 18px; font-weight: 900; color: var(--moss); }
+.v-rank-score.warn { color: var(--amber); }
+.v-rank-score.softer { color: var(--rust); }
+
+.v-prose { font-family: var(--sans); font-size: 16px; line-height: 1.7; color: var(--body); margin-bottom: 18px; }
+.v-prose p { margin-bottom: 12px; }
+.v-prose strong { color: var(--navy); font-weight: 800; }
+.v-prose em { color: var(--teal-dk); font-style: italic; font-weight: 700; }
+.v-prose .hl { background: var(--highlight); padding: 0 3px; border-radius: 3px; font-weight: 700; }
+
+.v-confidence { display: flex; gap: 16px; font-family: var(--sans); font-size: 12px; color: var(--muted); padding-top: 16px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.v-confidence strong { color: var(--navy); font-weight: 800; }
+.v-confidence .moss { color: var(--moss); font-weight: 800; }
+
+/* ════════════════════════════════════════════════════════════════════
+   CHILD BRIEF tab
+   ════════════════════════════════════════════════════════════════════ */
+.cb-grid { display: grid; grid-template-columns: 1fr 320px; gap: 32px; align-items: start; }
+.cb-tag {
+  font-family: var(--display); font-size: 22px; line-height: 1.45;
+  color: var(--navy); margin-bottom: 24px; max-width: 62ch;
+  font-weight: 700; letter-spacing: -.2px;
+}
+.cb-tag strong { color: var(--teal-dk); font-weight: 900; }
+.cb-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.cb-card {
+  background: var(--white); border: 1px solid var(--border); border-radius: var(--r-lg);
+  padding: 24px 26px;
+  transition: box-shadow .25s, transform .25s, border-color .25s;
+  box-shadow: 0 2px 10px var(--shadow);
+}
+.cb-card:hover { box-shadow: 0 12px 36px var(--shadow-lg); border-color: var(--teal); transform: translateY(-4px); }
+.cb-card-h { font-family: var(--sans); font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--teal-dk); font-weight: 800; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+.cb-card-h .edit { font-family: var(--sans); text-transform: none; letter-spacing: 0; color: var(--muted); cursor: pointer; font-weight: 700; font-size: 12px; }
+.cb-card-h .edit:hover { color: var(--teal-dk); }
+.cb-row { display: grid; grid-template-columns: 110px 1fr; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.cb-row:last-child { border-bottom: none; }
+.cb-k { font-family: var(--sans); font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); font-weight: 800; }
+.cb-v { font-family: var(--sans); font-size: 14px; color: var(--navy); font-weight: 700; line-height: 1.3; }
+.cb-v strong { color: var(--teal-dk); font-weight: 800; }
+
+.cmp-preview { background: var(--white); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 20px; position: sticky; top: 16px; box-shadow: 0 4px 18px var(--shadow); }
+.cmp-preview-h { font-family: var(--sans); font-size: 11px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--teal-dk); font-weight: 800; margin-bottom: 10px; display: flex; justify-content: space-between; }
+.cmp-preview-h a { color: var(--muted); cursor: pointer; font-family: var(--sans); text-transform: none; letter-spacing: 0; font-weight: 700; font-size: 12px; }
+.cmp-preview-title { font-family: var(--display); font-size: 17px; font-weight: 800; line-height: 1.15; margin-bottom: 14px; color: var(--navy); }
+.cmp-preview-title em { color: var(--teal-dk); font-style: normal; }
+.cmp-mini-row { display: grid; grid-template-columns: 20px 1fr auto; gap: 10px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; align-items: baseline; }
+.cmp-mini-row:last-child { border-bottom: none; }
+.cmp-mini-row .pip { width: 10px; height: 10px; border-radius: 50%; }
+.cmp-mini-row .pip.visit { background: var(--teal); }
+.cmp-mini-row .pip.hold { background: var(--amber); }
+.cmp-mini-row .pip.drop { background: var(--white); border: 2px solid var(--rust); }
+.cmp-mini-row .name { font-family: var(--sans); font-weight: 700; color: var(--navy); }
+.cmp-mini-row .score { font-family: var(--display); font-size: 15px; font-weight: 900; color: var(--moss); }
+.cmp-mini-row .score.warn { color: var(--amber); }
+.cmp-mini-row .score.softer { color: var(--rust); }
+
+/* ════════════════════════════════════════════════════════════════════
+   PARTNER BRIEF tab
+   ════════════════════════════════════════════════════════════════════ */
+.pb-wrap { max-width: 800px; margin: 0 auto; }
+.pb-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 36px 40px 32px; box-shadow: 0 8px 32px var(--shadow); }
+.pb-head { display: grid; grid-template-columns: 1fr auto; gap: 24px; margin-bottom: 24px; padding-bottom: 20px; border-bottom: 1px solid var(--border); align-items: end; }
+.pb-stamp { font-family: var(--sans); font-size: 11px; letter-spacing: 1.6px; text-transform: uppercase; color: var(--teal-dk); font-weight: 800; margin-bottom: 8px; }
+.pb-to { font-family: var(--display); font-size: 32px; font-weight: 900; line-height: 1.05; color: var(--navy); letter-spacing: -.5px; }
+.pb-to em { color: var(--teal); font-style: normal; }
+.pb-meta { font-family: var(--sans); font-size: 12px; color: var(--muted); margin-top: 8px; }
+
+.pb-tone { display: flex; gap: 5px; margin-bottom: 22px; align-items: center; flex-wrap: wrap; }
+.pb-tone-l { font-family: var(--sans); font-size: 11px; letter-spacing: 1.4px; color: var(--muted); margin-right: 8px; font-weight: 800; text-transform: uppercase; }
+.pb-tone-chip { font-family: var(--sans); font-size: 12.5px; font-weight: 700; padding: 6px 13px; border-radius: var(--r-pill); border: 1.5px solid var(--bmd); background: var(--white); color: var(--muted); cursor: pointer; transition: all .15s; }
+.pb-tone-chip:hover { color: var(--navy); border-color: var(--navy); }
+.pb-tone-chip.active { background: var(--navy); color: var(--white); border-color: var(--navy); }
+
+.pb-letter { font-family: var(--sans); font-size: 16px; line-height: 1.75; color: var(--body); }
+.pb-letter p { margin-bottom: 14px; }
+.pb-letter p.opener { font-family: var(--display); font-style: italic; font-size: 19px; color: var(--teal-dk); font-weight: 700; }
+.pb-letter strong { color: var(--navy); font-weight: 800; }
+.pb-letter em { color: var(--teal-dk); font-style: italic; font-weight: 700; }
+.pb-letter .hl { background: var(--highlight); padding: 0 3px; border-radius: 3px; font-weight: 600; }
+
+.pb-foot { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px; }
+.pb-sig { font-family: var(--display); font-size: 18px; color: var(--navy); font-weight: 800; }
+.pb-sig em { color: var(--teal-dk); font-style: normal; }
+
+/* ════════════════════════════════════════════════════════════════════
+   CHAT RAIL
+   ════════════════════════════════════════════════════════════════════ */
+.chat {
+  border-left: 1px solid var(--border);
+  background: var(--white);
+  display: flex; flex-direction: column;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+  box-shadow: -8px 0 24px var(--shadow);
+}
+
+/* CLOSED state */
+.chat-closed-content {
+  display: none; padding: 14px 0;
+  align-items: center; flex-direction: column; gap: 14px;
+  height: 100%;
+}
+.shell.chat-closed .chat-closed-content { display: flex; }
+.shell.chat-closed .chat-open-content { display: none; }
+.chat-closed-avatar {
+  width: 40px; height: 40px;
+  cursor: pointer; transition: transform .2s;
+  filter: drop-shadow(0 4px 12px var(--shadow));
+}
+.chat-closed-avatar:hover { transform: scale(1.06); }
+.chat-closed-label {
+  writing-mode: vertical-rl; transform: rotate(180deg);
+  font-family: var(--sans); font-size: 11px; letter-spacing: 1.4px;
+  text-transform: uppercase; color: var(--muted); font-weight: 800;
+  cursor: pointer; padding: 8px 4px;
+}
+.chat-closed-label:hover { color: var(--teal-dk); }
+.chat-closed-label strong { color: var(--teal-dk); }
+.chat-closed-chips { display: flex; flex-direction: column; gap: 6px; padding: 0 4px; align-items: center; margin-top: auto; margin-bottom: 12px; }
+.chat-closed-chip {
+  font-family: var(--mono); font-size: 9.5px; letter-spacing: .04em;
+  writing-mode: vertical-rl; transform: rotate(180deg);
+  padding: 6px 4px; border-radius: var(--r-sm);
+  background: var(--white); border: 1px solid var(--border); color: var(--muted);
+  cursor: pointer;
+}
+.chat-closed-chip:hover { color: var(--teal-dk); border-color: var(--teal); }
+.chat-expand-btn {
+  font-family: var(--sans); font-size: 16px; line-height: 1;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--white); border: 1px solid var(--border);
+  color: var(--navy); cursor: pointer; transition: all .15s;
+}
+.chat-expand-btn:hover { background: var(--teal); color: var(--white); border-color: var(--teal); }
+
+/* OPEN state */
+.chat-open-content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+.shell.chat-closed .chat-open-content { display: none; }
+
+.chat-head {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+  display: grid; grid-template-columns: auto 1fr auto auto; gap: 12px; align-items: center;
+  background: linear-gradient(180deg, var(--teal-bg), var(--white));
+}
+.chat-avatar { width: 48px; height: 48px; flex-shrink: 0; filter: drop-shadow(0 4px 10px var(--shadow)); }
+.chat-name { font-family: var(--sans); font-weight: 800; font-size: 15px; color: var(--navy); }
+.chat-name span { font-family: var(--sans); font-size: 10px; color: var(--teal-dk); display: block; margin-top: 2px; letter-spacing: 1.2px; font-weight: 800; }
+.chat-name span::before { content: "● "; }
+.chat-state-btn {
+  font-family: var(--sans); font-size: 13px; font-weight: 700;
+  width: 30px; height: 30px; border-radius: var(--r-sm);
+  background: var(--white); border: 1px solid var(--border);
+  color: var(--muted); cursor: pointer; display: grid; place-items: center;
+  transition: all .15s;
+}
+.chat-state-btn:hover { background: var(--navy); color: var(--white); border-color: var(--navy); }
+
+/* Build mode toggle */
+.build-toggle {
+  margin: 14px 16px 0;
+  padding: 12px 14px; border-radius: var(--r-md);
+  background: var(--white); border: 1.5px solid var(--border);
+  display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
+  cursor: pointer; transition: all .2s; width: calc(100% - 32px);
+}
+.build-toggle:hover { border-color: var(--navy); transform: translateY(-1px); box-shadow: 0 4px 12px var(--shadow); }
+.build-toggle.active {
+  background: var(--teal); border-color: var(--teal); color: var(--navy);
+}
+.build-toggle .bt-ic {
+  font-family: var(--display); font-size: 18px; line-height: 1;
+  color: var(--teal-dk); font-weight: 900;
+  width: 34px; height: 34px; border-radius: var(--r-sm);
+  background: var(--teal-bg); display: grid; place-items: center; flex-shrink: 0;
+}
+.build-toggle.active .bt-ic { background: var(--white); color: var(--teal-dk); }
+.build-toggle .bt-name { font-family: var(--sans); font-size: 13px; font-weight: 800; letter-spacing: -.1px; }
+.build-toggle .bt-desc { font-family: var(--sans); font-size: 10.5px; color: var(--muted); margin-top: 2px; font-weight: 600; }
+.build-toggle.active .bt-desc { color: rgba(27,50,82,.65); }
+.build-toggle .bt-state {
+  font-family: var(--mono); font-size: 10px; padding: 3px 8px; border-radius: var(--r-pill);
+  background: var(--off); color: var(--muted); font-weight: 800; letter-spacing: .04em;
+}
+.build-toggle.active .bt-state { background: var(--white); color: var(--teal-dk); }
+.build-toggle.active .bt-state::before { content: "● "; color: var(--moss); }
+
+/* thread */
+.thread { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.you { align-self: flex-end; max-width: 88%; background: var(--navy); color: var(--white); font-size: 13.5px; padding: 10px 14px; border-radius: 14px 14px 4px 14px; line-height: 1.5; font-weight: 600; }
+.nana { background: var(--white); border: 1px solid var(--border); border-radius: 4px 14px 14px 14px; padding: 14px 16px; font-size: 13.5px; line-height: 1.6; box-shadow: 0 2px 8px var(--shadow); }
+.nana-head { display: grid; grid-template-columns: auto 1fr; gap: 10px; align-items: center; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.nana-head .av { width: 28px; height: 28px; flex-shrink: 0; }
+.nana-head .nm { font-family: var(--sans); font-size: 12px; font-weight: 800; color: var(--navy); }
+.nana-head .nm small { display: block; font-family: var(--sans); font-size: 9.5px; color: var(--muted); font-weight: 700; letter-spacing: .8px; text-transform: uppercase; margin-top: 1px; }
+.nana-eyebrow { font-family: var(--sans); font-size: 10px; font-weight: 800; letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.nana-lead { font-family: var(--display); font-size: 16px; line-height: 1.4; color: var(--navy); margin-bottom: 10px; font-weight: 800; letter-spacing: -.2px; }
+.confidence-badge { display: inline-flex; align-items: center; gap: 5px; font-family: var(--sans); font-size: 10px; letter-spacing: .8px; font-weight: 800; padding: 3px 9px; border-radius: var(--r-pill); margin-bottom: 10px; text-transform: uppercase; }
+.confidence-badge.high { background: var(--moss-bg); color: var(--moss); }
+.confidence-badge .ic { width: 5px; height: 5px; border-radius: 50%; background: currentColor; opacity: .85; }
+
+/* prose_v1: just markdown body — no Watch Out / Tour Q / What we don't know */
+.nana-prose { font-family: var(--sans); font-size: 13.5px; line-height: 1.6; color: var(--body); }
+.nana-prose p { margin-bottom: 8px; }
+.nana-prose p:last-child { margin-bottom: 0; }
+.nana-prose strong { color: var(--navy); font-weight: 800; }
+.nana-prose em { color: var(--teal-dk); font-style: italic; font-weight: 700; }
+
+.sources { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); }
+.src-pill { font-family: var(--sans); font-size: 11px; padding: 4px 10px; background: var(--off); border: 1px solid var(--border); border-radius: var(--r-pill); color: var(--muted); cursor: pointer; font-weight: 600; }
+.src-pill:hover { border-color: var(--teal); color: var(--teal-dk); background: var(--teal-bg); }
+.src-pill::after { content: " ↗"; opacity: .5; }
+
+.share-link { display: inline-block; margin-top: 8px; font-family: var(--sans); font-size: 11.5px; color: var(--teal-dk); cursor: pointer; font-weight: 700; }
+.share-link:hover { text-decoration: underline; }
+
+/* 4 quick actions — research-room addition, marked separately */
+.qa-section { margin-top: 12px; padding-top: 11px; border-top: 1px dashed var(--bmd); }
+.qa-label { font-family: var(--sans); font-size: 9.5px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--teal-dk); font-weight: 800; margin-bottom: 7px; }
+.qa-label::before { content: "✦ "; }
+.qa-row { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.shell.chat-focus .qa-row { grid-template-columns: repeat(4, 1fr); }
+.qa {
+  font-family: var(--sans); font-size: 11.5px; font-weight: 800;
+  padding: 8px 12px; border-radius: var(--r-sm);
+  background: var(--white); border: 1.5px solid var(--border); color: var(--navy);
+  cursor: pointer; text-align: center; letter-spacing: .04em;
+  transition: all .15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.qa:hover { border-color: var(--teal); color: var(--teal-dk); background: var(--teal-bg); }
+.qa.primary { background: var(--teal); border-color: var(--teal); color: var(--navy); }
+.qa.primary:hover { background: var(--teal-dk); border-color: var(--teal-dk); color: var(--white); }
+
+/* Build mode prompt */
+.nana.build-prompt { background: var(--teal-bg); border-color: var(--teal); }
+.nana.build-prompt .nana-eyebrow { color: var(--teal-dk); }
+.build-suggestion { margin-top: 10px; padding: 10px 12px; background: var(--white); border: 1.5px dashed var(--teal); border-radius: var(--r-md); }
+.build-suggestion-h { font-family: var(--sans); font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--teal-dk); font-weight: 800; margin-bottom: 8px; }
+.bs-row { display: grid; grid-template-columns: 16px 1fr auto; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--border); align-items: baseline; font-size: 12px; }
+.bs-row:last-child { border-bottom: none; }
+.bs-row .arr { font-family: var(--display); color: var(--teal-dk); font-size: 14px; font-weight: 900; }
+.bs-row .bs-text { color: var(--navy); font-weight: 600; }
+.bs-row .bs-text strong { font-weight: 800; }
+.bs-row .bs-text small { display: block; color: var(--muted); font-size: 10px; margin-top: 2px; font-weight: 600; }
+.bs-row .bs-add { font-family: var(--sans); font-size: 10.5px; font-weight: 800; padding: 4px 10px; border-radius: var(--r-sm); background: var(--teal); color: var(--navy); border: 0; cursor: pointer; }
+.bs-row .bs-add:hover { background: var(--teal-dk); color: var(--white); }
+.bs-row .bs-skip { font-family: var(--sans); font-size: 10.5px; font-weight: 700; color: var(--muted); background: transparent; border: 0; cursor: pointer; }
+.bs-row .bs-skip:hover { color: var(--rust); }
+
+/* streaming */
+.nana.streaming { border-style: dashed; }
+.nana.streaming .nana-eyebrow::after { content: " · streaming"; color: var(--teal-dk); }
+.skeleton-line { height: 8px; background: linear-gradient(90deg, var(--off-2), var(--white) 50%, var(--off-2)); background-size: 200% 100%; animation: shim 1.4s infinite; border-radius: var(--r-sm); margin: 5px 0; }
+.skeleton-line.s-90 { width: 90%; } .skeleton-line.s-60 { width: 60%; } .skeleton-line.s-80 { width: 80%; }
+@keyframes shim { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+.cursor { display: inline-block; width: 8px; height: 13px; background: var(--teal); margin-left: 1px; vertical-align: -1px; animation: blink .9s infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* input */
+.chat-input { border-top: 1px solid var(--border); padding: 12px 14px; background: var(--white); }
+.chat-suggest { display: flex; gap: 5px; margin-bottom: 8px; flex-wrap: wrap; }
+.cs-chip { font-family: var(--sans); font-size: 11px; padding: 5px 10px; border: 1px solid var(--border); border-radius: var(--r-pill); background: var(--off); color: var(--muted); cursor: pointer; font-weight: 600; }
+.cs-chip:hover { color: var(--teal-dk); border-color: var(--teal); background: var(--teal-bg); }
+.chat-input-row { display: flex; gap: 6px; align-items: center; background: var(--white); border: 1.5px solid var(--border); border-radius: var(--r-md); padding: 4px 4px 4px 14px; transition: border-color .15s; }
+.chat-input-row:focus-within { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(52,195,160,.18); }
+.chat-input-row input { flex: 1; background: transparent; border: 0; outline: 0; font-family: var(--sans); font-size: 13.5px; padding: 8px 0; color: var(--navy); }
+.chat-input-row input::placeholder { color: var(--muted); }
+.chat-input-row button { background: var(--navy); color: var(--white); border: 0; border-radius: var(--r-sm); font-family: var(--sans); font-size: 12px; font-weight: 800; padding: 8px 14px; cursor: pointer; letter-spacing: .04em; }
+.chat-input-row button:hover { background: var(--teal); color: var(--navy); }
+
+/* state legend */
+.state-legend {
+  position: fixed; bottom: 16px; left: 16px;
+  background: var(--white); border: 1px solid var(--border); border-radius: var(--r-md);
+  padding: 10px 14px;
+  font-family: var(--sans); font-size: 11px; color: var(--muted);
+  box-shadow: 0 6px 18px var(--shadow);
+  z-index: 50; max-width: 240px;
+}
+.state-legend-h { font-weight: 800; color: var(--navy); margin-bottom: 6px; letter-spacing: 1.2px; text-transform: uppercase; font-size: 10px; }
+.state-legend-row { display: grid; grid-template-columns: 64px 1fr; gap: 8px; padding: 3px 0; align-items: baseline; }
+.state-legend-row .k { font-family: var(--mono); font-weight: 700; color: var(--teal-dk); font-size: 10px; }
+.state-legend-row .v { color: var(--muted); line-height: 1.4; font-weight: 600; }
+.state-legend-row.active { background: var(--teal-bg); margin: 0 -8px; padding: 4px 8px; border-radius: var(--r-sm); }
+.state-legend-row.active .k { color: var(--teal-dk); font-weight: 800; }
+.state-legend-row.active .v { color: var(--navy); font-weight: 700; }
+
+/* responsive */
+@media (max-width: 1180px) {
+  .cb-grid, .v-grid { grid-template-columns: 1fr; }
+  .cmp-preview, .v-rail { position: static; }
+}
+@media (max-width: 880px) {
+  .shell { grid-template-columns: 1fr !important; }
+  .chat { display: none; }
+  .top-meta { display: none; }
+}
+</style>
+</head>
+<body>
+
+<!-- Inline Nana avatar SVG (copied from IconSprite.tsx) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="nana" viewBox="0 0 48 48">
+    <circle cx="24" cy="24" r="24" fill="#1B3252"/>
+    <ellipse cx="24" cy="42" rx="13" ry="9" fill="#C17A4A"/>
+    <rect x="21" y="31" width="6" height="6" rx="2" fill="#F5C8A0"/>
+    <circle cx="24" cy="23" r="11" fill="#F5C8A0"/>
+    <ellipse cx="24" cy="14" rx="7.5" ry="5" fill="#E0E0E0"/>
+    <circle cx="24" cy="11" r="4.5" fill="#EBEBEB"/>
+    <ellipse cx="14" cy="20" rx="4" ry="6" fill="#E0E0E0"/>
+    <ellipse cx="34" cy="20" rx="4" ry="6" fill="#E0E0E0"/>
+    <ellipse cx="17" cy="26" rx="3" ry="2" fill="#F4A0A0" opacity="0.4"/>
+    <ellipse cx="31" cy="26" rx="3" ry="2" fill="#F4A0A0" opacity="0.4"/>
+    <circle cx="20.5" cy="23" r="1.6" fill="#4A3728"/>
+    <circle cx="27.5" cy="23" r="1.6" fill="#4A3728"/>
+    <circle cx="21.2" cy="22.3" r="0.5" fill="#fff"/>
+    <circle cx="28.2" cy="22.3" r="0.5" fill="#fff"/>
+    <circle cx="20.5" cy="23" r="3.5" stroke="#8B6347" stroke-width="1" fill="none"/>
+    <circle cx="27.5" cy="23" r="3.5" stroke="#8B6347" stroke-width="1" fill="none"/>
+    <line x1="13" y1="21.5" x2="17" y2="22.3" stroke="#8B6347" stroke-width="1"/>
+    <line x1="31" y1="22.3" x2="35" y2="21.5" stroke="#8B6347" stroke-width="1"/>
+    <path d="M20 28 Q24 31.5 28 28" stroke="#C07850" stroke-width="1.3" fill="none" stroke-linecap="round"/>
+    <circle cx="21" cy="35" r="1.2" fill="#F0EDE8"/>
+    <circle cx="24" cy="36.2" r="1.2" fill="#F0EDE8"/>
+    <circle cx="27" cy="35" r="1.2" fill="#F0EDE8"/>
+  </symbol>
+</svg>
+
+<header class="top">
+  <div class="top-in">
+    <a class="brand-link" href="/">
+      <svg class="brand-mark"><use href="#nana"/></svg>
+      <span class="brand-text">nana<em>says</em></span>
+      <span class="brand-sub">research room</span>
+    </a>
+    <nav class="tabs">
+      <button class="tab" data-tab="brief">Child brief</button>
+      <button class="tab privileged active" data-tab="compare">Comparison <span class="badge">14 rows</span></button>
+      <button class="tab" data-tab="verdict">Verdict <span class="badge">7 lenses</span></button>
+      <button class="tab" data-tab="partner">Partner brief</button>
+    </nav>
+    <div class="top-meta">
+      <span>Brief <strong>#04</strong></span>
+      <span>Lens <strong>Maya fit</strong></span>
+      <span class="live">live</span>
+    </div>
+    <button class="cta">Save dossier</button>
+  </div>
+</header>
+
+<div class="shell" id="shell">
+
+  <main class="main">
+
+    <!-- ════ COMPARISON tab ════ -->
+    <div class="view active" id="view-compare">
+      <div class="view-head">
+        <div>
+          <div class="view-eyebrow">Comparison · the canonical view</div>
+          <h1 class="view-title">Side by side, <em>through Maya's eyes.</em></h1>
+          <p class="view-meta">Two lenses to start: <strong>Maya fit</strong> (child‑weighted) and <strong>Raw comparison</strong> (neutral). Ask Nana to <em>create a lens</em> from any question — it'll appear here and in the Verdict tab.</p>
+        </div>
+        <div class="view-actions">
+          <button class="cta cta--ghost">Export</button>
+        </div>
+      </div>
+
+      <div class="cmp-controls">
+        <div class="lens-tabs">
+          <span class="lens-tabs-label">Lenses</span>
+          <button class="lens-tab active">Maya fit</button>
+          <button class="lens-tab">Raw comparison</button>
+          <button class="lens-tab from-chat">Sport‑light fit <span class="new">NEW</span></button>
+          <span style="font-family:var(--sans); font-size:11px; color:var(--muted); margin-left:6px; font-style:italic;">+ ask Nana to create more</span>
+        </div>
+        <div class="cmp-stats">14 rows · 4 schools<br/><strong>Maya fit</strong> active · shared with Verdict</div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="cmp">
+
+          <div class="corner">
+            <div class="corner-eyebrow">For</div>
+            <div class="corner-title">Maya, <em>quietly intense</em></div>
+            <div class="corner-meta">14 rows · 1 from chat</div>
+          </div>
+
+          <div class="head"><div class="head-rank">No. <strong>01</strong></div><div class="head-name">St Mary's Ascot</div><div class="head-meta">Berks · 6 houses</div><div class="head-fit"><span class="num-big">8.6<span class="pct">/10</span></span><span class="v-pill visit">★ Visit</span></div></div>
+          <div class="head"><div class="head-rank">No. <strong>02</strong></div><div class="head-name">Wycombe Abbey</div><div class="head-meta">Bucks · 11 houses</div><div class="head-fit"><span class="num-big warn">7.4<span class="pct">/10</span></span><span class="v-pill visit">★ Visit</span></div></div>
+          <div class="head"><div class="head-rank">No. <strong>03</strong></div><div class="head-name">Cheltenham</div><div class="head-meta">Glos · 9 houses</div><div class="head-fit"><span class="num-big softer">5.8<span class="pct">/10</span></span><span class="v-pill hold">◐ Hold</span></div></div>
+          <div class="head"><div class="head-rank">No. <strong>04</strong></div><div class="head-name">Benenden</div><div class="head-meta">Kent · 7 houses</div><div class="head-fit"><span class="num-big softer">5.4<span class="pct">/10</span></span><span class="v-pill drop">✕ Drop</span></div></div>
+
+          <div class="row-group"><span class="rg-num">A</span>For Maya specifically <span class="rg-tag lens">×2 weight · this lens</span></div>
+
+          <div class="dim"><div class="dim-name">Pastoral <em>surface</em></div><div class="dim-blurb">House size + tutor ratio. Maya looks for one person, not the room.</div><div class="dim-meta"><span class="badge fit">CRITICAL</span></div></div>
+          <div class="cell match-strong is-best"><div class="v-num">~32 · 1:6</div><div class="v-meta pos">Smallest in shortlist</div><span class="src">SRC: pastoral_model</span></div>
+          <div class="cell match-warn"><div class="v-num">~58 · 1:8</div><div class="v-meta">Within tolerance</div><span class="src">SRC: pastoral_model</span></div>
+          <div class="cell match-friction"><div class="v-num">~70 · 1:10</div><div class="v-meta neg">Over threshold</div><span class="src">SRC: pastoral_model</span></div>
+          <div class="cell match-friction"><div class="v-num">~80 · 1:9</div><div class="v-meta neg">Largest</div><span class="src">SRC: pastoral_model</span></div>
+
+          <div class="dim"><div class="dim-name">Creative <em>pathway</em></div><div class="dim-blurb">Anchor: visual art</div><div class="dim-meta"><span class="badge fit">FROM ANCHOR</span></div></div>
+          <div class="cell match-strong"><div class="v-text">Foundation prep on site</div><span class="src">SRC: STM arts</span></div>
+          <div class="cell match-strong is-best"><div class="v-text">Artist‑in‑residence</div><div class="v-meta pos">Career route, not a hobby</div><span class="src">SRC: WYC2024</span></div>
+          <div class="cell match-strong"><div class="v-text">Outstanding facilities</div><span class="src">SRC: arts brochure</span></div>
+          <div class="cell match-warn"><div class="v-text">Solid, less prominent</div><span class="src">SRC: BEN curriculum</span></div>
+
+          <div class="dim"><div class="dim-name">Burnout <em>protection</em></div><div class="dim-blurb">Process for self‑driving girls</div><div class="dim-meta"><span class="badge fit">FRAGILITY FLAG</span></div></div>
+          <div class="cell match-strong"><div class="v-text">Built‑in stillness · chapel</div><span class="src">SRC: STM ethos</span></div>
+          <div class="cell match-warn"><div class="v-text">"Quiet intensity"</div><div class="v-meta neg">Self‑pacing risk</div><span class="src">SRC: tour transcripts</span></div>
+          <div class="cell match-friction"><div class="v-text">Tutor‑led; thin signal</div><span class="src">SRC: CLC pastoral</span></div>
+          <div class="cell"><div class="v-text">Standard pastoral</div><span class="src">SRC: BEN pastoral</span></div>
+
+          <div class="dim from-chat"><div class="dim-name">Weekend <em>texture</em></div><div class="dim-blurb">Sport‑coded vs unstructured</div><div class="dim-meta"><span class="badge fit">FROM CHAT · 2m</span></div></div>
+          <div class="cell match-strong from-chat"><div class="v-text">Chapel + studio</div><span class="src">SRC: STM weekend</span></div>
+          <div class="cell match-strong from-chat"><div class="v-text">Long Sunday rhythm</div><div class="v-meta pos">Unstructured defended</div><span class="src">SRC: WYC weekend</span></div>
+          <div class="cell match-friction from-chat"><div class="v-text">Activity‑coded</div><div class="v-meta neg">Saturday matches</div><span class="src">SRC: CLC weekend</span></div>
+          <div class="cell match-warn from-chat"><div class="v-text">Full‑boarding mix</div><span class="src">SRC: BEN weekend</span></div>
+
+          <div class="dim"><div class="dim-name">Goal <em>alignment</em></div><div class="dim-blurb">Maya's 3 goals at 18: art / architecture / humanities</div><div class="dim-meta"><span class="badge fit">FROM GOALS</span></div></div>
+          <div class="cell match-strong"><div class="v-text">Arts + humanities + Foundation</div><span class="src">FROM: destinations</span></div>
+          <div class="cell match-strong is-best"><div class="v-text">Top‑tier all routes</div><div class="v-meta pos">Cambridge architecture</div><span class="src">FROM: destinations</span></div>
+          <div class="cell match-warn"><div class="v-text">Strong arts + hum</div><span class="src">FROM: destinations</span></div>
+          <div class="cell match-warn"><div class="v-text">Solid arts</div><span class="src">FROM: destinations</span></div>
+
+          <div class="row-group"><span class="rg-num">B</span>General comparison <span class="rg-tag raw">raw evidence</span></div>
+
+          <div class="dim"><div class="dim-name">Fees · Year 9</div><div class="dim-blurb">vs your £40–50k ceiling</div></div>
+          <div class="cell match-strong"><div class="v-num">£44,400</div><div class="fbar"><span class="ceil" style="left:78%"></span><span class="mark under" style="left:42%; width:9px;"></span></div><div class="v-meta pos">In band</div></div>
+          <div class="cell match-warn"><div class="v-num">£52,260</div><div class="fbar"><span class="ceil" style="left:78%"></span><span class="mark warn" style="left:60%; width:10px;"></span></div><div class="v-meta neg">+£2.3k over</div></div>
+          <div class="cell"><div class="v-num">£51,180</div><div class="fbar"><span class="ceil" style="left:78%"></span><span class="mark warn" style="left:62%; width:9px;"></span></div><div class="v-meta neg">+£1.2k over</div></div>
+          <div class="cell match-strong"><div class="v-num">£46,500</div><div class="fbar"><span class="ceil" style="left:78%"></span><span class="mark under" style="left:50%; width:9px;"></span></div><div class="v-meta pos">In band</div></div>
+
+          <div class="dim"><div class="dim-name">A*–A · A‑level 2024</div></div>
+          <div class="cell"><div class="v-num">62<span class="pct">%</span></div></div>
+          <div class="cell match-strong is-best"><div class="v-num">79<span class="pct">%</span></div><div class="v-meta pos">+8 vs next</div></div>
+          <div class="cell"><div class="v-num">71<span class="pct">%</span></div></div>
+          <div class="cell"><div class="v-num">65<span class="pct">%</span></div></div>
+
+          <div class="dim"><div class="dim-name">Oxbridge · 3‑yr</div></div>
+          <div class="cell"><div class="v-num">11<span class="pct">%</span></div></div>
+          <div class="cell match-strong is-best"><div class="v-num">26<span class="pct">%</span></div></div>
+          <div class="cell"><div class="v-num">19<span class="pct">%</span></div></div>
+          <div class="cell"><div class="v-num">14<span class="pct">%</span></div></div>
+
+          <div class="dim"><div class="dim-name">4‑light verdict</div><div class="dim-blurb">Acad / Past / Val / Amb</div></div>
+          <div class="cell"><div class="stamp-row"><span class="stamp green">Acad</span><span class="stamp green">Past</span><span class="stamp green">Val</span><span class="stamp amber">Amb</span></div></div>
+          <div class="cell"><div class="stamp-row"><span class="stamp green">Acad</span><span class="stamp green">Past</span><span class="stamp amber">Val</span><span class="stamp green">Amb</span></div></div>
+          <div class="cell"><div class="stamp-row"><span class="stamp green">Acad</span><span class="stamp amber">Past</span><span class="stamp amber">Val</span><span class="stamp green">Amb</span></div></div>
+          <div class="cell"><div class="stamp-row"><span class="stamp amber">Acad</span><span class="stamp green">Past</span><span class="stamp green">Val</span><span class="stamp amber">Amb</span></div></div>
+
+          <div class="dim"><div class="dim-name">Y9 entry window</div></div>
+          <div class="cell"><div class="v-text">Open · Jan '27</div></div>
+          <div class="cell"><div class="v-text">Open · Oct '26</div><div class="v-meta neg">earliest</div></div>
+          <div class="cell"><div class="v-text">Rolling</div></div>
+          <div class="cell"><div class="v-text">Open · Oct '26</div></div>
+
+          <div class="dim"><div class="dim-name">Bursary</div></div>
+          <div class="cell"><div class="v-text">Up to 50% means</div></div>
+          <div class="cell match-strong"><div class="v-text">Up to 100%</div><div class="v-meta pos">closes the £2.3k gap</div></div>
+          <div class="cell"><div class="v-text">Up to 90%</div></div>
+          <div class="cell"><div class="v-text">Up to 100%</div></div>
+
+          <div class="dim"><div class="dim-name">Sport intensity</div></div>
+          <div class="cell match-strong"><div class="v-text">Participation</div></div>
+          <div class="cell match-warn"><div class="v-text">Strong but balanced</div></div>
+          <div class="cell match-friction"><div class="v-text">High · Saturday matches</div></div>
+          <div class="cell match-warn"><div class="v-text">All‑round</div></div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ VERDICT tab ════ -->
+    <div class="view" id="view-verdict">
+      <div class="view-head">
+        <div>
+          <div class="view-eyebrow">Verdict · same lenses as Comparison</div>
+          <h1 class="view-title">Each lens, <em>a different ranking.</em></h1>
+          <p class="view-meta">Pick the lens that matches what your family is actually optimising for. Each one returns a different ranking with confidence and sources.</p>
+        </div>
+        <div class="view-actions"><button class="cta cta--ghost">↗ Share</button></div>
+      </div>
+
+      <div class="v-grid">
+        <aside class="v-rail">
+          <div class="v-rail-h">Lenses<span class="crosslink">↔ shared with Comparison</span></div>
+          <div class="v-lens-row active"><span class="vl-ic">A</span><div><div class="vl-name">Academic upside</div><div class="vl-q">"Where will the ceiling be highest?"</div></div></div>
+          <div class="v-lens-row"><span class="vl-ic">F</span><div><div class="vl-name">Human fit</div><div class="vl-q">"Where will she be happy week to week?"</div></div></div>
+          <div class="v-lens-row"><span class="vl-ic">L</span><div><div class="vl-name">Future optionality</div><div class="vl-q">"Most doors open at 18?"</div></div></div>
+          <div class="v-lens-row"><span class="vl-ic">D</span><div><div class="vl-name">Day‑to‑day happiness</div><div class="vl-q">"Best house + weekend life?"</div></div></div>
+          <div class="v-lens-row"><span class="vl-ic">£</span><div><div class="vl-name">Financial rationality</div><div class="vl-q">"Most outcome per £ spent?"</div></div></div>
+          <div class="v-lens-row"><span class="vl-ic">↯</span><div><div class="vl-name">Downside protection</div><div class="vl-q">"Lowest regret if we're wrong?"</div></div></div>
+          <div class="v-lens-row from-chat"><span class="vl-ic">S</span><div><div class="vl-name">Sport‑light fit</div><div class="vl-q">"For girls who don't do competitive sport"</div></div></div>
+        </aside>
+
+        <div class="v-essay">
+          <div class="v-essay-stamp">Lens · Academic upside</div>
+          <h2 class="v-essay-headline">If you optimise for ceiling, <em>Wycombe pulls clear.</em></h2>
+          <div class="v-essay-q">"Where will Maya be most academically stretched at 18?" — answered against A‑level outcomes, university destinations, and curriculum depth.</div>
+          <div class="v-ranking">
+            <div class="v-rank-row">
+              <span class="v-rank-num">1.</span>
+              <div><div class="v-rank-school">Wycombe Abbey<small>79% A*–A · 26% Oxbridge · highest in shortlist by 8 and 7 points respectively.</small></div></div>
+              <span class="v-rank-score">9.1</span>
+            </div>
+            <div class="v-rank-row">
+              <span class="v-rank-num">2.</span>
+              <div><div class="v-rank-school">Cheltenham Ladies'<small>71% A*–A · 19% Oxbridge · strong but a clear step‑down.</small></div></div>
+              <span class="v-rank-score">7.6</span>
+            </div>
+            <div class="v-rank-row">
+              <span class="v-rank-num">3.</span>
+              <div><div class="v-rank-school">Benenden School<small>65% A*–A · 14% Oxbridge · solid mid‑tier.</small></div></div>
+              <span class="v-rank-score warn">6.8</span>
+            </div>
+            <div class="v-rank-row">
+              <span class="v-rank-num">4.</span>
+              <div><div class="v-rank-school">St Mary's Ascot<small>62% A*–A · 11% Oxbridge · trades academic ceiling for pastoral fit.</small></div></div>
+              <span class="v-rank-score softer">6.2</span>
+            </div>
+          </div>
+          <div class="v-prose">
+            <p>If <span class="hl">academic ceiling is what your family is actually optimising for</span>, this lens is unambiguous: Wycombe is two tiers above the others.</p>
+            <p>The harder question is whether Maya needs a ceiling that high. <strong>For a self‑driving girl who's already burnout‑prone, the academic ceiling lens may be the wrong frame.</strong></p>
+            <p>Read this verdict alongside the <em>Downside protection</em> lens — they often pull in opposite directions.</p>
+          </div>
+          <div class="v-confidence">
+            <span>Confidence: <strong class="moss">High</strong></span>
+            <span>Sources: <strong>4 schools · 12 cited fields</strong></span>
+            <span>Updated: <strong>3 min ago</strong></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ CHILD BRIEF tab ════ -->
+    <div class="view" id="view-brief">
+      <div class="view-head">
+        <div>
+          <div class="view-eyebrow">Child brief · the lens for everything</div>
+          <h1 class="view-title">Maya · <em>quietly intense.</em></h1>
+          <p class="view-meta">Year 9 · age 13 · Sep 2027. Edit any field — the comparison table re‑ranks; the verdict re‑frames.</p>
+        </div>
+        <div class="view-actions"><button class="cta cta--ghost">Refine in chat</button><button class="cta">Save profile</button></div>
+      </div>
+
+      <div class="cb-grid">
+        <div>
+          <div class="cb-tag">A <strong>warm, introverted, slow‑to‑warm</strong> 13‑year‑old who reads fiction on Sundays, paints, and finds her bearings via one trusted person.</div>
+          <div class="cb-card-grid">
+            <div class="cb-card">
+              <div class="cb-card-h">Personality<span class="edit">edit ↻</span></div>
+              <div class="cb-row"><div class="cb-k">Temperament</div><div class="cb-v">Warm, <strong>introverted</strong></div></div>
+              <div class="cb-row"><div class="cb-k">Social</div><div class="cb-v"><strong>One person</strong>, not the room</div></div>
+              <div class="cb-row"><div class="cb-k">Boarding</div><div class="cb-v">14‑girl camp · <strong>good</strong></div></div>
+            </div>
+            <div class="cb-card">
+              <div class="cb-card-h">Anchors<span class="edit">edit ↻</span></div>
+              <div class="cb-row"><div class="cb-k">Primary</div><div class="cb-v"><strong>Visual art</strong></div></div>
+              <div class="cb-row"><div class="cb-k">Secondary</div><div class="cb-v">Reading · piano</div></div>
+              <div class="cb-row"><div class="cb-k">Sport</div><div class="cb-v"><strong>Not competitive</strong></div></div>
+            </div>
+            <div class="cb-card">
+              <div class="cb-card-h">Academic<span class="edit">edit ↻</span></div>
+              <div class="cb-row"><div class="cb-k">Strongest</div><div class="cb-v">English · Art · History</div></div>
+              <div class="cb-row"><div class="cb-k">Weakest</div><div class="cb-v">Maths · PE</div></div>
+              <div class="cb-row"><div class="cb-k">Stretch</div><div class="cb-v"><strong>Burnout‑prone</strong></div></div>
+            </div>
+            <div class="cb-card">
+              <div class="cb-card-h">Goals at 18<span class="edit">edit ↻</span></div>
+              <div class="cb-row"><div class="cb-k">Primary</div><div class="cb-v"><strong>Visual / fine art</strong></div></div>
+              <div class="cb-row"><div class="cb-k">Alt</div><div class="cb-v">Architecture</div></div>
+              <div class="cb-row"><div class="cb-k">Fallback</div><div class="cb-v">Humanities</div></div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="cmp-preview">
+          <div class="cmp-preview-h">Current ranking<a>open ↗</a></div>
+          <div class="cmp-preview-title">Lens: <em>Maya fit</em></div>
+          <div class="cmp-mini-row"><span class="pip visit"></span><span class="name">St Mary's</span><span class="score">8.6</span></div>
+          <div class="cmp-mini-row"><span class="pip visit"></span><span class="name">Wycombe</span><span class="score warn">7.4</span></div>
+          <div class="cmp-mini-row"><span class="pip hold"></span><span class="name">Cheltenham</span><span class="score softer">5.8</span></div>
+          <div class="cmp-mini-row"><span class="pip drop"></span><span class="name">Benenden</span><span class="score softer">5.4</span></div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- ════ PARTNER BRIEF tab ════ -->
+    <div class="view" id="view-partner">
+      <div class="view-head">
+        <div>
+          <div class="view-eyebrow">Partner brief</div>
+          <h1 class="view-title">A two‑minute brief for <em>Sebastian.</em></h1>
+          <p class="view-meta">Auto‑regenerates when verdicts change. Pick a tone for what kind of read he prefers.</p>
+        </div>
+        <div class="view-actions"><button class="cta cta--ghost">Copy email</button><button class="cta cta--ghost">Print PDF</button><button class="cta">↗ Send now</button></div>
+      </div>
+
+      <div class="pb-wrap">
+        <div class="pb-card">
+          <div class="pb-head">
+            <div>
+              <div class="pb-stamp">A letter from your research advisor</div>
+              <div class="pb-to">To <em>Sebastian</em>,</div>
+              <div class="pb-meta">Tue 5 May 2026 · session 04 · Warm tone</div>
+            </div>
+          </div>
+          <div class="pb-tone">
+            <span class="pb-tone-l">Tone</span>
+            <button class="pb-tone-chip active">Warm</button>
+            <button class="pb-tone-chip">Just the decision</button>
+            <button class="pb-tone-chip">Evidence-heavy</button>
+            <button class="pb-tone-chip">Skeptical</button>
+          </div>
+          <div class="pb-letter">
+            <p class="opener">Sebastian — I've been with Nana on this since lunch. Here's where we are, plainly.</p>
+            <p>If <strong>Maya</strong> is who we think she is — quietly intense, art‑anchored, slow‑to‑warm, more at risk of <em>burnout than under‑stretch</em> — the real choice isn't between four schools. It's between <strong>two visits</strong>.</p>
+            <p><strong>St Mary's Ascot</strong> is the cleanest match for her temperament. <span class="hl">~32 girls per house, 1:6 tutor</span>. Trade: 11% Oxbridge against Wycombe's 26%.</p>
+            <p><strong>Wycombe</strong> is the academic ceiling — 79% A*–A. Houses ~58, 1:8 tutor. The risk is exactly Maya's: surrounded by self‑pacing girls.</p>
+            <p>Two visits, plainly: <strong>St Mary's tests for "where will she be most known?" Wycombe tests for "is the cushion real?"</strong></p>
+            <p>I'd like us both at one. Tell me which.</p>
+          </div>
+          <div class="pb-foot">
+            <div class="pb-sig">— Sarah &amp; <em>Nana</em></div>
+            <button class="cta">↗ Send to Sebastian</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ════ CHAT RAIL ════ -->
+  <aside class="chat" id="chat">
+
+    <!-- CLOSED state -->
+    <div class="chat-closed-content">
+      <button class="chat-expand-btn" data-action="expand-default" title="Open chat">›</button>
+      <svg class="chat-closed-avatar" data-action="expand-default" title="Ask Nana"><use href="#nana"/></svg>
+      <div class="chat-closed-label" data-action="expand-default">ASK <strong>NANA</strong></div>
+      <div class="chat-closed-chips">
+        <button class="chat-closed-chip" data-action="expand-default">add row</button>
+        <button class="chat-closed-chip" data-action="expand-default">re-rank</button>
+      </div>
+    </div>
+
+    <!-- OPEN state -->
+    <div class="chat-open-content">
+      <div class="chat-head">
+        <svg class="chat-avatar"><use href="#nana"/></svg>
+        <div class="chat-name">Nana<span>ANSWERING</span></div>
+        <button class="chat-state-btn" data-action="toggle-focus" title="Expand">⤢</button>
+        <button class="chat-state-btn" data-action="collapse" title="Collapse">›</button>
+      </div>
+
+      <button class="build-toggle" id="build-toggle" data-action="toggle-build">
+        <div class="bt-ic">⚒</div>
+        <div><div class="bt-name">Work on comparison table</div><div class="bt-desc">Nana proactively suggests rows + dimensions</div></div>
+        <div class="bt-state" id="bt-state">OFF</div>
+      </button>
+
+      <div class="thread" id="thread">
+
+        <!-- prose_v1 mode answer (matches your live chat) -->
+        <div class="you">What's weekend life actually like at each? My daughter doesn't do competitive sport.</div>
+
+        <div class="nana">
+          <div class="nana-head">
+            <svg class="av"><use href="#nana"/></svg>
+            <div class="nm">Nana<small>3 sources · high confidence</small></div>
+          </div>
+          <div class="nana-eyebrow">Short answer</div>
+          <div class="nana-lead">Three of four are fine for Maya's anchor; Cheltenham reads sport‑dominant.</div>
+          <span class="confidence-badge high"><span class="ic"></span>High confidence</span>
+          <div class="nana-prose">
+            <p><strong>St Mary's</strong> protects unstructured time — chapel rhythm gives the week its pauses, and the studio is open through Sundays. <strong>Wycombe's</strong> Long Sunday rhythm is the closest match for an art‑anchored girl: less sport‑coded than Cheltenham, with quiet practice time built in.</p>
+            <p><strong>Cheltenham</strong> reads as <em>built around fixtures</em> — Saturday matches culture is strong and parents describe weekends as activity‑coded. <strong>Benenden's</strong> full‑boarding atmosphere mixes both.</p>
+          </div>
+          <div class="sources">
+            <a class="src-pill">stmaryascot.org/weekend</a>
+            <a class="src-pill">wycombeabbey.com/long-sunday</a>
+            <a class="src-pill">cheltladiescollege.org</a>
+          </div>
+          <a class="share-link">Share answer ↗</a>
+
+          <div class="qa-section">
+            <div class="qa-label">Use this answer</div>
+            <div class="qa-row">
+              <button class="qa primary">+ Add as row</button>
+              <button class="qa">↻ Re-rank table</button>
+              <button class="qa">✦ Create a lens</button>
+              <button class="qa">↗ Add to letter</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="you">Yes add it as a row, and create the "Sport-light" lens.</div>
+        <div class="nana streaming">
+          <div class="nana-head">
+            <svg class="av"><use href="#nana"/></svg>
+            <div class="nm">Nana<small>working…</small></div>
+          </div>
+          <div class="nana-eyebrow">Adding row + lens</div>
+          <div class="nana-lead">Pulling weekend data; creating "Sport‑light fit" for both Comparison and Verdict…<span class="cursor"></span></div>
+          <div class="skeleton-line s-90"></div>
+          <div class="skeleton-line s-60"></div>
+          <div class="skeleton-line s-80"></div>
+        </div>
+
+      </div>
+
+      <div class="chat-input">
+        <div class="chat-suggest">
+          <button class="cs-chip">re-rank for "anti-pressure"</button>
+          <button class="cs-chip">add row: art teacher quality</button>
+        </div>
+        <label class="chat-input-row">
+          <input type="text" placeholder="Ask Nana · or 'add row…' / 'create lens…'" />
+          <button>Ask</button>
+        </label>
+      </div>
+    </div>
+
+  </aside>
+
+</div>
+
+<aside class="state-legend">
+  <div class="state-legend-h">Chat states · click ⤢ ›</div>
+  <div class="state-legend-row" id="leg-closed"><span class="k">Closed</span><span class="v">Slim · 56px · table dominates</span></div>
+  <div class="state-legend-row active" id="leg-default"><span class="k">Open</span><span class="v">Default · 400px · normal session</span></div>
+  <div class="state-legend-row" id="leg-focus"><span class="k">Focus</span><span class="v">Build mode · 620px · 4 actions inline</span></div>
+</aside>
+
+<script>
+  const shell = document.getElementById('shell');
+  const buildToggle = document.getElementById('build-toggle');
+  const btState = document.getElementById('bt-state');
+  const thread = document.getElementById('thread');
+  const chatNameStatus = document.querySelector('.chat-name span');
+
+  function setState(state) {
+    shell.classList.remove('chat-closed', 'chat-focus');
+    if (state === 'closed') shell.classList.add('chat-closed');
+    if (state === 'focus')  shell.classList.add('chat-focus');
+    document.querySelectorAll('.state-legend-row').forEach(r => r.classList.remove('active'));
+    document.getElementById(state === 'closed' ? 'leg-closed' : state === 'focus' ? 'leg-focus' : 'leg-default')?.classList.add('active');
+  }
+  document.querySelectorAll('[data-action="collapse"]').forEach(b => b.addEventListener('click', () => setState('closed')));
+  document.querySelectorAll('[data-action="expand-default"]').forEach(b => b.addEventListener('click', () => setState('default')));
+  document.querySelectorAll('[data-action="toggle-focus"]').forEach(b => b.addEventListener('click', () => setState(shell.classList.contains('chat-focus') ? 'default' : 'focus')));
+
+  buildToggle?.addEventListener('click', () => {
+    const on = buildToggle.classList.toggle('active');
+    btState.textContent = on ? 'ON' : 'OFF';
+    if (chatNameStatus) chatNameStatus.textContent = on ? 'BUILD MODE · CO-BUILDER' : 'ANSWERING';
+    if (on) {
+      setState('focus');
+      addBuildPrompt();
+    } else {
+      thread.querySelectorAll('.nana.build-prompt').forEach(n => n.remove());
+      setState('default');
+    }
+  });
+
+  function addBuildPrompt() {
+    const wrap = document.createElement('div');
+    wrap.className = 'nana build-prompt';
+    wrap.innerHTML = `
+      <div class="nana-head">
+        <svg class="av"><use href="#nana"/></svg>
+        <div class="nm">Nana<small>build mode · I'll lead</small></div>
+      </div>
+      <div class="nana-eyebrow">Build mode</div>
+      <div class="nana-lead">Let's strengthen the table. I scanned all four schools — here are 5 dimensions you don't have yet.</div>
+      <div class="build-suggestion">
+        <div class="build-suggestion-h">Suggested rows · pulled from school data</div>
+        <div class="bs-row"><span class="arr">→</span><div class="bs-text"><strong>Mobile phone policy</strong><small>SOURCE: policies_summary · varies materially</small></div><button class="bs-add">+ Add</button><button class="bs-skip">skip</button></div>
+        <div class="bs-row"><span class="arr">→</span><div class="bs-text"><strong>Saturday school</strong><small>SOURCE: school calendars · 3 of 4 have it</small></div><button class="bs-add">+ Add</button><button class="bs-skip">skip</button></div>
+        <div class="bs-row"><span class="arr">→</span><div class="bs-text"><strong>Music ensembles</strong><small>SOURCE: arts brochures · matters for Maya</small></div><button class="bs-add">+ Add</button><button class="bs-skip">skip</button></div>
+        <div class="bs-row"><span class="arr">→</span><div class="bs-text"><strong>SEND / EAL provision</strong><small>SOURCE: policies_summary</small></div><button class="bs-add">+ Add</button><button class="bs-skip">skip</button></div>
+        <div class="bs-row"><span class="arr">→</span><div class="bs-text"><strong>Sibling discount + scholarships</strong><small>SOURCE: bursary_note · 2 schools differ</small></div><button class="bs-add">+ Add</button><button class="bs-skip">skip</button></div>
+      </div>
+      <div class="qa-section">
+        <div class="qa-label">Use these</div>
+        <div class="qa-row">
+          <button class="qa primary">+ Add all 5</button>
+          <button class="qa">⌘ Pick most useful</button>
+          <button class="qa">✦ Save as a lens</button>
+          <button class="qa">↗ Add to letter</button>
+        </div>
+      </div>`;
+    thread.appendChild(wrap);
+    thread.scrollTop = thread.scrollHeight;
+  }
+
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    const v = document.getElementById('view-' + t.dataset.tab);
+    if (v) v.classList.add('active');
+  }));
+  document.querySelectorAll('.lens-tab').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.lens-tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+  }));
+  document.querySelectorAll('.v-lens-row').forEach(l => l.addEventListener('click', () => {
+    document.querySelectorAll('.v-lens-row').forEach(x => x.classList.remove('active'));
+    l.classList.add('active');
+  }));
+  document.querySelectorAll('.pb-tone-chip').forEach(c => c.addEventListener('click', () => {
+    document.querySelectorAll('.pb-tone-chip').forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+  }));
+  document.querySelectorAll('.cs-chip').forEach(c => c.addEventListener('click', () => {
+    const i = document.querySelector('.chat-input-row input');
+    i.value = c.textContent;
+    i.focus();
+  }));
+</script>
+
+</body>
+</html>

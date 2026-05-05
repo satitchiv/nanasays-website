@@ -1,0 +1,864 @@
+/* ════════════════════════════════════════════════════════════════════════════
+   Research Room · slice 1
+   Tokens scoped to .rr-app so they don't leak into the rest of the site.
+   Brand values mirror website/app/globals.css. The full F4-B style sheet
+   (comparison cells, verdict prose, child-brief grid, partner letter) lands
+   in slices 2/3/7 — slice 1 ships only the chrome + chat states.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.rr-app {
+  /* Tokens — kept in sync with website/app/globals.css */
+  --rr-white:    #FFFFFF;
+  --rr-off:      #F6F8FA;
+  --rr-off-2:    #EEF1F5;
+  --rr-navy:     #1B3252;
+  --rr-navy-lt:  #243F66;
+  --rr-teal:     #34C3A0;
+  --rr-teal-dk:  #239C80;
+  --rr-teal-bg:  #E8FAF6;
+  --rr-body:     #374151;
+  --rr-muted:    #6B7280;
+  --rr-border:   #E5E7EB;
+  --rr-bmd:      #D1D5DB;
+  --rr-shadow:   rgba(27,50,82,0.08);
+  --rr-shadow-lg: rgba(27,50,82,0.16);
+  --rr-amber:    #F5A623;
+  --rr-rust:     #DC4F2A;
+  --rr-moss:     #2F8056;
+
+  --rr-display: var(--font-nunito), 'Nunito', system-ui, sans-serif;
+  --rr-sans:    var(--font-nunito-sans), 'Nunito Sans', system-ui, sans-serif;
+  --rr-mono:    ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --rr-chat-w-closed: 56px;
+  --rr-chat-w-open:   400px;
+  --rr-chat-w-focus:  620px;
+
+  --rr-r-sm: 10px;
+  --rr-r-md: 14px;
+  --rr-r-lg: 20px;
+  --rr-r-pill: 100px;
+
+  /* Workspace fills the viewport — body keeps its normal scroll behaviour. */
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--rr-off);
+  color: var(--rr-body);
+  font-family: var(--rr-sans);
+  font-size: 14.5px;
+  line-height: 1.6;
+  overflow: hidden;
+  z-index: 100;
+}
+
+.rr-app *, .rr-app *::before, .rr-app *::after {
+  box-sizing: border-box;
+}
+
+/* ─── Top bar ──────────────────────────────────────────────────────── */
+.rr-top {
+  flex: 0 0 60px;
+  border-bottom: 1px solid var(--rr-border);
+  background: rgba(255,255,255,0.97);
+  backdrop-filter: blur(12px);
+  position: relative;
+  z-index: 30;
+}
+.rr-top-in {
+  height: 100%;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 24px;
+  padding: 0 5%;
+  align-items: center;
+}
+.rr-brand-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+}
+.rr-brand-mark { width: 36px; height: 36px; flex-shrink: 0; }
+.rr-brand-text {
+  font-family: var(--rr-display);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.4px;
+  color: var(--rr-navy);
+  display: inline-flex;
+  align-items: baseline;
+}
+.rr-brand-text em { color: var(--rr-teal); font-style: normal; }
+.rr-brand-sub {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--rr-muted);
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  border-left: 1px solid var(--rr-border);
+  padding-left: 14px;
+  margin-left: 12px;
+}
+
+.rr-tabs { display: flex; gap: 2px; }
+.rr-tab {
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 7px 14px;
+  border-radius: var(--rr-r-sm);
+  background: transparent;
+  border: 0;
+  color: var(--rr-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background .15s, color .15s;
+}
+.rr-tab:hover { background: var(--rr-off); color: var(--rr-navy); }
+.rr-tab.is-active { background: var(--rr-navy); color: var(--rr-white); }
+.rr-tab.is-active:focus-visible { outline: 2px solid var(--rr-teal); outline-offset: 2px; }
+.rr-tab-privileged::before {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--rr-teal);
+  margin-right: 4px;
+}
+
+.rr-top-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rr-child-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--rr-sans);
+  font-size: 12px;
+  color: var(--rr-muted);
+}
+.rr-child-selector-label {
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  font-weight: 800;
+  font-size: 10.5px;
+}
+.rr-child-selector-input {
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--rr-navy);
+  background: var(--rr-off);
+  border: 1px solid var(--rr-border);
+  border-radius: var(--rr-r-sm);
+  padding: 6px 10px;
+  cursor: pointer;
+  outline: none;
+}
+.rr-child-selector-input:focus-visible {
+  border-color: var(--rr-teal);
+  box-shadow: 0 0 0 3px rgba(52,195,160,.2);
+}
+
+.rr-cta {
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 16px;
+  border-radius: var(--rr-r-sm);
+  background: var(--rr-teal);
+  color: var(--rr-white);
+  border: 0;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background .15s;
+}
+.rr-cta:hover { background: var(--rr-teal-dk); }
+.rr-cta-ghost { background: transparent; color: var(--rr-navy); border: 1px solid var(--rr-border); }
+.rr-cta-ghost:hover { background: var(--rr-off); border-color: var(--rr-navy); }
+
+/* ─── Page shell ──────────────────────────────────────────────────── */
+.rr-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr var(--rr-chat-w);
+  --rr-chat-w: var(--rr-chat-w-open);
+  transition: grid-template-columns .26s cubic-bezier(.2,.8,.2,1);
+}
+.rr-shell-chat-closed { --rr-chat-w: var(--rr-chat-w-closed); }
+.rr-shell-chat-focus  { --rr-chat-w: var(--rr-chat-w-focus); }
+
+.rr-main {
+  min-width: 0;
+  overflow: hidden;
+  background: var(--rr-off);
+}
+
+/* View pager: all 4 pages live in a horizontal flex strip. Desktop hides the
+   x-overflow so only the active page shows (we scroll it programmatically on
+   tab click). Mobile flips this to a scroll-snap container so the parent can
+   thumb-swipe between pages. */
+.rr-view-pager {
+  display: flex;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+}
+.rr-view-page {
+  flex: 0 0 100%;
+  min-width: 0;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 36px 48px 72px;
+}
+
+.rr-view { max-width: 1480px; margin: 0 auto; }
+.rr-view-head {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+  padding-bottom: 22px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--rr-border);
+}
+.rr-view-eyebrow {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--rr-teal-dk);
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+.rr-view-title {
+  font-family: var(--rr-display);
+  font-size: clamp(28px, 3.4vw, 38px);
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: -0.5px;
+  color: var(--rr-navy);
+}
+.rr-view-title em { color: var(--rr-teal); font-style: normal; }
+.rr-view-meta {
+  font-family: var(--rr-sans);
+  font-size: 14px;
+  color: var(--rr-muted);
+  margin-top: 10px;
+  max-width: 70ch;
+  line-height: 1.55;
+}
+
+.rr-placeholder-card {
+  background: var(--rr-white);
+  border: 1px solid var(--rr-border);
+  border-radius: var(--rr-r-lg);
+  padding: 28px 32px;
+  box-shadow: 0 4px 18px var(--rr-shadow);
+  max-width: 720px;
+}
+.rr-placeholder-eyebrow {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--rr-teal-dk);
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+.rr-placeholder-body {
+  font-family: var(--rr-sans);
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--rr-body);
+}
+
+/* ─── Chat rail ────────────────────────────────────────────────────── */
+.rr-chat {
+  border-left: 1px solid var(--rr-border);
+  background: var(--rr-white);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+  box-shadow: -8px 0 24px var(--rr-shadow);
+}
+
+/* CLOSED state */
+.rr-chat-closed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 0;
+  height: 100%;
+}
+.rr-chat-closed-avatar-btn {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+}
+.rr-chat-closed-avatar-btn:focus-visible {
+  outline: 2px solid var(--rr-teal);
+  outline-offset: 2px;
+}
+.rr-chat-closed-avatar {
+  width: 40px;
+  height: 40px;
+  filter: drop-shadow(0 4px 12px var(--rr-shadow));
+  transition: transform .2s;
+  display: block;
+}
+.rr-chat-closed-avatar-btn:hover .rr-chat-closed-avatar { transform: scale(1.06); }
+.rr-chat-closed-label {
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--rr-muted);
+  font-weight: 800;
+  cursor: pointer;
+  padding: 8px 4px;
+  background: transparent;
+  border: 0;
+}
+.rr-chat-closed-label:hover { color: var(--rr-teal-dk); }
+.rr-chat-closed-label strong { color: var(--rr-teal-dk); }
+.rr-chat-expand-btn {
+  font-family: var(--rr-sans);
+  font-size: 16px;
+  line-height: 1;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--rr-white);
+  border: 1px solid var(--rr-border);
+  color: var(--rr-navy);
+  cursor: pointer;
+  transition: all .15s;
+}
+.rr-chat-expand-btn:hover {
+  background: var(--rr-teal);
+  color: var(--rr-white);
+  border-color: var(--rr-teal);
+}
+.rr-chat-expand-btn:focus-visible {
+  outline: 2px solid var(--rr-teal);
+  outline-offset: 2px;
+}
+
+/* OPEN state (default + focus) */
+.rr-chat-open {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+}
+
+.rr-chat-head {
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--rr-border);
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 12px;
+  align-items: center;
+  background: linear-gradient(180deg, var(--rr-teal-bg), var(--rr-white));
+}
+.rr-chat-avatar {
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 4px 10px var(--rr-shadow));
+}
+.rr-chat-name {
+  font-family: var(--rr-sans);
+  font-weight: 800;
+  font-size: 15px;
+  color: var(--rr-navy);
+}
+.rr-chat-name span {
+  font-family: var(--rr-sans);
+  font-size: 10px;
+  color: var(--rr-teal-dk);
+  display: block;
+  margin-top: 2px;
+  letter-spacing: 1.2px;
+  font-weight: 800;
+}
+.rr-chat-name span::before { content: "● "; }
+.rr-chat-state-btn {
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  font-weight: 700;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--rr-r-sm);
+  background: var(--rr-white);
+  border: 1px solid var(--rr-border);
+  color: var(--rr-muted);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all .15s;
+}
+.rr-chat-state-btn:hover {
+  background: var(--rr-navy);
+  color: var(--rr-white);
+  border-color: var(--rr-navy);
+}
+.rr-chat-state-btn:focus-visible {
+  outline: 2px solid var(--rr-teal);
+  outline-offset: 2px;
+}
+
+/* Build mode toggle */
+.rr-build-toggle {
+  margin: 14px 16px 0;
+  padding: 12px 14px;
+  border-radius: var(--rr-r-md);
+  background: var(--rr-white);
+  border: 1.5px solid var(--rr-border);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px;
+  align-items: center;
+  cursor: pointer;
+  transition: all .2s;
+  width: calc(100% - 32px);
+  text-align: left;
+  font: inherit;
+  color: inherit;
+}
+.rr-build-toggle:hover {
+  border-color: var(--rr-navy);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--rr-shadow);
+}
+.rr-build-toggle:focus-visible {
+  outline: 2px solid var(--rr-teal);
+  outline-offset: 2px;
+}
+.rr-build-toggle.is-active {
+  background: var(--rr-teal);
+  border-color: var(--rr-teal);
+  color: var(--rr-navy);
+}
+.rr-bt-ic {
+  font-family: var(--rr-display);
+  font-size: 18px;
+  line-height: 1;
+  color: var(--rr-teal-dk);
+  font-weight: 900;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--rr-r-sm);
+  background: var(--rr-teal-bg);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.rr-build-toggle.is-active .rr-bt-ic {
+  background: var(--rr-white);
+  color: var(--rr-teal-dk);
+}
+.rr-bt-body { display: block; }
+.rr-bt-name {
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -.1px;
+  display: block;
+}
+.rr-bt-desc {
+  font-family: var(--rr-sans);
+  font-size: 10.5px;
+  color: var(--rr-muted);
+  margin-top: 2px;
+  font-weight: 600;
+  display: block;
+}
+.rr-build-toggle.is-active .rr-bt-desc { color: rgba(27,50,82,.65); }
+.rr-bt-state {
+  font-family: var(--rr-mono);
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: var(--rr-r-pill);
+  background: var(--rr-off);
+  color: var(--rr-muted);
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+.rr-build-toggle.is-active .rr-bt-state {
+  background: var(--rr-white);
+  color: var(--rr-teal-dk);
+}
+.rr-build-toggle.is-active .rr-bt-state::before {
+  content: "● ";
+  color: var(--rr-moss);
+}
+
+/* Thread + bubble */
+.rr-thread {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+}
+.rr-bubble-nana {
+  background: var(--rr-white);
+  border: 1px solid var(--rr-border);
+  border-radius: 4px 14px 14px 14px;
+  padding: 14px 16px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  box-shadow: 0 2px 8px var(--rr-shadow);
+}
+.rr-bubble-head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--rr-border);
+}
+.rr-bubble-avatar {
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+}
+.rr-bubble-name {
+  font-family: var(--rr-sans);
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--rr-navy);
+}
+.rr-bubble-name small {
+  display: block;
+  font-family: var(--rr-sans);
+  font-size: 9.5px;
+  color: var(--rr-muted);
+  font-weight: 700;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+  margin-top: 1px;
+}
+.rr-bubble-eyebrow {
+  font-family: var(--rr-sans);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--rr-muted);
+  margin-bottom: 6px;
+}
+.rr-bubble-lead {
+  font-family: var(--rr-display);
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--rr-navy);
+  font-weight: 800;
+  letter-spacing: -.2px;
+}
+
+/* Chat input (disabled in slice 1) */
+.rr-chat-input {
+  border-top: 1px solid var(--rr-border);
+  padding: 12px 14px;
+  background: var(--rr-white);
+}
+.rr-chat-input-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  background: var(--rr-white);
+  border: 1.5px solid var(--rr-border);
+  border-radius: var(--rr-r-md);
+  padding: 4px 4px 4px 14px;
+  transition: border-color .15s;
+  opacity: 0.6;
+}
+.rr-chat-input-row input {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  outline: 0;
+  font-family: var(--rr-sans);
+  font-size: 13.5px;
+  padding: 8px 0;
+  color: var(--rr-navy);
+}
+.rr-chat-input-row input::placeholder { color: var(--rr-muted); }
+.rr-chat-input-row button {
+  background: var(--rr-navy);
+  color: var(--rr-white);
+  border: 0;
+  border-radius: var(--rr-r-sm);
+  font-family: var(--rr-sans);
+  font-size: 12px;
+  font-weight: 800;
+  padding: 8px 14px;
+  cursor: not-allowed;
+  letter-spacing: .04em;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   Mobile FAB + bottom sheet · hidden on desktop
+   ════════════════════════════════════════════════════════════════════ */
+
+.rr-fab,
+.rr-scrim,
+.rr-sheet,
+.rr-sheet-handle { display: none; }
+
+/* ─── Mobile (≤880px) ──────────────────────────────────────────────── */
+@media (max-width: 880px) {
+  /* Top bar: condense — drop the desktop CTA and ChildSelector slot. The
+     subtitle pip becomes the third column so the layout stays balanced. */
+  .rr-top-in {
+    grid-template-columns: auto 1fr;
+    padding: 0 16px;
+    gap: 12px;
+  }
+  .rr-brand-sub {
+    padding-left: 10px;
+    margin-left: 8px;
+    font-size: 10px;
+    letter-spacing: 1.2px;
+  }
+  .rr-top-meta { display: none; }
+  .rr-top-cta { display: none; }
+
+  /* Tabs become a horizontal pill scroller below the brand row. They are the
+     2nd grid item now, so they get their own row by spanning full width. */
+  .rr-tabs {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    margin: 0 -16px;
+    padding: 0 16px 10px;
+    scroll-snap-type: x proximity;
+  }
+  .rr-tabs::-webkit-scrollbar { display: none; }
+  .rr-tab {
+    flex: 0 0 auto;
+    scroll-snap-align: center;
+    padding: 8px 14px;
+    font-size: 12.5px;
+    border-radius: var(--rr-r-pill);
+    border: 1px solid var(--rr-border);
+    background: var(--rr-white);
+  }
+  .rr-tab.is-active {
+    background: var(--rr-navy);
+    color: var(--rr-white);
+    border-color: var(--rr-navy);
+  }
+
+  /* Top bar grows to two rows on mobile. */
+  .rr-top {
+    flex: 0 0 auto;
+    padding-top: 10px;
+  }
+  .rr-top-in {
+    height: auto;
+    min-height: 56px;
+    padding-top: 4px;
+    padding-bottom: 0;
+    align-items: start;
+  }
+  .rr-brand-link { padding-top: 6px; }
+
+  /* Shell: chat rail collapses entirely; main column owns the viewport. */
+  .rr-shell {
+    grid-template-columns: 1fr !important;
+  }
+  .rr-chat { display: none; }
+  .rr-main { padding: 0; }
+
+  /* View pager: enable thumb-swipe between the 4 tab bodies. */
+  .rr-view-pager {
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .rr-view-pager::-webkit-scrollbar { display: none; }
+  .rr-view-page {
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    padding: 24px 20px 96px;
+  }
+
+  /* Page typography compacts a little for phone width. */
+  .rr-view-title { font-size: clamp(24px, 7vw, 30px); }
+  .rr-view-meta  { font-size: 13.5px; }
+
+  /* ─── FAB (chat closed) ─────────────────────────────────────────── */
+  .rr-fab {
+    display: grid;
+    place-items: center;
+    position: fixed;
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    right: 16px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: var(--rr-white);
+    border: 0;
+    cursor: pointer;
+    z-index: 150;
+    box-shadow: 0 6px 22px var(--rr-shadow-lg);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(8px) scale(0.9);
+    transition: opacity .22s, transform .22s cubic-bezier(.2,.8,.2,1);
+  }
+  .rr-fab.is-visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0) scale(1);
+  }
+  .rr-fab:focus-visible {
+    outline: 3px solid var(--rr-teal);
+    outline-offset: 3px;
+  }
+  .rr-fab-avatar {
+    width: 44px;
+    height: 44px;
+    position: relative;
+    z-index: 1;
+  }
+  .rr-fab-pulse {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: var(--rr-teal);
+    opacity: 0.2;
+    animation: rr-fab-pulse 2.4s infinite;
+    pointer-events: none;
+  }
+  @keyframes rr-fab-pulse {
+    0%, 100% { transform: scale(1);    opacity: 0.22; }
+    50%      { transform: scale(1.18); opacity: 0;    }
+  }
+
+  /* ─── Scrim behind the bottom sheet ─────────────────────────────── */
+  .rr-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(27, 50, 82, 0.32);
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    z-index: 160;
+    animation: rr-scrim-fade .22s ease-out;
+  }
+  @keyframes rr-scrim-fade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  /* ─── Bottom sheet (mobile chat) ────────────────────────────────── */
+  .rr-sheet {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--rr-white);
+    border-top: 1px solid var(--rr-border);
+    border-radius: var(--rr-r-lg) var(--rr-r-lg) 0 0;
+    box-shadow: 0 -10px 40px var(--rr-shadow-lg);
+    z-index: 170;
+    padding-bottom: env(safe-area-inset-bottom);
+    transform: translateY(calc(100% + var(--rr-drag-offset, 0px)));
+    transition: transform .28s cubic-bezier(.2,.8,.2,1), height .28s cubic-bezier(.2,.8,.2,1);
+    will-change: transform, height;
+    height: 50dvh;
+    overflow: hidden;
+  }
+  .rr-sheet.rr-sheet-default {
+    transform: translateY(var(--rr-drag-offset, 0px));
+    height: 50dvh;
+  }
+  .rr-sheet.rr-sheet-focus {
+    transform: translateY(var(--rr-drag-offset, 0px));
+    height: 90dvh;
+  }
+  .rr-sheet.is-dragging {
+    transition: none;
+  }
+
+  /* Drag handle — also acts as a tap target to cycle half ↔ full */
+  .rr-sheet-handle {
+    display: grid;
+    place-items: center;
+    width: 100%;
+    padding: 10px 0 6px;
+    background: transparent;
+    border: 0;
+    cursor: grab;
+    touch-action: none;
+    flex-shrink: 0;
+  }
+  .rr-sheet-handle:active { cursor: grabbing; }
+  .rr-sheet-handle:focus-visible {
+    outline: 2px solid var(--rr-teal);
+    outline-offset: 2px;
+    border-radius: var(--rr-r-sm);
+  }
+  .rr-sheet-grip {
+    display: block;
+    width: 44px;
+    height: 5px;
+    border-radius: 100px;
+    background: var(--rr-bmd);
+  }
+
+  /* Sheet header — same structure as desktop chat-head, slimmer padding */
+  .rr-sheet-head {
+    padding: 8px 18px 14px;
+    border-bottom: 1px solid var(--rr-border);
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 12px;
+    align-items: center;
+    background: linear-gradient(180deg, var(--rr-teal-bg), var(--rr-white));
+    flex-shrink: 0;
+  }
+  .rr-sheet-head .rr-chat-avatar { width: 40px; height: 40px; }
+
+  /* Reuse the rest of the chat body styles but ensure thread can scroll. */
+  .rr-sheet .rr-thread { flex: 1; }
+  .rr-sheet .rr-build-toggle { width: calc(100% - 32px); }
+}
