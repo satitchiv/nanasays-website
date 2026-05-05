@@ -1,12 +1,62 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextRequest, NextResponse } from 'next/server'
+import { isPaidModeOn } from '@/lib/paid-mode'
+
+const PAID_ROUTE_PREFIXES = [
+  '/unlock',
+  '/checkout',
+  '/my-reports',
+  '/my-shortlist',
+  '/login',
+  '/signup',
+  '/onboarding',
+  '/nana/decision-hub',
+  '/nana/research-room',
+  '/nana/research',
+  '/partners',
+  '/claim',
+  '/ask',
+  '/portal',
+  '/admin',
+  '/demo',
+  // Gated for security — RLS off + dangerouslySetInnerHTML on blog post bodies
+  // = stored-XSS vector. Re-enable after RLS lockdown + HTML sanitization.
+  '/blog',
+  // Internal social-render surface; not user-facing in any mode.
+  '/render',
+]
+
+const PAID_REPORT_PATTERN = /^\/schools\/[^/]+\/report(\/|$)/
+
+function paidOffRedirectTarget(pathname: string): string {
+  // /schools/:slug/report → /schools/:slug (free version of same school)
+  // everything else → / (home)
+  const reportMatch = pathname.match(/^\/schools\/([^/]+)\/report/)
+  if (reportMatch) return `/schools/${reportMatch[1]}`
+  return '/'
+}
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
-  // Public portal demo — no auth needed
-  if (pathname.startsWith('/portal/demo')) {
+  // Public portal demo — no auth needed (only when paid mode is on; paid-off
+  // hides the entire /portal/* surface as a paid B2B sales channel).
+  if (pathname.startsWith('/portal/demo') && isPaidModeOn()) {
     return NextResponse.next()
+  }
+
+  // Paid mode off — redirect every paid surface to a free destination.
+  // 307 (default for NextResponse.redirect) keeps it cache-safe so flipping
+  // PAID_MODE back on doesn't fight stale browser caches.
+  if (!isPaidModeOn()) {
+    const isPaidRoute =
+      PAID_ROUTE_PREFIXES.some(p => pathname === p || pathname.startsWith(`${p}/`)) ||
+      PAID_REPORT_PATTERN.test(pathname)
+
+    if (isPaidRoute) {
+      const target = paidOffRedirectTarget(pathname)
+      return NextResponse.redirect(new URL(target, req.url), 307)
+    }
   }
 
   let response = NextResponse.next({ request: req })
@@ -71,5 +121,18 @@ export const config = {
     '/schools/:slug/report',
     '/my-reports',
     '/my-shortlist',
+    '/unlock',
+    '/checkout/:path*',
+    '/login',
+    '/signup',
+    '/onboarding',
+    '/nana/:path*',
+    '/partners',
+    '/claim/:path*',
+    '/ask',
+    '/admin/:path*',
+    '/demo/:path*',
+    '/blog/:path*',
+    '/render/:path*',
   ],
 }

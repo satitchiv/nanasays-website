@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { isPaidModeOn } from '@/lib/paid-mode'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -7,6 +8,12 @@ const supabase = createClient(
 )
 
 export async function GET(req: NextRequest) {
+  if (!isPaidModeOn()) {
+    return new NextResponse(html('Not available', 'School claim approval is not active.', false), {
+      status: 410, headers: { 'Content-Type': 'text/html' },
+    })
+  }
+
   const { searchParams } = new URL(req.url)
   const email    = searchParams.get('email')
   const schoolId = searchParams.get('school_id')

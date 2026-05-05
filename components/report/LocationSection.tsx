@@ -31,6 +31,8 @@ export type LocationProfile = {
   crime_summary?: unknown
 }
 
+import { isPaidModeOn } from '@/lib/paid-mode'
+
 type Props = {
   location: LocationProfile | null
   schoolName?: string | null
@@ -186,7 +188,7 @@ export default function LocationSection({ location, schoolName, compact = false 
       )}
 
       {/* ── Attractions ── */}
-      {!compact && attractions.length > 0 && (
+      {!compact && isPaidModeOn() && attractions.length > 0 && (
         <>
           <h3 className="block-sub">Nearby for visiting weekends</h3>
           <div className="loc-attract-grid">

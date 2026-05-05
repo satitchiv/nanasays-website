@@ -1,12 +1,18 @@
-import Stripe from 'stripe'
 import { createSupabaseServer } from '@/lib/supabase-ssr'
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { checkRateLimit } from '@/lib/rateLimit'
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+import { isPaidModeOn } from '@/lib/paid-mode'
 
 export async function POST(req: NextRequest) {
+  if (!isPaidModeOn()) {
+    return NextResponse.json({ error: 'Checkout is not available.' }, { status: 410 })
+  }
+
+  // Lazy-load Stripe so paid-off builds never construct the client.
+  const { default: Stripe } = await import('stripe')
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+
   if (!checkRateLimit(req, 'checkout')) {
     return NextResponse.json({ error: 'Too many requests. Please slow down.' }, { status: 429 })
   }

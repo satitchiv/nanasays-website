@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { generateICS } from '@/lib/ics'
+import { isPaidModeOn } from '@/lib/paid-mode'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,6 +30,10 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: { slug: string } }
 ) {
+  if (!isPaidModeOn()) {
+    return NextResponse.json({ error: 'Not available.' }, { status: 410 })
+  }
+
   const slug = params.slug?.toLowerCase()
   if (!slug || !SLUG_RE.test(slug)) {
     return NextResponse.json({ error: 'Invalid slug' }, { status: 400 })

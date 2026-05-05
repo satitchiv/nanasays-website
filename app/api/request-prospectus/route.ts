@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { esc, isValidEmail, MAX_NAME, MAX_EMAIL } from '@/lib/sanitize'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { isPaidModeOn } from '@/lib/paid-mode'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -9,6 +10,10 @@ const supabase = createClient(
 )
 
 export async function POST(req: NextRequest) {
+  if (!isPaidModeOn()) {
+    return NextResponse.json({ error: 'Prospectus request is not available.' }, { status: 410 })
+  }
+
   try {
     if (!checkRateLimit(req, 'request-prospectus')) {
       return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })

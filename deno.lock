@@ -25,6 +25,7 @@
         "npm:leaflet@^1.9.4",
         "npm:next@14.2.35",
         "npm:nodemailer@^8.0.4",
+        "npm:openai@^6.35.0",
         "npm:postcss@8",
         "npm:posthog-js@^1.372.5",
         "npm:puppeteer@^24.41.0",

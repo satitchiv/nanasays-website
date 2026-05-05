@@ -1,7 +1,10 @@
 import Link from 'next/link'
+import { isPaidModeOn } from '@/lib/paid-mode'
 import './footer.css'
 
 export default function Footer() {
+  const paidModeOn = isPaidModeOn()
+
   return (
     <footer className="site-footer">
       <div className="site-footer-inner">
@@ -23,18 +26,20 @@ export default function Footer() {
             <Link href="/about">How it works</Link>
             <Link href="/methodology">Methodology</Link>
           </div>
-          <div className="site-footer-col">
-            <span className="site-footer-col-head">Account</span>
-            <Link href="/my-reports">My Reports</Link>
-            <Link href="/unlock">Unlock access</Link>
-            <Link href="/signup">Sign up free</Link>
-          </div>
+          {paidModeOn && (
+            <div className="site-footer-col">
+              <span className="site-footer-col-head">Account</span>
+              <Link href="/my-reports">My Reports</Link>
+              <Link href="/unlock">Unlock access</Link>
+              <Link href="/signup">Sign up free</Link>
+            </div>
+          )}
           <div className="site-footer-col">
             <span className="site-footer-col-head">Legal</span>
             <Link href="/privacy">Privacy policy</Link>
             <Link href="/terms">Terms of service</Link>
             <a href="mailto:support@nanasays.school">Contact us</a>
-            <Link href="/portal">School portal</Link>
+            {paidModeOn && <Link href="/portal">School portal</Link>}
           </div>
         </div>
 

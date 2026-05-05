@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createClient } from '@supabase/supabase-js'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { isPaidModeOn } from '@/lib/paid-mode'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
@@ -11,6 +12,10 @@ const supabase = createClient(
 )
 
 export async function POST(req: NextRequest) {
+  if (!isPaidModeOn()) {
+    return NextResponse.json({ error: 'Pre-tour email generation is not available.' }, { status: 410 })
+  }
+
   try {
     if (!checkRateLimit(req, 'chat')) {
       return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })

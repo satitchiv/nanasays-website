@@ -3,6 +3,7 @@
 // - verifyAdmin(req):  checks the Authorization header and confirms the caller
 //                      has role='admin' in social_reviewers
 
+import 'server-only'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { NextRequest } from 'next/server'
 

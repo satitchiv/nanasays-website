@@ -12,34 +12,45 @@
  *     header + footer + page numbers.
  */
 
-import { NextRequest } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { NextRequest, NextResponse } from 'next/server'
 import { renderPdf, defaultHeader, defaultFooter } from '@/lib/pdf'
+import { supabaseService } from '@/lib/supabase-admin'
+import { getUnlockedUser } from '@/lib/paid-status'
+import { isPaidModeOn } from '@/lib/paid-mode'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60  // 60s timeout for Vercel; Mac Mini has no limit
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
 export async function GET(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
+  if (!isPaidModeOn()) {
+    return NextResponse.json({ error: 'PDF generation is not available.' }, { status: 410 })
+  }
+
+  // Server-side subscription check — never trust client `unlocked=true`.
+  const { isPaid } = await getUnlockedUser()
+  if (!isPaid) {
+    return NextResponse.json({ error: 'Subscription required.' }, { status: 403 })
+  }
+
+  if (!checkRateLimit(req, 'report-pdf')) {
+    return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+  }
+
   const { slug } = await params
 
-  // Fetch the school name for the PDF header + filename
-  const { data: school } = await supabase
+  // Fetch the school name for the PDF header + filename (service role).
+  const { data: school } = await supabaseService()
     .from('schools').select('name').eq('slug', slug).maybeSingle()
   if (!school) return new Response('School not found', { status: 404 })
 
   // Build internal URL to the report page — use the same host the user hit.
-  // Forward the unlock state (via ?unlocked=true query or nanasays_unlocked cookie)
-  // so Puppeteer renders the paid view, not the locked preview.
+  // The Puppeteer browser carries the request's cookies via supabase auth, so
+  // RLS sees the same authenticated user. We always force `?unlocked=true`
+  // because we already verified `isPaid` above; the report page's own gate
+  // will additionally re-check.
   const url = new URL(req.url)
-  const unlocked =
-    url.searchParams.get('unlocked') === 'true' ||
-    req.cookies.get('nanasays_unlocked')?.value === 'true'
-  const reportUrl = `${url.protocol}//${url.host}/schools/${slug}/report${unlocked ? '?unlocked=true' : ''}`
+  const reportUrl = `${url.protocol}//${url.host}/schools/${slug}/report?unlocked=true`
 
   try {
     const pdf = await renderPdf({
@@ -47,6 +58,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ slug
       waitForSelector: '#sources',  // last section — guarantees full render
       headerTemplate: defaultHeader(school.name),
       footerTemplate: defaultFooter(),
+      // Forward the user's session cookie so the rendered report page's
+      // own getUnlockedUser() check sees the authenticated paid user.
+      cookieHeader: req.headers.get('cookie') || undefined,
     })
 
     const safeSlug = slug.replace(/[^a-z0-9-]/gi, '-')

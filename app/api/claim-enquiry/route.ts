@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { esc, isValidEmail, MAX_NAME, MAX_EMAIL, MAX_MESSAGE, MAX_SHORT } from '@/lib/sanitize'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { isPaidModeOn } from '@/lib/paid-mode'
 
 // Per-school dedup: key = lowercase school name, value = timestamp of last claim
 const claimLog = new Map<string, number>()
 const CLAIM_WINDOW_MS = 24 * 60 * 60 * 1000 // 24 hours
 
 export async function POST(req: NextRequest) {
+  if (!isPaidModeOn()) {
+    return NextResponse.json({ error: 'Claim form is not available.' }, { status: 410 })
+  }
+
   try {
     if (!checkRateLimit(req, 'claim-enquiry')) {
       return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })

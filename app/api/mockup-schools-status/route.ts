@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { isPaidModeOn } from '@/lib/paid-mode'
 
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
@@ -8,6 +9,10 @@ export const revalidate = 0
 // Returns live completeness scores for every school that has
 // any Deep Research fields populated in school_structured_data.
 export async function GET() {
+  if (!isPaidModeOn()) {
+    return NextResponse.json({ error: 'Not available.' }, { status: 410 })
+  }
+
   const supabase = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_KEY!,

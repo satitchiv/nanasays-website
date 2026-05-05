@@ -1,8 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import nodemailer from 'nodemailer'
 import { esc, isValidEmail, MAX_NAME, MAX_EMAIL, MAX_MESSAGE, MAX_SHORT } from '@/lib/sanitize'
+import { checkRateLimit } from '@/lib/rateLimit'
+import { isPaidModeOn } from '@/lib/paid-mode'
 
 export async function POST(req: NextRequest) {
+  if (!isPaidModeOn()) {
+    return NextResponse.json({ error: 'Contact form is not available.' }, { status: 410 })
+  }
+  if (!checkRateLimit(req, 'contact')) {
+    return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })
+  }
+
   try {
     const body = await req.json()
     const { firstName, email, jobTitle, school, country, message, interest, recaptchaToken } = body

@@ -21,11 +21,12 @@
  * URL param: [slug] — school slug, e.g. "reeds-school-uk"
  */
 
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { isPaidModeOn } from '@/lib/paid-mode'
 // @ts-ignore — brain is plain JS, types not generated
 import { runOneQuestionStream } from '@/lib/server/nana-brain.js'
 
@@ -96,6 +97,10 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { slug: string } }
 ) {
+  if (!isPaidModeOn()) {
+    return NextResponse.json({ error: 'Chat is not available.' }, { status: 410 })
+  }
+
   // Auth: get the authenticated user via cookie-based client
   const cookieStore = await cookies()
   const authClient = createServerClient(

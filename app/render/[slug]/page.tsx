@@ -25,7 +25,8 @@ export const dynamic = 'force-dynamic'   // no caching — design edits must be 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
 // Use service-role for render so RLS doesn't block internal reads. This page
 // is never user-facing (robots blocked, not linked anywhere).
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// No anon-key fallback — anon access to social rendering data is a leak vector.
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY
 
 type PageProps = {
   params: { slug: string }
@@ -41,6 +42,10 @@ export default async function RenderPage({ params, searchParams }: PageProps) {
   const channel = CHANNEL_SIZES[channelSlug]
   if (!channel) {
     return <ErrorPage msg={`Unknown channel: ${channelSlug}`} />
+  }
+
+  if (!SUPABASE_KEY) {
+    return <ErrorPage msg="Service misconfigured: SUPABASE_SERVICE_KEY unset" />
   }
 
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {

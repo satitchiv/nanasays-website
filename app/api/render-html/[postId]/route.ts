@@ -5,16 +5,25 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
+import { isPaidModeOn } from '@/lib/paid-mode'
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
+// Service-role only. Anon-key fallback removed — render-html serves arbitrary
+// HTML (potential XSS surface), so it must never run with public-key access.
 const SUPABASE_KEY = process.env.SUPABASE_SERVICE_KEY
   || process.env.SUPABASE_SERVICE_ROLE_KEY
-  || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export async function GET(
   _req: NextRequest,
   { params }: { params: { postId: string } },
 ) {
+  if (!isPaidModeOn()) {
+    return new NextResponse('Not available', { status: 410 })
+  }
+  if (!SUPABASE_KEY) {
+    return new NextResponse('Service misconfigured', { status: 503 })
+  }
+
   const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   })

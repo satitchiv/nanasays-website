@@ -21,6 +21,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { isPaidModeOn } from '@/lib/paid-mode'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -28,6 +29,10 @@ const supabase = createClient(
 )
 
 export async function POST(req: NextRequest) {
+  if (!isPaidModeOn()) {
+    return NextResponse.json({ error: 'Report generation is not available.' }, { status: 410 })
+  }
+
   const { slug, preview } = await req.json().catch(() => ({}))
 
   if (!slug) {

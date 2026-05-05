@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createClient } from '@supabase/supabase-js'
+import { isPaidModeOn } from '@/lib/paid-mode'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
@@ -482,6 +483,10 @@ function parseResponse(text: string) {
 const DAILY_DEMO_CAP = 300
 
 export async function POST(req: NextRequest) {
+  if (!isPaidModeOn()) {
+    return NextResponse.json({ error: 'School chat is not available.' }, { status: 410 })
+  }
+
   try {
     const { slug, question } = await req.json()
 

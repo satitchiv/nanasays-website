@@ -15,7 +15,7 @@ import { buildUtmUrl } from '@/lib/utm'
 import FeeTableClient from '@/components/school/FeeTableClient'
 import FeesRangeClient from '@/components/school/FeesRangeClient'
 import { getSchoolFeed, getSchoolNews, getSchoolsWithFeeds, getSchoolPulse, getFollowerCount, getStatBarConfig, getDeadlines, getMostMentionedSchools } from '@/lib/eduworld'
-import { createClient } from '@supabase/supabase-js'
+import { getPublicSchoolPageData } from '@/lib/school-page-data'
 import DeepResearchTeaser from '@/components/school/DeepResearchTeaser'
 import HeroFeesStat from '@/components/school/HeroFeesStat'
 import AcademicSnapshotSection from '@/components/school/AcademicSnapshotSection'
@@ -42,6 +42,7 @@ import NanaDemoTeaser from '@/components/school/NanaDemoTeaser'
 import SchoolFeatureEmbed from '@/components/school/SchoolFeatureEmbed'
 import { getDemoQuestions } from '@/lib/demo-questions'
 import NanaHandleLocked from '@/components/nana/NanaHandleLocked'
+import { isPaidModeOn } from '@/lib/paid-mode'
 import SchoolPageNav from '@/components/school/SchoolPageNav'
 import SidebarTabs from '@/components/school/SidebarTabs'
 import '@/components/school/school-page-nav.css'
@@ -299,12 +300,9 @@ function SidebarTitle({ children, dark }: { children: React.ReactNode; dark?: bo
 }
 
 export default async function SchoolPage({ params, searchParams }: Props) {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  const paidModeOn = isPaidModeOn()
 
-  const [school, similarSchools, schoolFeedItems, schoolNewsArticles, schoolsWithFeeds, schoolPulse, followerCount, statBarConfig, newsDeadlines, newsMentionedSchools, structuredDataRow] = await Promise.all([
+  const [school, similarSchools, schoolFeedItems, schoolNewsArticles, schoolsWithFeeds, schoolPulse, followerCount, statBarConfig, newsDeadlines, newsMentionedSchools, publicData] = await Promise.all([
     getSchoolBySlug(params.slug),
     getSchoolBySlug(params.slug).then(s => s ? getSimilarSchools(s) : []),
     getSchoolFeed(params.slug),
@@ -315,19 +313,19 @@ export default async function SchoolPage({ params, searchParams }: Props) {
     getStatBarConfig(),
     getDeadlines(3),
     getMostMentionedSchools(5),
-    supabase.from('school_structured_data').select('*').eq('school_slug', params.slug).maybeSingle(),
+    getPublicSchoolPageData(params.slug),
   ])
 
   if (!school) notFound()
 
   // Strip narrative JSONBs (paid content — report-only) before passing to listing preview
-  const structuredForListing = structuredDataRow?.data ? (() => {
-    const { report_verdict, report_parent_fit, report_tour_questions, ...safe } = structuredDataRow.data
+  const structuredForListing = publicData.structured ? (() => {
+    const { report_verdict, report_parent_fit, report_tour_questions, ...safe } = publicData.structured
     return safe
   })() : null
 
   // SEO section data — drawn from structured data already fetched above
-  const sd = structuredDataRow?.data ?? null
+  const sd = publicData.structured ?? null
   const sdExamResults = (sd?.exam_results as any) ?? null
   const sdUniDestinations = (sd?.university_destinations as any) ?? null
   const sdSportsProfile = (sd?.sports_profile as any) ?? null
@@ -914,7 +912,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
           <SchoolSummary school={school} />
 
           {/* NANA DEMO TEASER — shown for schools with pre-generated demo answers */}
-          {(() => {
+          {paidModeOn && (() => {
             const demoQs = getDemoQuestions(params.slug)
             return demoQs.length > 0 ? (
               <NanaDemoTeaser slug={params.slug} schoolName={school.name ?? ''} questions={demoQs} />
@@ -1571,7 +1569,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
           )}
 
           {/* DEEP RESEARCH TEASER — compact card linking to /schools/{slug}/report */}
-          {structuredForListing && (
+          {paidModeOn && structuredForListing && (
             <DeepResearchTeaser
               slug={params.slug}
               schoolName={school.name}
@@ -1650,21 +1648,27 @@ export default async function SchoolPage({ params, searchParams }: Props) {
           </div>
 
           {/* PARENT FIT TEASER — AEO: feeds "is X right for my child" AI queries */}
-          <ParentFitTeaser
-            parentFit={sdParentFit}
-            reportSlug={params.slug}
-          />
+          {paidModeOn && (
+            <ParentFitTeaser
+              parentFit={sdParentFit}
+              reportSlug={params.slug}
+            />
+          )}
 
           {/* DEEP REPORT PREVIEW — conversion hook: seen early while parent is engaged */}
-          <DeepReportPreview
-            schoolName={school.name}
-            slug={params.slug}
-            sourceCount={sdSourceCount}
-            tourQuestions={sdTourQuestions}
-          />
+          {paidModeOn && (
+            <DeepReportPreview
+              schoolName={school.name}
+              slug={params.slug}
+              sourceCount={sdSourceCount}
+              tourQuestions={sdTourQuestions}
+            />
+          )}
 
           {/* FEATURE CAROUSEL EMBED — interactive Reports/Ask Nana/Compare + pricing card */}
-          <SchoolFeatureEmbed schoolName={school.name} ctaHref={`/checkout?slug=${params.slug}`} />
+          {paidModeOn && (
+            <SchoolFeatureEmbed schoolName={school.name} ctaHref={`/checkout?slug=${params.slug}`} />
+          )}
 
           {/* WHY CHOOSE */}
           {school.unique_selling_points && (
@@ -2212,7 +2216,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
           )}
 
           {/* SCHOOL PULSE — title + stat bar + feed, all under one heading */}
-          {(schoolFeedItems.length > 0 || statBarConfig) && (
+          {paidModeOn && (schoolFeedItems.length > 0 || statBarConfig) && (
             <Section style={{ paddingTop: 20, marginTop: 16 }}>
               {/* Title sits above everything */}
               <div className="ew-widget" style={{ marginBottom: 20 }}>
@@ -2396,24 +2400,26 @@ export default async function SchoolPage({ params, searchParams }: Props) {
             </a>
           )}
 
-          {/* School admin claim prompt */}
-          <div style={{
-            borderTop: '1px solid var(--border)', paddingTop: 14, marginTop: 4, marginBottom: 10,
-          }}>
-            <a
-              href="/claim"
-              style={{
-                display: 'block', textAlign: 'center', fontSize: 12,
-                color: 'var(--muted)', textDecoration: 'none',
-                padding: '10px 0',
-              }}
-            >
-              Are you the school admin?{' '}
-              <span style={{ color: 'var(--teal-dk)', fontWeight: 700, textDecoration: 'underline' }}>
-                Claim this listing
-              </span>
-            </a>
-          </div>
+          {/* School admin claim prompt — paid surface (B2B), hidden when paid mode off */}
+          {paidModeOn && (
+            <div style={{
+              borderTop: '1px solid var(--border)', paddingTop: 14, marginTop: 4, marginBottom: 10,
+            }}>
+              <a
+                href="/claim"
+                style={{
+                  display: 'block', textAlign: 'center', fontSize: 12,
+                  color: 'var(--muted)', textDecoration: 'none',
+                  padding: '10px 0',
+                }}
+              >
+                Are you the school admin?{' '}
+                <span style={{ color: 'var(--teal-dk)', fontWeight: 700, textDecoration: 'underline' }}>
+                  Claim this listing
+                </span>
+              </a>
+            </div>
+          )}
 
           {/* SOCIAL LINKS */}
           {(school.instagram_url || school.youtube_url) && (
@@ -2457,7 +2463,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
       </div>
 
       {/* IN THE NEWS — single column with new card design */}
-      {schoolNewsArticles.length > 0 && (
+      {paidModeOn && schoolNewsArticles.length > 0 && (
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: 44, marginTop: 12 }}>
           <div className="ew-widget" style={{ maxWidth: 1100, margin: '0 auto', padding: '0 5% 60px' }}>
             <NewsPageClient
@@ -2472,6 +2478,7 @@ export default async function SchoolPage({ params, searchParams }: Props) {
       )}
 
       {/* FOLLOW FORM — full width at bottom */}
+      {paidModeOn && (
       <div style={{ borderTop: '1px solid var(--border)', background: 'var(--teal-bg)' }}>
         <div className="ns-newsletter-grid" style={{ maxWidth: 1100, margin: '0 auto', padding: '56px 5%', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '48px 80px', alignItems: 'center' }}>
 
@@ -2499,11 +2506,12 @@ export default async function SchoolPage({ params, searchParams }: Props) {
 
         </div>
       </div>
+      )}
 
       <Footer />
 
       {/* Locked Nana handle — fixed right tab, links to /unlock */}
-      <NanaHandleLocked slug={params.slug} />
+      {paidModeOn && <NanaHandleLocked slug={params.slug} />}
     </>
   )
 }

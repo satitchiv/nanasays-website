@@ -3,6 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { sendWelcomeEmail } from '@/lib/email'
 import { recommendShortlist } from '@/lib/recommend-shortlist'
+import { supabaseService } from '@/lib/supabase-admin'
 
 export async function PATCH(req: Request) {
   const cookieStore = await cookies()
@@ -49,9 +50,13 @@ export async function PATCH(req: Request) {
   // Best-effort: auto-populate shortlist from onboarding answers so the
   // parent lands in /nana/research-room with a non-empty Comparison table.
   // Failures here must never fail the onboarding request.
+  //
+  // recommendShortlist reads schools_status / school_structured_data which
+  // are RLS-locked from anon+authenticated. Use the service-role client so
+  // the helper keeps working after Phase 1 RLS lockdown.
   if (update.onboarding_complete === true) {
     try {
-      const result = await recommendShortlist(supabase, user.id)
+      const result = await recommendShortlist(supabaseService(), user.id)
       console.log('[recommendShortlist]', user.id, result.reason, result.added.length)
     } catch (e) {
       console.error('[recommendShortlist] threw:', e)

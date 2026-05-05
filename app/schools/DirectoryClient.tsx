@@ -157,7 +157,7 @@ export default function DirectoryClient({ schools }: { schools: SchoolCard[] }) 
               {fees && (
                 <div className="dir-card-fees"><strong>{fees}</strong></div>
               )}
-              <div className="dir-card-cta">View full report →</div>
+              <div className="dir-card-cta">View school →</div>
             </Link>
           )
         })}

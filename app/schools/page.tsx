@@ -1,40 +1,36 @@
 import type { Metadata } from 'next'
-import { createClient } from '@supabase/supabase-js'
 import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
 import DirectoryClient, { type SchoolCard } from './DirectoryClient'
+import { isPaidModeOn } from '@/lib/paid-mode'
+import { getPublicSchoolsIndex } from '@/lib/school-page-data'
+import { supabaseService } from '@/lib/supabase-admin'
 import './schools.css'
 
 export const metadata: Metadata = {
   title: 'UK Independent Schools Directory | Nanasays',
-  description: 'Browse 140 UK independent schools with deep research reports. Filter by boarding, sport, and more. Free to browse — unlock the full report for £39.',
+  description: isPaidModeOn()
+    ? 'Browse 140 UK independent schools with deep research reports. Filter by boarding, sport, and more. Free to browse — unlock the full report for £39.'
+    : 'Browse 140 UK independent schools. Filter by boarding, sport, location, fees and more.',
   alternates: { canonical: 'https://nanasays.school/schools' },
 }
 
 export const revalidate = 3600
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
 async function loadSchools(): Promise<SchoolCard[]> {
   // Pull from schools_status (the 140 substantially-crawled UK schools)
-  // then join schools table for city/boarding/gender/fees/ages
-  const [statusRes, schoolsRes] = await Promise.all([
-    supabase
-      .from('schools_status')
-      .select('school_slug, name, profile_boarding_type, signature_sports, has_rugby_extracted, has_cricket_extracted, has_hockey_extracted, has_football_extracted, has_tennis_deep, pct_complete')
-      .eq('is_uk_evidence', true)
-      .eq('has_substantial_chunks', true)
-      .order('name'),
-    supabase
+  // then join schools table for city/boarding/gender/fees/ages.
+  // Both reads go through service-role helpers so RLS lockdown on
+  // schools_status doesn't break the directory.
+  const sb = supabaseService()
+  const [statusRows, schoolsRes] = await Promise.all([
+    getPublicSchoolsIndex(),
+    sb
       .from('schools')
       .select('slug, city, boarding, gender_split, age_min, age_max, fees_usd_min')
       .eq('country', 'United Kingdom'),
   ])
 
-  const statusRows = statusRes.data ?? []
   const schoolMap = new Map((schoolsRes.data ?? []).map(s => [s.slug, s]))
 
   return statusRows.map(row => {

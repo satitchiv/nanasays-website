@@ -24,6 +24,8 @@ export type RenderPdfOptions = {
   waitForSelector?: string
   /** Wait for network idle before emitting (default: true) */
   waitForNetworkIdle?: boolean
+  /** Forward an HTTP Cookie header to the navigated page (for auth-gated routes). */
+  cookieHeader?: string
 }
 
 export async function renderPdf(opts: RenderPdfOptions): Promise<Uint8Array> {
@@ -34,6 +36,12 @@ export async function renderPdf(opts: RenderPdfOptions): Promise<Uint8Array> {
   try {
     const page = await browser.newPage()
     await page.setViewport({ width: 1280, height: 1800, deviceScaleFactor: 2 })
+
+    if (opts.cookieHeader) {
+      // Pass the caller's session cookies to Puppeteer so RLS / paid-status
+      // checks on the rendered page see the same authenticated user.
+      await page.setExtraHTTPHeaders({ Cookie: opts.cookieHeader })
+    }
 
     await page.goto(opts.url, {
       waitUntil: opts.waitForNetworkIdle === false ? 'domcontentloaded' : 'networkidle0',

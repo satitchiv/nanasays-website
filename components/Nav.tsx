@@ -3,12 +3,14 @@
 import Link from 'next/link'
 import { useLang } from './LanguageProvider'
 import { useCurrency } from './CurrencyProvider'
+import { isPaidModeOn } from '@/lib/paid-mode'
 
 const TOP_CURRENCIES = ['USD', 'THB', 'GBP', 'EUR', 'SGD', 'HKD', 'CHF', 'AUD', 'JPY', 'CNY']
 
 export default function Nav() {
   const { lang, setLang, t } = useLang()
   const { currency, setCurrency } = useCurrency()
+  const paidModeOn = isPaidModeOn()
 
   return (
     <nav style={{
@@ -67,14 +69,16 @@ export default function Nav() {
         </select>
 
         {/* For Schools */}
-        <Link href="/partners" style={{
-          padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700,
-          color: '#fff', background: 'var(--teal)',
-          textDecoration: 'none', display: 'flex', alignItems: 'center',
-          whiteSpace: 'nowrap',
-        }}>
-          For Schools
-        </Link>
+        {paidModeOn && (
+          <Link href="/partners" style={{
+            padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 700,
+            color: '#fff', background: 'var(--teal)',
+            textDecoration: 'none', display: 'flex', alignItems: 'center',
+            whiteSpace: 'nowrap',
+          }}>
+            For Schools
+          </Link>
+        )}
       </div>
     </nav>
   )

@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { esc, isValidEmail, MAX_NAME, MAX_EMAIL, MAX_MESSAGE, MAX_SHORT } from '@/lib/sanitize'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { isPaidModeOn } from '@/lib/paid-mode'
 
 export async function POST(req: NextRequest) {
+  if (!isPaidModeOn()) {
+    return NextResponse.json({ error: 'Enquiry form is not available.' }, { status: 410 })
+  }
+
   try {
     if (!checkRateLimit(req, 'general-enquiry')) {
       return NextResponse.json({ error: 'Too many requests. Please try again later.' }, { status: 429 })

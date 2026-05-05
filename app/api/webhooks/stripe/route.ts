@@ -1,14 +1,22 @@
-import Stripe from 'stripe'
+import type Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest, NextResponse } from 'next/server'
 import { sendPurchaseConfirmationEmail } from '@/lib/email'
-
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+import { isPaidModeOn } from '@/lib/paid-mode'
 
 // Must read raw body — parsing JSON first breaks Stripe signature verification
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {
+  // Paid mode off: respond benign 200 so Stripe doesn't retry. Avoids retry
+  // noise without requiring webhook teardown in the Stripe dashboard.
+  if (!isPaidModeOn()) {
+    return NextResponse.json({ received: true, disabled: true })
+  }
+
+  const { default: StripeCtor } = await import('stripe')
+  const stripe = new StripeCtor(process.env.STRIPE_SECRET_KEY!)
+
   const rawBody = await req.text()
   const sig = req.headers.get('stripe-signature')
 

@@ -1,5 +1,6 @@
-import { createClient } from '@supabase/supabase-js'
 import { notFound } from 'next/navigation'
+import { supabaseService } from '@/lib/supabase-admin'
+import { getPaidSchoolReportData } from '@/lib/school-page-data'
 
 import RptHeader              from '@/components/report/RptHeader'
 import VerdictBox, { Verdict } from '@/components/report/VerdictBox'
@@ -50,24 +51,23 @@ import './report.css'
 export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
 type Props = {
   params: Promise<{ slug: string }>
   searchParams?: Promise<{ unlocked?: string; just_unlocked?: string }>
 }
 
 async function loadAll(slug: string) {
-  const [{ data: school }, { data: structured }, { data: sensitive }, { data: policyDocs }] = await Promise.all([
-    supabase.from('schools').select('*').eq('slug', slug).maybeSingle(),
-    supabase.from('school_structured_data').select('*').eq('school_slug', slug).maybeSingle(),
-    supabase.from('school_sensitive').select('*').eq('school_slug', slug),
-    supabase.from('school_knowledge').select('title, source_url, analysis').eq('school_slug', slug).eq('category', 'policies').eq('source_type', 'pdf').order('title'),
+  const sb = supabaseService()
+  const [{ data: school }, paid] = await Promise.all([
+    sb.from('schools').select('*').eq('slug', slug).maybeSingle(),
+    getPaidSchoolReportData(slug),
   ])
-return { school, structured, sensitive: sensitive || [], policyDocs: policyDocs || [] }
+  return {
+    school,
+    structured: paid.structured,
+    sensitive: paid.sensitive,
+    policyDocs: paid.policyDocs,
+  }
 }
 
 function findRow(rows: any[], source: string, dataType?: string) {

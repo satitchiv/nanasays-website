@@ -22,10 +22,12 @@
  */
 
 import { NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { isPaidModeOn } from '@/lib/paid-mode'
 // @ts-ignore
 import {
   runOneQuestionStream,
@@ -76,6 +78,10 @@ function buildParentContext(profile: Record<string, string | boolean | null>): s
 }
 
 export async function POST(req: NextRequest) {
+  if (!isPaidModeOn()) {
+    return NextResponse.json({ error: 'Research mode is not available.' }, { status: 410 })
+  }
+
   // ── Auth ──
   const cookieStore = await cookies()
   const authClient = createServerClient(

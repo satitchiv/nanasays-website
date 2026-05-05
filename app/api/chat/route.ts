@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createClient } from '@supabase/supabase-js'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { isPaidModeOn } from '@/lib/paid-mode'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
@@ -21,6 +22,10 @@ STRICT RULES:
 - When you mention a school, include its country and key detail (fees, curriculum, or a unique fact).`
 
 export async function POST(req: NextRequest) {
+  if (!isPaidModeOn()) {
+    return NextResponse.json({ error: 'Chat is not available.' }, { status: 410 })
+  }
+
   try {
     if (!checkRateLimit(req, 'chat')) {
       return NextResponse.json({ error: 'Too many requests. Please slow down.' }, { status: 429 })

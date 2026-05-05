@@ -5,11 +5,12 @@
  * GET  ?sessionId=<uuid>        — full session with its messages
  */
 
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { checkRateLimit } from '@/lib/rateLimit'
+import { isPaidModeOn } from '@/lib/paid-mode'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -20,6 +21,10 @@ const supabase = createClient(
 )
 
 export async function GET(req: NextRequest) {
+  if (!isPaidModeOn()) {
+    return NextResponse.json({ error: 'Research sessions are not available.' }, { status: 410 })
+  }
+
   const cookieStore = await cookies()
   const authClient = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

@@ -6,5 +6,18 @@ Disallow: /claim/
 Disallow: /demo/
 Disallow: /render/
 Disallow: /admin/
+Disallow: /unlock
+Disallow: /checkout
+Disallow: /my-reports
+Disallow: /my-shortlist
+Disallow: /schools/*/report
+Disallow: /nana/decision-hub
+Disallow: /nana/research-room
+Disallow: /nana/research
+Disallow: /partners
+Disallow: /claim
+Disallow: /blog
+Disallow: /admin
+Disallow: /demo
 
 Sitemap: https://nanasays.school/sitemap.xml
