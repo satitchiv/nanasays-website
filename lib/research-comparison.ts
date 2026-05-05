@@ -184,15 +184,22 @@ function boardingCell(meta: SchoolMeta): RowCell {
 export async function loadComparisonData(
   supabase: SupabaseClient,
   userId: string,
+  childId: string | null = null,
 ): Promise<ComparisonData> {
   assertUserId(userId, 'loadComparisonData')
 
-  // 1. Shortlist
-  const { data: rows, error: shortlistError } = await supabase
+  // 1. Shortlist — filter to this child's rows, OR parent-wide (NULL
+  // child_id) when no child is selected. The /my-shortlist page still
+  // sees ALL rows; only Research Room is per-child scoped.
+  let shortlistQuery = supabase
     .from('shortlisted_schools')
     .select('school_slug, added_at')
     .eq('user_id', userId)
     .order('added_at', { ascending: true })
+  shortlistQuery = childId
+    ? shortlistQuery.eq('child_id', childId)
+    : shortlistQuery.is('child_id', null)
+  const { data: rows, error: shortlistError } = await shortlistQuery
 
   if (shortlistError) {
     // Swallowing this would render an empty Comparison table; surface it

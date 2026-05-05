@@ -195,25 +195,51 @@ async function loadUkEvidenceSlugs(supabase: SupabaseClient): Promise<string[]> 
 export async function recommendShortlist(
   supabase: SupabaseClient,
   userId: string,
+  childId: string | null = null,
 ): Promise<RecommendResult> {
   assertUserId(userId, 'recommendShortlist')
 
-  // 1. Load profile
-  const { data: profile } = await supabase
-    .from('parent_profiles')
-    .select('home_region, child_gender, child_year, boarding_pref, budget_range, curriculum_pref, top_priority, class_size_pref, sen_need, onboarding_complete')
-    .eq('id', userId)
-    .maybeSingle<Profile>()
+  // 1. Load profile.
+  // - With a childId: read from children.child_profile (per-child)
+  // - Without: read from parent_profiles (legacy / no children yet)
+  let profile: Profile | null = null
+  if (childId) {
+    const { data: child } = await supabase
+      .from('children')
+      .select('child_profile')
+      .eq('id', childId)
+      .eq('user_id', userId)
+      .maybeSingle<{ child_profile: Partial<Profile> }>()
+    if (child?.child_profile) {
+      // child_profile is JSONB shaped like the parent_profiles columns
+      // (copied at child-create time in /api/children POST). Treat it
+      // as already-complete so the onboarding gate doesn't bail.
+      profile = { ...child.child_profile, onboarding_complete: true } as Profile
+    }
+  } else {
+    const { data: pp } = await supabase
+      .from('parent_profiles')
+      .select('home_region, child_gender, child_year, boarding_pref, budget_range, curriculum_pref, top_priority, class_size_pref, sen_need, onboarding_complete')
+      .eq('id', userId)
+      .maybeSingle<Profile>()
+    profile = pp
+  }
 
   if (!profile) return { added: [], reason: 'no_profile' }
   if (!profile.onboarding_complete) return { added: [], reason: 'incomplete' }
 
-  // 2. Bail if shortlist already has rows
-  const { data: existing } = await supabase
+  // 2. Bail if THIS scope's shortlist already has rows. Per-child
+  // recommender skips when that child already has rows; parent-wide
+  // recommender skips when any NULL-child rows exist.
+  let existingQuery = supabase
     .from('shortlisted_schools')
     .select('school_slug')
     .eq('user_id', userId)
     .limit(1)
+  existingQuery = childId
+    ? existingQuery.eq('child_id', childId)
+    : existingQuery.is('child_id', null)
+  const { data: existing } = await existingQuery
 
   if (existing && existing.length > 0) {
     return { added: [], reason: 'shortlist_not_empty' }
@@ -446,15 +472,21 @@ export async function recommendShortlist(
 
   const top = scored.slice(0, 6).map(x => x.school)
 
-  // 7. Upsert with ignoreDuplicates — the (user_id, school_slug) UNIQUE
-  // constraint backstops the check-then-insert race window. If a second
-  // concurrent call slips past the empty-shortlist guard above, the
-  // duplicate rows are silently dropped instead of raising. Either way
-  // the user ends up with exactly 6 schools, never 12.
-  const rows = top.map(s => ({ user_id: userId, school_slug: s.slug }))
+  // 7. Upsert with ignoreDuplicates — the (user_id, child_id, school_slug)
+  // UNIQUE NULLS NOT DISTINCT constraint backstops the race window. If
+  // a second concurrent call slips past the empty-shortlist guard
+  // above, duplicate rows for the SAME (user, child, slug) silently
+  // dedupe. Two children CAN both shortlist the same slug because the
+  // tuple includes child_id. NULL child_id (parent-wide) still dedupes
+  // against NULL via NULLS NOT DISTINCT.
+  const rows = top.map(s => ({
+    user_id: userId,
+    school_slug: s.slug,
+    child_id: childId,
+  }))
   const { error: insertError } = await supabase
     .from('shortlisted_schools')
-    .upsert(rows, { onConflict: 'user_id,school_slug', ignoreDuplicates: true })
+    .upsert(rows, { onConflict: 'user_id,child_id,school_slug', ignoreDuplicates: true })
 
   if (insertError) {
     console.error('[recommendShortlist] upsert failed:', insertError.message)

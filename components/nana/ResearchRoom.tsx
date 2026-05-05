@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import ChildSelector, { type ChildOption } from './ChildSelector'
 import ChildBriefTab, { type ChildSummary } from './ChildBriefTab'
@@ -50,10 +51,32 @@ export default function ResearchRoom({
   initialActiveChildId = null,
   comparisonData,
 }: Props) {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<Tab>('compare')
   const [chatState, setChatState] = useState<ChatState>('default')
   const [buildMode, setBuildMode] = useState(false)
   const [activeChildId, setActiveChildId] = useState<string | null>(initialActiveChildId)
+
+  // Persist the active child to parent_profiles + refresh server data
+  // so the comparison table re-fetches per the new child's shortlist.
+  // Failures revert local state to keep UI consistent with DB truth.
+  async function handleActiveChildChange(nextChildId: string) {
+    if (nextChildId === activeChildId) return
+    const prev = activeChildId
+    setActiveChildId(nextChildId)  // optimistic
+    try {
+      const res = await fetch('/api/active-child', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ child_id: nextChildId }),
+      })
+      if (!res.ok) throw new Error(await res.text())
+      router.refresh()
+    } catch (e) {
+      console.error('[handleActiveChildChange]', e)
+      setActiveChildId(prev)  // revert on failure
+    }
+  }
 
   const pagerRef = useRef<HTMLDivElement | null>(null)
   // Token-based suppression for IntersectionObserver during programmatic
@@ -210,7 +233,7 @@ export default function ResearchRoom({
             <ChildSelector
               childOptions={childOptions}
               activeChildId={activeChildId}
-              onChange={setActiveChildId}
+              onChange={handleActiveChildChange}
             />
           </div>
 
@@ -252,7 +275,7 @@ export default function ResearchRoom({
                     <ChildBriefTab
                       children={childSummaries}
                       activeChildId={activeChildId}
-                      onActiveChildChange={setActiveChildId}
+                      onActiveChildChange={handleActiveChildChange}
                     />
                   ) : (
                     <>

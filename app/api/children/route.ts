@@ -1,10 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { supabaseService } from '@/lib/supabase-admin'
+import { recommendShortlist } from '@/lib/recommend-shortlist'
 
 // Children CRUD for the Research Room Brief tab.
 // RLS on `children` table enforces auth.uid() = user_id, so the
-// authenticated client is sufficient — no service-role needed here.
+// authenticated client is sufficient for reads/writes. The recommender
+// fired on POST uses the service-role client because schools_status /
+// school_structured_data are RLS-locked from anon.
+
+// Subset of parent_profiles columns that describe the CHILD, not the
+// parent. Copied into children.child_profile when a new child is
+// created so the recommender can run per-child without forcing the
+// parent to re-do onboarding for each kid. Per-child overrides come
+// in slice 4's child_profile JSONB editor.
+const CHILD_PROFILE_KEYS = [
+  'child_year', 'child_gender', 'boarding_pref', 'budget_range',
+  'curriculum_pref', 'top_priority', 'class_size_pref', 'sen_need',
+  'home_region',
+] as const
 
 async function getAuthClient() {
   const cookieStore = await cookies()
@@ -56,12 +71,65 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'date_of_birth must be YYYY-MM-DD' }, { status: 400 })
   }
 
-  const { data, error } = await supabase
+  // Copy parent_profiles → child_profile so the new child inherits the
+  // family's onboarding answers as defaults. The parent can tweak
+  // per-child via the slice-4 child_profile editor (not built yet).
+  // We use the service-role client for this read because parent_profiles
+  // is RLS-restricted to the row owner — the auth client works too,
+  // but service-role keeps the pattern consistent with recommender calls.
+  const svc = supabaseService()
+  const { data: pp } = await svc
+    .from('parent_profiles')
+    .select(CHILD_PROFILE_KEYS.join(', '))
+    .eq('id', user.id)
+    .maybeSingle()
+
+  const childProfile: Record<string, unknown> = {}
+  if (pp) {
+    for (const key of CHILD_PROFILE_KEYS) {
+      const v = (pp as Record<string, unknown>)[key]
+      if (v != null) childProfile[key] = v
+    }
+  }
+  // Mark as complete so the recommender's onboarding gate passes.
+  childProfile.onboarding_complete = true
+
+  // Check whether this is the user's FIRST non-archived child — if so
+  // we'll auto-set them as active_child_id after insert.
+  const { count: existingCount } = await supabase
     .from('children')
-    .insert({ user_id: user.id, name, date_of_birth: dob })
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .eq('is_archived', false)
+  const isFirstChild = (existingCount ?? 0) === 0
+
+  const { data: created, error } = await supabase
+    .from('children')
+    .insert({ user_id: user.id, name, date_of_birth: dob, child_profile: childProfile })
     .select('id, name, date_of_birth, child_profile, is_archived, created_at, updated_at')
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ child: data }, { status: 201 })
+
+  // Auto-set as active_child_id when this is the first child added.
+  // Subsequent children don't auto-promote — parent picks via dropdown.
+  if (isFirstChild) {
+    const { error: activeErr } = await supabase
+      .from('parent_profiles')
+      .update({ active_child_id: created.id })
+      .eq('id', user.id)
+    if (activeErr) console.warn('[POST /api/children] active_child_id update failed:', activeErr.message)
+  }
+
+  // Best-effort: run the recommender for this new child. Failures
+  // never fail the create — the child still exists and the parent
+  // can re-trigger via the Brief tab later.
+  try {
+    const result = await recommendShortlist(svc, user.id, created.id)
+    console.log('[POST /api/children recommendShortlist]', user.id, created.id, result.reason, result.added.length)
+  } catch (e) {
+    console.error('[POST /api/children recommendShortlist] threw:', e)
+  }
+
+  return NextResponse.json({ child: created }, { status: 201 })
 }
