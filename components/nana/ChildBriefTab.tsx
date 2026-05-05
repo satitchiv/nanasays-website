@@ -1,10 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  FAMILY_FIELDS,
   ONBOARDING_FIELDS,
   getOptionLabel,
   getOptionShortLabel,
@@ -18,6 +16,8 @@ export type ChildSummary = {
   is_archived:   boolean
 }
 
+// FamilyPreferences kept exported for backward-compat with the page
+// component's prop shape; rendered nowhere now (per slice 3.3 polish).
 export type FamilyPreferences = Record<string, string | null>
 
 type Props = {
@@ -27,77 +27,116 @@ type Props = {
   onActiveChildChange?: (id: string) => void
 }
 
-const BASICS_FIELDS   = ['child_year', 'child_gender'] as const
-const PRIORITY_FIELDS = ['top_priority', 'class_size_pref', 'sen_need'] as const
+const BASICS_FIELDS     = ['child_year', 'child_gender'] as const
+const SCHOOL_FIELDS     = ['home_region', 'boarding_pref', 'budget_range', 'curriculum_pref'] as const
+const PRIORITY_FIELDS   = ['top_priority', 'class_size_pref', 'sen_need'] as const
 
 export default function ChildBriefTab({
   children,
   activeChildId,
-  familyPreferences,
-  onActiveChildChange: _onActiveChildChange,
+  onActiveChildChange,
 }: Props) {
   const [adding, setAdding] = useState(false)
-  const [editingMeta, setEditingMeta] = useState(false)
-  const [editingCard, setEditingCard] = useState<'basics' | 'priorities' | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const router = useRouter()
 
-  const activeChild = children.find(c => c.id === activeChildId) ?? null
-  const hasChildren = children.length > 0
+  async function addChild(name: string, dob: string) {
+    setBusy(true); setError(null)
+    try {
+      const res = await fetch('/api/children', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, date_of_birth: dob || null }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Failed to add child')
+      setAdding(false)
+      router.refresh()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unknown error')
+    } finally {
+      setBusy(false)
+    }
+  }
 
-  return (
-    <div className="rr-brief-wrap">
-      {familyPreferences && (
-        <FamilyPreferencesCard preferences={familyPreferences} />
-      )}
-
-      {!hasChildren ? (
+  if (children.length === 0) {
+    return (
+      <div className="rr-brief-wrap">
         <EmptyChildrenState
           adding={adding}
           busy={busy}
           error={error}
           setAdding={setAdding}
-          setBusy={setBusy}
-          setError={setError}
+          onSave={addChild}
+          onClearError={() => setError(null)}
         />
-      ) : activeChild ? (
-        <ActiveChildPanel
-          child={activeChild}
-          editingCard={editingCard}
-          editingMeta={editingMeta}
-          adding={adding}
+      </div>
+    )
+  }
+
+  return (
+    <div className="rr-brief-wrap">
+      <header className="rr-brief-tab-head">
+        <div className="rr-brief-eyebrow">Child brief · the lens for everything</div>
+        <p className="rr-brief-tab-meta">
+          Each child has their own answers to the 9 questions. Edit any field — the recommender re-runs for that child.
+        </p>
+      </header>
+
+      {error && <div className="rr-brief-error" role="alert">{error}</div>}
+
+      {children.map(c => (
+        <ChildPanel
+          key={c.id}
+          child={c}
+          isActive={c.id === activeChildId}
           busy={busy}
-          error={error}
-          setError={setError}
           setBusy={setBusy}
-          setEditingMeta={setEditingMeta}
-          setEditingCard={setEditingCard}
-          setAdding={setAdding}
+          setError={setError}
+          onSetActive={() => onActiveChildChange?.(c.id)}
         />
-      ) : null}
+      ))}
+
+      {adding ? (
+        <ChildMetaForm
+          initialName=""
+          initialDob=""
+          busy={busy}
+          submitLabel="Add child"
+          onCancel={() => { setAdding(false); setError(null) }}
+          onSave={addChild}
+        />
+      ) : (
+        <button
+          type="button"
+          className="rr-brief-add-btn"
+          onClick={() => { setAdding(true); setError(null) }}
+          disabled={busy}
+        >
+          + Add child
+        </button>
+      )}
     </div>
   )
 }
 
-// ─── Active child panel ──────────────────────────────────────────────────
+// ─── Child panel — one per child, fully self-contained ───────────────────
 
-function ActiveChildPanel({
-  child, editingCard, editingMeta, adding, busy, error,
-  setError, setBusy, setEditingMeta, setEditingCard, setAdding,
+function ChildPanel({
+  child, isActive, busy, setBusy, setError, onSetActive,
 }: {
   child: ChildSummary
-  editingCard: 'basics' | 'priorities' | null
-  editingMeta: boolean
-  adding: boolean
+  isActive: boolean
   busy: boolean
-  error: string | null
-  setError: (s: string | null) => void
   setBusy: (b: boolean) => void
-  setEditingMeta: (b: boolean) => void
-  setEditingCard: (c: 'basics' | 'priorities' | null) => void
-  setAdding: (b: boolean) => void
+  setError: (s: string | null) => void
+  onSetActive: () => void
 }) {
   const router = useRouter()
+  const [editingMeta, setEditingMeta] = useState(false)
+  const [editingCard, setEditingCard] = useState<'basics' | 'school' | 'priorities' | null>(null)
+
   const yearLabel = getOptionShortLabel('child_year', child.child_profile?.child_year ?? null)
   const ageLabel = ageFromDOB(child.date_of_birth)
   const metaParts: string[] = []
@@ -143,25 +182,6 @@ function ActiveChildPanel({
     }
   }
 
-  async function addChild(name: string, dob: string) {
-    setBusy(true); setError(null)
-    try {
-      const res = await fetch('/api/children', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, date_of_birth: dob || null }),
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error ?? 'Failed to add child')
-      setAdding(false)
-      router.refresh()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unknown error')
-    } finally {
-      setBusy(false)
-    }
-  }
-
   async function archive() {
     if (!confirm(`Archive ${child.name}? Their research history stays readable but they'll be hidden from the dropdown.`)) return
     setBusy(true); setError(null)
@@ -178,10 +198,9 @@ function ActiveChildPanel({
   }
 
   return (
-    <section className="rr-cb-panel">
+    <section className={`rr-cb-panel${isActive ? ' is-active' : ''}`}>
       <header className="rr-cb-head">
         <div className="rr-cb-head-main">
-          <div className="rr-brief-eyebrow">Child brief · the lens for everything</div>
           {editingMeta ? (
             <ChildMetaForm
               initialName={child.name}
@@ -193,7 +212,21 @@ function ActiveChildPanel({
             />
           ) : (
             <>
-              <h1 className="rr-cb-title">{child.name}</h1>
+              <div className="rr-cb-name-row">
+                <h2 className="rr-cb-title">{child.name}</h2>
+                {isActive ? (
+                  <span className="rr-brief-active-tag">Active</span>
+                ) : (
+                  <button
+                    type="button"
+                    className="rr-brief-action rr-brief-action-ghost"
+                    onClick={onSetActive}
+                    disabled={busy}
+                  >
+                    Set active
+                  </button>
+                )}
+              </div>
               <p className="rr-cb-meta">
                 {metaParts.length > 0 ? `${metaParts.join(' · ')}. ` : ''}
                 Edit any field — recommendations re-run for this child only.
@@ -202,7 +235,7 @@ function ActiveChildPanel({
           )}
         </div>
         <div className="rr-cb-actions">
-          {!editingMeta && !adding && (
+          {!editingMeta && (
             <>
               <button
                 type="button"
@@ -211,14 +244,6 @@ function ActiveChildPanel({
                 disabled={busy}
               >
                 Edit name / DOB
-              </button>
-              <button
-                type="button"
-                className="rr-brief-action rr-brief-action-ghost"
-                onClick={() => setAdding(true)}
-                disabled={busy}
-              >
-                + Add child
               </button>
               <button
                 type="button"
@@ -233,19 +258,6 @@ function ActiveChildPanel({
         </div>
       </header>
 
-      {adding && (
-        <ChildMetaForm
-          initialName=""
-          initialDob=""
-          busy={busy}
-          submitLabel="Add child"
-          onCancel={() => { setAdding(false); setError(null) }}
-          onSave={addChild}
-        />
-      )}
-
-      {error && <div className="rr-brief-error" role="alert">{error}</div>}
-
       <div className="rr-cb-grid">
         <ProfileCard
           title="Basics"
@@ -254,6 +266,16 @@ function ActiveChildPanel({
           editing={editingCard === 'basics'}
           busy={busy}
           onStartEdit={() => setEditingCard('basics')}
+          onCancelEdit={() => setEditingCard(null)}
+          onSave={patchProfile}
+        />
+        <ProfileCard
+          title="School"
+          fields={SCHOOL_FIELDS}
+          values={child.child_profile ?? {}}
+          editing={editingCard === 'school'}
+          busy={busy}
+          onStartEdit={() => setEditingCard('school')}
           onCancelEdit={() => setEditingCard(null)}
           onSave={patchProfile}
         />
@@ -267,50 +289,34 @@ function ActiveChildPanel({
           onCancelEdit={() => setEditingCard(null)}
           onSave={patchProfile}
         />
+        <PlaceholderCard
+          title="Personality"
+          subtitle="Temperament · Social style · Boarding readiness"
+          note="Filled via chat in slice 5 — Nana asks short questions and extracts the answers."
+        />
       </div>
     </section>
   )
 }
 
-// ─── Empty state when no children yet ────────────────────────────────────
+// ─── Empty state when 0 children ─────────────────────────────────────────
 
 function EmptyChildrenState({
-  adding, busy, error,
-  setAdding, setBusy, setError,
+  adding, busy, error, setAdding, onSave, onClearError,
 }: {
   adding: boolean
   busy: boolean
   error: string | null
   setAdding: (b: boolean) => void
-  setBusy: (b: boolean) => void
-  setError: (s: string | null) => void
+  onSave: (name: string, dob: string) => void
+  onClearError: () => void
 }) {
-  const router = useRouter()
-  async function addChild(name: string, dob: string) {
-    setBusy(true); setError(null)
-    try {
-      const res = await fetch('/api/children', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, date_of_birth: dob || null }),
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error ?? 'Failed to add child')
-      setAdding(false)
-      router.refresh()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unknown error')
-    } finally {
-      setBusy(false)
-    }
-  }
-
   return (
     <section className="rr-cb-empty">
       <div className="rr-brief-eyebrow">My children</div>
       <h2 className="rr-cb-empty-title">Add your first child to get started.</h2>
       <p className="rr-cb-empty-meta">
-        Each child gets their own comparison table, lens history, and partner brief.
+        Each child gets their own preferences, comparison table, and partner brief.
       </p>
       {error && <div className="rr-brief-error" role="alert">{error}</div>}
       {adding ? (
@@ -319,14 +325,14 @@ function EmptyChildrenState({
           initialDob=""
           busy={busy}
           submitLabel="Add child"
-          onCancel={() => { setAdding(false); setError(null) }}
-          onSave={addChild}
+          onCancel={() => { setAdding(false); onClearError() }}
+          onSave={onSave}
         />
       ) : (
         <button
           type="button"
           className="rr-brief-action rr-brief-action-primary"
-          onClick={() => { setAdding(true); setError(null) }}
+          onClick={() => { setAdding(true); onClearError() }}
         >
           + Add first child
         </button>
@@ -335,7 +341,7 @@ function EmptyChildrenState({
   )
 }
 
-// ─── Profile card (Basics, Priorities) ───────────────────────────────────
+// ─── Profile card (one per slot in the 4-card grid) ──────────────────────
 
 function ProfileCard({
   title, fields, values, editing, busy,
@@ -462,7 +468,22 @@ function ProfileCardForm({
   )
 }
 
-// ─── Child meta form (name + DOB — used for add + edit) ──────────────────
+function PlaceholderCard({ title, subtitle, note }: {
+  title: string; subtitle: string; note: string
+}) {
+  return (
+    <div className="rr-cb-card rr-cb-card-stub">
+      <div className="rr-cb-card-h">
+        <span>{title}</span>
+        <span className="rr-cb-stub-tag">slice 5</span>
+      </div>
+      <div className="rr-cb-stub-sub">{subtitle}</div>
+      <div className="rr-cb-stub-note">{note}</div>
+    </div>
+  )
+}
+
+// ─── Child meta form (name + DOB) ────────────────────────────────────────
 
 function ChildMetaForm({
   initialName, initialDob, busy, submitLabel, onCancel, onSave,
@@ -527,37 +548,6 @@ function ChildMetaForm({
         </button>
       </div>
     </form>
-  )
-}
-
-// ─── Family preferences card ─────────────────────────────────────────────
-
-function FamilyPreferencesCard({ preferences }: { preferences: FamilyPreferences }) {
-  return (
-    <section className="rr-brief-prefs">
-      <div className="rr-brief-prefs-head">
-        <div>
-          <div className="rr-brief-eyebrow">Family settings</div>
-          <p className="rr-brief-prefs-meta">
-            Apply to every child. Per-child overrides live in each child&apos;s panel below.
-          </p>
-        </div>
-        <Link href="/onboarding" className="rr-brief-action rr-brief-action-ghost">
-          Edit →
-        </Link>
-      </div>
-      <dl className="rr-brief-prefs-grid">
-        {FAMILY_FIELDS.map(f => {
-          const value = preferences[f.field] ?? null
-          return (
-            <div key={f.field} className="rr-brief-prefs-row">
-              <dt>{f.short}</dt>
-              <dd>{getOptionShortLabel(f.field, value)}</dd>
-            </div>
-          )
-        })}
-      </dl>
-    </section>
   )
 }
 

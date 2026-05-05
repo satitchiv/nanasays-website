@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { supabaseService } from '@/lib/supabase-admin'
 import { recommendShortlist } from '@/lib/recommend-shortlist'
-import { CHILD_FIELD_NAMES } from '@/lib/onboarding-fields'
+import { ONBOARDING_FIELD_NAMES } from '@/lib/onboarding-fields'
 
 // Children CRUD for the Research Room Brief tab.
 // RLS on `children` table enforces auth.uid() = user_id, so the
@@ -61,21 +61,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'date_of_birth must be YYYY-MM-DD' }, { status: 400 })
   }
 
-  // Copy ONLY the child-level fields from parent_profiles into the new
-  // child_profile (the family-level fields like home_region, budget,
-  // boarding, curriculum stay on parent_profiles and are merged at
-  // recommender time). The parent can tweak per-child via the Brief
-  // tab inline editor.
+  // Copy ALL 9 onboarding fields from parent_profiles into the new
+  // child_profile. Slice 3.3 model: every field is per-child, no
+  // family-level enforcement. New children inherit the parent's
+  // onboarding answers as a starting template; can be tweaked
+  // independently from the Brief tab.
   const svc = supabaseService()
   const { data: pp } = await svc
     .from('parent_profiles')
-    .select(CHILD_FIELD_NAMES.join(', '))
+    .select(ONBOARDING_FIELD_NAMES.join(', '))
     .eq('id', user.id)
     .maybeSingle()
 
   const childProfile: Record<string, unknown> = {}
   if (pp) {
-    for (const key of CHILD_FIELD_NAMES) {
+    for (const key of ONBOARDING_FIELD_NAMES) {
       const v = (pp as Record<string, unknown>)[key]
       if (v != null) childProfile[key] = v
     }

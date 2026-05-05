@@ -1711,3 +1711,31 @@
   max-width: 48ch;
 }
 .rr-cb-head-main { display: flex; flex-direction: column; gap: 4px; }
+
+/* Slice 3.3 polish: active child panel emphasized */
+.rr-cb-panel.is-active {
+  border-color: var(--rr-teal);
+  box-shadow: 0 0 0 3px var(--rr-teal-bg), 0 4px 18px var(--rr-shadow);
+}
+
+.rr-cb-name-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.rr-brief-tab-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.rr-brief-tab-meta {
+  font-family: var(--rr-sans);
+  font-size: 13.5px;
+  color: var(--rr-muted);
+  line-height: 1.5;
+  margin: 4px 0 0;
+  max-width: 60ch;
+}

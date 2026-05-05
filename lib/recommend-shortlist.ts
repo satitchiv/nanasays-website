@@ -200,33 +200,20 @@ export async function recommendShortlist(
   assertUserId(userId, 'recommendShortlist')
 
   // 1. Load profile.
-  // - With childId: merge family-level fields from parent_profiles with
-  //   child-level fields from children.child_profile. Child overrides
-  //   family if the child_profile happens to carry a family field
-  //   (legacy data — newly-created children only have child fields).
-  // - Without childId: read parent_profiles directly (legacy / no
-  //   children yet).
+  // - With childId: read children.child_profile directly. All 9 fields
+  //   live there now (slice 3.3 model — no family-level split).
+  // - Without childId: read parent_profiles (legacy / no children yet,
+  //   or pre-onboarding).
   let profile: Profile | null = null
   if (childId) {
-    const [{ data: pp }, { data: child }] = await Promise.all([
-      supabase
-        .from('parent_profiles')
-        .select('home_region, boarding_pref, budget_range, curriculum_pref')
-        .eq('id', userId)
-        .maybeSingle<Partial<Profile>>(),
-      supabase
-        .from('children')
-        .select('child_profile')
-        .eq('id', childId)
-        .eq('user_id', userId)
-        .maybeSingle<{ child_profile: Partial<Profile> }>(),
-    ])
+    const { data: child } = await supabase
+      .from('children')
+      .select('child_profile')
+      .eq('id', childId)
+      .eq('user_id', userId)
+      .maybeSingle<{ child_profile: Partial<Profile> }>()
     if (child?.child_profile) {
-      profile = {
-        ...(pp ?? {}),
-        ...child.child_profile,
-        onboarding_complete: true,
-      } as Profile
+      profile = { ...child.child_profile, onboarding_complete: true } as Profile
     }
   } else {
     const { data: pp } = await supabase

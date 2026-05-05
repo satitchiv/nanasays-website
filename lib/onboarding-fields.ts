@@ -126,9 +126,13 @@ export const ONBOARDING_FIELDS: OnboardingField[] = [
   },
 ]
 
+// Slice 3.3 polish (2026-05-05): all 9 fields are now per-child. The
+// level metadata stays for analytics + potential future "sync across
+// kids" UX, but the Brief tab treats every field as editable per child.
 export const FAMILY_FIELDS = ONBOARDING_FIELDS.filter(f => f.level === 'family')
 export const CHILD_FIELDS  = ONBOARDING_FIELDS.filter(f => f.level === 'child')
-export const CHILD_FIELD_NAMES = CHILD_FIELDS.map(f => f.field)
+export const CHILD_FIELD_NAMES   = CHILD_FIELDS.map(f => f.field)
+export const ONBOARDING_FIELD_NAMES = ONBOARDING_FIELDS.map(f => f.field)
 
 export function getOptionLabel(fieldName: string, value: string | null | undefined): string {
   if (!value) return '—'
