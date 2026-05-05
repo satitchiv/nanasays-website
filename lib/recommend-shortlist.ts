@@ -200,21 +200,33 @@ export async function recommendShortlist(
   assertUserId(userId, 'recommendShortlist')
 
   // 1. Load profile.
-  // - With a childId: read from children.child_profile (per-child)
-  // - Without: read from parent_profiles (legacy / no children yet)
+  // - With childId: merge family-level fields from parent_profiles with
+  //   child-level fields from children.child_profile. Child overrides
+  //   family if the child_profile happens to carry a family field
+  //   (legacy data — newly-created children only have child fields).
+  // - Without childId: read parent_profiles directly (legacy / no
+  //   children yet).
   let profile: Profile | null = null
   if (childId) {
-    const { data: child } = await supabase
-      .from('children')
-      .select('child_profile')
-      .eq('id', childId)
-      .eq('user_id', userId)
-      .maybeSingle<{ child_profile: Partial<Profile> }>()
+    const [{ data: pp }, { data: child }] = await Promise.all([
+      supabase
+        .from('parent_profiles')
+        .select('home_region, boarding_pref, budget_range, curriculum_pref')
+        .eq('id', userId)
+        .maybeSingle<Partial<Profile>>(),
+      supabase
+        .from('children')
+        .select('child_profile')
+        .eq('id', childId)
+        .eq('user_id', userId)
+        .maybeSingle<{ child_profile: Partial<Profile> }>(),
+    ])
     if (child?.child_profile) {
-      // child_profile is JSONB shaped like the parent_profiles columns
-      // (copied at child-create time in /api/children POST). Treat it
-      // as already-complete so the onboarding gate doesn't bail.
-      profile = { ...child.child_profile, onboarding_complete: true } as Profile
+      profile = {
+        ...(pp ?? {}),
+        ...child.child_profile,
+        onboarding_complete: true,
+      } as Profile
     }
   } else {
     const { data: pp } = await supabase

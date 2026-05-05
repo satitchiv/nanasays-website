@@ -3,23 +3,13 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { supabaseService } from '@/lib/supabase-admin'
 import { recommendShortlist } from '@/lib/recommend-shortlist'
+import { CHILD_FIELD_NAMES } from '@/lib/onboarding-fields'
 
 // Children CRUD for the Research Room Brief tab.
 // RLS on `children` table enforces auth.uid() = user_id, so the
 // authenticated client is sufficient for reads/writes. The recommender
 // fired on POST uses the service-role client because schools_status /
 // school_structured_data are RLS-locked from anon.
-
-// Subset of parent_profiles columns that describe the CHILD, not the
-// parent. Copied into children.child_profile when a new child is
-// created so the recommender can run per-child without forcing the
-// parent to re-do onboarding for each kid. Per-child overrides come
-// in slice 4's child_profile JSONB editor.
-const CHILD_PROFILE_KEYS = [
-  'child_year', 'child_gender', 'boarding_pref', 'budget_range',
-  'curriculum_pref', 'top_priority', 'class_size_pref', 'sen_need',
-  'home_region',
-] as const
 
 async function getAuthClient() {
   const cookieStore = await cookies()
@@ -71,22 +61,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'date_of_birth must be YYYY-MM-DD' }, { status: 400 })
   }
 
-  // Copy parent_profiles → child_profile so the new child inherits the
-  // family's onboarding answers as defaults. The parent can tweak
-  // per-child via the slice-4 child_profile editor (not built yet).
-  // We use the service-role client for this read because parent_profiles
-  // is RLS-restricted to the row owner — the auth client works too,
-  // but service-role keeps the pattern consistent with recommender calls.
+  // Copy ONLY the child-level fields from parent_profiles into the new
+  // child_profile (the family-level fields like home_region, budget,
+  // boarding, curriculum stay on parent_profiles and are merged at
+  // recommender time). The parent can tweak per-child via the Brief
+  // tab inline editor.
   const svc = supabaseService()
   const { data: pp } = await svc
     .from('parent_profiles')
-    .select(CHILD_PROFILE_KEYS.join(', '))
+    .select(CHILD_FIELD_NAMES.join(', '))
     .eq('id', user.id)
     .maybeSingle()
 
   const childProfile: Record<string, unknown> = {}
   if (pp) {
-    for (const key of CHILD_PROFILE_KEYS) {
+    for (const key of CHILD_FIELD_NAMES) {
       const v = (pp as Record<string, unknown>)[key]
       if (v != null) childProfile[key] = v
     }

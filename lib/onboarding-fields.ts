@@ -7,6 +7,8 @@ export type OnboardingField = {
   field:    string
   short:    string  // 1-3 words for compact summaries (Brief tab)
   question: string  // full question text (form step)
+  level:    'family' | 'child'  // family = one set per parent_profiles
+                                 // child = one set per child (in child_profile JSONB)
   options:  { value: string; label: string }[]
 }
 
@@ -15,6 +17,7 @@ export const ONBOARDING_FIELDS: OnboardingField[] = [
     field: 'home_region',
     short: 'Where',
     question: 'Where are you based?',
+    level: 'family',
     options: [
       { value: 'london',         label: 'London' },
       { value: 'south-east',     label: 'South East England' },
@@ -29,6 +32,7 @@ export const ONBOARDING_FIELDS: OnboardingField[] = [
     field: 'child_gender',
     short: 'Child',
     question: 'Is this for a son or a daughter?',
+    level: 'child',
     options: [
       { value: 'boy',    label: 'A son — show boys-only and co-ed schools' },
       { value: 'girl',   label: 'A daughter — show girls-only and co-ed schools' },
@@ -39,6 +43,7 @@ export const ONBOARDING_FIELDS: OnboardingField[] = [
     field: 'child_year',
     short: 'Year',
     question: 'What year group is your child entering?',
+    level: 'child',
     options: [
       { value: 'year-7',     label: 'Year 7 (age 11–12)' },
       { value: 'year-9',     label: 'Year 9 (age 13–14)' },
@@ -51,6 +56,7 @@ export const ONBOARDING_FIELDS: OnboardingField[] = [
     field: 'boarding_pref',
     short: 'Boarding',
     question: 'Boarding or day school?',
+    level: 'family',
     options: [
       { value: 'full',   label: 'Full boarding (lives at school)' },
       { value: 'weekly', label: 'Weekly boarding (home at weekends)' },
@@ -63,6 +69,7 @@ export const ONBOARDING_FIELDS: OnboardingField[] = [
     field: 'budget_range',
     short: 'Budget',
     question: "What's your annual budget for fees?",
+    level: 'family',
     options: [
       { value: 'under-30k', label: 'Under £30,000/yr' },
       { value: '30k-40k',   label: '£30,000 – £40,000/yr' },
@@ -75,6 +82,7 @@ export const ONBOARDING_FIELDS: OnboardingField[] = [
     field: 'curriculum_pref',
     short: 'Curriculum',
     question: 'Any curriculum preference?',
+    level: 'family',
     options: [
       { value: 'a-level',       label: 'A-Level (the traditional UK route)' },
       { value: 'ib',            label: 'International Baccalaureate (IB)' },
@@ -86,6 +94,7 @@ export const ONBOARDING_FIELDS: OnboardingField[] = [
     field: 'top_priority',
     short: 'Priority',
     question: 'What matters most to you in a school?',
+    level: 'child',
     options: [
       { value: 'academic',  label: 'Academic results and university placement' },
       { value: 'sport',     label: 'Sport and physical development' },
@@ -98,6 +107,7 @@ export const ONBOARDING_FIELDS: OnboardingField[] = [
     field: 'class_size_pref',
     short: 'Class size',
     question: 'How important is small class size?',
+    level: 'child',
     options: [
       { value: 'very-important', label: 'Very important — smaller is better' },
       { value: 'nice-to-have',   label: 'Nice to have, not a dealbreaker' },
@@ -108,12 +118,17 @@ export const ONBOARDING_FIELDS: OnboardingField[] = [
     field: 'sen_need',
     short: 'SEN',
     question: 'Does your child have special learning needs?',
+    level: 'child',
     options: [
       { value: 'yes-priority', label: 'Yes — I need schools with strong SEN support' },
       { value: 'no-concern',   label: "No, this doesn't apply" },
     ],
   },
 ]
+
+export const FAMILY_FIELDS = ONBOARDING_FIELDS.filter(f => f.level === 'family')
+export const CHILD_FIELDS  = ONBOARDING_FIELDS.filter(f => f.level === 'child')
+export const CHILD_FIELD_NAMES = CHILD_FIELDS.map(f => f.field)
 
 export function getOptionLabel(fieldName: string, value: string | null | undefined): string {
   if (!value) return '—'

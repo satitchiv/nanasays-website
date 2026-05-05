@@ -84,6 +84,7 @@ export default async function ResearchRoomPage() {
     id: c.id,
     name: c.name,
     date_of_birth: c.date_of_birth,
+    child_profile: (c.child_profile ?? {}) as Record<string, string | null>,
     is_archived: c.is_archived,
   }))
 
