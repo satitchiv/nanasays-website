@@ -4,7 +4,6 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import {
-  CHILD_FIELDS,
   FAMILY_FIELDS,
   ONBOARDING_FIELDS,
   getOptionLabel,
@@ -28,9 +27,6 @@ type Props = {
   onActiveChildChange?: (id: string) => void
 }
 
-// Per-card field grouping (matches the mock's 4-card layout).
-// Two real cards filled from child_profile; two placeholders for the
-// qualitative fields that get populated via chat in slice 5.
 const BASICS_FIELDS   = ['child_year', 'child_gender'] as const
 const PRIORITY_FIELDS = ['top_priority', 'class_size_pref', 'sen_need'] as const
 
@@ -38,15 +34,16 @@ export default function ChildBriefTab({
   children,
   activeChildId,
   familyPreferences,
-  onActiveChildChange,
+  onActiveChildChange: _onActiveChildChange,
 }: Props) {
   const [adding, setAdding] = useState(false)
-  const [editingChildMeta, setEditingChildMeta] = useState<string | null>(null)
+  const [editingMeta, setEditingMeta] = useState(false)
   const [editingCard, setEditingCard] = useState<'basics' | 'priorities' | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const activeChild = children.find(c => c.id === activeChildId) ?? null
+  const hasChildren = children.length > 0
 
   return (
     <div className="rr-brief-wrap">
@@ -54,52 +51,51 @@ export default function ChildBriefTab({
         <FamilyPreferencesCard preferences={familyPreferences} />
       )}
 
-      {activeChild && (
+      {!hasChildren ? (
+        <EmptyChildrenState
+          adding={adding}
+          busy={busy}
+          error={error}
+          setAdding={setAdding}
+          setBusy={setBusy}
+          setError={setError}
+        />
+      ) : activeChild ? (
         <ActiveChildPanel
           child={activeChild}
           editingCard={editingCard}
-          editingMeta={editingChildMeta === activeChild.id}
+          editingMeta={editingMeta}
+          adding={adding}
           busy={busy}
           error={error}
           setError={setError}
           setBusy={setBusy}
-          onEditCard={setEditingCard}
-          onEditMeta={setEditingChildMeta}
-          onCancelMeta={() => setEditingChildMeta(null)}
+          setEditingMeta={setEditingMeta}
+          setEditingCard={setEditingCard}
+          setAdding={setAdding}
         />
-      )}
-
-      <ChildrenList
-        list={children}
-        activeChildId={activeChildId}
-        adding={adding}
-        busy={busy}
-        error={error}
-        setError={setError}
-        setBusy={setBusy}
-        setAdding={setAdding}
-        onActiveChildChange={onActiveChildChange}
-      />
+      ) : null}
     </div>
   )
 }
 
-// ─── Active child panel — header + 4-card grid ───────────────────────────
+// ─── Active child panel ──────────────────────────────────────────────────
 
 function ActiveChildPanel({
-  child, editingCard, editingMeta, busy, error,
-  setError, setBusy, onEditCard, onEditMeta, onCancelMeta,
+  child, editingCard, editingMeta, adding, busy, error,
+  setError, setBusy, setEditingMeta, setEditingCard, setAdding,
 }: {
   child: ChildSummary
   editingCard: 'basics' | 'priorities' | null
   editingMeta: boolean
+  adding: boolean
   busy: boolean
   error: string | null
   setError: (s: string | null) => void
   setBusy: (b: boolean) => void
-  onEditCard: (c: 'basics' | 'priorities' | null) => void
-  onEditMeta: (id: string | null) => void
-  onCancelMeta: () => void
+  setEditingMeta: (b: boolean) => void
+  setEditingCard: (c: 'basics' | 'priorities' | null) => void
+  setAdding: (b: boolean) => void
 }) {
   const router = useRouter()
   const yearLabel = getOptionShortLabel('child_year', child.child_profile?.child_year ?? null)
@@ -119,7 +115,7 @@ function ActiveChildPanel({
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Failed to update')
-      onEditCard(null)
+      setEditingCard(null)
       router.refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error')
@@ -138,7 +134,41 @@ function ActiveChildPanel({
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Failed to update')
-      onCancelMeta()
+      setEditingMeta(false)
+      router.refresh()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unknown error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function addChild(name: string, dob: string) {
+    setBusy(true); setError(null)
+    try {
+      const res = await fetch('/api/children', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, date_of_birth: dob || null }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Failed to add child')
+      setAdding(false)
+      router.refresh()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unknown error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function archive() {
+    if (!confirm(`Archive ${child.name}? Their research history stays readable but they'll be hidden from the dropdown.`)) return
+    setBusy(true); setError(null)
+    try {
+      const res = await fetch(`/api/children/${child.id}`, { method: 'DELETE' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Failed to archive')
       router.refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error')
@@ -150,14 +180,15 @@ function ActiveChildPanel({
   return (
     <section className="rr-cb-panel">
       <header className="rr-cb-head">
-        <div>
+        <div className="rr-cb-head-main">
           <div className="rr-brief-eyebrow">Child brief · the lens for everything</div>
           {editingMeta ? (
             <ChildMetaForm
               initialName={child.name}
               initialDob={child.date_of_birth ?? ''}
               busy={busy}
-              onCancel={onCancelMeta}
+              submitLabel="Save"
+              onCancel={() => setEditingMeta(false)}
               onSave={patchMeta}
             />
           ) : (
@@ -171,18 +202,47 @@ function ActiveChildPanel({
           )}
         </div>
         <div className="rr-cb-actions">
-          {!editingMeta && (
-            <button
-              type="button"
-              className="rr-brief-action rr-brief-action-ghost"
-              onClick={() => onEditMeta(child.id)}
-              disabled={busy}
-            >
-              Edit name / DOB
-            </button>
+          {!editingMeta && !adding && (
+            <>
+              <button
+                type="button"
+                className="rr-brief-action rr-brief-action-ghost"
+                onClick={() => setEditingMeta(true)}
+                disabled={busy}
+              >
+                Edit name / DOB
+              </button>
+              <button
+                type="button"
+                className="rr-brief-action rr-brief-action-ghost"
+                onClick={() => setAdding(true)}
+                disabled={busy}
+              >
+                + Add child
+              </button>
+              <button
+                type="button"
+                className="rr-brief-action rr-brief-action-danger"
+                onClick={archive}
+                disabled={busy}
+              >
+                Archive
+              </button>
+            </>
           )}
         </div>
       </header>
+
+      {adding && (
+        <ChildMetaForm
+          initialName=""
+          initialDob=""
+          busy={busy}
+          submitLabel="Add child"
+          onCancel={() => { setAdding(false); setError(null) }}
+          onSave={addChild}
+        />
+      )}
 
       {error && <div className="rr-brief-error" role="alert">{error}</div>}
 
@@ -193,8 +253,8 @@ function ActiveChildPanel({
           values={child.child_profile ?? {}}
           editing={editingCard === 'basics'}
           busy={busy}
-          onStartEdit={() => onEditCard('basics')}
-          onCancelEdit={() => onEditCard(null)}
+          onStartEdit={() => setEditingCard('basics')}
+          onCancelEdit={() => setEditingCard(null)}
           onSave={patchProfile}
         />
         <ProfileCard
@@ -203,26 +263,79 @@ function ActiveChildPanel({
           values={child.child_profile ?? {}}
           editing={editingCard === 'priorities'}
           busy={busy}
-          onStartEdit={() => onEditCard('priorities')}
-          onCancelEdit={() => onEditCard(null)}
+          onStartEdit={() => setEditingCard('priorities')}
+          onCancelEdit={() => setEditingCard(null)}
           onSave={patchProfile}
-        />
-        <PlaceholderCard
-          title="Personality"
-          subtitle="Temperament · Social style · Boarding readiness"
-          note="Filled via chat in slice 5 — Nana asks short questions and extracts the answers."
-        />
-        <PlaceholderCard
-          title="Anchors & Goals"
-          subtitle="Interests · Goals at 18 · Stretch areas"
-          note="Filled via chat in slice 5 — anchors slot into the comparison table as new dimensions."
         />
       </div>
     </section>
   )
 }
 
-// ─── Profile card ────────────────────────────────────────────────────────
+// ─── Empty state when no children yet ────────────────────────────────────
+
+function EmptyChildrenState({
+  adding, busy, error,
+  setAdding, setBusy, setError,
+}: {
+  adding: boolean
+  busy: boolean
+  error: string | null
+  setAdding: (b: boolean) => void
+  setBusy: (b: boolean) => void
+  setError: (s: string | null) => void
+}) {
+  const router = useRouter()
+  async function addChild(name: string, dob: string) {
+    setBusy(true); setError(null)
+    try {
+      const res = await fetch('/api/children', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, date_of_birth: dob || null }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Failed to add child')
+      setAdding(false)
+      router.refresh()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unknown error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <section className="rr-cb-empty">
+      <div className="rr-brief-eyebrow">My children</div>
+      <h2 className="rr-cb-empty-title">Add your first child to get started.</h2>
+      <p className="rr-cb-empty-meta">
+        Each child gets their own comparison table, lens history, and partner brief.
+      </p>
+      {error && <div className="rr-brief-error" role="alert">{error}</div>}
+      {adding ? (
+        <ChildMetaForm
+          initialName=""
+          initialDob=""
+          busy={busy}
+          submitLabel="Add child"
+          onCancel={() => { setAdding(false); setError(null) }}
+          onSave={addChild}
+        />
+      ) : (
+        <button
+          type="button"
+          className="rr-brief-action rr-brief-action-primary"
+          onClick={() => { setAdding(true); setError(null) }}
+        >
+          + Add first child
+        </button>
+      )}
+    </section>
+  )
+}
+
+// ─── Profile card (Basics, Priorities) ───────────────────────────────────
 
 function ProfileCard({
   title, fields, values, editing, busy,
@@ -349,140 +462,15 @@ function ProfileCardForm({
   )
 }
 
-function PlaceholderCard({ title, subtitle, note }: {
-  title: string; subtitle: string; note: string
-}) {
-  return (
-    <div className="rr-cb-card rr-cb-card-stub">
-      <div className="rr-cb-card-h">
-        <span>{title}</span>
-        <span className="rr-cb-stub-tag">slice 5</span>
-      </div>
-      <div className="rr-cb-stub-sub">{subtitle}</div>
-      <div className="rr-cb-stub-note">{note}</div>
-    </div>
-  )
-}
-
-// ─── Children list (compact at bottom) ───────────────────────────────────
-
-function ChildrenList({
-  list, activeChildId, adding, busy, error,
-  setError, setBusy, setAdding, onActiveChildChange,
-}: {
-  list: ChildSummary[]
-  activeChildId: string | null
-  adding: boolean
-  busy: boolean
-  error: string | null
-  setError: (s: string | null) => void
-  setBusy: (b: boolean) => void
-  setAdding: (b: boolean) => void
-  onActiveChildChange?: (id: string) => void
-}) {
-  const router = useRouter()
-
-  async function handleAdd(name: string, dob: string) {
-    setBusy(true); setError(null)
-    try {
-      const res = await fetch('/api/children', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, date_of_birth: dob || null }),
-      })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error ?? 'Failed to add child')
-      setAdding(false)
-      router.refresh()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unknown error')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function handleArchive(id: string, name: string) {
-    if (!confirm(`Archive ${name}? Their research history stays readable but they'll be hidden from the dropdown.`)) return
-    setBusy(true); setError(null)
-    try {
-      const res = await fetch(`/api/children/${id}`, { method: 'DELETE' })
-      const json = await res.json()
-      if (!res.ok) throw new Error(json.error ?? 'Failed to archive')
-      router.refresh()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Unknown error')
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  return (
-    <section className="rr-brief-list-section">
-      <div className="rr-brief-eyebrow">My children</div>
-      {list.length === 0 && !adding && (
-        <p className="rr-brief-empty-meta">No children yet. Add one to start research.</p>
-      )}
-      <div className="rr-brief-list">
-        {list.map(c => (
-          <div key={c.id} className={`rr-brief-row${c.id === activeChildId ? ' is-active' : ''}`}>
-            <div className="rr-brief-row-main">
-              <div className="rr-brief-row-name">{c.name}</div>
-              {c.date_of_birth && <div className="rr-brief-row-meta">DOB · {c.date_of_birth}</div>}
-            </div>
-            <div className="rr-brief-row-actions">
-              {c.id === activeChildId ? (
-                <span className="rr-brief-active-tag">Active</span>
-              ) : (
-                <button
-                  type="button"
-                  className="rr-brief-action rr-brief-action-ghost"
-                  onClick={() => onActiveChildChange?.(c.id)}
-                  disabled={busy}
-                >
-                  Set active
-                </button>
-              )}
-              <button
-                type="button"
-                className="rr-brief-action rr-brief-action-danger"
-                onClick={() => handleArchive(c.id, c.name)}
-                disabled={busy}
-              >
-                Archive
-              </button>
-            </div>
-          </div>
-        ))}
-        {adding ? (
-          <ChildMetaForm
-            initialName=""
-            initialDob=""
-            busy={busy}
-            onCancel={() => { setAdding(false); setError(null) }}
-            onSave={handleAdd}
-          />
-        ) : (
-          <button
-            type="button"
-            className="rr-brief-add-btn"
-            onClick={() => { setAdding(true); setError(null) }}
-            disabled={busy}
-          >
-            + Add child
-          </button>
-        )}
-      </div>
-      {error && <div className="rr-brief-error" role="alert">{error}</div>}
-    </section>
-  )
-}
+// ─── Child meta form (name + DOB — used for add + edit) ──────────────────
 
 function ChildMetaForm({
-  initialName, initialDob, busy, onCancel, onSave,
+  initialName, initialDob, busy, submitLabel, onCancel, onSave,
 }: {
   initialName: string
   initialDob: string
   busy: boolean
+  submitLabel: string
   onCancel: () => void
   onSave: (name: string, dob: string) => void
 }) {
@@ -535,7 +523,7 @@ function ChildMetaForm({
           className="rr-brief-action rr-brief-action-primary"
           disabled={busy || !name.trim()}
         >
-          {busy ? 'Saving…' : 'Save'}
+          {busy ? 'Saving…' : submitLabel}
         </button>
       </div>
     </form>
@@ -589,6 +577,3 @@ function ageFromDOB(dob: string | null): number | null {
   }
   return age >= 0 && age < 100 ? age : null
 }
-
-// Re-export for any future per-child summary cards.
-export { CHILD_FIELDS }
