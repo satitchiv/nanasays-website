@@ -9,18 +9,21 @@ const BASE_URL = 'https://nanasays.school'
 export const revalidate = 86400 // regenerate sitemap once per day
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  // Step 1: indexable school slugs — mirrors isIndexable() in schools/[slug]/page.tsx
-  const { data: rpcResult } = await supabase.rpc('get_indexable_school_slugs')
-  const allSlugs: string[] = (rpcResult as any)?.slugs || []
+  // Step 1: indexable schools + per-record lastmod from public.indexable_schools view.
+  // Single source of truth shared with schools/[slug]/page.tsx via is_school_indexable().
+  const { data: schoolsForSitemap } = await supabase.rpc('get_indexable_schools_for_sitemap')
+  const indexableSchools: { slug: string; last_modified: string | null }[] = (schoolsForSitemap as any) ?? []
 
   // Step 2: filter combos — add these back, they qualify (5+ schools threshold)
   const filterCombos = await getFilterCombinations()
 
-  // Step 3: blog posts from Supabase (single source of truth)
+  // Step 3: blog posts from Supabase (single source of truth).
+  // published_at <= now() guards against scheduled-but-not-yet-live posts.
   const { data: blogData } = await supabase
     .from('blog_posts')
     .select('slug, published_at')
     .eq('status', 'published')
+    .lte('published_at', new Date().toISOString())
     .order('published_at', { ascending: false })
   const publishedPosts = blogData ?? []
 
@@ -33,9 +36,9 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     .limit(2000)
   const publishedNews = newsData ?? []
 
-  const schoolUrls: MetadataRoute.Sitemap = allSlugs.map((slug: string) => ({
+  const schoolUrls: MetadataRoute.Sitemap = indexableSchools.map(({ slug, last_modified }) => ({
     url: `${BASE_URL}/schools/${slug}`,
-    lastModified: new Date(),
+    lastModified: last_modified ? new Date(last_modified) : new Date(),
     changeFrequency: 'monthly' as const,
     priority: 0.8 as const,
   }))
@@ -82,6 +85,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/methodology`, lastModified: new Date(), changeFrequency: 'yearly', priority: 0.5 },
     { url: `${BASE_URL}/blog`, lastModified: new Date(), changeFrequency: 'weekly', priority: 0.6 },
     { url: `${BASE_URL}/news`, lastModified: new Date(), changeFrequency: 'daily', priority: 0.7 },
+    { url: `${BASE_URL}/partners`, lastModified: new Date(), changeFrequency: 'monthly', priority: 0.4 },
     ...regionUrls,
     ...countryUrls,
     ...schoolUrls,

@@ -12,6 +12,9 @@ export const metadata: Metadata = {
     title: 'Partner with NanaSays — Reach International Families',
     description: 'List your school on NanaSays and connect with families actively searching for the right international school. Verified data, real parent traffic.',
     images: [{ url: 'https://nanasays.school/og-image.jpg', width: 1200, height: 630 }],
+    siteName: 'NanaSays',
+    type: 'website',
+    locale: 'en_GB',
   },
 }
 

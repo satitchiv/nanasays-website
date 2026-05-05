@@ -22,6 +22,7 @@ export const metadata: Metadata = {
     siteName: 'NanaSays',
     images: [{ url: 'https://nanasays.school/og-image.jpg', width: 1200, height: 630, alt: 'NanaSays — International School Directory' }],
     type: 'website',
+    locale: 'en_GB',
   },
 }
 
@@ -132,6 +133,7 @@ export default async function HomePage() {
     supabase.from('blog_posts')
       .select('slug, title, excerpt, category, hero_image, published_at, word_count')
       .eq('status', 'published')
+      .lte('published_at', new Date().toISOString())
       .order('published_at', { ascending: false })
       .limit(6),
   ])
@@ -189,7 +191,7 @@ export default async function HomePage() {
               fontSize: 'clamp(38px, 5vw, 62px)', fontWeight: 900, color: '#fff',
               lineHeight: 1.06, letterSpacing: '-2.2px', marginBottom: 14,
             }}>
-              Find the right school<br />
+              Find the right international school<br />
               <em style={{ fontStyle: 'italic', color: 'var(--teal)' }}>for your child.</em>
             </h1>
 

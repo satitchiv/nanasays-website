@@ -59,6 +59,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title,
       description,
       images: [{ url: meta.heroImage, width: 1200, height: 630 }],
+      siteName: 'NanaSays',
+      type: 'website',
+      locale: 'en_GB',
     },
     other: { robots: 'max-snippet:-1, max-image-preview:large, max-video-preview:-1' },
   }

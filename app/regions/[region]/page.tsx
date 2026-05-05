@@ -26,6 +26,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: `${region.name} International Schools · nanasays`,
       description: region.description,
       images: [{ url: region.heroImage, width: 1200, height: 630 }],
+      siteName: 'NanaSays',
+      type: 'website',
+      locale: 'en_GB',
     },
   }
 }

@@ -37,7 +37,7 @@ export const metadata: Metadata = {
   openGraph: {
     siteName: 'NanaSays',
     type: 'website',
-    locale: 'en_US',
+    locale: 'en_GB',
   },
   twitter: {
     card: 'summary_large_image',
@@ -69,7 +69,7 @@ export default function RootLayout({
   const postHogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY
 
   return (
-    <html lang="en" className={`${nunito.variable} ${nunitoSans.variable}`}>
+    <html lang="en-GB" className={`${nunito.variable} ${nunitoSans.variable}`}>
       <body style={{ fontFamily: 'var(--font-nunito-sans), sans-serif' }}>
         <script
           type="application/ld+json"

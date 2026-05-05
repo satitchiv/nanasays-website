@@ -42,11 +42,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: article.english_headline || article.source_title,
       description: article.english_summary?.slice(0, 160) || undefined,
+      siteName: 'NanaSays',
       type: 'article',
       ...(article.published_at && { publishedTime: article.published_at }),
       ...(article.featured_image_url && {
         images: [{ url: article.featured_image_url, width: 1200, height: 630 }],
       }),
+      locale: 'en_GB',
     },
   }
 }

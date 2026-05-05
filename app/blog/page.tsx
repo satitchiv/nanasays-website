@@ -16,6 +16,9 @@ export const metadata: Metadata = {
     title: 'International School Guides & Advice for Expat Families',
     description: 'Honest guides for international school families. Curriculum comparisons, school rankings, boarding advice and expert picks — all free on NanaSays.',
     images: [{ url: 'https://nanasays.school/og-image.jpg', width: 1200, height: 630 }],
+    siteName: 'NanaSays',
+    type: 'website',
+    locale: 'en_GB',
   },
 }
 
@@ -35,6 +38,7 @@ async function getBlogPosts(): Promise<DbPost[]> {
     .from('blog_posts')
     .select('id, slug, title, excerpt, category, hero_image, word_count, published_at')
     .eq('status', 'published')
+    .lte('published_at', new Date().toISOString())
     .order('published_at', { ascending: false })
   return data ?? []
 }

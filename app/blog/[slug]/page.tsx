@@ -31,11 +31,14 @@ interface DbPost {
 }
 
 async function getPost(slug: string): Promise<DbPost | null> {
+  // published_at <= now() guards against scheduled-but-not-yet-live posts
+  // leaking via direct slug access (status=published is set ahead of time).
   const { data } = await supabase
     .from('blog_posts')
     .select('id, slug, title, excerpt, category, country, curriculum, city, hero_image, word_count, content, published_at')
     .eq('slug', slug)
     .eq('status', 'published')
+    .lte('published_at', new Date().toISOString())
     .single()
   return data ?? null
 }
@@ -45,6 +48,7 @@ export async function generateStaticParams() {
     .from('blog_posts')
     .select('slug')
     .eq('status', 'published')
+    .lte('published_at', new Date().toISOString())
   return (data ?? []).map(p => ({ slug: p.slug }))
 }
 
@@ -59,6 +63,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       title: post.title,
       description: post.excerpt ?? undefined,
       images: post.hero_image ? [{ url: post.hero_image, width: 1200, height: 630 }] : [],
+      siteName: 'NanaSays',
+      type: 'article',
+      locale: 'en_GB',
     },
   }
 }
@@ -86,6 +93,7 @@ interface RelatedPost {
 }
 
 async function getRelatedPosts(post: DbPost): Promise<RelatedPost[]> {
+  const nowIso = new Date().toISOString()
   const seen = new Set<string>([post.slug])
   const results: RelatedPost[] = []
 
@@ -95,6 +103,7 @@ async function getRelatedPosts(post: DbPost): Promise<RelatedPost[]> {
       .from('blog_posts')
       .select('slug, title, category, hero_image, published_at, word_count')
       .eq('status', 'published')
+      .lte('published_at', nowIso)
       .eq('country', post.country)
       .neq('slug', post.slug)
       .order('published_at', { ascending: false })
@@ -110,6 +119,7 @@ async function getRelatedPosts(post: DbPost): Promise<RelatedPost[]> {
       .from('blog_posts')
       .select('slug, title, category, hero_image, published_at, word_count')
       .eq('status', 'published')
+      .lte('published_at', nowIso)
       .eq('category', post.category)
       .neq('slug', post.slug)
       .order('published_at', { ascending: false })

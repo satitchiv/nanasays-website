@@ -14,9 +14,7 @@ Disallow: /schools/*/report
 Disallow: /nana/decision-hub
 Disallow: /nana/research-room
 Disallow: /nana/research
-Disallow: /partners
 Disallow: /claim
-Disallow: /blog
 Disallow: /admin
 Disallow: /demo
 

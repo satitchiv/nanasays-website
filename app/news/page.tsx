@@ -13,6 +13,9 @@ export const metadata: Metadata = {
     title: 'International Education News | NanaSays',
     description: 'The latest news on international schools, universities, scholarships, visas and education policy worldwide — curated daily for expat families.',
     images: [{ url: 'https://nanasays.school/og-image.jpg', width: 1200, height: 630 }],
+    siteName: 'NanaSays',
+    type: 'website',
+    locale: 'en_GB',
   },
 }
 

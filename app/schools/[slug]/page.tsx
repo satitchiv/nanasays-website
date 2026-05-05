@@ -5,6 +5,7 @@ import Footer from '@/components/Footer'
 import FaqItem from '@/components/school/FaqItem'
 import GalleryLightbox from '@/components/school/GalleryLightbox'
 import { getSchoolBySlug, getSimilarSchools, formatFees, formatAges, formatEntryExamType } from '@/lib/schools'
+import { supabase } from '@/lib/supabase'
 import type { School } from '@/lib/types'
 import Link from 'next/link'
 import { getServerT } from '@/lib/serverI18n'
@@ -58,22 +59,15 @@ interface Props {
   searchParams?: { followed?: string }
 }
 
-// Fields that indicate a school page has enough content to be worth indexing.
-// Automatically removes noindex as enrich-schools fills these in.
-const SEO_QUALITY_FIELDS: (keyof School)[] = [
-  'description', 'fees_usd_min', 'curriculum', 'student_count',
-  'hero_image', 'logo_url', 'instagram_url', 'university_placement_rate',
-  'entry_exam_type', 'application_deadline', 'scholarship_details',
-  'sports_facilities', 'typical_class_size', 'nationalities_count', 'boarding_type',
-]
-const SEO_INDEX_THRESHOLD = 4 // must have at least 4 quality fields filled
-
-function isIndexable(school: School): boolean {
-  const filled = SEO_QUALITY_FIELDS.filter(f => {
-    const v = school[f]
-    return v !== null && v !== undefined && v !== ''
-  }).length
-  return filled >= SEO_INDEX_THRESHOLD
+// Indexability lives in a single Postgres view (public.indexable_schools)
+// consumed by both this page and app/sitemap.ts via RPC. Rule: international
+// school AND (legacy quality_score >= 4 OR pct_complete >= 80 OR
+// has_substantial_chunks). The OR branches catch schools whose rich data
+// lives in school_structured_data rather than mirrored to the schools table.
+async function isSchoolIndexable(slug: string): Promise<boolean> {
+  const { data, error } = await supabase.rpc('is_school_indexable', { p_slug: slug })
+  if (error) return false
+  return data === true
 }
 
 const LOGO_BLOCKLIST = ['youtube', 'facebook', 'instagram', 'twitter', 'linkedin', 'tiktok', 'social', '/icon', 'favicon', 'placeholder']
@@ -189,7 +183,10 @@ function buildSchoolDescription(school: School): string {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const school = await getSchoolBySlug(params.slug)
+  const [school, indexable] = await Promise.all([
+    getSchoolBySlug(params.slug),
+    isSchoolIndexable(params.slug),
+  ])
   if (!school) return { title: 'School Not Found' }
   return {
     title: { absolute: buildSchoolTitle(school) },
@@ -197,16 +194,26 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: {
       canonical: `https://nanasays.school/schools/${params.slug}`,
     },
-    robots: isIndexable(school)
-      ? { index: true, follow: true }
-      : { index: false, follow: true },
-    other: { robots: 'max-snippet:-1, max-image-preview:large, max-video-preview:-1' },
+    robots: {
+      index: indexable,
+      follow: true,
+      googleBot: {
+        index: indexable,
+        follow: true,
+        'max-snippet': -1,
+        'max-image-preview': 'large',
+        'max-video-preview': -1,
+      },
+    },
     openGraph: {
       title: buildSchoolTitle(school),
       description: buildSchoolDescription(school),
       ...(school.hero_image && {
         images: [{ url: school.hero_image, width: 1200, height: 630, alt: school.name }],
       }),
+      siteName: 'NanaSays',
+      type: 'website',
+      locale: 'en_GB',
     },
   }
 }
