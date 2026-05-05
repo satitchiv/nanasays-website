@@ -139,7 +139,8 @@ const KNOWN_FULL_BOARDING_NAMES = new Set<string>([
   'caterham', 'shiplake', 'reeds', 'reading blue coat',
   'mill hill foundation', 'st leonards', 'st edmunds canterbury',
   'denstone', 'milton abbey', 'haileybury',
-  'charterhouse', 'bishops stortford',
+  'charterhouse', 'bishops stortford', 'hurtwood house',
+  'queen annes', 'queen annes caversham',
 ])
 
 const KNOWN_DAY_ONLY_NAMES = new Set<string>([
@@ -300,6 +301,11 @@ export async function recommendShortlist(
     q = q.or(`curriculum.ov.{${ALEVEL_VARIANTS.join(',')}},curriculum.is.null`)
   }
 
+  // Drop obvious data errors: positive fees under $5,000 are extraction
+  // bugs (ACS Cobham at $419, etc.). NULL is fine — means unknown, not
+  // wrong. No UK independent realistically charges < $5k/yr full fees.
+  q = q.or('fees_usd_min.is.null,fees_usd_min.gte.5000')
+
   // Budget hard cap (drop schools more than 30% over the ceiling).
   // Accept NULL fees as wildcard — Rugby School and other famous
   // schools have fees_usd_min=NULL but real fees are within budget.
@@ -387,16 +393,17 @@ export async function recommendShortlist(
   const scored = filtered.map(s => {
     let score = (s.confidence_score ?? 0) / 100  // 0..1 base
 
-    // Region match: in bucket → +0.6 (strong preference but not a hard
-    // filter, because region is NULL for many famous schools).
-    // NULL region → 0 (neutral). Other bucket → -0.5 (push down).
+    // Region match: in bucket → +0.6, NULL → 0 (neutral, common for
+    // famous schools), wrong bucket → -1.0 (was -0.5; bumped after dry-
+    // run #7 surfaced Plymouth + Warwick in a London query — high
+    // confidence_score was overcoming the soft region penalty).
     if (profile.home_region && profile.home_region !== 'overseas') {
       if (s.region == null) {
         // neutral
       } else if (regionBucket.has(s.region)) {
         score += 0.6
       } else {
-        score -= 0.5
+        score -= 1.0
       }
     }
 
@@ -467,6 +474,12 @@ export async function recommendShortlist(
   })
 
   scored.sort((a, b) => b.score - a.score)
+
+  // Hard-fail under 3 strong matches — better empty state than 1-2 weak
+  // suggestions. UI's empty-state then prompts the parent to broaden.
+  if (scored.length < 3) {
+    return { added: [], reason: 'no_matches' }
+  }
 
   const top = scored.slice(0, 6).map(x => x.school)
 
