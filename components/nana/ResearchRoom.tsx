@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import ChildSelector, { type ChildOption } from './ChildSelector'
-import ChildBriefTab, { type ChildSummary } from './ChildBriefTab'
+import ChildBriefTab, { type ChildSummary, type FamilyPreferences } from './ChildBriefTab'
 import ResearchRoomChat, { type ChatState } from './ResearchRoomChat'
 import ComparisonView from './ComparisonView'
 import type { ComparisonData } from './comparison-placeholder'
@@ -15,6 +15,7 @@ type Tab = 'brief' | 'compare' | 'verdict' | 'partner'
 type Props = {
   childOptions: ChildOption[]
   childSummaries?: ChildSummary[]
+  familyPreferences?: FamilyPreferences
   initialActiveChildId?: string | null
   comparisonData?: ComparisonData
 }
@@ -48,6 +49,7 @@ const SCROLL_DURATION_MS = 450
 export default function ResearchRoom({
   childOptions,
   childSummaries = [],
+  familyPreferences,
   initialActiveChildId = null,
   comparisonData,
 }: Props) {
@@ -275,6 +277,7 @@ export default function ResearchRoom({
                     <ChildBriefTab
                       children={childSummaries}
                       activeChildId={activeChildId}
+                      familyPreferences={familyPreferences}
                       onActiveChildChange={handleActiveChildChange}
                     />
                   ) : (

@@ -2,126 +2,29 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { ONBOARDING_FIELDS } from '@/lib/onboarding-fields'
 
-interface Step {
-  field: string
-  label: string
-  question: string
-  options: { value: string; label: string }[]
+type Props = {
+  // Pre-fill values from parent_profiles when the parent revisits
+  // /onboarding to edit. Empty object on first onboarding.
+  initialAnswers?: Record<string, string>
 }
 
-const STEPS: Step[] = [
-  {
-    field: 'home_region',
-    label: 'Step 1 of 9',
-    question: "Where are you based?",
-    options: [
-      { value: 'london', label: 'London' },
-      { value: 'south-east', label: 'South East England' },
-      { value: 'south-west', label: 'South West England' },
-      { value: 'midlands', label: 'Midlands' },
-      { value: 'north', label: 'North of England' },
-      { value: 'scotland-wales', label: 'Scotland or Wales' },
-      { value: 'overseas', label: 'Overseas / international family' },
-    ],
-  },
-  {
-    field: 'child_gender',
-    label: 'Step 2 of 9',
-    question: "Is this for a son or a daughter?",
-    options: [
-      { value: 'boy', label: 'A son — show boys-only and co-ed schools' },
-      { value: 'girl', label: 'A daughter — show girls-only and co-ed schools' },
-      { value: 'either', label: 'Show me everything (co-ed only is fine)' },
-    ],
-  },
-  {
-    field: 'child_year',
-    label: 'Step 3 of 9',
-    question: "What year group is your child entering?",
-    options: [
-      { value: 'year-7', label: 'Year 7 (age 11–12)' },
-      { value: 'year-9', label: 'Year 9 (age 13–14)' },
-      { value: 'year-10', label: 'Year 10 (age 14–15)' },
-      { value: 'sixth-form', label: 'Sixth Form (age 16–18)' },
-      { value: 'not-sure', label: "Not sure yet" },
-    ],
-  },
-  {
-    field: 'boarding_pref',
-    label: 'Step 4 of 9',
-    question: "Boarding or day school?",
-    options: [
-      { value: 'full', label: 'Full boarding (lives at school)' },
-      { value: 'weekly', label: 'Weekly boarding (home at weekends)' },
-      { value: 'flexi', label: 'Flexi boarding (a few nights a week)' },
-      { value: 'day', label: 'Day only' },
-      { value: 'open', label: "Open to either" },
-    ],
-  },
-  {
-    field: 'budget_range',
-    label: 'Step 5 of 9',
-    question: "What's your annual budget for fees?",
-    options: [
-      { value: 'under-30k', label: 'Under £30,000/yr' },
-      { value: '30k-40k', label: '£30,000 – £40,000/yr' },
-      { value: '40k-50k', label: '£40,000 – £50,000/yr' },
-      { value: 'over-50k', label: 'Over £50,000/yr' },
-      { value: 'bursary', label: "Looking for bursary support" },
-    ],
-  },
-  {
-    field: 'curriculum_pref',
-    label: 'Step 6 of 9',
-    question: "Any curriculum preference?",
-    options: [
-      { value: 'a-level', label: 'A-Level (the traditional UK route)' },
-      { value: 'ib', label: 'International Baccalaureate (IB)' },
-      { value: 'either', label: 'Either A-Level or IB is fine' },
-      { value: 'no-preference', label: "No preference — show me all" },
-    ],
-  },
-  {
-    field: 'top_priority',
-    label: 'Step 7 of 9',
-    question: "What matters most to you in a school?",
-    options: [
-      { value: 'academic', label: 'Academic results and university placement' },
-      { value: 'sport', label: 'Sport and physical development' },
-      { value: 'pastoral', label: 'Pastoral care and wellbeing' },
-      { value: 'arts', label: 'Arts, music or creative subjects' },
-      { value: 'all-round', label: 'A genuine all-rounder' },
-    ],
-  },
-  {
-    field: 'class_size_pref',
-    label: 'Step 8 of 9',
-    question: "How important is small class size?",
-    options: [
-      { value: 'very-important', label: "Very important — smaller is better" },
-      { value: 'nice-to-have', label: "Nice to have, not a dealbreaker" },
-      { value: 'no-preference', label: "Doesn't matter to me" },
-    ],
-  },
-  {
-    field: 'sen_need',
-    label: 'Step 9 of 9',
-    question: "Does your child have special learning needs?",
-    options: [
-      { value: 'yes-priority', label: "Yes — I need schools with strong SEN support" },
-      { value: 'no-concern', label: "No, this doesn't apply" },
-    ],
-  },
-]
+const STEPS = ONBOARDING_FIELDS.map((f, i) => ({
+  field: f.field,
+  label: `Step ${i + 1} of ${ONBOARDING_FIELDS.length}`,
+  question: f.question,
+  options: f.options,
+}))
 
-export default function OnboardingForm() {
+export default function OnboardingForm({ initialAnswers = {} }: Props) {
   const router = useRouter()
   const [step, setStep] = useState(0)
-  const [answers, setAnswers] = useState<Record<string, string>>({})
+  const [answers, setAnswers] = useState<Record<string, string>>(initialAnswers)
   const [saving, setSaving] = useState(false)
   const [done, setDone] = useState(false)
 
+  const isEditing = Object.keys(initialAnswers).length > 0
   const current = STEPS[step]
   const selected = answers[current?.field]
 
@@ -156,10 +59,14 @@ export default function OnboardingForm() {
     return (
       <div className="onboarding-done">
         <div className="onboarding-done-icon">✅</div>
-        <h2>You&apos;re all set</h2>
-        <p>Nana will personalise every answer based on what you&apos;ve told us.</p>
+        <h2>{isEditing ? 'Preferences saved' : "You're all set"}</h2>
+        <p>
+          {isEditing
+            ? 'Existing children keep their snapshots — new children will inherit these defaults.'
+            : 'Nana will personalise every answer based on what you’ve told us.'}
+        </p>
         <button className="onboarding-btn-finish" onClick={() => router.push('/nana/research-room')}>
-          See my schools →
+          {isEditing ? 'Back to Research Room →' : 'See my schools →'}
         </button>
       </div>
     )
@@ -202,12 +109,14 @@ export default function OnboardingForm() {
           onClick={next}
           disabled={!selected || saving}
         >
-          {step === STEPS.length - 1 ? (saving ? 'Saving…' : 'Finish') : 'Next →'}
+          {step === STEPS.length - 1
+            ? (saving ? 'Saving…' : (isEditing ? 'Save changes' : 'Finish'))
+            : 'Next →'}
         </button>
       </div>
 
       <div className="onboarding-skip">
-        <button onClick={skip}>Skip for now</button>
+        <button onClick={skip}>{isEditing ? 'Cancel' : 'Skip for now'}</button>
       </div>
     </>
   )

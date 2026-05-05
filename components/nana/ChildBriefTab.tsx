@@ -1,7 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { ONBOARDING_FIELDS, getOptionShortLabel } from '@/lib/onboarding-fields'
 
 export type ChildSummary = {
   id:            string
@@ -10,9 +12,12 @@ export type ChildSummary = {
   is_archived:   boolean
 }
 
+export type FamilyPreferences = Record<string, string | null>
+
 type Props = {
   children: ChildSummary[]
   activeChildId: string | null
+  familyPreferences?: FamilyPreferences
   onActiveChildChange?: (id: string) => void
 }
 
@@ -22,6 +27,7 @@ type Props = {
 export default function ChildBriefTab({
   children,
   activeChildId,
+  familyPreferences,
   onActiveChildChange,
 }: Props) {
   const router = useRouter()
@@ -83,8 +89,14 @@ export default function ChildBriefTab({
     }
   }
 
+  const hasFamilyPrefs = familyPreferences && Object.values(familyPreferences).some(v => v != null && v !== '')
+
   return (
     <div className="rr-brief-wrap">
+      {hasFamilyPrefs && familyPreferences && (
+        <FamilyPreferencesCard preferences={familyPreferences} />
+      )}
+
       <div className="rr-brief-head">
         <div>
           <div className="rr-brief-eyebrow">My children</div>
@@ -286,5 +298,34 @@ function ChildForm({
         </button>
       </div>
     </form>
+  )
+}
+
+function FamilyPreferencesCard({ preferences }: { preferences: FamilyPreferences }) {
+  return (
+    <div className="rr-brief-prefs">
+      <div className="rr-brief-prefs-head">
+        <div>
+          <div className="rr-brief-eyebrow">Family preferences</div>
+          <p className="rr-brief-prefs-meta">
+            Your onboarding answers. New children inherit these as defaults; per-child overrides come in slice 4.
+          </p>
+        </div>
+        <Link href="/onboarding" className="rr-brief-action rr-brief-action-ghost">
+          Edit →
+        </Link>
+      </div>
+      <dl className="rr-brief-prefs-grid">
+        {ONBOARDING_FIELDS.map(f => {
+          const value = preferences[f.field] ?? null
+          return (
+            <div key={f.field} className="rr-brief-prefs-row">
+              <dt>{f.short}</dt>
+              <dd>{getOptionShortLabel(f.field, value)}</dd>
+            </div>
+          )
+        })}
+      </dl>
+    </div>
   )
 }

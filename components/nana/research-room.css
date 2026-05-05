@@ -1412,3 +1412,63 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Family preferences card (slice 3.2) — shown above the children list */
+.rr-brief-prefs {
+  background: var(--rr-off);
+  border: 1px solid var(--rr-border);
+  border-radius: var(--rr-r-md);
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.rr-brief-prefs-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+.rr-brief-prefs-meta {
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  color: var(--rr-muted);
+  line-height: 1.5;
+  margin: 4px 0 0;
+  max-width: 52ch;
+}
+.rr-brief-prefs-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px 18px;
+  margin: 0;
+}
+.rr-brief-prefs-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rr-brief-prefs-row dt {
+  font-family: var(--rr-sans);
+  font-size: 10.5px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--rr-muted);
+  font-weight: 800;
+}
+.rr-brief-prefs-row dd {
+  font-family: var(--rr-sans);
+  font-size: 14px;
+  color: var(--rr-navy);
+  font-weight: 700;
+  margin: 0;
+}
+@media (max-width: 640px) {
+  .rr-brief-prefs-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .rr-brief-prefs-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

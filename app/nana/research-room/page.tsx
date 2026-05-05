@@ -7,6 +7,7 @@ import { getUnlockedUser } from '@/lib/paid-status'
 import { supabaseService } from '@/lib/supabase-admin'
 import { loadComparisonData } from '@/lib/research-comparison'
 import { loadActiveChildren } from '@/lib/children'
+import { ONBOARDING_FIELDS } from '@/lib/onboarding-fields'
 import ResearchRoom from '@/components/nana/ResearchRoom'
 
 export const dynamic = 'force-dynamic'
@@ -41,6 +42,7 @@ export default async function ResearchRoomPage() {
   let comparisonData
   let children: Awaited<ReturnType<typeof loadActiveChildren>> = []
   let activeChildId: string | null = null
+  let familyPreferences: Record<string, string | null> | undefined
 
   if (user) {
     try {
@@ -49,18 +51,27 @@ export default async function ResearchRoomPage() {
       console.error('[research-room loadActiveChildren]', e)
     }
 
-    // Read persisted active_child_id. If the stored id is missing or
-    // points to an archived/deleted child, fall back to the first
-    // active child (or null when there are none).
+    // Read parent_profiles for active_child_id (persisted) AND for the
+    // family-preferences card on the Brief tab. Stale active_child_id
+    // (archived/deleted child) falls back to the first active child.
+    const profileFields = ['active_child_id', ...ONBOARDING_FIELDS.map(f => f.field)]
     const { data: profile } = await supabaseService()
       .from('parent_profiles')
-      .select('active_child_id')
+      .select(profileFields.join(', '))
       .eq('id', user.id)
-      .maybeSingle<{ active_child_id: string | null }>()
+      .maybeSingle<Record<string, string | null>>()
 
-    const persisted = profile?.active_child_id ?? null
+    const persisted = (profile?.active_child_id as string | null) ?? null
     const stillActive = persisted && children.some(c => c.id === persisted)
     activeChildId = stillActive ? persisted : (children[0]?.id ?? null)
+
+    if (profile) {
+      familyPreferences = {}
+      for (const f of ONBOARDING_FIELDS) {
+        const v = profile[f.field]
+        familyPreferences[f.field] = (typeof v === 'string' && v) ? v : null
+      }
+    }
 
     try {
       comparisonData = await loadComparisonData(supabaseService(), user.id, activeChildId)
@@ -80,6 +91,7 @@ export default async function ResearchRoomPage() {
     <ResearchRoom
       childOptions={childSummaries.map(c => ({ id: c.id, name: c.name }))}
       childSummaries={childSummaries}
+      familyPreferences={familyPreferences}
       initialActiveChildId={activeChildId}
       comparisonData={comparisonData}
     />
