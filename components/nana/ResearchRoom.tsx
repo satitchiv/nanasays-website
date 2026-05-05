@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import ChildSelector, { type ChildOption } from './ChildSelector'
 import ResearchRoomChat, { type ChatState } from './ResearchRoomChat'
+import ComparisonView from './ComparisonView'
 import './research-room.css'
 
 type Tab = 'brief' | 'compare' | 'verdict' | 'partner'
@@ -221,23 +222,45 @@ export default function ResearchRoom({ childOptions, initialActiveChildId = null
                 aria-hidden={activeTab !== t ? 'true' : undefined}
               >
                 <div className="rr-view">
-                  <div className="rr-view-head">
-                    <div>
-                      <div className="rr-view-eyebrow">{TAB_LABELS[t]}</div>
-                      <h1 className="rr-view-title">
-                        {TAB_LABELS[t]} · <em>placeholder.</em>
-                      </h1>
-                      <p className="rr-view-meta">{PLACEHOLDER_COPY[t].sub}</p>
-                    </div>
-                  </div>
+                  {t === 'compare' ? (
+                    <>
+                      <div className="rr-view-head">
+                        <div>
+                          <div className="rr-view-eyebrow">Comparison · the canonical view</div>
+                          <h1 className="rr-view-title">
+                            Side by side, <em>through your child&rsquo;s eyes.</em>
+                          </h1>
+                          <p className="rr-view-meta">
+                            Two lenses to start: <strong>Maya fit</strong> (child-weighted) and{' '}
+                            <strong>Raw comparison</strong> (neutral). Slice 2 ships the
+                            read-only table — child weighting + chat-driven rows land later.
+                          </p>
+                        </div>
+                      </div>
+                      <ComparisonView />
+                    </>
+                  ) : (
+                    <>
+                      <div className="rr-view-head">
+                        <div>
+                          <div className="rr-view-eyebrow">{TAB_LABELS[t]}</div>
+                          <h1 className="rr-view-title">
+                            {TAB_LABELS[t]} · <em>placeholder.</em>
+                          </h1>
+                          <p className="rr-view-meta">{PLACEHOLDER_COPY[t].sub}</p>
+                        </div>
+                      </div>
 
-                  <div className="rr-placeholder-card" role="status">
-                    <div className="rr-placeholder-eyebrow">Slice 1 · shell only</div>
-                    <div className="rr-placeholder-body">
-                      The four tabs and the chat states work. Swipe left/right on mobile
-                      to flip between tabs. Real content appears in later slices.
-                    </div>
-                  </div>
+                      <div className="rr-placeholder-card" role="status">
+                        <div className="rr-placeholder-eyebrow">Slice 1 · shell only</div>
+                        <div className="rr-placeholder-body">
+                          The four tabs and the chat states work. Swipe left/right on
+                          mobile to flip between tabs. Real content appears in later
+                          slices.
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </section>
             ))}

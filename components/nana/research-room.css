@@ -862,3 +862,344 @@
   .rr-sheet .rr-thread { flex: 1; }
   .rr-sheet .rr-build-toggle { width: calc(100% - 32px); }
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   Comparison view (slice 2) — placeholder data only. Lifted from
+   research-final-F4-B-soft-warmth.html lines 192–335 with `rr-cmp-` prefixes
+   and adjusted to use `--rr-` tokens. Slice-2 simplifications vs the mock:
+   no fit-score in school header, no match-strong/is-best cell highlighting,
+   no row-group A/B split, lens tabs cosmetic only. Those land in slice 4+.
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.rr-cmp-wrap {
+  --rr-moss-bg: #E2F1E8;
+  --rr-amber-bg: #FFE9C4;
+  --rr-rust-bg:  #FBDED2;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Controls row (lens pills + stats) ─────────────────────────────── */
+.rr-cmp-controls {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  align-items: center;
+}
+.rr-cmp-lens-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.rr-cmp-lens-label {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--rr-muted);
+  font-weight: 800;
+  margin-right: 4px;
+}
+.rr-cmp-lens-tab {
+  font-family: var(--rr-sans);
+  font-size: 13.5px;
+  font-weight: 700;
+  padding: 9px 18px;
+  border-radius: var(--rr-r-pill);
+  background: var(--rr-white);
+  border: 1.5px solid var(--rr-border);
+  color: var(--rr-muted);
+  cursor: pointer;
+  transition: all .2s;
+  box-shadow: 0 2px 6px var(--rr-shadow);
+}
+.rr-cmp-lens-tab:hover {
+  color: var(--rr-teal-dk);
+  border-color: var(--rr-teal);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px var(--rr-shadow);
+}
+.rr-cmp-lens-tab.is-active {
+  background: var(--rr-teal);
+  color: var(--rr-navy);
+  border-color: var(--rr-teal);
+  transform: translateY(-1px);
+}
+.rr-cmp-lens-hint {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  font-style: italic;
+  color: var(--rr-muted);
+  margin-left: 6px;
+}
+.rr-cmp-stats {
+  font-family: var(--rr-sans);
+  font-size: 12px;
+  color: var(--rr-muted);
+  text-align: right;
+}
+.rr-cmp-stats strong {
+  color: var(--rr-navy);
+  font-weight: 700;
+}
+
+/* ── Table itself ──────────────────────────────────────────────────── */
+.rr-cmp-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--rr-border);
+  border-radius: var(--rr-r-lg);
+  background: var(--rr-white);
+  -webkit-overflow-scrolling: touch;
+}
+.rr-cmp-table {
+  display: grid;
+  /* grid-template-columns set inline based on schools.length */
+  min-width: 1100px;
+}
+
+.rr-cmp-corner {
+  padding: 18px 20px;
+  border-right: 1px solid var(--rr-border);
+  border-bottom: 2px solid var(--rr-navy);
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  background: var(--rr-white);
+}
+.rr-cmp-corner-eyebrow {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--rr-muted);
+  font-weight: 800;
+  margin-bottom: 6px;
+}
+.rr-cmp-corner-title {
+  font-family: var(--rr-display);
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -.3px;
+  color: var(--rr-navy);
+}
+.rr-cmp-corner-title em {
+  color: var(--rr-teal);
+  font-style: normal;
+}
+.rr-cmp-corner-meta {
+  font-family: var(--rr-mono);
+  font-size: 11px;
+  color: var(--rr-muted);
+  margin-top: 6px;
+  letter-spacing: .04em;
+}
+
+.rr-cmp-head {
+  padding: 16px 18px 14px;
+  border-bottom: 2px solid var(--rr-navy);
+  border-right: 1px solid var(--rr-border);
+  position: sticky;
+  top: 0;
+  background: var(--rr-white);
+  transition: transform .2s;
+}
+.rr-cmp-head:last-child { border-right: none; }
+.rr-cmp-head-rank {
+  font-family: var(--rr-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: var(--rr-muted);
+  margin-bottom: 6px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.rr-cmp-head-rank strong {
+  color: var(--rr-teal-dk);
+  font-weight: 800;
+}
+.rr-cmp-head-name {
+  font-family: var(--rr-display);
+  font-size: 22px;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: -.3px;
+  color: var(--rr-navy);
+}
+.rr-cmp-head-meta {
+  font-family: var(--rr-sans);
+  font-size: 12px;
+  color: var(--rr-muted);
+  margin-top: 5px;
+}
+
+.rr-cmp-dim {
+  padding: 16px 20px;
+  border-right: 1px solid var(--rr-border);
+  border-bottom: 1px solid var(--rr-border);
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--rr-white);
+}
+.rr-cmp-dim-name {
+  font-family: var(--rr-display);
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--rr-navy);
+}
+.rr-cmp-dim-name em {
+  color: var(--rr-teal-dk);
+  font-style: normal;
+}
+.rr-cmp-dim-blurb {
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  color: var(--rr-muted);
+  line-height: 1.5;
+  margin-top: 5px;
+}
+
+.rr-cmp-cell {
+  padding: 22px 24px;
+  border-bottom: 1px solid var(--rr-border);
+  border-right: 1px solid var(--rr-border);
+  position: relative;
+  transition: background .15s;
+}
+.rr-cmp-cell:hover { background: var(--rr-off); }
+.rr-cmp-cell-num {
+  font-family: var(--rr-display);
+  font-size: 26px;
+  font-weight: 900;
+  color: var(--rr-navy);
+  line-height: 1;
+  letter-spacing: -.6px;
+}
+.rr-cmp-cell-text {
+  font-family: var(--rr-sans);
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--rr-navy);
+  font-weight: 600;
+}
+.rr-cmp-cell-empty {
+  font-family: var(--rr-mono);
+  font-size: 18px;
+  color: var(--rr-bmd);
+  font-weight: 700;
+}
+.rr-cmp-cell-sub {
+  font-family: var(--rr-sans);
+  font-size: 12.5px;
+  color: var(--rr-muted);
+  margin-top: 7px;
+  font-weight: 600;
+}
+
+/* 4-light verdict pills */
+.rr-cmp-stamps {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.rr-cmp-stamp {
+  font-family: var(--rr-sans);
+  font-size: 10px;
+  letter-spacing: .04em;
+  padding: 3px 7px;
+  border-radius: var(--rr-r-pill);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.rr-cmp-stamp--green {
+  background: var(--rr-moss-bg);
+  color: var(--rr-moss);
+}
+.rr-cmp-stamp--amber {
+  background: var(--rr-amber-bg);
+  color: var(--rr-amber);
+}
+.rr-cmp-stamp--red {
+  background: var(--rr-rust-bg);
+  color: var(--rr-rust);
+}
+
+/* ── Empty state (0 schools shortlisted) ───────────────────────────── */
+.rr-cmp-empty {
+  background: var(--rr-white);
+  border: 1px solid var(--rr-border);
+  border-radius: var(--rr-r-lg);
+  padding: 48px 36px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+.rr-cmp-empty-eyebrow {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--rr-muted);
+  font-weight: 800;
+}
+.rr-cmp-empty-title {
+  font-family: var(--rr-display);
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: -.3px;
+  color: var(--rr-navy);
+  margin: 0;
+  max-width: 32ch;
+  line-height: 1.2;
+}
+.rr-cmp-empty-body {
+  font-family: var(--rr-sans);
+  font-size: 15px;
+  color: var(--rr-muted);
+  max-width: 42ch;
+  margin: 0;
+}
+.rr-cmp-empty-cta {
+  margin-top: 8px;
+  font-family: var(--rr-sans);
+  font-size: 14px;
+  font-weight: 700;
+  padding: 12px 22px;
+  border-radius: var(--rr-r-pill);
+  background: var(--rr-teal);
+  color: var(--rr-navy);
+  text-decoration: none;
+  transition: all .2s;
+  box-shadow: 0 4px 12px var(--rr-shadow);
+}
+.rr-cmp-empty-cta:hover {
+  background: var(--rr-teal-dk);
+  color: var(--rr-white);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px var(--rr-shadow);
+}
+
+/* ── Mobile: drop sticky offsets so the table can scroll naturally ─── */
+@media (max-width: 880px) {
+  .rr-cmp-controls {
+    grid-template-columns: 1fr;
+  }
+  .rr-cmp-stats {
+    text-align: left;
+  }
+  .rr-cmp-corner,
+  .rr-cmp-dim {
+    /* On narrow screens the sticky-left columns crowd the cells.
+       Let the user pan freely instead. */
+    position: static;
+  }
+  .rr-cmp-table {
+    min-width: 720px;
+  }
+}
