@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import ChildSelector, { type ChildOption } from './ChildSelector'
+import ChildBriefTab, { type ChildSummary } from './ChildBriefTab'
 import ResearchRoomChat, { type ChatState } from './ResearchRoomChat'
 import ComparisonView from './ComparisonView'
 import type { ComparisonData } from './comparison-placeholder'
@@ -12,6 +13,7 @@ type Tab = 'brief' | 'compare' | 'verdict' | 'partner'
 
 type Props = {
   childOptions: ChildOption[]
+  childSummaries?: ChildSummary[]
   initialActiveChildId?: string | null
   comparisonData?: ComparisonData
 }
@@ -42,7 +44,12 @@ const PLACEHOLDER_COPY: Record<Tab, { sub: string }> = {
 
 const SCROLL_DURATION_MS = 450
 
-export default function ResearchRoom({ childOptions, initialActiveChildId = null, comparisonData }: Props) {
+export default function ResearchRoom({
+  childOptions,
+  childSummaries = [],
+  initialActiveChildId = null,
+  comparisonData,
+}: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('compare')
   const [chatState, setChatState] = useState<ChatState>('default')
   const [buildMode, setBuildMode] = useState(false)
@@ -241,6 +248,12 @@ export default function ResearchRoom({ childOptions, initialActiveChildId = null
                       </div>
                       <ComparisonView data={comparisonData} />
                     </>
+                  ) : t === 'brief' ? (
+                    <ChildBriefTab
+                      children={childSummaries}
+                      activeChildId={activeChildId}
+                      onActiveChildChange={setActiveChildId}
+                    />
                   ) : (
                     <>
                       <div className="rr-view-head">
