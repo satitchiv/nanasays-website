@@ -1,4 +1,11 @@
+import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import {
+  KNOWN_DAY_ONLY_NAMES,
+  KNOWN_FULL_BOARDING_NAMES,
+  assertUserId,
+  normalizeSchoolName,
+} from './school-name-overrides'
 
 // Auto-recommend shortlist after onboarding completes.
 //
@@ -100,54 +107,8 @@ const IB_VARIANTS = [
 ]
 const ALEVEL_VARIANTS = ['A-Level']
 
-// Boarding workaround — schools.boarding boolean is broken in source
-// data. Match by NORMALIZED NAME, not slug. The schools table has slug
-// duplicates (e.g. 4 Charterhouse slugs, 2 Bradfield slugs); a slug-based
-// list would miss variants. Normalization strips apostrophes, punctuation,
-// and the trailing "School"/"College" suffix.
-function normalizeSchoolName(name: string | null | undefined): string {
-  if (!name) return ''
-  return name
-    .toLowerCase()
-    .replace(/['‘’]/g, '')   // apostrophes (ASCII + curly)
-    .replace(/[^a-z0-9 ]/g, ' ')       // other punct → space
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/\b(school|college)\b/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
-const KNOWN_FULL_BOARDING_NAMES = new Set<string>([
-  'eton', 'harrow', 'winchester', 'rugby', 'tonbridge',
-  'sherborne', 'sherborne girls', 'marlborough', 'repton',
-  'uppingham', 'oundle', 'stowe', 'radley', 'wellington',
-  'bradfield', 'bedales', 'cheltenham', 'cheltenham ladies',
-  'clifton', 'cranleigh', 'lancing', 'roedean', 'wycombe abbey',
-  'st marys ascot', 'st marys calne', 'benenden', 'downe house',
-  'queenswood', 'tudor hall', 'woldingham', 'headington',
-  'malvern', 'malvern st james', 'bromsgrove', 'worth',
-  'stonyhurst', 'ampleforth', 'sedbergh', 'pocklington',
-  'queen ethelburgas collegiate', 'rossall', 'oakham',
-  'ellesmere', 'concord', 'gordonstoun', 'loretto', 'fettes',
-  'glenalmond', 'merchiston castle', 'strathallan', 'millfield',
-  'shrewsbury', 'sevenoaks', 'felsted', 'kings canterbury',
-  'kings ely', 'st edwards oxford', 'leys', 'kent canterbury',
-  'kings taunton', 'taunton', 'monkton combe', 'mount kelly',
-  'kingswood bath', 'wells cathedral', 'dauntseys', 'canford',
-  'bryanston', 'eastbourne', 'ardingly', 'hurstpierpoint',
-  'caterham', 'shiplake', 'reeds', 'reading blue coat',
-  'mill hill foundation', 'st leonards', 'st edmunds canterbury',
-  'denstone', 'milton abbey', 'haileybury',
-  'charterhouse', 'bishops stortford', 'hurtwood house',
-  'queen annes', 'queen annes caversham',
-])
-
-const KNOWN_DAY_ONLY_NAMES = new Set<string>([
-  'westminster', 'st pauls', 'st pauls girls', 'dulwich',
-  'highgate', 'alleyns', 'kings wimbledon', 'haberdashers boys',
-  'city of london', 'whitgift', 'jeannine manuel', 'dwight london',
-])
+// Boarding/day classification + name normalization moved to
+// lib/school-name-overrides.ts to share with research-comparison.ts.
 
 // Sport quality scoring — competitive_tier is free-form prose (~120
 // distinct values), so keyword scan it. Caps the prose component at 1.0.
@@ -235,6 +196,8 @@ export async function recommendShortlist(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<RecommendResult> {
+  assertUserId(userId, 'recommendShortlist')
+
   // 1. Load profile
   const { data: profile } = await supabase
     .from('parent_profiles')
@@ -483,14 +446,18 @@ export async function recommendShortlist(
 
   const top = scored.slice(0, 6).map(x => x.school)
 
-  // 7. Insert
+  // 7. Upsert with ignoreDuplicates — the (user_id, school_slug) UNIQUE
+  // constraint backstops the check-then-insert race window. If a second
+  // concurrent call slips past the empty-shortlist guard above, the
+  // duplicate rows are silently dropped instead of raising. Either way
+  // the user ends up with exactly 6 schools, never 12.
   const rows = top.map(s => ({ user_id: userId, school_slug: s.slug }))
   const { error: insertError } = await supabase
     .from('shortlisted_schools')
-    .insert(rows)
+    .upsert(rows, { onConflict: 'user_id,school_slug', ignoreDuplicates: true })
 
   if (insertError) {
-    console.error('[recommendShortlist] insert failed:', insertError.message)
+    console.error('[recommendShortlist] upsert failed:', insertError.message)
     return { added: [], reason: 'insert_failed' }
   }
 

@@ -1,5 +1,11 @@
+import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ComparisonData, RowCell, SchoolColumn } from '@/components/nana/comparison-placeholder'
+import {
+  KNOWN_FULL_BOARDING_NAMES,
+  assertUserId,
+  normalizeSchoolName,
+} from './school-name-overrides'
 
 // Real-data shape mapper for the Research Room Comparison table.
 // Reads shortlisted_schools × schools × school_structured_data × school_sensitive
@@ -35,34 +41,8 @@ type ISIRow = {
   summary:     string | null
 }
 
-// ─── Boarding name list (mirrors recommend-shortlist.ts) ──────────────────
-function normalizeSchoolName(name: string | null | undefined): string {
-  if (!name) return ''
-  return name.toLowerCase()
-    .replace(/['‘’]/g, '')
-    .replace(/[^a-z0-9 ]/g, ' ')
-    .replace(/\s+/g, ' ').trim()
-    .replace(/\b(school|college)\b/g, '')
-    .replace(/\s+/g, ' ').trim()
-}
-const KNOWN_FULL_BOARDING_NAMES = new Set<string>([
-  'eton','harrow','winchester','rugby','tonbridge','sherborne','sherborne girls',
-  'marlborough','repton','uppingham','oundle','stowe','radley','wellington',
-  'bradfield','bedales','cheltenham','cheltenham ladies','clifton','cranleigh',
-  'lancing','roedean','wycombe abbey','st marys ascot','st marys calne',
-  'benenden','downe house','queenswood','tudor hall','woldingham','headington',
-  'malvern','malvern st james','bromsgrove','worth','stonyhurst','ampleforth',
-  'sedbergh','pocklington','queen ethelburgas collegiate','rossall','oakham',
-  'ellesmere','concord','gordonstoun','loretto','fettes','glenalmond',
-  'merchiston castle','strathallan','millfield','shrewsbury','sevenoaks',
-  'felsted','kings canterbury','kings ely','st edwards oxford','leys',
-  'kent canterbury','kings taunton','taunton','monkton combe','mount kelly',
-  'kingswood bath','wells cathedral','dauntseys','canford','bryanston',
-  'eastbourne','ardingly','hurstpierpoint','caterham','shiplake','reeds',
-  'reading blue coat','mill hill foundation','st leonards','st edmunds canterbury',
-  'denstone','milton abbey','haileybury','charterhouse','bishops stortford',
-  'hurtwood house','queen annes','queen annes caversham',
-])
+// Boarding/day classification + name normalization live in
+// lib/school-name-overrides.ts (shared with the recommender).
 
 // ─── Sport tier short label (uses same prose-keyword scan as recommender) ─
 function sportShortLabel(tier: string | null | undefined): string {
@@ -142,17 +122,28 @@ function isiCell(isi: ISIRow | undefined): RowCell {
 }
 
 function entryWindowCell(s: StructuredRow): RowCell {
-  const af = s.admissions_format as any
+  const af = s.admissions_format as Record<string, unknown> | null
   const ep = af?.entry_points
-  if (!ep) return { kind: 'empty' }
-  // entry_points can be array of strings, array of objects, or a string
+  if (ep == null) return { kind: 'empty' }
+  // entry_points can be: a string, an array of strings, or an array of
+  // objects with one of {label, year, age, term} keys. Extract known
+  // shapes; never stringify a raw object into the UI (would leak JSON).
   let label = ''
-  if (Array.isArray(ep)) {
-    const first = ep.find(x => x != null)
-    if (typeof first === 'string') label = first
-    else if (first && typeof first === 'object') label = (first as any).label ?? (first as any).year ?? JSON.stringify(first).slice(0, 50)
-  } else if (typeof ep === 'string') {
+  if (typeof ep === 'string') {
     label = ep
+  } else if (Array.isArray(ep)) {
+    const first = ep.find(x => x != null)
+    if (typeof first === 'string') {
+      label = first
+    } else if (first && typeof first === 'object') {
+      const f = first as Record<string, unknown>
+      if      (typeof f.label === 'string')                            label = f.label
+      else if (typeof f.year  === 'string' || typeof f.year  === 'number') label = String(f.year)
+      else if (typeof f.age   === 'string' || typeof f.age   === 'number') label = String(f.age)
+      else if (typeof f.term  === 'string')                            label = f.term
+      // unknown shape → leave label='' so we render an empty cell rather
+      // than spilling stringified JSON into the table.
+    }
   }
   label = label.trim().slice(0, 40)
   if (!label) return { kind: 'empty' }
@@ -170,35 +161,10 @@ function bursaryCell(s: StructuredRow): RowCell {
   return { kind: 'value', primary: short }
 }
 
-function fourLightCell(s: StructuredRow): RowCell {
-  const al = (s.exam_results as any)?.a_level as Record<string, unknown> | undefined
-  const aaPct = typeof al?.pct_a_star_a === 'number' ? al.pct_a_star_a : null
-  const total = (s.student_community as any)?.total_pupils
-  const ox = Number((s.university_destinations as any)?.oxford_count ?? 0)
-  const cam = Number((s.university_destinations as any)?.cambridge_count ?? 0)
-  const oxbridge = ox + cam
-  const bursary = (s.bursary_note ?? '').toLowerCase()
-
-  type Tone = 'green' | 'amber' | 'red'
-  const acad: Tone = aaPct == null ? 'amber' : aaPct >= 60 ? 'green' : aaPct >= 40 ? 'amber' : 'red'
-  const past: Tone = typeof total === 'number'
-    ? total <= 800 ? 'green' : total <= 1200 ? 'amber' : 'red'
-    : 'amber'
-  const val: Tone = /up to (90|100)/.test(bursary) ? 'green'
-    : /up to (50|70|80)/.test(bursary) ? 'amber'
-    : bursary ? 'amber' : 'red'
-  const amb: Tone = oxbridge >= 10 ? 'green' : oxbridge >= 3 ? 'amber' : 'red'
-
-  return {
-    kind: 'lights',
-    lights: [
-      { label: 'Acad', tone: acad },
-      { label: 'Past', tone: past },
-      { label: 'Val',  tone: val  },
-      { label: 'Amb',  tone: amb  },
-    ],
-  }
-}
+// 4-light verdict row dropped after Codex review (slice 2 v3): the
+// thresholds (small school = good pastoral, no bursary = poor value,
+// oxbridge count = ambition) are product opinions, not neutral facts.
+// Slice 4 will introduce a real fit-score keyed by child profile.
 
 function boardingCell(meta: SchoolMeta): RowCell {
   const norm = normalizeSchoolName(meta.name)
@@ -219,17 +185,28 @@ export async function loadComparisonData(
   supabase: SupabaseClient,
   userId: string,
 ): Promise<ComparisonData> {
+  assertUserId(userId, 'loadComparisonData')
+
   // 1. Shortlist
-  const { data: rows } = await supabase
+  const { data: rows, error: shortlistError } = await supabase
     .from('shortlisted_schools')
     .select('school_slug, added_at')
     .eq('user_id', userId)
     .order('added_at', { ascending: true })
 
+  if (shortlistError) {
+    // Swallowing this would render an empty Comparison table; surface it
+    // so the page-level catch logs and we don't silently lose data.
+    throw new Error(`loadComparisonData: shortlist read failed: ${shortlistError.message}`)
+  }
+
   const slugs = (rows ?? []).map((r: { school_slug: string }) => r.school_slug)
   if (slugs.length === 0) return { schools: [], rows: [] }
 
-  // 2. Parallel fetch metadata + structured + ISI rows
+  // 2. Parallel fetch metadata + structured + ISI rows. All three are
+  // service-role reads against RLS-locked tables; if any fails (RLS
+  // regression, schema change), we want to know — silent empty cells
+  // would mask real outages.
   const [schoolsRes, structRes, isiRes] = await Promise.all([
     supabase.from('schools')
       .select('slug, name, city, region, boarding, gender_split')
@@ -243,6 +220,10 @@ export async function loadComparisonData(
       .eq('source', 'isi')
       .order('date', { ascending: false }),
   ])
+
+  if (schoolsRes.error) throw new Error(`loadComparisonData: schools read failed: ${schoolsRes.error.message}`)
+  if (structRes.error)  throw new Error(`loadComparisonData: structured read failed: ${structRes.error.message}`)
+  if (isiRes.error)     throw new Error(`loadComparisonData: isi read failed: ${isiRes.error.message}`)
 
   const schoolMap = new Map<string, SchoolMeta>(
     (schoolsRes.data ?? []).map((s: any) => [s.slug, s])
@@ -286,7 +267,6 @@ export async function loadComparisonData(
         case 'isi':        return isiCell(isi)
         case 'y9-entry':   return entryWindowCell(struct)
         case 'bursary':    return bursaryCell(struct)
-        case 'four-light': return fourLightCell(struct)
         case 'boarding':   return boardingCell(meta)
         default:           return { kind: 'empty' }
       }
@@ -294,16 +274,15 @@ export async function loadComparisonData(
   }
 
   const tableRows = [
-    { id: 'fees',       label: 'Fees',           emphasis: 'annual',     blurb: 'Senior fees from the school site',   cells: cellsFor('fees') },
-    { id: 'a-star-a',   label: 'A*–A',           emphasis: 'A-level',    blurb: 'Share of grades at A* or A',          cells: cellsFor('a-star-a') },
-    { id: 'oxbridge',   label: 'Oxbridge',       emphasis: 'recent yr',  blurb: 'Leavers placed at Oxford or Cambridge', cells: cellsFor('oxbridge') },
-    { id: 'pastoral',   label: 'Total pupils',                            blurb: 'School-wide; smaller = closer pastoral',  cells: cellsFor('pastoral') },
-    { id: 'sport',      label: 'Sport tier',                              blurb: 'Competitive standing across major sports', cells: cellsFor('sport') },
-    { id: 'isi',        label: 'ISI inspection',                          blurb: 'Most recent overall outcome',         cells: cellsFor('isi') },
-    { id: 'y9-entry',   label: 'Entry window',                            blurb: 'Earliest published entry point',     cells: cellsFor('y9-entry') },
-    { id: 'bursary',    label: 'Bursary',                                 blurb: 'Maximum means-tested fee remission', cells: cellsFor('bursary') },
-    { id: 'four-light', label: '4-light verdict', blurb: 'Acad / Past / Val / Amb (heuristic)',                        cells: cellsFor('four-light') },
-    { id: 'boarding',   label: 'Boarding',                                blurb: 'Type · gender mix',                  cells: cellsFor('boarding') },
+    { id: 'fees',     label: 'Fees',           emphasis: 'annual',    blurb: 'Senior fees from the school site',         cells: cellsFor('fees') },
+    { id: 'a-star-a', label: 'A*–A',           emphasis: 'A-level',   blurb: 'Share of grades at A* or A',                cells: cellsFor('a-star-a') },
+    { id: 'oxbridge', label: 'Oxbridge',       emphasis: 'recent yr', blurb: 'Leavers placed at Oxford or Cambridge',     cells: cellsFor('oxbridge') },
+    { id: 'pastoral', label: 'Total pupils',                          blurb: 'School-wide; smaller = closer pastoral',    cells: cellsFor('pastoral') },
+    { id: 'sport',    label: 'Sport tier',                            blurb: 'Competitive standing across major sports',  cells: cellsFor('sport') },
+    { id: 'isi',      label: 'ISI inspection',                        blurb: 'Most recent overall outcome',               cells: cellsFor('isi') },
+    { id: 'y9-entry', label: 'Entry window',                          blurb: 'Earliest published entry point',            cells: cellsFor('y9-entry') },
+    { id: 'bursary',  label: 'Bursary',                               blurb: 'Maximum means-tested fee remission',        cells: cellsFor('bursary') },
+    { id: 'boarding', label: 'Boarding',                              blurb: 'Type · gender mix',                         cells: cellsFor('boarding') },
   ]
 
   return { schools, rows: tableRows }

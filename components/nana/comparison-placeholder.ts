@@ -126,49 +126,9 @@ const ROWS: ComparisonRow[] = [
       { kind: 'value', primary: 'Up to 100%' },
     ],
   },
-  {
-    id: 'four-light',
-    label: '4-light verdict',
-    blurb: 'Academic / Pastoral / Value / Ambition',
-    cells: [
-      {
-        kind: 'lights',
-        lights: [
-          { label: 'Acad', tone: 'green' },
-          { label: 'Past', tone: 'green' },
-          { label: 'Val', tone: 'green' },
-          { label: 'Amb', tone: 'amber' },
-        ],
-      },
-      {
-        kind: 'lights',
-        lights: [
-          { label: 'Acad', tone: 'green' },
-          { label: 'Past', tone: 'green' },
-          { label: 'Val', tone: 'amber' },
-          { label: 'Amb', tone: 'green' },
-        ],
-      },
-      {
-        kind: 'lights',
-        lights: [
-          { label: 'Acad', tone: 'green' },
-          { label: 'Past', tone: 'amber' },
-          { label: 'Val', tone: 'amber' },
-          { label: 'Amb', tone: 'green' },
-        ],
-      },
-      {
-        kind: 'lights',
-        lights: [
-          { label: 'Acad', tone: 'amber' },
-          { label: 'Past', tone: 'green' },
-          { label: 'Val', tone: 'green' },
-          { label: 'Amb', tone: 'amber' },
-        ],
-      },
-    ],
-  },
+  // four-light verdict row dropped after Codex review — its thresholds
+  // were product opinions (small school = good pastoral, no bursary =
+  // poor value, etc.), not neutral facts. Real fit-score lands in slice 4.
   {
     id: 'boarding',
     label: 'Boarding',

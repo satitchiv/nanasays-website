@@ -36,6 +36,21 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
   }
 
+  // Read the current onboarding_complete value BEFORE updating so we can
+  // distinguish "transition from false → true" (fire welcome email +
+  // recommender) from "PATCH retried with onboarding_complete:true again"
+  // (no-op). Without this guard, a double-click would send the email
+  // twice and run the recommender twice — Codex P1.
+  let wasComplete = false
+  if (update.onboarding_complete === true) {
+    const { data: prior } = await supabase
+      .from('parent_profiles')
+      .select('onboarding_complete')
+      .eq('id', user.id)
+      .maybeSingle<{ onboarding_complete: boolean | null }>()
+    wasComplete = prior?.onboarding_complete === true
+  }
+
   const { error } = await supabase
     .from('parent_profiles')
     .update(update)
@@ -43,7 +58,9 @@ export async function PATCH(req: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  if (update.onboarding_complete === true && user.email) {
+  const justCompleted = update.onboarding_complete === true && !wasComplete
+
+  if (justCompleted && user.email) {
     await sendWelcomeEmail(user.email)
   }
 
@@ -54,7 +71,7 @@ export async function PATCH(req: Request) {
   // recommendShortlist reads schools_status / school_structured_data which
   // are RLS-locked from anon+authenticated. Use the service-role client so
   // the helper keeps working after Phase 1 RLS lockdown.
-  if (update.onboarding_complete === true) {
+  if (justCompleted) {
     try {
       const result = await recommendShortlist(supabaseService(), user.id)
       console.log('[recommendShortlist]', user.id, result.reason, result.added.length)
