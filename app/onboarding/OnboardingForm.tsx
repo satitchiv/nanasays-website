@@ -158,8 +158,8 @@ export default function OnboardingForm() {
         <div className="onboarding-done-icon">✅</div>
         <h2>You&apos;re all set</h2>
         <p>Nana will personalise every answer based on what you&apos;ve told us.</p>
-        <button className="onboarding-btn-finish" onClick={() => router.push('/my-reports')}>
-          Go to my schools →
+        <button className="onboarding-btn-finish" onClick={() => router.push('/nana/research-room')}>
+          See my schools →
         </button>
       </div>
     )
