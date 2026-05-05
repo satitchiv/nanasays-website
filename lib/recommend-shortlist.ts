@@ -100,48 +100,52 @@ const IB_VARIANTS = [
 ]
 const ALEVEL_VARIANTS = ['A-Level']
 
-// Boarding workaround — schools.boarding boolean is broken in source data
-// (Eton, Harrow, Wycombe Abbey all marked boarding=false). Until source is
-// cleaned, use these hardcoded lists. Maintenance cost: brittle. v3 should
-// replace with a clean boarding field on schools.
-const KNOWN_FULL_BOARDING_SLUGS = new Set<string>([
-  'eton-college', 'harrow-school', 'winchester-college',
-  'rugby-school', 'tonbridge-school', 'sherborne-school',
-  'sherborne-girls-school', 'marlborough-college', 'repton-school',
-  'uppingham-school', 'oundle-school', 'stowe-school', 'radley-college',
-  'wellington-college', 'bradfield-college', 'bedales-school',
-  'cheltenham-college', 'cheltenham-ladies-college', 'clifton-college',
-  'cranleigh-school', 'lancing-college', 'roedean-school',
-  'wycombe-abbey', 'st-marys-school-ascot', 'st-marys-calne',
-  'benenden-school', 'downe-house-school', 'queenswood-school',
-  'tudor-hall-school', 'woldingham-school', 'headington-school',
-  'malvern-college', 'malvern-st-james', 'bromsgrove-school',
-  'worth-school', 'stonyhurst-college', 'ampleforth-college',
-  'sedbergh-school', 'pocklington-school',
-  'queen-ethelburgas-collegiate', 'rossall-school', 'oakham-school',
-  'ellesmere-college', 'concord-college', 'gordonstoun',
-  'loretto-school', 'fettes-college', 'glenalmond-college',
-  'merchiston-castle-school', 'strathallan-school', 'millfield-school',
-  'shrewsbury-school', 'sevenoaks-school', 'felsted-school',
-  'kings-school-canterbury', 'kings-school-ely', 'st-edwards-oxford',
-  'leys-school', 'kent-college-canterbury', 'kings-college-taunton',
-  'taunton-school', 'monkton-combe-school', 'mount-kelly',
-  'kingswood-school-bath', 'wells-cathedral-school',
-  'dauntseys', 'canford-school', 'bryanston-school',
-  'eastbourne-college', 'ardingly-college', 'hurstpierpoint-college',
-  'caterham-school', 'shiplake-college', 'reeds-school-uk',
-  'reading-blue-coat-school', 'mill-hill-school-foundation',
-  'st-leonards-school', 'st-edmunds-canterbury',
-  'denstone-college', 'milton-abbey-school',
+// Boarding workaround — schools.boarding boolean is broken in source
+// data. Match by NORMALIZED NAME, not slug. The schools table has slug
+// duplicates (e.g. 4 Charterhouse slugs, 2 Bradfield slugs); a slug-based
+// list would miss variants. Normalization strips apostrophes, punctuation,
+// and the trailing "School"/"College" suffix.
+function normalizeSchoolName(name: string | null | undefined): string {
+  if (!name) return ''
+  return name
+    .toLowerCase()
+    .replace(/['‘’]/g, '')   // apostrophes (ASCII + curly)
+    .replace(/[^a-z0-9 ]/g, ' ')       // other punct → space
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\b(school|college)\b/g, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
+const KNOWN_FULL_BOARDING_NAMES = new Set<string>([
+  'eton', 'harrow', 'winchester', 'rugby', 'tonbridge',
+  'sherborne', 'sherborne girls', 'marlborough', 'repton',
+  'uppingham', 'oundle', 'stowe', 'radley', 'wellington',
+  'bradfield', 'bedales', 'cheltenham', 'cheltenham ladies',
+  'clifton', 'cranleigh', 'lancing', 'roedean', 'wycombe abbey',
+  'st marys ascot', 'st marys calne', 'benenden', 'downe house',
+  'queenswood', 'tudor hall', 'woldingham', 'headington',
+  'malvern', 'malvern st james', 'bromsgrove', 'worth',
+  'stonyhurst', 'ampleforth', 'sedbergh', 'pocklington',
+  'queen ethelburgas collegiate', 'rossall', 'oakham',
+  'ellesmere', 'concord', 'gordonstoun', 'loretto', 'fettes',
+  'glenalmond', 'merchiston castle', 'strathallan', 'millfield',
+  'shrewsbury', 'sevenoaks', 'felsted', 'kings canterbury',
+  'kings ely', 'st edwards oxford', 'leys', 'kent canterbury',
+  'kings taunton', 'taunton', 'monkton combe', 'mount kelly',
+  'kingswood bath', 'wells cathedral', 'dauntseys', 'canford',
+  'bryanston', 'eastbourne', 'ardingly', 'hurstpierpoint',
+  'caterham', 'shiplake', 'reeds', 'reading blue coat',
+  'mill hill foundation', 'st leonards', 'st edmunds canterbury',
+  'denstone', 'milton abbey', 'haileybury',
+  'charterhouse', 'bishops stortford',
 ])
 
-const KNOWN_DAY_ONLY_SLUGS = new Set<string>([
-  'westminster-school-uk',
-  'st-pauls-school-london', 'dulwich-college',
-  'highgate-school', 'alleyns-school', 'kings-college-school-wimbledon',
-  'haberdashers-boys-school-uk', 'city-of-london-school-uk',
-  'whitgift-school', 'jeannine-manuel-school',
-  'dwight-school-london',
+const KNOWN_DAY_ONLY_NAMES = new Set<string>([
+  'westminster', 'st pauls', 'st pauls girls', 'dulwich',
+  'highgate', 'alleyns', 'kings wimbledon', 'haberdashers boys',
+  'city of london', 'whitgift', 'jeannine manuel', 'dwight london',
 ])
 
 // Sport quality scoring — competitive_tier is free-form prose (~120
@@ -259,13 +263,22 @@ export async function recommendShortlist(
   if (ukSlugs.length === 0) return { added: [], reason: 'no_matches' }
 
   // 4. Build candidate query — hard filters in SQL
+  // confidence_score >= 60 was removed — Westminster + St Paul's have
+  // confidence_score=0 in the data despite being substantial-evidence
+  // UK schools. The schools_status filter (is_uk_evidence +
+  // has_substantial_chunks) is already a meaningful quality bar; the
+  // additional confidence threshold was double-filtering and dropping
+  // famous schools whose extraction never finished. confidence_score
+  // still acts as a tiebreaker via the JS scoring base.
+  // is_international filter dropped: Westminster + several famous schools
+  // have is_international=NULL despite being substantial UK independents.
+  // The schools_status filter (is_uk_evidence) is already a stricter
+  // quality gate, so this was double-filtering and hiding famous schools.
   let q = supabase
     .from('schools')
     .select('slug, name, gender_split, boarding, fees_usd_min, sen_support, strengths, confidence_score, age_min, age_max, region')
     .in('slug', ukSlugs)
     .eq('country', 'United Kingdom')
-    .eq('is_international', true)
-    .gte('confidence_score', 60)
 
   // Region: moved to JS scoring (not a hard SQL filter). Many famous
   // schools have region=NULL (Westminster, St Paul's, Dulwich) and would
@@ -287,10 +300,12 @@ export async function recommendShortlist(
     q = q.or(`curriculum.ov.{${ALEVEL_VARIANTS.join(',')}},curriculum.is.null`)
   }
 
-  // Budget hard cap (drop schools more than 30% over the ceiling)
+  // Budget hard cap (drop schools more than 30% over the ceiling).
+  // Accept NULL fees as wildcard — Rugby School and other famous
+  // schools have fees_usd_min=NULL but real fees are within budget.
   const ceiling = BUDGET_CEILING_USD[profile.budget_range ?? '']
   if (ceiling != null) {
-    q = q.lte('fees_usd_min', Math.round(ceiling * 1.3))
+    q = q.or(`fees_usd_min.is.null,fees_usd_min.lte.${Math.round(ceiling * 1.3)}`)
   }
 
   // Age range — entry age must fit between age_min and age_max, but
@@ -331,19 +346,17 @@ export async function recommendShortlist(
     })
   }
 
-  // 5b. Boarding workaround filter (after gender filter, before scoring)
-  // schools.boarding boolean is broken; use hardcoded slug lists instead.
+  // 5b. Boarding workaround filter — match by normalized name (slug
+  // duplicates would leak through a slug-keyed lookup, so we collapse on
+  // the human name and match against canonical sets above).
   if (
     profile.boarding_pref === 'full' ||
     profile.boarding_pref === 'weekly' ||
     profile.boarding_pref === 'flexi'
   ) {
-    // Drop known day-only schools. Boarding-list schools and unknown
-    // (probably mixed) schools both stay.
-    filtered = filtered.filter(s => !KNOWN_DAY_ONLY_SLUGS.has(s.slug))
+    filtered = filtered.filter(s => !KNOWN_DAY_ONLY_NAMES.has(normalizeSchoolName(s.name)))
   } else if (profile.boarding_pref === 'day') {
-    // Drop known full-boarding schools.
-    filtered = filtered.filter(s => !KNOWN_FULL_BOARDING_SLUGS.has(s.slug))
+    filtered = filtered.filter(s => !KNOWN_FULL_BOARDING_NAMES.has(normalizeSchoolName(s.name)))
   }
 
   if (filtered.length === 0) {
@@ -430,15 +443,18 @@ export async function recommendShortlist(
     }
 
     // Class size preference — student_community.total_pupils is the
-    // cleanest signal we have. NULL → no signal (neutral).
+    // cleanest signal. Bumped weights from 0.4/-0.2 to 0.8/-0.5 for
+    // "very-important" so this signal can actually re-rank against the
+    // region match (+0.6). Dry-run #3 caught a 1800-pupil school
+    // outranking a 256-pupil one with these set lower.
     if (profile.class_size_pref === 'very-important' || profile.class_size_pref === 'nice-to-have') {
       const totalPupils = struct?.student_community?.total_pupils as number | null | undefined
       if (typeof totalPupils === 'number') {
         const weight = profile.class_size_pref === 'very-important' ? 1 : 0.5
-        if (totalPupils <= 400)      score += 0.4 * weight
-        else if (totalPupils <= 800) score += 0.2 * weight
+        if (totalPupils <= 400)       score += 0.8 * weight
+        else if (totalPupils <= 800)  score += 0.4 * weight
         else if (totalPupils <= 1200) score += 0.0
-        else                          score -= 0.2 * weight
+        else                          score -= 0.5 * weight
       }
     }
 
