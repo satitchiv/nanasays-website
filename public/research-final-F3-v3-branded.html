@@ -1,0 +1,1215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>F3 v3 · Branded · Research Room — Nanasays</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700&family=Nunito+Sans:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Caveat:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* ════════════════════════════════════════════════════════════════════════════
+   F3 · v3 — BRANDED · Four-Surface Research Room
+   Brand tokens match decision-hub.css: navy #1B3252, teal #34C3A0, cream
+   #fdfcf7, border #DDD4C0, amber #F5A623. Type: Lora + Nunito Sans + JetBrains
+   Mono. Variable names kept (--petrol, --ink, --paper) so swap is local.
+   ──────────────────────────────────────────────────────────────────────────
+   • Chat = right rail with 3 states (52 / 400 / 620 px)
+   • "Work on comparison table" mode toggle at top of chat
+   • 4 quick actions per Nana bubble: + Add as row / ↻ Re-rank / ✦ Lens / ↗ Letter
+   • Lenses SHARED between Comparison and Verdict tabs
+   ════════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Brand tokens — match decision-hub.css */
+  --paper:       #fdfcf7;          /* --cream */
+  --paper-2:     #ffffff;          /* surface white */
+  --paper-3:     #f5f1e6;          /* sunken cream */
+  --paper-4:     #ede5d0;          /* deeper cream */
+  --ink:         #1B3252;          /* --navy */
+  --ink-2:       #3D4F70;          /* secondary navy */
+  --ink-3:       #6B7990;          /* tertiary navy */
+  --rule:        #DDD4C0;          /* --border */
+  --rule-soft:   #E8E0CD;
+  --petrol:      #34C3A0;          /* --teal — primary accent */
+  --petrol-2:    #28a888;          /* darker teal (hover) */
+  --petrol-3:    #E8F6F2;          /* light teal tint */
+  --moss:        #4A6A36;          /* good signal — kept */
+  --amber:       #F5A623;          /* --amber */
+  --rust:        #C84A2A;          /* concern — kept warm-red */
+  --highlight:   #FCE4A0;          /* marker yellow */
+
+  --display: 'Lora', Georgia, serif;                   /* --serif */
+  --sans:    'Nunito Sans', system-ui, sans-serif;     /* --sans */
+  --mono:    'JetBrains Mono', ui-monospace, monospace;
+  --hand:    'Caveat', cursive;
+
+  --chat-w-closed: 52px;
+  --chat-w-open:   400px;
+  --chat-w-focus:  620px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  background-image: radial-gradient(900px 500px at 8% -8%, rgba(52,195,160,.05), transparent 70%);
+  height: 100vh; overflow: hidden;
+}
+::selection { background: var(--highlight); color: var(--ink); }
+.num { font-family: var(--mono); }
+
+/* ─── Top bar ────────────────────────────────────────────────────────── */
+.top {
+  border-bottom: 1px solid var(--rule);
+  background: var(--paper);
+  height: 56px;
+  position: relative; z-index: 30;
+}
+.top-in {
+  height: 100%;
+  display: grid; grid-template-columns: auto 1fr auto; gap: 18px;
+  padding: 12px 22px 0; align-items: end;
+}
+.brand { display: flex; align-items: baseline; gap: 10px; font-family: var(--display); font-size: 21px; padding-bottom: 14px; }
+.brand .seal {
+  width: 30px; height: 30px;
+  background: var(--ink); color: var(--paper); border-radius: 50%;
+  display: grid; place-items: center;
+  font-style: italic; font-weight: 500; align-self: center; font-size: 16px;
+}
+.brand em { font-style: italic; color: var(--petrol); }
+
+.tabs { display: flex; gap: 0; align-items: end; margin-bottom: -1px; }
+.tab {
+  font-family: var(--sans); font-size: 13px; font-weight: 600;
+  padding: 12px 20px;
+  background: transparent; border: 1px solid transparent;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-2); cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  letter-spacing: .02em;
+}
+.tab:hover { color: var(--ink); }
+.tab.active {
+  background: var(--paper);
+  border-color: var(--rule);
+  border-bottom-color: var(--paper);
+  color: var(--ink);
+  border-radius: 8px 8px 0 0;
+  position: relative; z-index: 1;
+}
+.tab .ic { font-family: var(--display); font-style: italic; color: var(--petrol); font-size: 15px; }
+.tab.privileged { font-size: 14px; padding: 14px 24px; font-weight: 700; position: relative; }
+.tab.privileged::before { content: ""; position: absolute; top: -2px; left: 50%; transform: translateX(-50%); width: 28px; height: 2px; background: var(--petrol); border-radius: 999px; }
+.tab.privileged .ic { font-size: 16px; }
+.tab .badge { font-family: var(--mono); font-size: 9px; font-weight: 700; padding: 2px 6px; background: var(--petrol-3); color: var(--petrol); border-radius: 999px; letter-spacing: .04em; }
+.tab.active.privileged .badge { background: var(--petrol); color: var(--paper-2); }
+
+.top-meta { display: flex; gap: 14px; font-family: var(--mono); font-size: 11px; color: var(--ink-3); padding-bottom: 14px; letter-spacing: .04em; }
+.top-meta strong { color: var(--ink); }
+.top-meta .live { color: var(--moss); font-weight: 600; }
+.top-meta .live::before { content: "● "; color: var(--moss); }
+
+.btn {
+  font-family: var(--sans); font-size: 12px; font-weight: 600;
+  padding: 7px 12px; border-radius: 6px;
+  border: 1px solid var(--rule); background: var(--paper-2); color: var(--ink); cursor: pointer;
+}
+.btn:hover { border-color: var(--ink); }
+.btn--primary { background: var(--petrol); color: var(--ink); border-color: var(--petrol); font-weight: 700; }
+
+/* ════════════════════════════════════════════════════════════════════
+   Page shell — main + right chat rail (3 states)
+   ════════════════════════════════════════════════════════════════════ */
+.shell {
+  height: calc(100vh - 56px);
+  display: grid;
+  grid-template-columns: 1fr var(--chat-w);
+  --chat-w: var(--chat-w-open);
+  transition: grid-template-columns .26s cubic-bezier(.2,.8,.2,1);
+}
+.shell.chat-closed { --chat-w: var(--chat-w-closed); }
+.shell.chat-focus  { --chat-w: var(--chat-w-focus); }
+
+.main {
+  min-width: 0; overflow-y: auto; overflow-x: hidden;
+  padding: 26px 32px 40px;
+}
+
+.view { display: none; max-width: 1480px; margin: 0 auto; }
+.view.active { display: block; }
+
+.view-head {
+  display: grid; grid-template-columns: 1fr auto; gap: 20px; align-items: end;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 18px; margin-bottom: 22px;
+}
+.view-eyebrow { font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--petrol); font-weight: 700; margin-bottom: 6px; }
+.view-eyebrow strong { color: var(--ink); }
+.view-title { font-family: var(--display); font-size: clamp(28px, 3.6vw, 40px); line-height: 1.05; font-weight: 500; letter-spacing: -.012em; }
+.view-title em { font-style: italic; color: var(--petrol); }
+.view-meta { font-family: var(--sans); font-size: 13.5px; color: var(--ink-2); margin-top: 8px; max-width: 70ch; line-height: 1.55; }
+.view-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* ════════════════════════════════════════════════════════════════════
+   COMPARISON tab (privileged default)
+   ════════════════════════════════════════════════════════════════════ */
+.cmp-controls {
+  display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center;
+  margin-bottom: 14px;
+}
+.lens-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.lens-tab {
+  font-family: var(--sans); font-size: 12px; font-weight: 600;
+  padding: 6px 12px; border-radius: 999px;
+  background: var(--paper-2); border: 1px solid var(--rule); color: var(--ink-2); cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+  letter-spacing: .02em;
+}
+.lens-tab:hover { color: var(--ink); border-color: var(--ink); }
+.lens-tab.active { background: var(--ink); color: var(--paper-2); border-color: var(--ink); }
+.lens-tab .ic { font-family: var(--display); font-style: italic; color: var(--petrol); }
+.lens-tab.active .ic { color: var(--paper-2); }
+.lens-tab.from-chat { border-color: var(--petrol); color: var(--petrol); }
+.lens-tab.from-chat .from { font-family: var(--mono); font-size: 9px; padding: 1px 5px; background: var(--petrol); color: var(--paper-2); border-radius: 999px; letter-spacing: .04em; font-weight: 700; }
+.lens-tab.raw { background: transparent; }
+.lens-tab.raw.active { background: var(--ink-3); color: var(--paper-2); }
+
+.cmp-stats { font-family: var(--mono); font-size: 11px; color: var(--ink-3); letter-spacing: .04em; text-align: right; }
+.cmp-stats strong { color: var(--ink); }
+
+.table-wrap { overflow-x: auto; border: 1px solid var(--rule); border-radius: 12px; background: var(--paper-2); }
+.cmp {
+  display: grid;
+  grid-template-columns: 240px repeat(4, minmax(220px, 1fr));
+  min-width: 1100px;
+}
+.cmp > .corner { padding: 16px 18px; border-right: 1px solid var(--ink); border-bottom: 1px solid var(--ink); position: sticky; left: 0; z-index: 4; background: var(--paper-2); }
+.cmp > .head { padding: 14px 16px 12px; border-bottom: 1px solid var(--ink); border-right: 1px solid var(--rule-soft); position: sticky; top: 0; }
+.cmp > .dim { padding: 14px 18px; border-right: 1px solid var(--ink); border-bottom: 1px solid var(--rule-soft); position: sticky; left: 0; z-index: 3; background: var(--paper-2); }
+
+.corner-eyebrow { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; color: var(--ink-3); text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+.corner-title { font-family: var(--display); font-size: 19px; font-weight: 500; line-height: 1.05; letter-spacing: -.012em; }
+.corner-title em { font-style: italic; color: var(--petrol); }
+
+.head-rank { font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; color: var(--ink-3); margin-bottom: 4px; font-weight: 600; }
+.head-rank strong { color: var(--petrol); }
+.head-name { font-family: var(--display); font-size: 18px; line-height: 1.05; font-weight: 500; letter-spacing: -.01em; }
+.head-meta { font-family: var(--mono); font-size: 9.5px; letter-spacing: .04em; color: var(--ink-3); margin-top: 4px; text-transform: uppercase; }
+.head-fit { display: flex; gap: 8px; align-items: center; margin-top: 8px; }
+.head-fit .num-big { font-family: var(--display); font-size: 20px; line-height: 1; font-weight: 500; color: var(--moss); }
+.head-fit .num-big.warn { color: var(--amber); }
+.head-fit .num-big.softer { color: var(--rust); }
+.head-fit .num-big .pct { font-style: italic; font-size: 12px; color: var(--ink-3); }
+.v-pill { font-family: var(--sans); font-weight: 800; font-size: 10px; letter-spacing: .14em; padding: 3px 7px; border-radius: 4px; }
+.v-pill.visit { background: var(--petrol); color: var(--ink); }
+.v-pill.hold  { background: var(--amber); color: var(--paper-2); }
+.v-pill.drop  { background: transparent; color: var(--rust); border: 1px solid var(--rust); }
+
+.row-group {
+  grid-column: 1 / -1;
+  padding: 8px 18px;
+  background: var(--paper-3);
+  font-family: var(--mono); font-size: 10px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--ink-2); font-weight: 700;
+  border-bottom: 1px solid var(--rule);
+  display: flex; gap: 8px; align-items: center;
+  position: sticky; left: 0;
+}
+.row-group .rg-num { background: var(--ink); color: var(--paper-2); padding: 2px 6px; border-radius: 3px; font-size: 9px; }
+.row-group .rg-tag { margin-left: auto; font-family: var(--sans); font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 999px; letter-spacing: .12em; }
+.row-group .rg-tag.lens { background: var(--petrol); color: var(--paper-2); }
+.row-group .rg-tag.raw  { background: var(--ink-3); color: var(--paper-2); }
+
+.dim-name { font-family: var(--display); font-style: italic; font-size: 14.5px; font-weight: 500; line-height: 1.2; }
+.dim-name em { color: var(--petrol); }
+.dim-blurb { font-family: var(--sans); font-size: 11px; color: var(--ink-2); line-height: 1.45; margin-top: 2px; }
+.dim-meta { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; font-family: var(--mono); font-size: 8.5px; letter-spacing: .04em; }
+.dim-meta .badge { padding: 2px 6px; border: 1px solid var(--rule); border-radius: 999px; background: var(--paper); color: var(--ink-3); font-weight: 600; }
+.dim-meta .badge.fit { color: var(--petrol); border-color: var(--petrol); }
+
+.cell { padding: 12px 16px; border-bottom: 1px solid var(--rule-soft); border-right: 1px solid var(--rule-soft); position: relative; cursor: pointer; transition: background .15s; }
+.cell:nth-child(5n+5) { border-right: none; }
+.cell:hover { background: var(--paper); }
+.cell.match-strong { background: rgba(74,106,54,.07); }
+.cell.match-warn { background: rgba(245,166,35,.06); }
+.cell.match-friction { background: rgba(200,74,42,.06); }
+.cell.is-best::before { content: "BEST"; position: absolute; top: 6px; right: 8px; font-family: var(--mono); font-size: 7.5px; font-weight: 800; letter-spacing: .12em; color: var(--moss); padding: 1px 4px; background: rgba(74,106,54,.15); border-radius: 2px; }
+.cell .v-num { font-family: var(--display); font-size: 17px; font-weight: 500; color: var(--ink); line-height: 1; }
+.cell .v-num .pct { font-style: italic; font-size: 12px; color: var(--ink-3); }
+.cell .v-text { font-family: var(--display); font-style: italic; font-size: 13px; line-height: 1.4; color: var(--ink); }
+.cell .v-meta { font-family: var(--mono); font-size: 10px; color: var(--ink-3); margin-top: 4px; letter-spacing: .04em; }
+.cell .v-meta.pos { color: var(--moss); font-weight: 600; }
+.cell .v-meta.neg { color: var(--rust); font-weight: 600; }
+.cell .src { display: block; font-family: var(--mono); font-size: 9px; color: var(--ink-3); margin-top: 4px; letter-spacing: .04em; }
+.fbar { margin-top: 6px; height: 4px; background: var(--paper-3); border-radius: 2px; position: relative; }
+.fbar .ceil { position: absolute; top: -2px; bottom: -2px; width: 1.5px; background: var(--ink); }
+.fbar .mark { position: absolute; top: 0; bottom: 0; border-radius: 2px; }
+.fbar .mark.over { background: var(--rust); } .fbar .mark.warn { background: var(--amber); } .fbar .mark.under { background: var(--moss); }
+.stamp-row { display: flex; gap: 3px; flex-wrap: wrap; }
+.stamp { font-family: var(--mono); font-size: 9px; letter-spacing: .04em; padding: 2px 5px; border-radius: 3px; font-weight: 600; }
+.stamp.green { background: rgba(74,106,54,.18); color: var(--moss); }
+.stamp.amber { background: rgba(245,166,35,.18); color: var(--amber); }
+.stamp.red   { background: rgba(200,74,42,.18); color: var(--rust); }
+
+.cell.from-chat { background: var(--petrol-3); }
+.cell.from-chat::after { content: "↑ chat"; position: absolute; top: 4px; right: 4px; font-family: var(--mono); font-size: 8px; letter-spacing: .12em; text-transform: uppercase; color: var(--petrol); font-weight: 700; padding: 1px 4px; background: var(--paper-2); border-radius: 2px; }
+.dim.from-chat .dim-name::after { content: " ✦"; color: var(--petrol); }
+
+/* ════════════════════════════════════════════════════════════════════
+   VERDICT tab — uses the SAME lens set as Comparison
+   ════════════════════════════════════════════════════════════════════ */
+.v-grid { display: grid; grid-template-columns: 280px 1fr; gap: 28px; align-items: start; }
+.v-rail {
+  background: var(--paper-2); border: 1px solid var(--rule); border-radius: 12px;
+  padding: 14px;
+  display: flex; flex-direction: column; gap: 4px;
+  position: sticky; top: 8px;
+}
+.v-rail-h { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); font-weight: 700; padding: 4px 6px; margin-bottom: 4px; display: flex; justify-content: space-between; align-items: center; }
+.v-rail-h .crosslink { color: var(--petrol); cursor: pointer; font-family: var(--sans); text-transform: none; letter-spacing: 0; font-size: 11px; font-weight: 600; }
+
+.v-lens-row {
+  display: grid; grid-template-columns: 28px 1fr;
+  gap: 10px; padding: 10px 12px; border-radius: 8px; cursor: pointer;
+  border: 1px solid transparent;
+  align-items: baseline;
+  transition: all .15s;
+}
+.v-lens-row:hover { background: var(--paper); }
+.v-lens-row.active { background: var(--ink); color: var(--paper-2); }
+.v-lens-row .vl-ic { font-family: var(--display); font-style: italic; color: var(--petrol); font-size: 17px; line-height: 1; font-weight: 500; }
+.v-lens-row.active .vl-ic { color: var(--paper-2); }
+.v-lens-row .vl-name { font-family: var(--sans); font-size: 13px; font-weight: 700; line-height: 1.2; }
+.v-lens-row .vl-q { font-family: var(--display); font-style: italic; font-size: 11.5px; line-height: 1.4; color: var(--ink-3); margin-top: 2px; }
+.v-lens-row.active .vl-q { color: var(--rule); }
+.v-lens-row.from-chat { border-color: var(--petrol); }
+.v-lens-row.from-chat::after { content: "✦ chat"; font-family: var(--mono); font-size: 9px; letter-spacing: .12em; color: var(--petrol); font-weight: 700; align-self: center; padding-left: 4px; }
+.v-lens-row.from-chat.active::after { color: var(--paper-2); }
+
+.v-essay {
+  background: var(--paper-2); border: 1px solid var(--ink); border-radius: 14px;
+  padding: 28px 34px 26px;
+  position: relative;
+}
+.v-essay::before { content: ""; position: absolute; inset: 5px; border: 1px dashed var(--rule); border-radius: 10px; pointer-events: none; }
+.v-essay-stamp { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--petrol); font-weight: 700; margin-bottom: 8px; }
+.v-essay-headline { font-family: var(--display); font-size: clamp(24px, 3vw, 32px); line-height: 1.1; font-weight: 500; margin-bottom: 18px; letter-spacing: -.012em; max-width: 22ch; }
+.v-essay-headline em { font-style: italic; color: var(--petrol); }
+.v-essay-q { font-family: var(--display); font-style: italic; font-size: 16px; color: var(--ink-2); margin-bottom: 22px; padding-left: 14px; border-left: 2px solid var(--petrol); line-height: 1.5; }
+.v-ranking { margin-bottom: 22px; }
+.v-rank-row { display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; padding: 10px 0; border-bottom: 1px dotted var(--rule); align-items: baseline; }
+.v-rank-row:last-child { border-bottom: none; }
+.v-rank-num { font-family: var(--display); font-style: italic; color: var(--petrol); font-size: 18px; font-weight: 500; }
+.v-rank-school { font-family: var(--display); font-weight: 500; font-size: 16px; }
+.v-rank-school small { display: block; font-family: var(--sans); font-size: 12.5px; color: var(--ink-2); font-weight: 400; line-height: 1.5; margin-top: 4px; max-width: 60ch; }
+.v-rank-score { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--moss); }
+.v-rank-score.warn { color: var(--amber); }
+.v-rank-score.softer { color: var(--rust); }
+.v-prose { font-family: var(--display); font-size: 16px; line-height: 1.7; color: var(--ink); margin-bottom: 18px; }
+.v-prose p { margin-bottom: 12px; }
+.v-prose strong { font-weight: 700; }
+.v-prose em { color: var(--petrol); font-style: italic; }
+.v-prose .hl { background: linear-gradient(180deg, transparent 60%, var(--highlight) 60%); padding: 0 1px; }
+.v-dissent { background: var(--paper); border-left: 3px solid var(--amber); border-radius: 0 6px 6px 0; padding: 12px 14px; margin-bottom: 14px; }
+.v-dissent-l { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--amber); font-weight: 700; margin-bottom: 4px; }
+.v-dissent-b { font-family: var(--display); font-style: italic; font-size: 14px; color: var(--ink); line-height: 1.5; }
+.v-confidence { display: flex; gap: 14px; font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); letter-spacing: .04em; padding-top: 14px; border-top: 1px dashed var(--rule); flex-wrap: wrap; }
+.v-confidence strong { color: var(--ink); }
+.v-confidence .moss { color: var(--moss); font-weight: 700; }
+
+/* ════════════════════════════════════════════════════════════════════
+   CHILD BRIEF tab (lighter — same as v1)
+   ════════════════════════════════════════════════════════════════════ */
+.cb-grid { display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start; }
+.cb-tag { font-family: var(--display); font-style: italic; font-size: 18px; line-height: 1.5; color: var(--ink-2); margin-bottom: 22px; max-width: 62ch; }
+.cb-tag strong { color: var(--ink); font-weight: 600; font-style: normal; }
+.cb-card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.cb-card { background: var(--paper-2); border: 1px solid var(--rule); border-radius: 12px; padding: 18px 20px; }
+.cb-card-h { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--petrol); font-weight: 700; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+.cb-card-h .edit { font-family: var(--sans); text-transform: none; letter-spacing: 0; color: var(--ink-3); cursor: pointer; font-weight: 600; font-size: 11px; }
+.cb-card-h .edit:hover { color: var(--petrol); }
+.cb-row { display: grid; grid-template-columns: 100px 1fr; gap: 10px; padding: 5px 0; border-bottom: 1px dotted var(--rule); }
+.cb-row:last-child { border-bottom: none; }
+.cb-k { font-family: var(--mono); font-size: 9.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-3); font-weight: 600; }
+.cb-v { font-family: var(--display); font-style: italic; font-size: 13.5px; color: var(--ink); font-weight: 500; line-height: 1.3; }
+.cb-v strong { color: var(--petrol); font-weight: 500; }
+
+.cmp-preview { background: var(--paper-2); border: 1px solid var(--rule); border-radius: 12px; padding: 16px 18px; position: sticky; top: 8px; }
+.cmp-preview-h { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--petrol); font-weight: 700; margin-bottom: 8px; display: flex; justify-content: space-between; }
+.cmp-preview-h a { color: var(--ink-3); cursor: pointer; font-family: var(--sans); text-transform: none; letter-spacing: 0; font-weight: 600; font-size: 11px; }
+.cmp-preview-title { font-family: var(--display); font-size: 16px; font-weight: 500; line-height: 1.1; margin-bottom: 12px; }
+.cmp-preview-title em { font-style: italic; color: var(--petrol); }
+.cmp-mini-row { display: grid; grid-template-columns: 18px 1fr auto; gap: 8px; padding: 6px 0; border-bottom: 1px dotted var(--rule); font-size: 12px; align-items: baseline; }
+.cmp-mini-row:last-child { border-bottom: none; }
+.cmp-mini-row .pip { width: 8px; height: 8px; border-radius: 50%; }
+.cmp-mini-row .pip.visit { background: var(--petrol); }
+.cmp-mini-row .pip.hold { background: var(--amber); }
+.cmp-mini-row .pip.drop { background: transparent; border: 1.5px solid var(--rust); }
+.cmp-mini-row .name { font-family: var(--display); font-weight: 500; color: var(--ink); }
+.cmp-mini-row .score { font-family: var(--mono); font-size: 11px; font-weight: 700; color: var(--moss); }
+.cmp-mini-row .score.warn { color: var(--amber); }
+.cmp-mini-row .score.softer { color: var(--rust); }
+
+/* ════════════════════════════════════════════════════════════════════
+   PARTNER BRIEF tab
+   ════════════════════════════════════════════════════════════════════ */
+.pb-wrap { max-width: 800px; margin: 0 auto; }
+.pb-card { background: var(--paper-2); border: 1px solid var(--ink); border-radius: 14px; padding: 30px 36px 28px; box-shadow: 8px 8px 0 var(--paper-3); position: relative; }
+.pb-card::before { content: ""; position: absolute; inset: 6px; border: 1px dashed var(--rule); border-radius: 10px; pointer-events: none; }
+.pb-head { display: grid; grid-template-columns: 1fr auto; gap: 22px; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px dashed var(--rule); align-items: end; }
+.pb-stamp { font-family: var(--mono); font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--petrol); font-weight: 700; margin-bottom: 6px; }
+.pb-to { font-family: var(--display); font-size: 32px; font-weight: 500; line-height: 1.05; }
+.pb-to em { font-style: italic; color: var(--petrol); }
+.pb-meta { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); letter-spacing: .04em; margin-top: 6px; }
+.pb-tone { display: flex; gap: 4px; margin-bottom: 18px; align-items: center; flex-wrap: wrap; }
+.pb-tone-l { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; color: var(--ink-3); margin-right: 6px; font-weight: 700; text-transform: uppercase; }
+.pb-tone-chip { font-family: var(--sans); font-size: 11.5px; font-weight: 600; padding: 5px 11px; border-radius: 999px; border: 1px solid var(--rule); background: transparent; color: var(--ink-2); cursor: pointer; }
+.pb-tone-chip.active { background: var(--ink); color: var(--paper-2); border-color: var(--ink); }
+.pb-letter { font-family: var(--display); font-size: 17px; line-height: 1.7; color: var(--ink); }
+.pb-letter p { margin-bottom: 12px; }
+.pb-letter p.opener { font-style: italic; font-size: 19px; color: var(--petrol); }
+.pb-letter strong { font-weight: 700; }
+.pb-letter em { color: var(--petrol); font-style: italic; }
+.pb-letter .hl { background: linear-gradient(180deg, transparent 60%, var(--highlight) 60%); padding: 0 1px; }
+.pb-foot { margin-top: 22px; padding-top: 18px; border-top: 1px dashed var(--rule); display: flex; justify-content: space-between; align-items: center; }
+.pb-sig { font-family: var(--hand); font-size: 26px; color: var(--petrol); }
+
+/* ════════════════════════════════════════════════════════════════════
+   ★ THE CHAT RAIL — three states
+   ════════════════════════════════════════════════════════════════════ */
+.chat {
+  border-left: 1px solid var(--rule);
+  background: var(--paper-2);
+  display: flex; flex-direction: column;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+/* CLOSED state — slim icon strip */
+.chat-closed-content {
+  display: none;
+  padding: 14px 0;
+  align-items: center;
+  flex-direction: column;
+  gap: 12px;
+  height: 100%;
+}
+.shell.chat-closed .chat-closed-content { display: flex; }
+.shell.chat-closed .chat-open-content { display: none; }
+
+.chat-closed-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--petrol), var(--moss));
+  display: grid; place-items: center;
+  font-family: var(--display); font-style: italic; color: var(--paper-2);
+  font-size: 18px; font-weight: 500; cursor: pointer;
+  position: relative;
+  box-shadow: 0 0 0 0 rgba(52,195,160,.4);
+  animation: pulseSoft 2.4s infinite;
+}
+@keyframes pulseSoft { 50% { box-shadow: 0 0 0 6px rgba(52,195,160,0); } }
+.chat-closed-label {
+  writing-mode: vertical-rl; transform: rotate(180deg);
+  font-family: var(--mono); font-size: 10px; letter-spacing: .18em;
+  text-transform: uppercase; color: var(--ink-2); font-weight: 700;
+  cursor: pointer; padding: 8px 4px;
+}
+.chat-closed-label:hover { color: var(--petrol); }
+.chat-closed-chips { display: flex; flex-direction: column; gap: 6px; padding: 0 4px; align-items: center; margin-top: auto; margin-bottom: 12px; }
+.chat-closed-chip {
+  font-family: var(--mono); font-size: 9px; letter-spacing: .04em;
+  writing-mode: vertical-rl; transform: rotate(180deg);
+  padding: 6px 4px; border-radius: 4px;
+  background: var(--paper); border: 1px solid var(--rule); color: var(--ink-2);
+  cursor: pointer;
+}
+.chat-closed-chip:hover { color: var(--petrol); border-color: var(--petrol); }
+.chat-expand-btn {
+  font-family: var(--mono); font-size: 12px; line-height: 1;
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--paper); border: 1px solid var(--rule);
+  color: var(--ink); cursor: pointer; transition: all .15s;
+  margin-bottom: 4px;
+}
+.chat-expand-btn:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+/* OPEN state — default ~400px */
+.chat-open-content { display: flex; flex-direction: column; height: 100%; min-width: 0; }
+.shell.chat-closed .chat-open-content { display: none; }
+
+.chat-head {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--rule);
+  display: grid; grid-template-columns: auto 1fr auto auto; gap: 8px; align-items: center;
+}
+.chat-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--petrol), var(--moss));
+  display: grid; place-items: center;
+  font-family: var(--display); font-style: italic; color: var(--paper-2);
+  font-size: 16px; font-weight: 500;
+}
+.chat-name { font-family: var(--sans); font-weight: 700; font-size: 13.5px; }
+.chat-name span { font-family: var(--mono); font-size: 9px; color: var(--moss); display: block; margin-top: 2px; letter-spacing: .12em; }
+.chat-name span::before { content: "● "; }
+.chat-state-btn {
+  font-family: var(--mono); font-size: 11px;
+  width: 28px; height: 28px; border-radius: 6px;
+  background: var(--paper); border: 1px solid var(--rule);
+  color: var(--ink-2); cursor: pointer; display: grid; place-items: center;
+  transition: all .15s;
+}
+.chat-state-btn:hover { background: var(--ink); color: var(--paper-2); border-color: var(--ink); }
+
+/* ─── Build mode toggle ─── */
+.build-toggle {
+  margin: 12px 14px 0;
+  padding: 11px 14px;
+  border-radius: 10px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center;
+  cursor: pointer;
+  transition: all .2s;
+}
+.build-toggle:hover { border-color: var(--ink); }
+.build-toggle.active {
+  background: var(--petrol);
+  border-color: var(--petrol);
+  color: var(--ink);
+}
+.build-toggle .bt-ic {
+  font-family: var(--display); font-style: italic;
+  font-size: 18px; line-height: 1;
+  color: var(--petrol); font-weight: 500;
+  width: 32px; height: 32px; border-radius: 8px;
+  background: var(--petrol-3);
+  display: grid; place-items: center;
+  flex-shrink: 0;
+}
+.build-toggle.active .bt-ic { background: var(--paper-2); color: var(--petrol); }
+.build-toggle .bt-text { min-width: 0; }
+.build-toggle .bt-name {
+  font-family: var(--sans); font-size: 12.5px; font-weight: 700;
+  letter-spacing: .02em;
+  margin-bottom: 1px;
+}
+.build-toggle .bt-desc {
+  font-family: var(--mono); font-size: 9.5px;
+  color: var(--ink-3); letter-spacing: .04em;
+}
+.build-toggle.active .bt-desc { color: rgba(27,50,82,.65); }
+.build-toggle .bt-state {
+  font-family: var(--mono); font-size: 10px;
+  padding: 3px 7px; border-radius: 999px;
+  background: var(--paper-3); color: var(--ink-3);
+  font-weight: 700; letter-spacing: .04em;
+}
+.build-toggle.active .bt-state { background: var(--paper-2); color: var(--petrol); }
+.build-toggle.active .bt-state::before { content: "● "; color: var(--moss); }
+
+.thread { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.you { align-self: flex-end; max-width: 88%; background: var(--ink); color: var(--paper-2); font-size: 13px; padding: 8px 12px; border-radius: 12px 12px 4px 12px; line-height: 1.45; }
+.nana { background: var(--paper); border: 1px solid var(--rule); border-radius: 4px 12px 12px 12px; padding: 12px 14px; font-size: 12.5px; line-height: 1.5; }
+.nana-eyebrow { font-family: var(--mono); font-size: 9.5px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 5px; }
+.nana-lead { font-family: var(--display); font-style: italic; font-size: 15px; line-height: 1.4; color: var(--ink); margin-bottom: 8px; font-weight: 500; }
+.confidence-badge { display: inline-flex; align-items: center; gap: 4px; font-family: var(--mono); font-size: 9px; letter-spacing: .12em; font-weight: 700; padding: 2px 7px; border-radius: 4px; margin-bottom: 6px; }
+.confidence-badge.high { background: var(--moss); color: var(--paper-2); }
+.confidence-badge .ic { width: 4px; height: 4px; border-radius: 50%; background: currentColor; opacity: .85; }
+.nana-prose { font-family: var(--sans); font-size: 12px; line-height: 1.55; color: var(--ink-2); margin-bottom: 6px; }
+.nana-prose strong { color: var(--ink); font-weight: 600; }
+.nana-tradeoff { background: rgba(245,166,35,.13); border-left: 2px solid var(--amber); padding: 6px 10px; border-radius: 0 5px 5px 0; margin: 6px 0; font-size: 11.5px; }
+.nana-tradeoff-label { font-family: var(--mono); font-size: 9px; font-weight: 700; letter-spacing: .12em; color: var(--amber); }
+.nana-tour { background: var(--paper-3); border-radius: 5px; padding: 7px 10px; margin-top: 6px; font-family: var(--display); font-style: italic; font-size: 12px; }
+.nana-tour-label { font-family: var(--mono); font-size: 9px; letter-spacing: .12em; color: var(--ink-3); font-weight: 700; font-style: normal; margin-bottom: 2px; }
+.sources { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.src-pill { font-family: var(--mono); font-size: 9px; padding: 2px 6px; background: transparent; border: 1px solid var(--rule); border-radius: 999px; color: var(--ink-2); cursor: pointer; letter-spacing: .04em; }
+.src-pill:hover { border-color: var(--petrol); color: var(--petrol); }
+.src-pill::after { content: " ↗"; opacity: .5; }
+
+/* ─── 4 quick actions per Nana bubble ─── */
+.qa-row {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 10px; padding-top: 9px;
+  border-top: 1px dashed var(--rule);
+}
+.shell.chat-focus .qa-row { grid-template-columns: repeat(4, 1fr); }
+.qa {
+  font-family: var(--sans); font-size: 11px; font-weight: 700;
+  padding: 7px 10px; border-radius: 6px;
+  background: var(--paper); border: 1px solid var(--rule); color: var(--ink-2);
+  cursor: pointer; text-align: left;
+  display: flex; align-items: center; gap: 5px;
+  letter-spacing: .02em;
+  transition: all .15s;
+  white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.qa:hover { border-color: var(--petrol); color: var(--petrol); }
+.qa.primary { background: var(--petrol); border-color: var(--petrol); color: var(--ink); }
+.qa.primary:hover { background: var(--petrol-2); border-color: var(--petrol-2); color: var(--ink); }
+.qa .ic { font-family: var(--display); font-style: italic; font-size: 13px; flex-shrink: 0; }
+
+/* ─── Build mode message variants ─── */
+.nana.build-prompt {
+  background: var(--petrol-3);
+  border-color: var(--petrol);
+}
+.nana.build-prompt .nana-eyebrow { color: var(--petrol); }
+.nana.build-prompt .nana-lead { color: var(--petrol-2); }
+.build-suggestion {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: var(--paper-2);
+  border: 1px dashed var(--petrol);
+  border-radius: 8px;
+}
+.build-suggestion-h { font-family: var(--mono); font-size: 9.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--petrol); font-weight: 700; margin-bottom: 6px; }
+.build-suggestion-list { display: flex; flex-direction: column; gap: 4px; }
+.bs-row {
+  display: grid; grid-template-columns: 14px 1fr auto;
+  gap: 8px; padding: 6px 0; border-bottom: 1px dotted var(--rule);
+  align-items: baseline; font-size: 11.5px;
+}
+.bs-row:last-child { border-bottom: none; }
+.bs-row .arr { font-family: var(--display); color: var(--petrol); font-style: italic; font-size: 13px; }
+.bs-row .bs-text { color: var(--ink); }
+.bs-row .bs-text strong { font-weight: 600; }
+.bs-row .bs-text small { display: block; color: var(--ink-3); font-family: var(--mono); font-size: 9px; margin-top: 2px; letter-spacing: .04em; }
+.bs-row .bs-add {
+  font-family: var(--sans); font-size: 10.5px; font-weight: 700;
+  padding: 4px 9px; border-radius: 5px;
+  background: var(--petrol); color: var(--ink);
+  border: 0; cursor: pointer; letter-spacing: .04em;
+}
+.bs-row .bs-add:hover { background: var(--petrol-2); }
+.bs-row .bs-skip {
+  font-family: var(--sans); font-size: 10.5px; font-weight: 600;
+  color: var(--ink-3); background: transparent; border: 0; cursor: pointer;
+}
+.bs-row .bs-skip:hover { color: var(--rust); }
+
+.nana.streaming { border-style: dashed; }
+.nana.streaming .nana-eyebrow::after { content: " · streaming"; color: var(--petrol); }
+.skeleton-line { height: 7px; background: linear-gradient(90deg, var(--paper-3), var(--paper) 50%, var(--paper-3)); background-size: 200% 100%; animation: shim 1.4s infinite; border-radius: 3px; margin: 4px 0; }
+.skeleton-line.s-90 { width: 90%; } .skeleton-line.s-60 { width: 60%; } .skeleton-line.s-80 { width: 80%; }
+@keyframes shim { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+.cursor { display: inline-block; width: 7px; height: 11px; background: var(--petrol); margin-left: 1px; vertical-align: -1px; animation: blink .9s infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+.chat-input { border-top: 1px solid var(--rule); padding: 10px 14px; background: var(--paper-2); }
+.chat-suggest { display: flex; gap: 4px; margin-bottom: 6px; flex-wrap: wrap; }
+.cs-chip { font-family: var(--mono); font-size: 10px; padding: 3px 8px; border: 1px solid var(--rule); border-radius: 999px; background: transparent; color: var(--ink-2); cursor: pointer; letter-spacing: .04em; }
+.cs-chip:hover { color: var(--petrol); border-color: var(--petrol); }
+.chat-input-row { display: flex; gap: 6px; align-items: center; background: var(--paper); border: 1px solid var(--ink); border-radius: 8px; padding: 3px 3px 3px 12px; }
+.chat-input-row input { flex: 1; background: transparent; border: 0; outline: 0; font-family: var(--sans); font-size: 13px; padding: 7px 0; color: var(--ink); }
+.chat-input-row input::placeholder { color: var(--ink-3); }
+.chat-input-row button { background: var(--ink); color: var(--paper-2); border: 0; border-radius: 5px; font-family: var(--sans); font-size: 11px; font-weight: 700; padding: 7px 12px; cursor: pointer; letter-spacing: .04em; }
+
+/* ─── State legend pinned bottom-left for clarity ─── */
+.state-legend {
+  position: fixed; bottom: 14px; left: 14px;
+  background: var(--paper-2); border: 1px solid var(--ink); border-radius: 10px;
+  padding: 10px 12px;
+  font-family: var(--mono); font-size: 10px; color: var(--ink-2); letter-spacing: .04em;
+  box-shadow: 0 8px 20px -8px rgba(27,50,82,.18);
+  z-index: 50;
+  max-width: 240px;
+}
+.state-legend-h { font-weight: 700; color: var(--ink); margin-bottom: 6px; letter-spacing: .12em; text-transform: uppercase; font-size: 9.5px; }
+.state-legend-row {
+  display: grid; grid-template-columns: 64px 1fr;
+  gap: 8px; padding: 3px 0; align-items: baseline;
+}
+.state-legend-row .k {
+  font-family: var(--mono); font-weight: 700; color: var(--petrol);
+  font-size: 10px;
+}
+.state-legend-row .v { color: var(--ink-2); line-height: 1.4; }
+.state-legend-row.active { background: var(--petrol-3); margin: 0 -8px; padding: 4px 8px; border-radius: 4px; }
+.state-legend-row.active .k { color: var(--petrol); }
+.state-legend-row.active .v { color: var(--ink); font-weight: 600; }
+
+/* responsive */
+@media (max-width: 1180px) {
+  .cb-grid, .v-grid { grid-template-columns: 1fr; }
+  .cmp-preview, .v-rail { position: static; }
+}
+@media (max-width: 880px) {
+  .shell { grid-template-columns: 1fr !important; }
+  .chat { display: none; }
+  .top-meta { display: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand"><span class="seal">N</span>The Research <em>Room</em></div>
+    <nav class="tabs">
+      <button class="tab" data-tab="brief"><span class="ic">M</span>Child brief</button>
+      <button class="tab privileged active" data-tab="compare"><span class="ic">▦</span>Comparison <span class="badge">14 rows</span></button>
+      <button class="tab" data-tab="verdict"><span class="ic">V</span>Verdict <span class="badge">7 lenses</span></button>
+      <button class="tab" data-tab="partner"><span class="ic">✉</span>Partner brief</button>
+    </nav>
+    <div class="top-meta">
+      <span>Brief <strong>#04</strong></span>
+      <span>Lens <strong style="color:var(--petrol)">Maya fit</strong></span>
+      <span class="live">live</span>
+    </div>
+  </div>
+</header>
+
+<div class="shell" id="shell">
+
+  <main class="main">
+
+    <!-- ════ COMPARISON tab ════ -->
+    <div class="view active" id="view-compare">
+      <div class="view-head">
+        <div>
+          <div class="view-eyebrow">Workspace · <strong>Comparison</strong> · the canonical view</div>
+          <h1 class="view-title">Side by side, <em>through Maya's eyes.</em></h1>
+          <p class="view-meta">Lenses below are <strong>shared with the Verdict tab</strong> — change a lens here and the verdict re-frames the same way. Chat fuels both.</p>
+        </div>
+        <div class="view-actions">
+          <button class="btn">Export</button>
+          <button class="btn btn--primary">Save view</button>
+        </div>
+      </div>
+
+      <!-- Lens row — shared with Verdict tab -->
+      <div class="cmp-controls">
+        <div class="lens-tabs">
+          <button class="lens-tab active"><span class="ic">M</span>Maya fit</button>
+          <button class="lens-tab"><span class="ic">A</span>Academic ceiling</button>
+          <button class="lens-tab"><span class="ic">C</span>Creative growth</button>
+          <button class="lens-tab"><span class="ic">L</span>Low-regret choice</button>
+          <button class="lens-tab"><span class="ic">£</span>Budget-sensitive</button>
+          <button class="lens-tab"><span class="ic">B</span>Boarding life</button>
+          <button class="lens-tab from-chat"><span class="ic">S</span>Sport-light fit <span class="from">✦ FROM CHAT</span></button>
+          <button class="lens-tab raw"><span class="ic">▦</span>Raw comparison</button>
+        </div>
+        <div class="cmp-stats">14 rows · 4 schools<br/><strong>Maya fit</strong> · same lens shows in <strong>Verdict</strong> tab</div>
+      </div>
+
+      <div class="table-wrap">
+        <div class="cmp">
+
+          <div class="corner">
+            <div class="corner-eyebrow">For</div>
+            <div class="corner-title">Maya, <em>quietly intense</em></div>
+            <div style="font-family: var(--mono); font-size: 10px; color: var(--ink-3); margin-top: 4px;">14 rows · 1 from chat</div>
+          </div>
+
+          <div class="head"><div class="head-rank">No. <strong>01</strong></div><div class="head-name">St Mary's Ascot</div><div class="head-meta">Berks · 6 houses</div><div class="head-fit"><span class="num-big">8.6<span class="pct">/10</span></span><span class="v-pill visit">★ VISIT</span></div></div>
+          <div class="head"><div class="head-rank">No. <strong>02</strong></div><div class="head-name">Wycombe Abbey</div><div class="head-meta">Bucks · 11 houses</div><div class="head-fit"><span class="num-big warn">7.4<span class="pct">/10</span></span><span class="v-pill visit">★ VISIT</span></div></div>
+          <div class="head"><div class="head-rank">No. <strong>03</strong></div><div class="head-name">Cheltenham</div><div class="head-meta">Glos · 9 houses</div><div class="head-fit"><span class="num-big softer">5.8<span class="pct">/10</span></span><span class="v-pill hold">◐ HOLD</span></div></div>
+          <div class="head"><div class="head-rank">No. <strong>04</strong></div><div class="head-name">Benenden</div><div class="head-meta">Kent · 7 houses</div><div class="head-fit"><span class="num-big softer">5.4<span class="pct">/10</span></span><span class="v-pill drop">✕ DROP</span></div></div>
+
+          <div class="row-group"><span class="rg-num">A</span>Maya-specific dimensions <span class="rg-tag lens">×2 weight · this lens</span></div>
+
+          <div class="dim"><div class="dim-name">Pastoral <em>surface</em></div><div class="dim-blurb">House size + tutor ratio</div><div class="dim-meta"><span class="badge fit">CRITICAL</span></div></div>
+          <div class="cell match-strong is-best"><div class="v-num">~32 · 1:6</div><div class="v-meta pos">Smallest</div><span class="src">SRC: pastoral_model</span></div>
+          <div class="cell match-warn"><div class="v-num">~58 · 1:8</div><div class="v-meta">Within tolerance</div><span class="src">SRC: pastoral_model</span></div>
+          <div class="cell match-friction"><div class="v-num">~70 · 1:10</div><div class="v-meta neg">Over threshold</div><span class="src">SRC: pastoral_model</span></div>
+          <div class="cell match-friction"><div class="v-num">~80 · 1:9</div><div class="v-meta neg">Largest</div><span class="src">SRC: pastoral_model</span></div>
+
+          <div class="dim"><div class="dim-name">Creative <em>pathway</em></div><div class="dim-blurb">Anchor: visual art</div><div class="dim-meta"><span class="badge fit">FROM ANCHOR</span></div></div>
+          <div class="cell match-strong"><div class="v-text">Foundation prep on site</div><span class="src">SRC: STM arts</span></div>
+          <div class="cell match-strong is-best"><div class="v-text">Artist-in-residence</div><div class="v-meta pos">Career route</div><span class="src">SRC: WYC2024</span></div>
+          <div class="cell match-strong"><div class="v-text">Outstanding facilities</div><span class="src">SRC: arts brochure</span></div>
+          <div class="cell match-warn"><div class="v-text">Solid, less prominent</div><span class="src">SRC: BEN curriculum</span></div>
+
+          <div class="dim"><div class="dim-name">Burnout <em>protection</em></div><div class="dim-blurb">Process for self-driving girls</div><div class="dim-meta"><span class="badge fit">FRAGILITY FLAG</span></div></div>
+          <div class="cell match-strong"><div class="v-text">Built-in stillness · chapel</div><span class="src">SRC: STM ethos</span></div>
+          <div class="cell match-warn"><div class="v-text">"Quiet intensity"</div><div class="v-meta neg">Self-pacing risk</div><span class="src">SRC: tour transcripts</span></div>
+          <div class="cell match-friction"><div class="v-text">Tutor-led; thin signal</div><span class="src">SRC: CLC pastoral</span></div>
+          <div class="cell"><div class="v-text">Standard pastoral</div><span class="src">SRC: BEN pastoral</span></div>
+
+          <div class="dim from-chat"><div class="dim-name">Weekend <em>texture</em></div><div class="dim-blurb">Sport-coded vs unstructured</div><div class="dim-meta"><span class="badge fit">FROM CHAT · 2m</span></div></div>
+          <div class="cell match-strong from-chat"><div class="v-text">Chapel + studio</div><span class="src">SRC: STM weekend</span></div>
+          <div class="cell match-strong from-chat"><div class="v-text">Long Sunday rhythm</div><div class="v-meta pos">Unstructured defended</div><span class="src">SRC: WYC weekend</span></div>
+          <div class="cell match-friction from-chat"><div class="v-text">Activity-coded</div><div class="v-meta neg">Saturday matches</div><span class="src">SRC: CLC weekend</span></div>
+          <div class="cell match-warn from-chat"><div class="v-text">Full-boarding mix</div><span class="src">SRC: BEN weekend</span></div>
+
+          <div class="dim"><div class="dim-name">Goal <em>alignment</em></div><div class="dim-blurb">Maya's 3 goals at 18</div><div class="dim-meta"><span class="badge fit">FROM GOALS</span></div></div>
+          <div class="cell match-strong"><div class="v-text">Arts + humanities + Foundation</div><span class="src">FROM: destinations</span></div>
+          <div class="cell match-strong is-best"><div class="v-text">Top-tier all routes</div><div class="v-meta pos">Cambridge architecture</div><span class="src">FROM: destinations</span></div>
+          <div class="cell match-warn"><div class="v-text">Strong arts + hum</div><span class="src">FROM: destinations</span></div>
+          <div class="cell match-warn"><div class="v-text">Solid arts</div><span class="src">FROM: destinations</span></div>
+
+          <div class="row-group"><span class="rg-num">B</span>General comparison <span class="rg-tag raw">raw evidence</span></div>
+
+          <div class="dim"><div class="dim-name">Fees · Y9</div><div class="dim-blurb">vs £40–50k</div></div>
+          <div class="cell match-strong"><div class="v-num">£44,400</div><div class="fbar"><span class="ceil" style="left:78%"></span><span class="mark under" style="left:42%; width:8px;"></span></div><div class="v-meta pos">In band</div></div>
+          <div class="cell match-warn"><div class="v-num">£52,260</div><div class="fbar"><span class="ceil" style="left:78%"></span><span class="mark warn" style="left:60%; width:9px;"></span></div><div class="v-meta neg">+£2.3k</div></div>
+          <div class="cell"><div class="v-num">£51,180</div><div class="fbar"><span class="ceil" style="left:78%"></span><span class="mark warn" style="left:62%; width:8px;"></span></div><div class="v-meta neg">+£1.2k</div></div>
+          <div class="cell match-strong"><div class="v-num">£46,500</div><div class="fbar"><span class="ceil" style="left:78%"></span><span class="mark under" style="left:50%; width:8px;"></span></div><div class="v-meta pos">In band</div></div>
+
+          <div class="dim"><div class="dim-name">A*–A · A-level</div><div class="dim-blurb">2024</div></div>
+          <div class="cell"><div class="v-num">62%</div></div>
+          <div class="cell match-strong is-best"><div class="v-num">79%</div><div class="v-meta pos">+8</div></div>
+          <div class="cell"><div class="v-num">71%</div></div>
+          <div class="cell"><div class="v-num">65%</div></div>
+
+          <div class="dim"><div class="dim-name">Oxbridge · 3-yr</div></div>
+          <div class="cell"><div class="v-num">11%</div></div>
+          <div class="cell match-strong is-best"><div class="v-num">26%</div></div>
+          <div class="cell"><div class="v-num">19%</div></div>
+          <div class="cell"><div class="v-num">14%</div></div>
+
+          <div class="dim"><div class="dim-name">4-light verdict</div><div class="dim-blurb">Acad / Past / Val / Amb</div></div>
+          <div class="cell"><div class="stamp-row"><span class="stamp green">Acad</span><span class="stamp green">Past</span><span class="stamp green">Val</span><span class="stamp amber">Amb</span></div></div>
+          <div class="cell"><div class="stamp-row"><span class="stamp green">Acad</span><span class="stamp green">Past</span><span class="stamp amber">Val</span><span class="stamp green">Amb</span></div></div>
+          <div class="cell"><div class="stamp-row"><span class="stamp green">Acad</span><span class="stamp amber">Past</span><span class="stamp amber">Val</span><span class="stamp green">Amb</span></div></div>
+          <div class="cell"><div class="stamp-row"><span class="stamp amber">Acad</span><span class="stamp green">Past</span><span class="stamp green">Val</span><span class="stamp amber">Amb</span></div></div>
+
+          <div class="dim"><div class="dim-name">Y9 entry window</div></div>
+          <div class="cell"><div class="v-text">Open · Jan '27</div></div>
+          <div class="cell"><div class="v-text">Open · Oct '26</div><div class="v-meta neg">earliest</div></div>
+          <div class="cell"><div class="v-text">Rolling</div></div>
+          <div class="cell"><div class="v-text">Open · Oct '26</div></div>
+
+          <div class="dim"><div class="dim-name">Bursary</div></div>
+          <div class="cell"><div class="v-text">Up to 50% means</div></div>
+          <div class="cell match-strong"><div class="v-text">Up to 100%</div><div class="v-meta pos">closes gap</div></div>
+          <div class="cell"><div class="v-text">Up to 90%</div></div>
+          <div class="cell"><div class="v-text">Up to 100%</div></div>
+
+          <div class="dim"><div class="dim-name">Sport intensity</div></div>
+          <div class="cell match-strong"><div class="v-text">Participation</div></div>
+          <div class="cell match-warn"><div class="v-text">Strong but balanced</div></div>
+          <div class="cell match-friction"><div class="v-text">High · Saturdays</div></div>
+          <div class="cell match-warn"><div class="v-text">All-round</div></div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ VERDICT tab ════ -->
+    <div class="view" id="view-verdict">
+      <div class="view-head">
+        <div>
+          <div class="view-eyebrow">Workspace · <strong>Verdict</strong> · same lenses as Comparison</div>
+          <h1 class="view-title">The verdict, <em>seven angles.</em></h1>
+          <p class="view-meta">Each lens reframes the same data. <strong>Lenses created in chat appear here AND in the Comparison tab</strong> — they're the same object.</p>
+        </div>
+        <div class="view-actions">
+          <button class="btn">↗ Share</button>
+          <button class="btn btn--primary">Pick decisive lens →</button>
+        </div>
+      </div>
+
+      <div class="v-grid">
+        <aside class="v-rail">
+          <div class="v-rail-h">Lenses<span class="crosslink">↔ shared with Comparison</span></div>
+          <div class="v-lens-row active"><span class="vl-ic">A</span><div><div class="vl-name">Academic upside</div><div class="vl-q">"Where will the ceiling be highest?"</div></div></div>
+          <div class="v-lens-row"><span class="vl-ic">F</span><div><div class="vl-name">Human fit</div><div class="vl-q">"Where will she be happy week to week?"</div></div></div>
+          <div class="v-lens-row"><span class="vl-ic">L</span><div><div class="vl-name">Future optionality</div><div class="vl-q">"Most doors open at 18?"</div></div></div>
+          <div class="v-lens-row"><span class="vl-ic">D</span><div><div class="vl-name">Day-to-day happiness</div><div class="vl-q">"Best house + weekend life?"</div></div></div>
+          <div class="v-lens-row"><span class="vl-ic">£</span><div><div class="vl-name">Financial rationality</div><div class="vl-q">"Most outcome per £ spent?"</div></div></div>
+          <div class="v-lens-row"><span class="vl-ic">↯</span><div><div class="vl-name">Downside protection</div><div class="vl-q">"Lowest regret if we're wrong?"</div></div></div>
+          <div class="v-lens-row from-chat"><span class="vl-ic">S</span><div><div class="vl-name">Sport-light fit</div><div class="vl-q">"For girls who don't do competitive sport"</div></div></div>
+        </aside>
+
+        <div class="v-essay">
+          <div class="v-essay-stamp">Lens · Academic upside</div>
+          <h2 class="v-essay-headline">If you optimise for ceiling, <em>Wycombe pulls clear.</em></h2>
+          <div class="v-essay-q">"Where will Maya be most academically stretched at 18?" — answered against A-level outcomes, university destinations, and curriculum depth.</div>
+
+          <div class="v-ranking">
+            <div class="v-rank-row">
+              <span class="v-rank-num">1.</span>
+              <div><div class="v-rank-school">Wycombe Abbey<small>79% A*–A · 26% Oxbridge · highest in shortlist by 8 and 7 points respectively. Curriculum depth in humanities and sciences both visible.</small></div></div>
+              <span class="v-rank-score">9.1</span>
+            </div>
+            <div class="v-rank-row">
+              <span class="v-rank-num">2.</span>
+              <div><div class="v-rank-school">Cheltenham Ladies'<small>71% A*–A · 19% Oxbridge · strong but a clear step-down.</small></div></div>
+              <span class="v-rank-score">7.6</span>
+            </div>
+            <div class="v-rank-row">
+              <span class="v-rank-num">3.</span>
+              <div><div class="v-rank-school">Benenden School<small>65% A*–A · 14% Oxbridge · solid mid-tier.</small></div></div>
+              <span class="v-rank-score warn">6.8</span>
+            </div>
+            <div class="v-rank-row">
+              <span class="v-rank-num">4.</span>
+              <div><div class="v-rank-school">St Mary's Ascot<small>62% A*–A · 11% Oxbridge · trades academic ceiling for pastoral fit.</small></div></div>
+              <span class="v-rank-score softer">6.2</span>
+            </div>
+          </div>
+
+          <div class="v-prose">
+            <p>If <span class="hl">academic ceiling is what your family is actually optimising for</span>, this lens is unambiguous: Wycombe is two tiers above the others.</p>
+            <p>The harder question is whether Maya needs a ceiling that high. <strong>For a self-driving girl who's already burnout-prone, the academic ceiling lens may be the wrong frame.</strong></p>
+            <p>Read this verdict alongside the <em>Downside protection</em> lens — they often pull in opposite directions.</p>
+          </div>
+
+          <div class="v-dissent">
+            <div class="v-dissent-l">↳ Dissenting view</div>
+            <div class="v-dissent-b">"Headline % at Y13 reflects intake selectivity at Y9 — the apparent gap is partly admissions, not teaching."</div>
+          </div>
+
+          <div class="v-confidence">
+            <span>Confidence: <strong class="moss">High</strong></span>
+            <span>Sources: <strong>4 schools · 12 cited fields</strong></span>
+            <span>Last updated: <strong>3 min ago</strong></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ CHILD BRIEF tab ════ -->
+    <div class="view" id="view-brief">
+      <div class="view-head">
+        <div>
+          <div class="view-eyebrow">Workspace · <strong>Child brief</strong> · the lens for everything</div>
+          <h1 class="view-title">Maya · <em>quietly intense.</em></h1>
+          <p class="view-meta">Year 9 · age 13 · Sep 2027. Edit any field — the comparison table re-ranks; the verdict re-frames.</p>
+        </div>
+        <div class="view-actions">
+          <button class="btn">Refine in chat</button>
+          <button class="btn btn--primary">Save profile</button>
+        </div>
+      </div>
+
+      <div class="cb-grid">
+        <div>
+          <div class="cb-tag">A <strong>warm, introverted, slow-to-warm</strong> 13-year-old who reads fiction on Sundays, paints, and finds her bearings via one trusted person.</div>
+          <div class="cb-card-grid">
+            <div class="cb-card">
+              <div class="cb-card-h">Personality<span class="edit">edit ↻</span></div>
+              <div class="cb-row"><div class="cb-k">Temperament</div><div class="cb-v">Warm, <strong>introverted</strong></div></div>
+              <div class="cb-row"><div class="cb-k">Social</div><div class="cb-v"><strong>One person</strong>, not the room</div></div>
+              <div class="cb-row"><div class="cb-k">Boarding</div><div class="cb-v">14-girl camp · <strong>good</strong></div></div>
+            </div>
+            <div class="cb-card">
+              <div class="cb-card-h">Anchors<span class="edit">edit ↻</span></div>
+              <div class="cb-row"><div class="cb-k">Primary</div><div class="cb-v"><strong>Visual art</strong></div></div>
+              <div class="cb-row"><div class="cb-k">Secondary</div><div class="cb-v">Reading · piano</div></div>
+              <div class="cb-row"><div class="cb-k">Sport</div><div class="cb-v"><strong>Not competitive</strong></div></div>
+            </div>
+            <div class="cb-card">
+              <div class="cb-card-h">Academic<span class="edit">edit ↻</span></div>
+              <div class="cb-row"><div class="cb-k">Strongest</div><div class="cb-v">English · Art · History</div></div>
+              <div class="cb-row"><div class="cb-k">Weakest</div><div class="cb-v">Maths · PE</div></div>
+              <div class="cb-row"><div class="cb-k">Stretch</div><div class="cb-v"><strong>Burnout-prone</strong></div></div>
+            </div>
+            <div class="cb-card">
+              <div class="cb-card-h">Goals at 18<span class="edit">edit ↻</span></div>
+              <div class="cb-row"><div class="cb-k">Primary</div><div class="cb-v"><strong>Visual / fine art</strong></div></div>
+              <div class="cb-row"><div class="cb-k">Alt</div><div class="cb-v">Architecture</div></div>
+              <div class="cb-row"><div class="cb-k">Fallback</div><div class="cb-v">Humanities</div></div>
+            </div>
+          </div>
+        </div>
+
+        <aside class="cmp-preview">
+          <div class="cmp-preview-h">Current ranking<a>open ↗</a></div>
+          <div class="cmp-preview-title">Lens: <em>Maya fit</em></div>
+          <div class="cmp-mini-row"><span class="pip visit"></span><span class="name">St Mary's</span><span class="score">8.6</span></div>
+          <div class="cmp-mini-row"><span class="pip visit"></span><span class="name">Wycombe</span><span class="score warn">7.4</span></div>
+          <div class="cmp-mini-row"><span class="pip hold"></span><span class="name">Cheltenham</span><span class="score softer">5.8</span></div>
+          <div class="cmp-mini-row"><span class="pip drop"></span><span class="name">Benenden</span><span class="score softer">5.4</span></div>
+        </aside>
+      </div>
+    </div>
+
+    <!-- ════ PARTNER BRIEF tab ════ -->
+    <div class="view" id="view-partner">
+      <div class="view-head">
+        <div>
+          <div class="view-eyebrow">Workspace · <strong>Partner brief</strong></div>
+          <h1 class="view-title">A two-minute brief for <em>Sebastian.</em></h1>
+          <p class="view-meta">Auto-regenerates when verdicts change. Pick a tone for what kind of read he prefers.</p>
+        </div>
+        <div class="view-actions">
+          <button class="btn">Copy email</button>
+          <button class="btn">Print PDF</button>
+          <button class="btn btn--primary">↗ Send now</button>
+        </div>
+      </div>
+
+      <div class="pb-wrap">
+        <div class="pb-card">
+          <div class="pb-head">
+            <div>
+              <div class="pb-stamp">A letter from your research advisor</div>
+              <div class="pb-to">To <em>Sebastian</em>,</div>
+              <div class="pb-meta">Mon 5 May 2026 · session 04 · Warm tone</div>
+            </div>
+          </div>
+          <div class="pb-tone">
+            <span class="pb-tone-l">Tone</span>
+            <button class="pb-tone-chip active">Warm</button>
+            <button class="pb-tone-chip">Just the decision</button>
+            <button class="pb-tone-chip">Evidence-heavy</button>
+            <button class="pb-tone-chip">Skeptical</button>
+          </div>
+          <div class="pb-letter">
+            <p class="opener">Sebastian — I've been with Nana on this since lunch. Here's where we are, plainly.</p>
+            <p>If <strong>Maya</strong> is who we think she is — quietly intense, art-anchored, slow-to-warm, more at risk of <em>burnout than under-stretch</em> — the real choice isn't between four schools. It's between <strong>two visits</strong>.</p>
+            <p><strong>St Mary's Ascot</strong> is the cleanest match for her temperament. <span class="hl">~32 girls per house, 1:6 tutor</span>. Trade: 11% Oxbridge against Wycombe's 26%.</p>
+            <p><strong>Wycombe</strong> is the academic ceiling — 79% A*–A. Houses ~58, 1:8 tutor. The risk is exactly Maya's: surrounded by self-pacing girls.</p>
+            <p>Two visits, plainly: <strong>St Mary's tests for "where will she be most known?" Wycombe tests for "is the cushion real?"</strong></p>
+            <p>I'd like us both at one. Tell me which.</p>
+          </div>
+          <div class="pb-foot">
+            <div class="pb-sig">— Sarah &amp; Nana</div>
+            <button class="btn btn--primary">↗ Send to Sebastian</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ════ THE CHAT RAIL — three states ════ -->
+  <aside class="chat" id="chat">
+
+    <!-- CLOSED state -->
+    <div class="chat-closed-content">
+      <button class="chat-expand-btn" data-action="expand-default" title="Open chat">›</button>
+      <div class="chat-closed-avatar" data-action="expand-default" title="Ask Nana">N</div>
+      <div class="chat-closed-label" data-action="expand-default">ASK NANA · ANSWERING</div>
+      <div class="chat-closed-chips">
+        <button class="chat-closed-chip" data-action="expand-default">add row</button>
+        <button class="chat-closed-chip" data-action="expand-default">re-rank</button>
+        <button class="chat-closed-chip" data-action="expand-default">ask</button>
+      </div>
+    </div>
+
+    <!-- OPEN state (default + focus share this content) -->
+    <div class="chat-open-content">
+
+      <div class="chat-head">
+        <div class="chat-avatar">N</div>
+        <div class="chat-name">Nana<span>ANSWERING · COMPARISON</span></div>
+        <button class="chat-state-btn" data-action="toggle-focus" title="Expand for Build mode">⤢</button>
+        <button class="chat-state-btn" data-action="collapse" title="Collapse to icon strip">›</button>
+      </div>
+
+      <!-- BUILD MODE TOGGLE — the new addition -->
+      <button class="build-toggle" id="build-toggle" data-action="toggle-build">
+        <div class="bt-ic">⚒</div>
+        <div class="bt-text">
+          <div class="bt-name">Work on comparison table</div>
+          <div class="bt-desc">Nana proactively grows + improves the table</div>
+        </div>
+        <div class="bt-state" id="bt-state">OFF</div>
+      </button>
+
+      <div class="thread" id="thread">
+
+        <!-- Default-mode answered turn with 4 quick actions -->
+        <div class="you">What's weekend life actually like at each? My daughter doesn't do competitive sport.</div>
+
+        <div class="nana">
+          <div class="nana-eyebrow">Short answer</div>
+          <div class="nana-lead">Three of four are fine for Maya's anchor; Cheltenham reads sport-dominant.</div>
+          <span class="confidence-badge high"><span class="ic"></span>Confidence · High</span>
+          <div class="nana-prose">St Mary's: chapel + studio time. Wycombe: Long Sunday rhythm protects unstructured space. <strong>Cheltenham: Saturday matches culture is strong</strong> — restorative time is harder. Benenden: full-boarding atmosphere mixes coding.</div>
+          <div class="nana-tradeoff">
+            <div class="nana-tradeoff-label">⚠ Watch out</div>
+            Cheltenham parents say "you build your weekend around fixtures."
+          </div>
+          <div class="nana-tour">
+            <div class="nana-tour-label">Tour question</div>
+            "What does an art-anchored Saturday look like at Cheltenham?"
+          </div>
+          <div class="sources">
+            <a class="src-pill">weekend · STM</a>
+            <a class="src-pill">weekend · WYC</a>
+            <a class="src-pill">weekend · CLC</a>
+          </div>
+
+          <!-- THE 4 QUICK ACTIONS -->
+          <div class="qa-row">
+            <button class="qa primary"><span class="ic">+</span> Add as row</button>
+            <button class="qa"><span class="ic">↻</span> Re-rank table</button>
+            <button class="qa"><span class="ic">✦</span> Create a lens</button>
+            <button class="qa"><span class="ic">↗</span> Add to letter</button>
+          </div>
+        </div>
+
+        <!-- Streaming turn — what mid-stream looks like -->
+        <div class="you">Yes add it as a row, and create the lens.</div>
+        <div class="nana streaming">
+          <div class="nana-eyebrow">Adding row + lens</div>
+          <div class="nana-lead">Pulling weekend programme data into the Maya group, creating "Sport-light fit" lens for both Comparison and Verdict tabs…<span class="cursor"></span></div>
+          <div class="skeleton-line s-90"></div>
+          <div class="skeleton-line s-60"></div>
+          <div class="skeleton-line s-80"></div>
+        </div>
+
+      </div>
+
+      <div class="chat-input">
+        <div class="chat-suggest">
+          <button class="cs-chip">re-rank for "anti-pressure"</button>
+          <button class="cs-chip">add row: art teacher quality</button>
+          <button class="cs-chip">explain Cheltenham hold</button>
+        </div>
+        <label class="chat-input-row">
+          <input type="text" placeholder="Ask · 'add row…' / 'rank by…' / 'create lens for…'" />
+          <button>ASK</button>
+        </label>
+      </div>
+
+    </div>
+
+  </aside>
+
+</div>
+
+<!-- State legend — pinned bottom-left so you can see what state you're in -->
+<aside class="state-legend">
+  <div class="state-legend-h">Chat states · click ⤢ ›</div>
+  <div class="state-legend-row" id="leg-closed"><span class="k">Closed</span><span class="v">Slim icon rail · 52px · table dominates</span></div>
+  <div class="state-legend-row active" id="leg-default"><span class="k">Open</span><span class="v">Default · 400px · normal session</span></div>
+  <div class="state-legend-row" id="leg-focus"><span class="k">Focus</span><span class="v">Build mode · 620px · 4 actions in one row</span></div>
+</aside>
+
+<script>
+  const shell = document.getElementById('shell');
+  const buildToggle = document.getElementById('build-toggle');
+  const btState = document.getElementById('bt-state');
+  const thread = document.getElementById('thread');
+  const chatNameStatus = document.querySelector('.chat-name span');
+
+  function setState(state) {
+    shell.classList.remove('chat-closed', 'chat-focus');
+    if (state === 'closed') shell.classList.add('chat-closed');
+    if (state === 'focus')  shell.classList.add('chat-focus');
+    document.querySelectorAll('.state-legend-row').forEach(r => r.classList.remove('active'));
+    const id = state === 'closed' ? 'leg-closed' : state === 'focus' ? 'leg-focus' : 'leg-default';
+    document.getElementById(id)?.classList.add('active');
+  }
+
+  // collapse to icon strip
+  document.querySelectorAll('[data-action="collapse"]').forEach(b => b.addEventListener('click', () => setState('closed')));
+  // expand from closed back to default
+  document.querySelectorAll('[data-action="expand-default"]').forEach(b => b.addEventListener('click', () => setState('default')));
+  // toggle focus open ↔ default open
+  document.querySelectorAll('[data-action="toggle-focus"]').forEach(b => b.addEventListener('click', () => {
+    setState(shell.classList.contains('chat-focus') ? 'default' : 'focus');
+  }));
+
+  // BUILD MODE toggle — flips Nana into proactive/co-builder mode
+  buildToggle?.addEventListener('click', () => {
+    const on = buildToggle.classList.toggle('active');
+    btState.textContent = on ? 'ON' : 'OFF';
+    if (chatNameStatus) chatNameStatus.textContent = on ? 'BUILD MODE · CO-BUILDER' : 'ANSWERING · COMPARISON';
+    if (on) {
+      // auto-expand to focus state when entering build mode
+      setState('focus');
+      // inject a build-mode prompt from Nana
+      addBuildPrompt();
+    } else {
+      // remove any build-mode prompt
+      thread.querySelectorAll('.nana.build-prompt').forEach(n => n.remove());
+      setState('default');
+    }
+  });
+
+  function addBuildPrompt() {
+    const wrap = document.createElement('div');
+    wrap.className = 'nana build-prompt';
+    wrap.innerHTML = `
+      <div class="nana-eyebrow">Build mode · I'll lead</div>
+      <div class="nana-lead">Let's strengthen this comparison. I scanned all four schools — here are <strong>5 dimensions you don't have yet</strong> that might matter for Maya. Click "+ Add" to bring them in, or "skip" to move on.</div>
+      <div class="build-suggestion">
+        <div class="build-suggestion-h">Suggested rows · pulled from school data</div>
+        <div class="build-suggestion-list">
+          <div class="bs-row">
+            <span class="arr">→</span>
+            <div class="bs-text"><strong>Mobile phone policy</strong><small>SOURCE: policies_summary · varies materially across the four schools</small></div>
+            <button class="bs-add">+ Add</button>
+            <button class="bs-skip">skip</button>
+          </div>
+          <div class="bs-row">
+            <span class="arr">→</span>
+            <div class="bs-text"><strong>Saturday school</strong> (yes / half / no)<small>SOURCE: school calendars · 3 of 4 have it</small></div>
+            <button class="bs-add">+ Add</button>
+            <button class="bs-skip">skip</button>
+          </div>
+          <div class="bs-row">
+            <span class="arr">→</span>
+            <div class="bs-text"><strong>Music ensembles</strong><small>SOURCE: arts brochures · matters if Maya wants chamber group</small></div>
+            <button class="bs-add">+ Add</button>
+            <button class="bs-skip">skip</button>
+          </div>
+          <div class="bs-row">
+            <span class="arr">→</span>
+            <div class="bs-text"><strong>SEND / EAL provision</strong><small>SOURCE: policies_summary · usually skipped, ask if relevant</small></div>
+            <button class="bs-add">+ Add</button>
+            <button class="bs-skip">skip</button>
+          </div>
+          <div class="bs-row">
+            <span class="arr">→</span>
+            <div class="bs-text"><strong>Sibling discount + scholarships breakdown</strong><small>SOURCE: bursary_note · 2 schools differ here</small></div>
+            <button class="bs-add">+ Add</button>
+            <button class="bs-skip">skip</button>
+          </div>
+        </div>
+      </div>
+      <div class="qa-row">
+        <button class="qa primary"><span class="ic">+</span> Add all 5</button>
+        <button class="qa"><span class="ic">⌘</span> Pick most useful</button>
+        <button class="qa"><span class="ic">✦</span> Save as a lens</button>
+        <button class="qa"><span class="ic">↗</span> Add to letter</button>
+      </div>
+    `;
+    thread.appendChild(wrap);
+    thread.scrollTop = thread.scrollHeight;
+  }
+
+  // tab switching
+  document.querySelectorAll('.tab').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+    document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+    const v = document.getElementById('view-' + t.dataset.tab);
+    if (v) v.classList.add('active');
+  }));
+
+  // lens tabs
+  document.querySelectorAll('.lens-tab').forEach(t => t.addEventListener('click', () => {
+    document.querySelectorAll('.lens-tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+  }));
+
+  // verdict lens chooser
+  document.querySelectorAll('.v-lens-row').forEach(l => l.addEventListener('click', () => {
+    document.querySelectorAll('.v-lens-row').forEach(x => x.classList.remove('active'));
+    l.classList.add('active');
+  }));
+
+  // partner tone
+  document.querySelectorAll('.pb-tone-chip').forEach(c => c.addEventListener('click', () => {
+    document.querySelectorAll('.pb-tone-chip').forEach(x => x.classList.remove('active'));
+    c.classList.add('active');
+  }));
+
+  // suggestion chips
+  document.querySelectorAll('.cs-chip').forEach(c => c.addEventListener('click', () => {
+    const i = document.querySelector('.chat-input-row input');
+    i.value = c.textContent;
+    i.focus();
+  }));
+</script>
+
+</body>
+</html>

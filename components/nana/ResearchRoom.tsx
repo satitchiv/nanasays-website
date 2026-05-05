@@ -5,6 +5,7 @@ import Link from 'next/link'
 import ChildSelector, { type ChildOption } from './ChildSelector'
 import ResearchRoomChat, { type ChatState } from './ResearchRoomChat'
 import ComparisonView from './ComparisonView'
+import type { ComparisonData } from './comparison-placeholder'
 import './research-room.css'
 
 type Tab = 'brief' | 'compare' | 'verdict' | 'partner'
@@ -12,6 +13,7 @@ type Tab = 'brief' | 'compare' | 'verdict' | 'partner'
 type Props = {
   childOptions: ChildOption[]
   initialActiveChildId?: string | null
+  comparisonData?: ComparisonData
 }
 
 const TAB_ORDER: Tab[] = ['brief', 'compare', 'verdict', 'partner']
@@ -40,7 +42,7 @@ const PLACEHOLDER_COPY: Record<Tab, { sub: string }> = {
 
 const SCROLL_DURATION_MS = 450
 
-export default function ResearchRoom({ childOptions, initialActiveChildId = null }: Props) {
+export default function ResearchRoom({ childOptions, initialActiveChildId = null, comparisonData }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('compare')
   const [chatState, setChatState] = useState<ChatState>('default')
   const [buildMode, setBuildMode] = useState(false)
@@ -237,7 +239,7 @@ export default function ResearchRoom({ childOptions, initialActiveChildId = null
                           </p>
                         </div>
                       </div>
-                      <ComparisonView />
+                      <ComparisonView data={comparisonData} />
                     </>
                   ) : (
                     <>
