@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { sendWelcomeEmail } from '@/lib/email'
+import { recommendShortlist } from '@/lib/recommend-shortlist'
 
 export async function PATCH(req: Request) {
   const cookieStore = await cookies()
@@ -43,6 +44,18 @@ export async function PATCH(req: Request) {
 
   if (update.onboarding_complete === true && user.email) {
     await sendWelcomeEmail(user.email)
+  }
+
+  // Best-effort: auto-populate shortlist from onboarding answers so the
+  // parent lands in /nana/research-room with a non-empty Comparison table.
+  // Failures here must never fail the onboarding request.
+  if (update.onboarding_complete === true) {
+    try {
+      const result = await recommendShortlist(supabase, user.id)
+      console.log('[recommendShortlist]', user.id, result.reason, result.added.length)
+    } catch (e) {
+      console.error('[recommendShortlist] threw:', e)
+    }
   }
 
   return NextResponse.json({ ok: true })
