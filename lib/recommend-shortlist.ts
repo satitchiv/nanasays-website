@@ -6,6 +6,11 @@ import {
   assertUserId,
   normalizeSchoolName,
 } from './school-name-overrides'
+// Codex round-2 P1: validate cached interpretation against current notes
+// before applying it. Otherwise a race-aborted refresh (or stale-clear
+// failure) leaves last-cycle's interpretation paired with this-cycle's
+// notes for one refresh.
+import { notesHash, type NotesInput } from './interpret-child-notes'
 
 // Auto-recommend shortlist after onboarding completes.
 //
@@ -153,6 +158,21 @@ type Profile = {
   onboarding_complete: boolean | null
 }
 
+// Slice 4d preview: structured signals the refresh-recommendations endpoint
+// extracts from the 4 free-text Brief-tab notes (Personality / Anchors /
+// Academic / Goals) via OpenAI GPT-5.4 Mini. Lives under
+// child_profile.notes_interpretation_v1. Read here, never written.
+type NoteInterpretation = {
+  academic_subjects:  string[]
+  career_aim:         string | null
+  community_pref:     'small' | 'medium' | 'large' | null
+  boarding_readiness: 'ready' | 'unsure' | 'not_ready' | null
+  sport_weight:       number
+  arts_weight:        number
+  academic_weight:    number
+  signal_quality:     'rich' | 'thin' | 'noisy'
+}
+
 type SchoolCandidate = {
   slug:             string
   name:             string
@@ -170,6 +190,40 @@ type SchoolCandidate = {
 export type RecommendResult = {
   added:  string[]
   reason: 'inserted' | 'shortlist_not_empty' | 'no_profile' | 'incomplete' | 'no_matches' | 'insert_failed'
+}
+
+// Codex P2.1 split: pure compute step. Refresh-recommendations route uses
+// this to compute the top 6 BEFORE touching shortlisted_schools, then
+// upserts + deletes-stale instead of delete-first → recompute → insert.
+// Eliminates the empty-shortlist window if the recommender or insert fails.
+export type PickResult = {
+  slugs:  string[]
+  reason: 'ok' | 'no_profile' | 'incomplete' | 'no_matches'
+}
+
+// Codex round-2 P1: ensure the cached interpretation is paired with the
+// CURRENT 4 notes. Returns null if hash mismatches (treat as no
+// interpretation; recommender falls back to dropdown profile only).
+type ChildProfileRow = Partial<Profile> & {
+  personality_notes?:        string | null
+  anchors_notes?:            string | null
+  academic_notes?:           string | null
+  goals_notes?:              string | null
+  notes_interpretation_v1?:  (NoteInterpretation & { notes_hash?: string }) | null
+}
+function loadValidInterpretation(profile: ChildProfileRow): NoteInterpretation | null {
+  const cached = profile.notes_interpretation_v1
+  if (!cached || typeof cached !== 'object') return null
+  if (cached.signal_quality === 'noisy') return null
+  if (typeof cached.notes_hash !== 'string') return null
+  const currentNotes: NotesInput = {
+    personality_notes: profile.personality_notes ?? null,
+    anchors_notes:     profile.anchors_notes     ?? null,
+    academic_notes:    profile.academic_notes    ?? null,
+    goals_notes:       profile.goals_notes       ?? null,
+  }
+  if (cached.notes_hash !== notesHash(currentNotes)) return null
+  return cached
 }
 
 async function loadUkEvidenceSlugs(supabase: SupabaseClient): Promise<string[]> {
@@ -192,12 +246,15 @@ async function loadUkEvidenceSlugs(supabase: SupabaseClient): Promise<string[]> 
   return all
 }
 
-export async function recommendShortlist(
+// Compute-only: return the top 6 slugs without writing to shortlisted_schools.
+// Callers decide whether to insert (recommendShortlist), replace
+// (refresh-recommendations route), or just inspect (testing).
+export async function pickTopSchoolSlugs(
   supabase: SupabaseClient,
   userId: string,
   childId: string | null = null,
-): Promise<RecommendResult> {
-  assertUserId(userId, 'recommendShortlist')
+): Promise<PickResult> {
+  assertUserId(userId, 'pickTopSchoolSlugs')
 
   // 1. Load profile.
   // - With childId: read children.child_profile directly. All 9 fields
@@ -205,15 +262,19 @@ export async function recommendShortlist(
   // - Without childId: read parent_profiles (legacy / no children yet,
   //   or pre-onboarding).
   let profile: Profile | null = null
+  let interpretation: NoteInterpretation | null = null
   if (childId) {
     const { data: child } = await supabase
       .from('children')
       .select('child_profile')
       .eq('id', childId)
       .eq('user_id', userId)
-      .maybeSingle<{ child_profile: Partial<Profile> }>()
+      .maybeSingle<{ child_profile: ChildProfileRow }>()
     if (child?.child_profile) {
       profile = { ...child.child_profile, onboarding_complete: true } as Profile
+      // Codex round-2 P1: hash-validate before trusting the cached
+      // interpretation. Mismatch → treat as no interpretation.
+      interpretation = loadValidInterpretation(child.child_profile)
     }
   } else {
     const { data: pp } = await supabase
@@ -224,32 +285,19 @@ export async function recommendShortlist(
     profile = pp
   }
 
-  if (!profile) return { added: [], reason: 'no_profile' }
-  if (!profile.onboarding_complete) return { added: [], reason: 'incomplete' }
+  if (!profile) return { slugs: [], reason: 'no_profile' }
+  if (!profile.onboarding_complete) return { slugs: [], reason: 'incomplete' }
 
-  // 2. Bail if THIS scope's shortlist already has rows. Per-child
-  // recommender skips when that child already has rows; parent-wide
-  // recommender skips when any NULL-child rows exist.
-  let existingQuery = supabase
-    .from('shortlisted_schools')
-    .select('school_slug')
-    .eq('user_id', userId)
-    .limit(1)
-  existingQuery = childId
-    ? existingQuery.eq('child_id', childId)
-    : existingQuery.is('child_id', null)
-  const { data: existing } = await existingQuery
-
-  if (existing && existing.length > 0) {
-    return { added: [], reason: 'shortlist_not_empty' }
-  }
+  // (Idempotency check — was here. Moved to recommendShortlist wrapper so
+  // pickTopSchoolSlugs is a pure compute that callers can use to drive
+  // either insert-if-empty OR replace-atomically semantics.)
 
   // 3. Pull the canonical "substantial UK evidence" slug set from
   //    schools_status (same filter /schools uses). Without this, broken
   //    data leaks through — e.g. Nord Anglia mis-tags appearing under
   //    region='England' with non-UK slugs.
   const ukSlugs = await loadUkEvidenceSlugs(supabase)
-  if (ukSlugs.length === 0) return { added: [], reason: 'no_matches' }
+  if (ukSlugs.length === 0) return { slugs: [], reason: 'no_matches' }
 
   // 4. Build candidate query — hard filters in SQL
   // confidence_score >= 60 was removed — Westminster + St Paul's have
@@ -322,7 +370,7 @@ export async function recommendShortlist(
 
   const { data: candidates, error } = await q
   if (error || !candidates || candidates.length === 0) {
-    return { added: [], reason: 'no_matches' }
+    return { slugs: [], reason: 'no_matches' }
   }
 
   // 5. Gender filter in JS (case-normalize)
@@ -354,7 +402,7 @@ export async function recommendShortlist(
   }
 
   if (filtered.length === 0) {
-    return { added: [], reason: 'no_matches' }
+    return { slugs: [], reason: 'no_matches' }
   }
 
   // 5c. Pull structured data for the surviving candidates (for class size +
@@ -458,6 +506,84 @@ export async function recommendShortlist(
       score += 0.4
     }
 
+    // Slice 4d preview: free-text notes interpretation (career_aim,
+    // community_pref, sport/arts/academic weights). Codex P2.2: accumulate
+    // the per-signal contributions into `interpretationDelta`, then clamp
+    // the aggregate before adding to score. Individual additions are small
+    // (≤0.4) but they used to be able to stack to >1.0 in conflict cases —
+    // the clamp keeps interpretation a re-ranker, not a profile override.
+    // Skipped entirely when interpretation is null or signal_quality
+    // was 'noisy' (filtered at load time).
+    if (interpretation) {
+      const interp = interpretation
+      const totalPupils = struct?.student_community?.total_pupils as number | null | undefined
+      let interpretationDelta = 0
+
+      // Career aim → boost matching strength tags. UK independent strengths
+      // tags are coarse ('sport', 'academic', 'performing arts', 'visual
+      // and creative arts', 'music', 'STEM') so we can only do approximate
+      // matches.
+      if (interp.career_aim === 'medicine' || interp.career_aim === 'research' || interp.career_aim === 'engineering' || interp.career_aim === 'tech') {
+        if (strengthsLc.includes('academic') || strengthsLc.includes('stem')) interpretationDelta += 0.35
+      }
+      if (interp.career_aim === 'law' || interp.career_aim === 'finance') {
+        if (strengthsLc.includes('academic')) interpretationDelta += 0.3
+      }
+      if (interp.career_aim === 'arts' && (
+        strengthsLc.includes('performing arts') ||
+        strengthsLc.includes('visual and creative arts') ||
+        strengthsLc.includes('music')
+      )) {
+        interpretationDelta += 0.4
+      }
+      if (interp.career_aim === 'sport' && strengthsLc.includes('sport')) {
+        interpretationDelta += 0.3
+      }
+
+      // Sport / arts / academic weights — additive on top of existing
+      // top_priority logic so notes can amplify or introduce a signal the
+      // parent didn't pick from the dropdown.
+      if (interp.sport_weight >= 0.4 && strengthsLc.includes('sport')) {
+        interpretationDelta += 0.3 * interp.sport_weight
+      }
+      if (interp.arts_weight >= 0.4 && (
+        strengthsLc.includes('performing arts') ||
+        strengthsLc.includes('visual and creative arts') ||
+        strengthsLc.includes('music')
+      )) {
+        interpretationDelta += 0.3 * interp.arts_weight
+      }
+      if (interp.academic_weight >= 0.4 && strengthsLc.includes('academic')) {
+        interpretationDelta += 0.3 * interp.academic_weight
+      }
+
+      // Community preference — overlay on the existing class_size_pref
+      // signal. Bumped weights stay small (max 0.4) since they're a soft
+      // re-ranker on top of the structured class_size_pref logic.
+      if (interp.community_pref && typeof totalPupils === 'number') {
+        if (interp.community_pref === 'small' && totalPupils <= 500) interpretationDelta += 0.4
+        else if (interp.community_pref === 'small' && totalPupils > 1000) interpretationDelta -= 0.3
+        else if (interp.community_pref === 'large' && totalPupils >= 800) interpretationDelta += 0.3
+        else if (interp.community_pref === 'large' && totalPupils < 400) interpretationDelta -= 0.2
+      }
+
+      // Academic subjects — light additive boost when the school's
+      // strengths array name-matches a subject the notes mentioned. Capped
+      // at 0.3 total so a long subject list can't dominate.
+      if (interp.academic_subjects.length > 0) {
+        let subjectBonus = 0
+        for (const subj of interp.academic_subjects) {
+          if (strengthsLc.some(tag => tag.includes(subj))) subjectBonus += 0.1
+        }
+        interpretationDelta += Math.min(subjectBonus, 0.3)
+      }
+
+      // Codex P2.2: clamp aggregate to ±0.8 / -0.4. Asymmetric on purpose
+      // — interpretation can boost a school more than it can drop one,
+      // since dropdown-mismatched candidates were already filtered out.
+      score += Math.max(-0.4, Math.min(0.8, interpretationDelta))
+    }
+
     return { school: s, score }
   })
 
@@ -466,21 +592,54 @@ export async function recommendShortlist(
   // Hard-fail under 3 strong matches — better empty state than 1-2 weak
   // suggestions. UI's empty-state then prompts the parent to broaden.
   if (scored.length < 3) {
-    return { added: [], reason: 'no_matches' }
+    return { slugs: [], reason: 'no_matches' }
   }
 
-  const top = scored.slice(0, 6).map(x => x.school)
+  return { slugs: scored.slice(0, 6).map(x => x.school.slug), reason: 'ok' }
+}
 
-  // 7. Upsert with ignoreDuplicates — the (user_id, child_id, school_slug)
-  // UNIQUE NULLS NOT DISTINCT constraint backstops the race window. If
-  // a second concurrent call slips past the empty-shortlist guard
-  // above, duplicate rows for the SAME (user, child, slug) silently
-  // dedupe. Two children CAN both shortlist the same slug because the
-  // tuple includes child_id. NULL child_id (parent-wide) still dedupes
-  // against NULL via NULLS NOT DISTINCT.
-  const rows = top.map(s => ({
+// Insert-if-empty semantics. Used by /api/children POST and /api/profile
+// (legacy callers that want "create the initial shortlist if missing"
+// behaviour). The refresh-recommendations route uses the lower-level
+// pickTopSchoolSlugs + its own upsert/delete-stale instead.
+export async function recommendShortlist(
+  supabase: SupabaseClient,
+  userId: string,
+  childId: string | null = null,
+): Promise<RecommendResult> {
+  assertUserId(userId, 'recommendShortlist')
+
+  // Idempotency: bail if THIS scope's shortlist already has rows.
+  let existingQuery = supabase
+    .from('shortlisted_schools')
+    .select('school_slug')
+    .eq('user_id', userId)
+    .limit(1)
+  existingQuery = childId
+    ? existingQuery.eq('child_id', childId)
+    : existingQuery.is('child_id', null)
+  const { data: existing } = await existingQuery
+  if (existing && existing.length > 0) {
+    return { added: [], reason: 'shortlist_not_empty' }
+  }
+
+  const pick = await pickTopSchoolSlugs(supabase, userId, childId)
+  if (pick.slugs.length === 0) {
+    // Map PickResult.reason → RecommendResult.reason. 'ok' would only
+    // appear with empty slugs in a pickTopSchoolSlugs bug, treat as
+    // no_matches defensively.
+    const mapped =
+      pick.reason === 'no_profile'  ? 'no_profile'  :
+      pick.reason === 'incomplete'  ? 'incomplete'  :
+      'no_matches'
+    return { added: [], reason: mapped }
+  }
+
+  // Upsert with ignoreDuplicates — the (user_id, child_id, school_slug)
+  // UNIQUE NULLS NOT DISTINCT constraint backstops any race window.
+  const rows = pick.slugs.map(slug => ({
     user_id: userId,
-    school_slug: s.slug,
+    school_slug: slug,
     child_id: childId,
   }))
   const { error: insertError } = await supabase
@@ -491,6 +650,5 @@ export async function recommendShortlist(
     console.error('[recommendShortlist] upsert failed:', insertError.message)
     return { added: [], reason: 'insert_failed' }
   }
-
-  return { added: top.map(s => s.slug), reason: 'inserted' }
+  return { added: pick.slugs, reason: 'inserted' }
 }

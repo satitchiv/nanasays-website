@@ -10,15 +10,17 @@ import {
   type SchoolColumn,
 } from './comparison-placeholder'
 
-type Lens = 'maya' | 'raw'
+type Lens = 'child' | 'raw'
 
 type Props = {
   data?: ComparisonData
+  activeChildName?: string | null
 }
 
-export default function ComparisonView({ data = PLACEHOLDER_DATA }: Props) {
-  const [lens, setLens] = useState<Lens>('maya')
+export default function ComparisonView({ data = PLACEHOLDER_DATA, activeChildName = null }: Props) {
+  const [lens, setLens] = useState<Lens>('child')
   const { schools, rows } = data
+  const childLensLabel = activeChildName ? `${activeChildName} fit` : 'Child fit'
 
   if (schools.length === 0) {
     return (
@@ -47,11 +49,11 @@ export default function ComparisonView({ data = PLACEHOLDER_DATA }: Props) {
           <button
             type="button"
             role="tab"
-            aria-selected={lens === 'maya'}
-            className={`rr-cmp-lens-tab${lens === 'maya' ? ' is-active' : ''}`}
-            onClick={() => setLens('maya')}
+            aria-selected={lens === 'child'}
+            className={`rr-cmp-lens-tab${lens === 'child' ? ' is-active' : ''}`}
+            onClick={() => setLens('child')}
           >
-            Maya fit
+            {childLensLabel}
           </button>
           <button
             type="button"
@@ -69,7 +71,7 @@ export default function ComparisonView({ data = PLACEHOLDER_DATA }: Props) {
         <div className="rr-cmp-stats">
           {rows.length} rows · {schools.length} schools
           <br />
-          <strong>{lens === 'maya' ? 'Maya fit' : 'Raw'}</strong> active
+          <strong>{lens === 'child' ? childLensLabel : 'Raw'}</strong> active
         </div>
       </div>
 

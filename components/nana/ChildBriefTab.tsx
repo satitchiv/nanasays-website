@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ONBOARDING_FIELDS,
@@ -30,6 +30,39 @@ type Props = {
 const BASICS_FIELDS     = ['child_year', 'child_gender'] as const
 const SCHOOL_FIELDS     = ['home_region', 'boarding_pref', 'budget_range', 'curriculum_pref'] as const
 const PRIORITY_FIELDS   = ['top_priority', 'class_size_pref', 'sen_need'] as const
+
+// Slice 3.4 polish: rich free-text cards. Slice 3 captures (write side);
+// slice 4's fit-score lens reads them. JSONB keys are stable so the slice 4
+// reader can rely on them without a migration.
+const NOTES_CARDS = [
+  {
+    key: 'personality_notes',
+    title: 'Personality',
+    subtitle: 'Temperament, social style, how they handle change.',
+    placeholder: "What's their energy like in a new group? Quietly observant, or first to introduce themselves?",
+  },
+  {
+    key: 'anchors_notes',
+    title: 'Anchors',
+    subtitle: 'What grounds them — interests, friendships, weekly rituals.',
+    placeholder: 'The things that would have to keep working at any new school — close friends, a sport, a club.',
+  },
+  {
+    key: 'academic_notes',
+    title: 'Academic',
+    subtitle: 'Strengths, weak spots, accommodations that help.',
+    placeholder: 'Where they shine, where they struggle, anything teachers should know on day one.',
+  },
+  {
+    key: 'goals_notes',
+    title: 'Goals',
+    subtitle: 'Hopes, sport / arts ambitions, university aim.',
+    placeholder: "Short-term and long-term — what would make this school the right fit five years in?",
+  },
+] as const
+
+type NotesKey = typeof NOTES_CARDS[number]['key']
+type EditingCard = 'basics' | 'school' | 'priorities' | NotesKey | null
 
 export default function ChildBriefTab({
   children,
@@ -135,9 +168,26 @@ function ChildPanel({
 }) {
   const router = useRouter()
   const [editingMeta, setEditingMeta] = useState(false)
-  const [editingCard, setEditingCard] = useState<'basics' | 'school' | 'priorities' | null>(null)
+  const [editingCard, setEditingCard] = useState<EditingCard>(null)
+  // Optimistic override: after a Save, display the just-saved patch locally
+  // until the server-rendered prop catches up. Otherwise the card briefly
+  // flashes the OLD value between form-collapse and router.refresh()
+  // resolving (~100-300ms perceptible flicker). Cleared automatically once
+  // every key in the override matches the incoming prop.
+  const [savedOverride, setSavedOverride] = useState<Record<string, string> | null>(null)
+  const effectiveProfile: Record<string, string | null> = {
+    ...(child.child_profile ?? {}),
+    ...(savedOverride ?? {}),
+  }
+  useEffect(() => {
+    if (!savedOverride) return
+    const allMatch = Object.entries(savedOverride).every(
+      ([k, v]) => (child.child_profile?.[k] ?? '') === v,
+    )
+    if (allMatch) setSavedOverride(null)
+  }, [child.child_profile, savedOverride])
 
-  const yearLabel = getOptionShortLabel('child_year', child.child_profile?.child_year ?? null)
+  const yearLabel = getOptionShortLabel('child_year', effectiveProfile.child_year ?? null)
   const ageLabel = ageFromDOB(child.date_of_birth)
   const metaParts: string[] = []
   if (yearLabel && yearLabel !== '—') metaParts.push(yearLabel)
@@ -146,7 +196,12 @@ function ChildPanel({
   async function patchProfile(patch: Record<string, string>) {
     setBusy(true); setError(null)
     try {
-      const merged = { ...(child.child_profile ?? {}), ...patch, onboarding_complete: true }
+      // Codex round-2 P2: build the PATCH body from `effectiveProfile`
+      // (which includes any in-flight savedOverride), not the raw stale
+      // prop. Otherwise two quick saves before router.refresh() resolves
+      // would clobber the first save's field, since this endpoint does a
+      // full child_profile JSONB replace.
+      const merged = { ...effectiveProfile, ...patch, onboarding_complete: true }
       const res = await fetch(`/api/children/${child.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -154,6 +209,10 @@ function ChildPanel({
       })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Failed to update')
+      // Hold the patched values locally until the server prop catches up,
+      // then collapse the form. Eliminates the OLD-value flicker between
+      // setEditingCard(null) and router.refresh() resolving.
+      setSavedOverride(prev => ({ ...(prev ?? {}), ...patch }))
       setEditingCard(null)
       router.refresh()
     } catch (e) {
@@ -189,6 +248,21 @@ function ChildPanel({
       const res = await fetch(`/api/children/${child.id}`, { method: 'DELETE' })
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Failed to archive')
+      router.refresh()
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Unknown error')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function refreshRecommendations() {
+    if (!confirm(`Refresh ${child.name}'s recommendations? Their current shortlist will be replaced with a fresh top 6 based on the latest profile.`)) return
+    setBusy(true); setError(null)
+    try {
+      const res = await fetch(`/api/children/${child.id}/refresh-recommendations`, { method: 'POST' })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Failed to refresh recommendations')
       router.refresh()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error')
@@ -239,6 +313,15 @@ function ChildPanel({
             <>
               <button
                 type="button"
+                className="rr-brief-action rr-brief-action-emphasis"
+                onClick={refreshRecommendations}
+                disabled={busy}
+                title={`Replace ${child.name}'s shortlist with a fresh top 6 based on the latest profile`}
+              >
+                ↻ Refresh recommendations
+              </button>
+              <button
+                type="button"
                 className="rr-brief-action rr-brief-action-ghost"
                 onClick={() => setEditingMeta(true)}
                 disabled={busy}
@@ -262,7 +345,7 @@ function ChildPanel({
         <ProfileCard
           title="Basics"
           fields={BASICS_FIELDS}
-          values={child.child_profile ?? {}}
+          values={effectiveProfile}
           editing={editingCard === 'basics'}
           busy={busy}
           onStartEdit={() => setEditingCard('basics')}
@@ -272,7 +355,7 @@ function ChildPanel({
         <ProfileCard
           title="School"
           fields={SCHOOL_FIELDS}
-          values={child.child_profile ?? {}}
+          values={effectiveProfile}
           editing={editingCard === 'school'}
           busy={busy}
           onStartEdit={() => setEditingCard('school')}
@@ -282,18 +365,36 @@ function ChildPanel({
         <ProfileCard
           title="Priorities"
           fields={PRIORITY_FIELDS}
-          values={child.child_profile ?? {}}
+          values={effectiveProfile}
           editing={editingCard === 'priorities'}
           busy={busy}
           onStartEdit={() => setEditingCard('priorities')}
           onCancelEdit={() => setEditingCard(null)}
           onSave={patchProfile}
         />
-        <PlaceholderCard
-          title="Personality"
-          subtitle="Temperament · Social style · Boarding readiness"
-          note="Filled via chat in slice 5 — Nana asks short questions and extracts the answers."
-        />
+      </div>
+
+      <div className="rr-cb-notes-head">
+        <span className="rr-cb-notes-eyebrow">In their own words</span>
+        <span className="rr-cb-notes-meta">
+          Optional rich notes. Slice 4&rsquo;s fit-score lens reads these — leave blank if nothing comes to mind.
+        </span>
+      </div>
+      <div className="rr-cb-notes-grid">
+        {NOTES_CARDS.map(card => (
+          <NotesCard
+            key={card.key}
+            title={card.title}
+            subtitle={card.subtitle}
+            placeholder={card.placeholder}
+            value={(effectiveProfile[card.key] as string | null | undefined) ?? null}
+            editing={editingCard === card.key}
+            busy={busy}
+            onStartEdit={() => setEditingCard(card.key)}
+            onCancelEdit={() => setEditingCard(null)}
+            onSave={(text) => patchProfile({ [card.key]: text })}
+          />
+        ))}
       </div>
     </section>
   )
@@ -468,18 +569,101 @@ function ProfileCardForm({
   )
 }
 
-function PlaceholderCard({ title, subtitle, note }: {
-  title: string; subtitle: string; note: string
+// ─── Notes card (free-text rich card — slice 3.4) ────────────────────────
+
+function NotesCard({
+  title, subtitle, placeholder, value, editing, busy,
+  onStartEdit, onCancelEdit, onSave,
+}: {
+  title:       string
+  subtitle:    string
+  placeholder: string
+  value:       string | null
+  editing:     boolean
+  busy:        boolean
+  onStartEdit: () => void
+  onCancelEdit: () => void
+  onSave:      (text: string) => void
 }) {
   return (
-    <div className="rr-cb-card rr-cb-card-stub">
+    <div className="rr-cb-card rr-cb-card-notes">
       <div className="rr-cb-card-h">
         <span>{title}</span>
-        <span className="rr-cb-stub-tag">slice 5</span>
+        {!editing && (
+          <button
+            type="button"
+            className="rr-cb-edit"
+            onClick={onStartEdit}
+            disabled={busy}
+            aria-label={`Edit ${title}`}
+          >
+            {value ? 'edit ↻' : '+ add'}
+          </button>
+        )}
       </div>
-      <div className="rr-cb-stub-sub">{subtitle}</div>
-      <div className="rr-cb-stub-note">{note}</div>
+      <div className="rr-cb-notes-sub">{subtitle}</div>
+      {editing ? (
+        <NotesCardForm
+          initial={value ?? ''}
+          placeholder={placeholder}
+          busy={busy}
+          onCancel={onCancelEdit}
+          onSave={onSave}
+        />
+      ) : value ? (
+        <p className="rr-cb-notes-text">{value}</p>
+      ) : (
+        <p className="rr-cb-notes-empty">{placeholder}</p>
+      )}
     </div>
+  )
+}
+
+function NotesCardForm({
+  initial, placeholder, busy, onCancel, onSave,
+}: {
+  initial:     string
+  placeholder: string
+  busy:        boolean
+  onCancel:    () => void
+  onSave:      (text: string) => void
+}) {
+  const [draft, setDraft] = useState(initial)
+  return (
+    <form
+      className="rr-cb-form"
+      onSubmit={(e) => {
+        e.preventDefault()
+        onSave(draft.trim())
+      }}
+    >
+      <textarea
+        className="rr-cb-notes-textarea"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        placeholder={placeholder}
+        rows={5}
+        maxLength={2000}
+        autoFocus
+      />
+      <div className="rr-cb-form-actions">
+        <button
+          type="button"
+          className="rr-brief-action rr-brief-action-ghost"
+          onClick={onCancel}
+          disabled={busy}
+        >
+          Cancel
+        </button>
+        <button
+          type="submit"
+          className="rr-brief-action rr-brief-action-primary"
+          disabled={busy}
+        >
+          {busy ? 'Saving…' : 'Save'}
+        </button>
+      </div>
+    </form>
   )
 }
 

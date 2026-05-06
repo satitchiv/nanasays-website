@@ -1331,6 +1331,20 @@
   color: var(--rr-white);
   border-color: var(--rr-teal-dk);
 }
+.rr-brief-action-emphasis {
+  background: var(--rr-teal);
+  border-color: var(--rr-teal);
+  color: var(--rr-white);
+  font-weight: 800;
+  box-shadow: 0 2px 8px rgba(52, 195, 160, 0.3);
+}
+.rr-brief-action-emphasis:hover:not(:disabled) {
+  background: var(--rr-teal-dk);
+  border-color: var(--rr-teal-dk);
+  color: var(--rr-white);
+  box-shadow: 0 4px 12px rgba(52, 195, 160, 0.4);
+  transform: translateY(-1px);
+}
 .rr-brief-action-danger {
   background: var(--rr-white);
   color: var(--rr-rust);
@@ -1520,7 +1534,7 @@
 
 .rr-cb-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
   gap: 16px;
 }
 .rr-cb-card {
@@ -1623,6 +1637,83 @@
   margin-top: 4px;
 }
 
+/* Slice 3.4 polish: rich free-text notes cards (Personality / Anchors / Academic / Goals) */
+.rr-cb-notes-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+.rr-cb-notes-eyebrow {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--rr-teal-dk);
+  font-weight: 800;
+}
+.rr-cb-notes-meta {
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  color: var(--rr-muted);
+  line-height: 1.5;
+  max-width: 60ch;
+}
+.rr-cb-notes-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.rr-cb-card-notes {
+  background: var(--rr-white);
+  border: 1px solid var(--rr-border);
+  gap: 8px;
+}
+.rr-cb-card-notes:hover {
+  border-color: var(--rr-teal);
+}
+.rr-cb-notes-sub {
+  font-family: var(--rr-sans);
+  font-size: 12px;
+  color: var(--rr-muted);
+  margin-bottom: 6px;
+  line-height: 1.45;
+}
+.rr-cb-notes-text {
+  font-family: var(--rr-sans);
+  font-size: 14px;
+  color: var(--rr-navy);
+  line-height: 1.55;
+  margin: 0;
+  white-space: pre-wrap;
+}
+.rr-cb-notes-empty {
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  color: var(--rr-muted);
+  font-style: italic;
+  line-height: 1.5;
+  margin: 0;
+}
+.rr-cb-notes-textarea {
+  font-family: var(--rr-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--rr-navy);
+  background: var(--rr-white);
+  padding: 10px 12px;
+  border-radius: var(--rr-r-sm);
+  border: 1.5px solid var(--rr-border);
+  resize: vertical;
+  min-height: 110px;
+  width: 100%;
+}
+.rr-cb-notes-textarea:focus {
+  outline: none;
+  border-color: var(--rr-teal);
+  box-shadow: 0 0 0 3px var(--rr-teal-bg);
+}
+
 /* Placeholder cards (Personality / Anchors — slice 5) */
 .rr-cb-card-stub {
   background: var(--rr-off-2);
@@ -1675,6 +1766,9 @@
   .rr-cb-grid {
     grid-template-columns: 1fr;
   }
+  .rr-cb-notes-grid {
+    grid-template-columns: 1fr;
+  }
   .rr-cb-head {
     flex-direction: column;
     align-items: flex-start;
@@ -1711,6 +1805,26 @@
   max-width: 48ch;
 }
 .rr-cb-head-main { display: flex; flex-direction: column; gap: 4px; }
+
+/* Slice 3.4 polish: active-child indicator above Comparison */
+.rr-cmp-showing-for {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--rr-sans);
+  font-size: 12px;
+  letter-spacing: .4px;
+  color: var(--rr-teal-dk);
+  background: var(--rr-teal-bg);
+  border: 1px solid var(--rr-teal);
+  padding: 6px 12px;
+  border-radius: var(--rr-r-pill);
+  margin-bottom: 18px;
+}
+.rr-cmp-showing-for strong {
+  color: var(--rr-navy);
+  font-weight: 800;
+}
 
 /* Slice 3.3 polish: active child panel emphasized */
 .rr-cb-panel.is-active {

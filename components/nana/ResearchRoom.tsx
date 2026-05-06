@@ -34,7 +34,7 @@ const PLACEHOLDER_COPY: Record<Tab, { sub: string }> = {
     sub: 'Coming in slice 3 — list of children, the active editor, "+ Add child", soft archive.',
   },
   compare: {
-    sub: 'Coming in slice 2 — your shortlist rendered side-by-side from school_structured_data, two lens tabs (Maya fit + Raw).',
+    sub: 'Coming in slice 2 — your shortlist rendered side-by-side from school_structured_data, two lens tabs (child fit + Raw).',
   },
   verdict: {
     sub: 'Coming in slice 7 — per-lens essay (ranking + dissenting view + sources), shared lenses with Comparison.',
@@ -197,6 +197,11 @@ export default function ResearchRoom({
     }
   }, [])
 
+  const activeChild =
+    activeChildId != null
+      ? childSummaries.find((c) => c.id === activeChildId) ?? null
+      : null
+
   const shellClass = [
     'rr-shell',
     chatState === 'closed' ? 'rr-shell-chat-closed' : '',
@@ -265,13 +270,18 @@ export default function ResearchRoom({
                             Side by side, <em>through your child&rsquo;s eyes.</em>
                           </h1>
                           <p className="rr-view-meta">
-                            Two lenses to start: <strong>Maya fit</strong> (child-weighted) and{' '}
+                            Two lenses to start: <strong>{activeChild ? `${activeChild.name} fit` : 'Child fit'}</strong> (child-weighted) and{' '}
                             <strong>Raw comparison</strong> (neutral). Slice 2 ships the
                             read-only table — child weighting + chat-driven rows land later.
                           </p>
                         </div>
                       </div>
-                      <ComparisonView data={comparisonData} />
+                      {activeChild && (
+                        <div className="rr-cmp-showing-for" role="status">
+                          Showing <strong>{activeChild.name}&rsquo;s</strong> matches
+                        </div>
+                      )}
+                      <ComparisonView data={comparisonData} activeChildName={activeChild?.name ?? null} />
                     </>
                   ) : t === 'brief' ? (
                     <ChildBriefTab
