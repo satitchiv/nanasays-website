@@ -1,27 +1,93 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useNanaChat } from '@/lib/nana/use-nana-chat'
+import { NanaMsgBubble, prettyToolName } from './NanaBubble'
+import type { Session, ResearchMessage } from '@/lib/nana/types'
+
+// Codex P2 #2 fix: gate desktop vs mobile ChatBody rendering by viewport
+// so we mount only ONE instance at a time. Both surfaces share inputRef +
+// chatEndRef from the chat hook; rendering both concurrently makes the
+// LATER-mounted one (mobile) win those refs even on desktop, silently
+// breaking auto-scroll and "+ New" focus.
+const MOBILE_BREAKPOINT = 880
+
+function useIsMobile(): boolean {
+  // Default to false on the server — SSR mounts the desktop branch first;
+  // a mobile client will swap to mobile on the first effect after hydrate.
+  // The brief render-after-hydrate flicker is acceptable; alternatives
+  // (read window during render) break SSR.
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`)
+    const apply = () => setIsMobile(mql.matches)
+    apply()
+    mql.addEventListener('change', apply)
+    return () => mql.removeEventListener('change', apply)
+  }, [])
+  return isMobile
+}
 
 export type ChatState = 'closed' | 'default' | 'focus'
 
 type Props = {
-  state: ChatState
-  buildMode: boolean
-  onCollapse: () => void
-  onExpandDefault: () => void
-  onToggleFocus: () => void
-  onToggleBuildMode: () => void
+  state:               ChatState
+  buildMode:           boolean
+  onCollapse:          () => void
+  onExpandDefault:     () => void
+  onToggleFocus:       () => void
+  onToggleBuildMode:   () => void
+  // Slice 3d phase 4 — slugs from the active child's comparison data.
+  // Threaded into the chat hook's API call so Nana scopes answers to
+  // the parent's current shortlist, mirroring DecisionHub's behaviour.
+  shortlistSlugs?:     string[]
+  initialSession?:     Session | null
+  initialMessages?:    ResearchMessage[]
 }
-
-type ChatBodyProps = Pick<Props, 'buildMode' | 'onToggleBuildMode'>
 
 const DRAG_TAP_THRESHOLD = 5
 const DRAG_SNAP_THRESHOLD = 70
 
-// Inner content shared by the desktop rail and the mobile bottom sheet — build
-// mode toggle, thread, and (disabled) input. Slice 1 ships placeholder content
-// only; real chat lands in slice 5.
-function ChatBody({ buildMode, onToggleBuildMode }: ChatBodyProps) {
+// Inner content shared by the desktop rail and the mobile bottom sheet.
+// Receives the chat hook return-value from the parent so both surfaces
+// share one streaming state machine. Read-only mode for slice 3d:
+// no devilsAdvocate / deepMode toggles, no candidate-add, no uiIntent
+// tab switching — those land in slice 5/6.
+function ChatBody({
+  buildMode,
+  onToggleBuildMode,
+  chat,
+}: {
+  buildMode:         boolean
+  onToggleBuildMode: () => void
+  chat:              ReturnType<typeof useNanaChat>
+}) {
+  const {
+    messages,
+    question,        setQuestion,
+    isStreaming,     streamBuf, streamFormat,
+    activeQuestion,
+    agentStatus,     toolProgress,
+    askError,
+    ask,             stopStream, startNewConversation,
+    chatEndRef,      inputRef,
+  } = chat
+
+  function handleKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      ask()
+    }
+  }
+
+  function handleTextareaInput(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    setQuestion(e.target.value)
+    const el = e.target
+    el.style.height = 'auto'
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px'
+  }
+
   return (
     <>
       <button
@@ -39,39 +105,100 @@ function ChatBody({ buildMode, onToggleBuildMode }: ChatBodyProps) {
       </button>
 
       <div className="rr-thread">
-        <div className="rr-bubble-nana">
-          <div className="rr-bubble-head">
-            <svg className="rr-bubble-avatar" aria-hidden="true">
-              <use href="#ic-nana" />
-            </svg>
-            <div className="rr-bubble-name">
-              Nana
-              <small>placeholder · slice 5</small>
+        {messages.length === 0 && !isStreaming && (
+          <div className="rr-bubble-nana">
+            <div className="rr-bubble-head">
+              <svg className="rr-bubble-avatar" aria-hidden="true">
+                <use href="#ic-nana" />
+              </svg>
+              <div className="rr-bubble-name">Nana</div>
+            </div>
+            <div className="rr-bubble-lead">
+              Ask me anything about the schools in your comparison — fees, results, pastoral care, how they stack up against each other.
             </div>
           </div>
-          <div className="rr-bubble-eyebrow">Coming soon</div>
-          <div className="rr-bubble-lead">
-            Real chat lands in slice 5. For now, click the tabs above to see the four surfaces.
+        )}
+
+        {messages.map(msg => (
+          <div key={msg.id}>
+            <div className="rr-bubble-user">{msg.question}</div>
+            <NanaMsgBubble msg={msg} />
           </div>
-        </div>
+        ))}
+
+        {isStreaming && (
+          <>
+            {activeQuestion && <div className="rr-bubble-user">{activeQuestion}</div>}
+            {agentStatus && (
+              <div className="rr-agent-status">
+                <span className="rr-agent-status-dot" aria-hidden="true" />
+                <span>{agentStatus}</span>
+              </div>
+            )}
+            {toolProgress.length > 0 && (
+              <div className="rr-tool-strip">
+                {toolProgress.map(step => (
+                  <span
+                    key={step.id}
+                    className={`rr-tool-pill rr-tool-pill--${step.status}`}
+                  >
+                    {prettyToolName(step.name)}
+                    {step.status === 'completed' ? ' ✓' : '…'}
+                  </span>
+                ))}
+              </div>
+            )}
+            <NanaMsgBubble isStreaming streamBuf={streamBuf} streamFormat={streamFormat} />
+          </>
+        )}
+
+        {askError && !isStreaming && (
+          <div className="rr-chat-error" role="alert">
+            {askError.message}
+          </div>
+        )}
+
+        <div ref={chatEndRef} />
       </div>
 
-      <div className="rr-chat-input">
+      <form
+        className="rr-chat-input"
+        onSubmit={e => { e.preventDefault(); ask() }}
+      >
+        {(messages.length > 0 || isStreaming) && (
+          <button
+            type="button"
+            className="rr-chat-new-btn"
+            onClick={startNewConversation}
+            disabled={isStreaming}
+            title="Start a fresh conversation"
+          >
+            + New
+          </button>
+        )}
         <label className="rr-chat-input-row">
-          <input
-            type="text"
-            placeholder="Chat coming in slice 5"
-            disabled
-            aria-label="Chat input (disabled — slice 5)"
+          <textarea
+            ref={inputRef}
+            value={question}
+            onChange={handleTextareaInput}
+            onKeyDown={handleKey}
+            placeholder="Ask Nana about these schools…"
+            rows={1}
+            disabled={isStreaming}
+            aria-label="Ask Nana"
           />
-          <button type="button" disabled>Ask</button>
+          {isStreaming ? (
+            <button type="button" onClick={stopStream}>Stop</button>
+          ) : (
+            <button type="submit" disabled={!question.trim()}>Ask</button>
+          )}
         </label>
-      </div>
+      </form>
     </>
   )
 }
 
-// Right-rail chat shell — slice 1.
+// Right-rail chat shell — slice 1 chrome + slice 3d real chat.
 //   Desktop: 3 widths (closed 56 / default 400 / focus 620) on a side rail.
 //   Mobile (≤880px): a Nana FAB bottom-right when closed, a draggable bottom
 //     sheet when default (50dvh) or focus (90dvh). Same state machine.
@@ -88,7 +215,27 @@ export default function ResearchRoomChat({
   onExpandDefault,
   onToggleFocus,
   onToggleBuildMode,
+  shortlistSlugs   = [],
+  initialSession   = null,
+  initialMessages  = [],
 }: Props) {
+  // One chat hook instance — but only ONE ChatBody (desktop OR mobile)
+  // is mounted at a time so the hook's inputRef/chatEndRef attach to the
+  // visible surface. See useIsMobile + the gated branches below.
+  const chat = useNanaChat({
+    initialSession,
+    initialMessages,
+    getServerParams: () => ({
+      activeTab:        'compare',
+      activeSchoolSlug: null,
+      shortlistSlugs,
+    }),
+    // Read-only: ignore ui_intent. DecisionHub uses these for tab switching;
+    // Research Room's tabs are driven by the user, not Nana.
+  })
+
+  const isMobile = useIsMobile()
+
   const sheetRef = useRef<HTMLDivElement | null>(null)
   const sheetCloseRef = useRef<HTMLButtonElement | null>(null)
   const dragRef = useRef<{
@@ -184,7 +331,8 @@ export default function ResearchRoomChat({
 
   return (
     <>
-      {/* ─── Desktop right rail ─────────────────────────────────────────── */}
+      {/* ─── Desktop right rail (only on >880px viewports) ──────────────── */}
+      {!isMobile && (
       <aside className="rr-chat" aria-label="Nana chat">
         {state === 'closed' && (
           <div className="rr-chat-closed">
@@ -248,13 +396,14 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} />
           </div>
         )}
       </aside>
+      )}
 
-      {/* ─── Mobile FAB (rendered only when chat is closed) ─────────────── */}
-      {state === 'closed' && (
+      {/* ─── Mobile FAB (rendered only when chat is closed AND on mobile) ─ */}
+      {isMobile && state === 'closed' && (
         <button
           type="button"
           className="rr-fab is-visible"
@@ -268,8 +417,8 @@ export default function ResearchRoomChat({
         </button>
       )}
 
-      {/* ─── Mobile bottom sheet (rendered only when chat is open) ──────── */}
-      {state !== 'closed' && (
+      {/* ─── Mobile bottom sheet (only when chat is open AND on mobile) ── */}
+      {isMobile && state !== 'closed' && (
         <>
           <button
             type="button"
@@ -318,7 +467,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} />
           </div>
         </>
       )}

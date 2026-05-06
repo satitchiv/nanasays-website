@@ -325,6 +325,7 @@ export default function ResearchRoom({
           onExpandDefault={handleExpandDefault}
           onToggleFocus={handleToggleFocus}
           onToggleBuildMode={handleToggleBuildMode}
+          shortlistSlugs={comparisonData?.schools.map(s => s.slug) ?? []}
         />
       </div>
     </div>

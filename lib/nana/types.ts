@@ -1,0 +1,92 @@
+// Chat-related types extracted from components/nana/DecisionHub.tsx as
+// part of slice 3d (chat extraction). These are the public types the
+// useNanaChat hook + NanaBubble component speak in. Keep behaviour-
+// preserving — same shapes, same fields, same optionality as the original
+// definitions so existing JSX that references them does not need to
+// change.
+
+export interface ParsedSections {
+  short_answer?:        string
+  confirmed_facts?:     string
+  what_this_means?:     string
+  tradeoff?:            string
+  what_we_dont_know?:   string
+  sources?:             string
+  you_might_also_ask?:  string
+}
+
+export interface SourceUsed {
+  section_id:    string
+  section_label: string
+  source_url:    string
+  source_type:   string
+}
+
+export interface RecommendedSchool {
+  slug:    string
+  name:    string
+  why:     string
+  concern?: string
+}
+
+export interface ParsedAnswer {
+  sections:             ParsedSections
+  confidence:           'high' | 'medium' | 'low' | 'none'
+  follow_ups?:          string[]
+  tour_question?:       string | null
+  tour_target?:         string | null
+  sources_used?:        SourceUsed[]
+  recommended_schools?: RecommendedSchool[]
+  answer_markdown?:     string
+}
+
+export interface ResearchMessage {
+  id:          string
+  question:    string
+  parsed:      ParsedAnswer | null
+  rawText?:    string
+  parseError?: string
+  shareToken?: string
+  createdAt:   string
+}
+
+export interface ToolStep {
+  id:              string
+  name:            string
+  args:            Record<string, unknown>
+  status:          'started' | 'completed'
+  result_summary?: string
+}
+
+export interface DecisionSummary {
+  what_we_know:           string[]
+  outstanding_questions:  string[]
+  signals:                'positive' | 'mixed' | 'negative' | 'insufficient'
+  one_liner:              string
+}
+
+export interface Session {
+  id:              string
+  title:           string | null
+  summary:         DecisionSummary | null
+  created_at:      string
+  last_active_at:  string
+}
+
+// Stream format flag emitted by the intent router BEFORE any tokens.
+// 'structured' = legacy multi-section JSON; 'prose' = plain markdown.
+export type StreamFormat = 'structured' | 'prose'
+
+// UI intent emitted on the `final` event. DecisionHub uses these to
+// auto-switch tabs / show candidate cards. Research Room read-only mode
+// will ignore them.
+export type NanaUiIntent =
+  | { action: 'show_verdict';    schoolSlug: string }
+  | { action: 'show_compare';    schoolSlugs: string[] }
+  | { action: 'show_candidates'; candidates: RecommendedSchool[] }
+
+// Error surface — bubbled up by useNanaChat for the caller to render.
+export interface AskError {
+  status?: number
+  message: string
+}

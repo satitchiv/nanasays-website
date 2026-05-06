@@ -3,76 +3,25 @@
 import { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import './decision-hub.css'
-
-// ── Types ─────────────────────────────────────────────────────────────────────
-
-interface ParsedSections {
-  short_answer?: string
-  confirmed_facts?: string
-  what_this_means?: string
-  tradeoff?: string
-  what_we_dont_know?: string
-  sources?: string
-  you_might_also_ask?: string
-}
-
-interface SourceUsed {
-  section_id: string
-  section_label: string
-  source_url: string
-  source_type: string
-}
-
-interface ParsedAnswer {
-  sections: ParsedSections
-  confidence: 'high' | 'medium' | 'low' | 'none'
-  follow_ups?: string[]
-  tour_question?: string | null
-  tour_target?: string | null
-  sources_used?: SourceUsed[]
-  recommended_schools?: RecommendedSchool[]
-  answer_markdown?: string
-}
-
-interface RecommendedSchool {
-  slug: string
-  name: string
-  why: string
-  concern?: string
-}
-
-interface ResearchMessage {
-  id: string
-  question: string
-  parsed: ParsedAnswer | null
-  rawText?: string
-  parseError?: string
-  shareToken?: string
-  createdAt: string
-}
-
-interface ToolStep {
-  id: string
-  name: string
-  args: Record<string, unknown>
-  status: 'started' | 'completed'
-  result_summary?: string
-}
-
-interface DecisionSummary {
-  what_we_know: string[]
-  outstanding_questions: string[]
-  signals: 'positive' | 'mixed' | 'negative' | 'insufficient'
-  one_liner: string
-}
-
-interface Session {
-  id: string
-  title: string | null
-  summary: DecisionSummary | null
-  created_at: string
-  last_active_at: string
-}
+// Slice 3d phase 1: chat-related types live in lib/nana/types.ts so the
+// useNanaChat hook + NanaBubble component (extracted in later phases) can
+// share them. DecisionHub-specific types (ShortlistedSchool, FeeRow, etc.)
+// stay local below. Codex P3 #3: only import what's still used here —
+// ParsedSections / SourceUsed / ParsedAnswer / ToolStep / DecisionSummary
+// were left over from before the hook extraction and are now dead.
+import type {
+  RecommendedSchool,
+  ResearchMessage,
+  Session,
+} from '@/lib/nana/types'
+// Slice 3d phase 2: chat bubble + helpers extracted to NanaBubble.tsx so
+// the Research Room right rail (phase 4) can embed the same component.
+// Codex P3 #3: trimmed unused helpers — ConfidenceBadge / extractStreamingField
+// / decodeJsonString / renderMd / isSafeUrl are only used inside NanaMsgBubble
+// itself now, not by DecisionHub's outer JSX.
+import { NanaMsgBubble, prettyToolName } from './NanaBubble'
+// Slice 3d phase 3: chat state machine extracted to lib/nana/use-nana-chat
+import { useNanaChat } from '@/lib/nana/use-nana-chat'
 
 interface ShortlistedSchool {
   school_slug: string
@@ -133,93 +82,6 @@ interface Props {
   structuredData: SchoolStructuredData[]
   initialSession: Session | null
   initialMessages: any[]
-}
-
-// ── Helpers ───────────────────────────────────────────────────────────────────
-
-/**
- * Pull a string field out of a partial JSON buffer as it streams.
- * Tolerates whitespace around the colon, decodes JSON escapes correctly,
- * and handles partial \uXXXX or trailing-backslash chunk boundaries.
- * Mirrors the implementation in NanaPanel.tsx — keep them in sync.
- */
-/** Map internal tool names to parent-friendly labels for the progress log. */
-function prettyToolName(name: string): string {
-  switch (name) {
-    case 'rankSchools':       return 'Ranking schools'
-    case 'filterSchools':     return 'Filtering schools'
-    case 'searchSchoolText':  return 'Searching school sites'
-    case 'compareSchools':    return 'Comparing schools'
-    case 'getSchoolFacts':    return 'Looking up school details'
-    case 'searchSafeguarding': return 'Checking safeguarding records'
-    default:                  return name
-  }
-}
-
-function extractStreamingField(buf: string, key: string): string {
-  if (!buf) return ''
-  const re = new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)`, 's')
-  const m = buf.match(re)
-  if (!m) return ''
-  return decodeJsonString(m[1])
-}
-
-function decodeJsonString(s: string): string {
-  let out = ''
-  for (let i = 0; i < s.length; i++) {
-    const c = s[i]
-    if (c !== '\\') { out += c; continue }
-    const n = s[i + 1]
-    if (n === undefined) break
-    if (n === 'u') {
-      const hex = s.slice(i + 2, i + 6)
-      if (hex.length < 4) break
-      out += String.fromCharCode(parseInt(hex, 16))
-      i += 5
-      continue
-    }
-    switch (n) {
-      case 'n':  out += '\n'; break
-      case 't':  out += '\t'; break
-      case 'r':  out += '\r'; break
-      case 'b':  out += '\b'; break
-      case 'f':  out += '\f'; break
-      case '"':  out += '"';  break
-      case '\\': out += '\\'; break
-      case '/':  out += '/';  break
-      default:   out += n;     break
-    }
-    i += 1
-  }
-  return out
-}
-
-/** Very simple inline markdown: bold, line breaks */
-function renderMd(text: unknown): React.ReactNode[] {
-  let str: string
-  if (typeof text === 'string') {
-    str = text
-  } else if (Array.isArray(text)) {
-    str = text.map(item => `• ${typeof item === 'string' ? item : JSON.stringify(item)}`).join('\n')
-  } else if (text != null) {
-    str = JSON.stringify(text)
-  } else {
-    str = ''
-  }
-  if (!str) return []
-  return str.split('\n').map((line, i) => {
-    const parts = line.split(/(\*\*[^*]+\*\*)/g)
-    return (
-      <span key={i}>
-        {parts.map((p, j) =>
-          p.startsWith('**') && p.endsWith('**')
-            ? <strong key={j}>{p.slice(2, -2)}</strong>
-            : <span key={j}>{p}</span>
-        )}
-        {i < str.split('\n').length - 1 && <br />}
-      </span>
-    )
-  })
 }
 
 // ── Check card data ───────────────────────────────────────────────────────────
@@ -775,23 +637,7 @@ function ProfileModal({
   )
 }
 
-// ── Helpers: confidence badge + source pills ──────────────────────────────────
-
-function ConfidenceBadge({ level }: { level: string }) {
-  const map: Record<string, [string, string]> = {
-    high:   ['dh-conf--high',   'High confidence'],
-    medium: ['dh-conf--medium', 'Medium confidence'],
-    low:    ['dh-conf--low',    'Low confidence'],
-    none:   ['dh-conf--none',   'No data'],
-  }
-  const [cls, label] = map[level] ?? ['', level]
-  return <span className={`dh-conf-badge ${cls}`}>{label}</span>
-}
-
-function isSafeUrl(url: string): boolean {
-  try { const u = new URL(url); return u.protocol === 'https:' || u.protocol === 'http:' }
-  catch { return false }
-}
+// ── Candidate card ───────────────────────────────────────────────────────────
 
 function CandidateCard({ c, inList, onAdd }: { c: RecommendedSchool; inList: boolean; onAdd: () => void }) {
   return (
@@ -821,199 +667,9 @@ function buildOpeningBriefing(
 }
 
 // ── Chat message rendering ────────────────────────────────────────────────────
+// NanaMsgBubble lives in components/nana/NanaBubble.tsx so the Research
+// Room right rail (slice 3d phase 4) can embed the same component.
 
-function NanaMsgBubble({
-  msg,
-  isStreaming,
-  streamBuf,
-  streamFormat,
-}: {
-  msg?: ResearchMessage
-  isStreaming?: boolean
-  streamBuf?: string
-  streamFormat?: 'structured' | 'prose'
-}) {
-  const parsed = msg?.parsed as any
-  const s = parsed?.sections ?? {}
-
-  // ── Phase A: prose-mode render ──
-  // Triggered by either: live stream marked as prose (intent router path), or
-  // a finalised message persisted in prose_v1 format. Renders plain markdown
-  // and the citation chips; skips the structured "Watch Out / What we don't
-  // know" callouts entirely.
-  const isProseMode =
-    (isStreaming && streamFormat === 'prose') ||
-    parsed?.format === 'prose_v1'
-
-  if (isProseMode) {
-    // During streaming streamBuf is the partial markdown. Strip any trailing
-    // <!-- nana-meta ... start because renderMd treats text as plain spans
-    // (not HTML), so the comment opener would otherwise be visible mid-stream
-    // until the closing --> arrives. After final, parsed.prose is the
-    // already-cleaned text from the runner.
-    const rawProse = isStreaming
-      ? (streamBuf || '')
-      : (parsed?.prose || msg?.rawText || '')
-    const proseText = isStreaming
-      ? rawProse.replace(/<!--\s*nana-meta[\s\S]*$/i, '').trimEnd()
-      : rawProse
-    const citations: string[] = Array.isArray(parsed?.citations) ? parsed.citations : []
-
-    return (
-      <div className="dh-msg-nana">
-        {proseText
-          ? <div className="dh-msg-nana-prose">{renderMd(proseText)}</div>
-          : (
-            <div className="dh-skeleton">
-              <div className="dh-skeleton-line dh-skeleton-line--80" />
-              <div className="dh-skeleton-line dh-skeleton-line--60" />
-            </div>
-          )
-        }
-        {!isStreaming && citations.length > 0 && (
-          <div className="dh-sources">
-            {citations
-              .filter(url => typeof url === 'string' && isSafeUrl(url))
-              .slice(0, 6)
-              .map((url, i) => {
-                let label = 'source'
-                try { label = new URL(url).hostname.replace(/^www\./, '') } catch {}
-                return (
-                  <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="dh-source-pill dh-source-pill--chat">
-                    {label.slice(0, 40)} ↗
-                  </a>
-                )
-              })}
-          </div>
-        )}
-        {!isStreaming && msg?.shareToken && (
-          <Link href={`/nana/answer/${msg.shareToken}`} className="dh-msg-share" target="_blank">
-            Share ↗
-          </Link>
-        )}
-      </div>
-    )
-  }
-
-  // ── Structured render (legacy + agentic fallback) ──
-
-  // Progressive extraction during streaming — pull each section out of the partial JSON
-  // as it arrives, so the bubble fills in section-by-section instead of popping at the end.
-  const live = isStreaming && streamBuf
-    ? {
-        short_answer:      extractStreamingField(streamBuf, 'short_answer'),
-        confirmed_facts:   extractStreamingField(streamBuf, 'confirmed_facts'),
-        what_this_means:   extractStreamingField(streamBuf, 'what_this_means'),
-        tradeoff:          extractStreamingField(streamBuf, 'tradeoff'),
-        what_we_dont_know: extractStreamingField(streamBuf, 'what_we_dont_know'),
-      }
-    : null
-
-  // Resolve "best available" value for each section: live partial wins while streaming,
-  // committed parsed value wins after final.
-  const shortAnswer    = live?.short_answer      || s.short_answer       || ''
-  const confirmedFacts = live?.confirmed_facts   || s.confirmed_facts    || ''
-  const whatThisMeans  = live?.what_this_means   || s.what_this_means    || ''
-  const tradeoff       = live?.tradeoff          || s.tradeoff           || ''
-  const whatWeDontKnow = live?.what_we_dont_know || s.what_we_dont_know  || ''
-
-  // Skeleton only while streaming AND we haven't even started receiving short_answer yet.
-  const showSkeleton = isStreaming && !shortAnswer
-
-  // Fallback: if parsing failed entirely, or sections are empty, render raw text so the
-  // user always sees Nana's actual answer instead of a blank bubble.
-  const renderedAnySection = !!(shortAnswer || confirmedFacts || whatThisMeans || tradeoff || whatWeDontKnow)
-  const fallbackText = !isStreaming && !renderedAnySection
-    ? (parsed?.answer_markdown || msg?.rawText || '')
-    : ''
-
-  return (
-    <div className="dh-msg-nana">
-      {shortAnswer && (
-        <>
-          <p className="dh-msg-nana-eyebrow">Short answer</p>
-          <p className="dh-msg-nana-lead">{renderMd(shortAnswer)}</p>
-        </>
-      )}
-
-      {!isStreaming && parsed?.confidence && <ConfidenceBadge level={parsed.confidence} />}
-
-      {showSkeleton && (
-        <div className="dh-skeleton">
-          <div className="dh-skeleton-line dh-skeleton-line--80" />
-          <div className="dh-skeleton-line dh-skeleton-line--60" />
-          <div className="dh-skeleton-line dh-skeleton-line--90" />
-        </div>
-      )}
-
-      {confirmedFacts && confirmedFacts !== 'Nothing to flag here.' && (
-        <p className="dh-msg-nana-prose">{renderMd(confirmedFacts)}</p>
-      )}
-
-      {whatThisMeans && whatThisMeans !== 'Nothing to flag here.' && (
-        <div className="dh-ans-section">
-          <p className="dh-msg-nana-eyebrow">What this means</p>
-          <p className="dh-msg-nana-prose">{renderMd(whatThisMeans)}</p>
-        </div>
-      )}
-
-      {tradeoff && tradeoff !== 'Nothing to flag here.' && (
-        <div className="dh-msg-nana-tradeoff">
-          <p className="dh-msg-nana-tradeoff-label">⚠ Watch out</p>
-          {renderMd(tradeoff)}
-        </div>
-      )}
-
-      {whatWeDontKnow && whatWeDontKnow !== 'Nothing to flag here.' && (
-        <div className="dh-ans-section dh-ans-section--dim">
-          <p className="dh-msg-nana-eyebrow">What we don&apos;t know</p>
-          <p className="dh-msg-nana-prose">{renderMd(whatWeDontKnow)}</p>
-        </div>
-      )}
-
-      {fallbackText && (
-        <div className="dh-ans-section">
-          <p className="dh-msg-nana-prose">{renderMd(fallbackText)}</p>
-        </div>
-      )}
-
-      {!isStreaming && msg?.parseError && (
-        <div className="dh-msg-nana-tradeoff">
-          <p className="dh-msg-nana-tradeoff-label">Heads up</p>
-          <p className="dh-msg-nana-prose">
-            Nana&apos;s answer didn&apos;t come back in the expected shape, so the structured callouts (sources, tour question) may be missing.
-          </p>
-        </div>
-      )}
-
-      {!isStreaming && parsed?.tour_question && (
-        <div className="dh-msg-nana-tour">
-          <p className="dh-msg-nana-tour-label">Tour question</p>
-          <p className="dh-msg-nana-tour-q">&ldquo;{parsed.tour_question}&rdquo;</p>
-        </div>
-      )}
-
-      {!isStreaming && parsed?.sources_used && parsed.sources_used.length > 0 && (
-        <div className="dh-sources">
-          {parsed.sources_used
-            .filter((s: any) => s.source_url && s.section_label && isSafeUrl(s.source_url))
-            .slice(0, 6)
-            .map((s: any, i: number) => (
-              <a key={i} href={s.source_url} target="_blank" rel="noopener noreferrer" className="dh-source-pill dh-source-pill--chat">
-                {s.section_label.slice(0, 40)} ↗
-              </a>
-            ))}
-        </div>
-      )}
-
-      {!isStreaming && msg?.shareToken && (
-        <Link href={`/nana/answer/${msg.shareToken}`} className="dh-msg-share" target="_blank">
-          Share ↗
-        </Link>
-      )}
-    </div>
-  )
-}
 
 // ── Main component ────────────────────────────────────────────────────────────
 
@@ -1064,38 +720,12 @@ export function DecisionHub({
   }
 
   // ── Chat (SSE) state ─────────────────────────────────────────────────────
-  const [session, setSession] = useState<Session | null>(initialSession)
-  const [messages, setMessages] = useState<ResearchMessage[]>(
-    (initialMessages ?? []).map((m: any) => ({
-      id: m.id,
-      question: m.question,
-      parsed: m.parsed_answer,
-      shareToken: m.share_token,
-      createdAt: m.created_at,
-    }))
-  )
-  const [question, setQuestion] = useState('')
-  const [isStreaming, setIsStreaming] = useState(false)
-  const [streamBuf, setStreamBuf] = useState('')
-  const [activeQuestion, setActiveQuestion] = useState('')
-  const [activeParsed, setActiveParsed] = useState<ParsedAnswer | null>(null)
-  const [activeShareToken, setActiveShareToken] = useState<string | undefined>()
-  const [devilsAdvocate, setDevilsAdvocate] = useState(false)
-  const [candidates, setCandidates] = useState<RecommendedSchool[]>([])
+  // Slice 3d phase 3: chat state machine moved to useNanaChat. The hook
+  // owns all ~250 lines of streaming logic, abort/retry semantics, and
+  // SSE event handling — DecisionHub just renders against the returned
+  // values + threads in the server-params getter and ui_intent observer.
+  // Tooltip stays here (UI-only, not chat).
   const [showTooltip, setShowTooltip] = useState(false)
-  const [askError, setAskError] = useState<{ status?: number; message: string } | null>(null)
-  const [toolProgress, setToolProgress] = useState<ToolStep[]>([])
-  // Deep mode = agentic loop scoped to the parent's shortlist. Opt-in toggle —
-  // adds ~20-40s of latency in exchange for tool-calling, stricter scope, and
-  // more thoughtful cross-school answers. Disabled until the shortlist has 2+.
-  const [deepMode, setDeepMode]           = useState(false)
-  const [agentStatus, setAgentStatus]     = useState<string | null>(null)
-  const [shortlistLocked, setShortlistLocked] = useState(false)
-  // Phase A — intent router signals "prose" via {type:'answer_format'}.
-  // During streaming the bubble renders streamBuf as plain markdown
-  // (rather than running extractStreamingField against partial JSON).
-  const [streamFormat, setStreamFormat] = useState<'structured' | 'prose'>('structured')
-
   useEffect(() => {
     if (!localStorage.getItem('nana-dh-visited')) {
       setShowTooltip(true)
@@ -1103,292 +733,59 @@ export function DecisionHub({
     }
   }, [])
 
-  const abortRef   = useRef<AbortController | null>(null)
-  const chatEndRef = useRef<HTMLDivElement>(null)
-  const inputRef   = useRef<HTMLTextAreaElement>(null)
-
-  // Auto-scroll chat to bottom
-  useEffect(() => {
-    if (chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' })
-    }
-  }, [messages, streamBuf, isStreaming])
-
-  const ask = useCallback(async () => {
-    const q = question.trim()
-    if (!q || isStreaming) return
-
-    abortRef.current?.abort()
-    const ac = new AbortController()
-    abortRef.current = ac
-
-    setAskError(null)
-    setIsStreaming(true)
-    setStreamBuf('')
-    setStreamFormat('structured')   // reset; prose intent fires answer_format event if applicable
-    setActiveQuestion(q)
-    setActiveParsed(null)
-    setActiveShareToken(undefined)
-    setQuestion('')
-    setCandidates([])
-    setToolProgress([])
-    setShortlistLocked(false)
-    // Optimistic status copy — fills the silent ~3-5s gap between submit and
-    // the first server-emitted agent_status / tool_call event so parents see
-    // immediate feedback. Server events overwrite this once they arrive.
-    setAgentStatus('Looking into our library — one moment…')
-
-    // Hoisted so the finalization watchdog can run in both happy-path
-    // (post-loop) and error-path (catch) — if the stream drops mid-flight
-    // we still preserve whatever partial text Nana sent.
-    let sawFinal = false
-    let localStreamText = ''
-    let serverError: string | null = null
-
-    const commitPartialAsMessage = () => {
-      setMessages(prev => [...prev, {
-        id:        crypto.randomUUID?.() ?? Math.random().toString(36).slice(2),
-        question:  q,
-        parsed:    null,
-        rawText:   localStreamText,
-        parseError: 'Stream ended before Nana finished a structured answer.',
-        shareToken: undefined,
-        createdAt: new Date().toISOString(),
-      }])
-    }
-
-    try {
-      const res = await fetch('/api/nana-research', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          question: q,
-          sessionId: session?.id,
-          devilsAdvocate,
-          deepMode: deepMode && localShortlist.length >= 2,
-          activeTab,
-          activeSchoolSlug: activeSchool?.school_slug ?? null,
-          shortlistSlugs: localShortlist.map(s => s.school_slug),
-        }),
-        signal: ac.signal,
-      })
-
-      if (!res.ok || !res.body) {
-        const err = await res.json().catch(() => ({ error: 'Request failed' }))
-        const httpError: any = new Error(err.error || 'Request failed')
-        httpError.status = res.status
-        throw httpError
+  const chat = useNanaChat({
+    initialSession,
+    // Map raw server-shaped messages → ResearchMessage at the call site
+    // (same shape as the original useState initialiser; hook just trusts
+    // the shape).
+    initialMessages: (initialMessages ?? []).map((m: any) => ({
+      id:         m.id,
+      question:   m.question,
+      parsed:     m.parsed_answer,
+      shareToken: m.share_token,
+      createdAt:  m.created_at,
+    })),
+    getServerParams: () => ({
+      activeTab,
+      activeSchoolSlug: activeSchool?.school_slug ?? null,
+      shortlistSlugs:   localShortlist.map(s => s.school_slug),
+    }),
+    onUiIntent: (intent, submittedAt) => {
+      // F5: react to ui_intent — auto-switch left pane tab silently.
+      // Codex P2 #3: match against `submittedAt.shortlistSlugs` (captured
+      // at ask() submit time) rather than current `localShortlist`. This
+      // restores the original closure semantics — if the user added or
+      // removed a school mid-stream, the tab-switch decision still uses
+      // the shortlist as it was when they clicked Ask.
+      if (intent.action === 'show_verdict' && intent.schoolSlug) {
+        const idx = submittedAt.shortlistSlugs.indexOf(intent.schoolSlug)
+        if (idx >= 0) { setActiveSchoolIdx(idx); setActiveTab('verdict') }
+      } else if (intent.action === 'show_compare') {
+        const allInList = intent.schoolSlugs.every(
+          (slug: string) => submittedAt.shortlistSlugs.includes(slug)
+        )
+        if (allInList) setActiveTab('compare')
       }
+      // show_candidates is handled internally by the hook (sets candidates state).
+    },
+  })
+  // Re-destructure with same names so the rest of the JSX renders without
+  // further edits — keeps the diff focused on the state-machine extraction.
+  const {
+    session, setSession,
+    messages, question, setQuestion,
+    isStreaming, streamBuf, streamFormat,
+    activeQuestion, activeParsed, activeShareToken,
+    devilsAdvocate, setDevilsAdvocate,
+    deepMode, setDeepMode,
+    candidates, setCandidates,
+    askError, setAskError,
+    toolProgress, agentStatus,
+    shortlistLocked,
+    abortRef, chatEndRef, inputRef,
+    ask, stopStream, startNewConversation,
+  } = chat
 
-      const reader = res.body.getReader()
-      const dec    = new TextDecoder()
-      let   rawBuf = ''
-      let   shareToken: string | undefined
-      let   localParsed: ParsedAnswer | null = null
-      let   hasContent = false
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        rawBuf += dec.decode(value, { stream: true })
-        const lines = rawBuf.split('\n')
-        rawBuf = lines.pop() ?? ''
-
-        for (const line of lines) {
-          if (!line.startsWith('data:')) continue
-          let evt: any
-          try { evt = JSON.parse(line.slice(5).trim()) } catch { continue }
-
-          switch (evt.type) {
-            case 'session_ready':
-              setSession(prev => {
-                if (prev && prev.id === evt.sessionId) return prev
-                return {
-                  id: evt.sessionId,
-                  title: q.slice(0, 80),
-                  summary: null,
-                  created_at: new Date().toISOString(),
-                  last_active_at: new Date().toISOString(),
-                }
-              })
-              if (evt.agenticLocked === true) setShortlistLocked(true)
-              break
-
-            case 'agent_status':
-              // Server-emitted progress copy ("Planning the checks for your shortlist…",
-              // "Writing the comparison…"). Parents see this during the silent multi-second
-              // turns where there's no token streaming.
-              if (typeof evt.message === 'string') setAgentStatus(evt.message)
-              break
-
-            case 'answer_format':
-              // Phase A — intent router emits this BEFORE any tokens. Tells the
-              // bubble whether to render streamBuf as plain markdown ('prose')
-              // or run extractStreamingField against partial JSON ('structured').
-              if (evt.format === 'prose' || evt.format === 'structured') {
-                setStreamFormat(evt.format)
-              }
-              break
-
-            case 'token': {
-              const text = typeof evt.text === 'string' ? evt.text : ''
-              if (text) {
-                hasContent = true
-                localStreamText += text
-                setStreamBuf(prev => prev + text)
-              }
-              break
-            }
-
-            case 'stream_reset':
-              // Agentic loop emits this before a parse-error retry when the
-              // original turn already streamed partial tokens. Clear the
-              // partial-JSON buffer so stale text doesn't sit on screen
-              // while the retry runs.
-              localStreamText = ''
-              setStreamBuf('')
-              break
-
-            case 'final': {
-              sawFinal = true
-              setAgentStatus(null)  // clear progress copy now that the answer is here
-              shareToken = evt.shareToken
-              setActiveShareToken(evt.shareToken)
-              if (evt.payload?.parsed) {
-                localParsed = evt.payload.parsed
-                setActiveParsed(localParsed)
-              }
-              const rawText: string | undefined =
-                typeof evt.payload?.raw === 'string' && evt.payload.raw.length > 0
-                  ? evt.payload.raw
-                  : undefined
-              const parseError: string | undefined =
-                typeof evt.payload?.parseError === 'string' ? evt.payload.parseError : undefined
-              setIsStreaming(false)
-              if (localParsed || hasContent || rawText) {
-                setMessages(prev => [...prev, {
-                  id:        crypto.randomUUID?.() ?? Math.random().toString(36).slice(2),
-                  question:  q,
-                  parsed:    localParsed,
-                  rawText,
-                  parseError,
-                  shareToken,
-                  createdAt: new Date().toISOString(),
-                }])
-              }
-              // F5: react to ui_intent — auto-switch left pane tab silently
-              // localShortlist is captured at ask() call time via useCallback deps — correct semantics
-              {
-                const intent = evt.uiIntent as any
-                if (intent?.action === 'show_verdict' && intent.schoolSlug) {
-                  const idx = localShortlist.findIndex(s => s.school_slug === intent.schoolSlug)
-                  if (idx >= 0) { setActiveSchoolIdx(idx); setActiveTab('verdict') }
-                } else if (intent?.action === 'show_compare') {
-                  const allInList = (intent.schoolSlugs as string[]).every(
-                    (slug: string) => localShortlist.some(s => s.school_slug === slug)
-                  )
-                  if (allInList) setActiveTab('compare')
-                } else if (intent?.action === 'show_candidates' && intent.candidates) {
-                  setCandidates(intent.candidates)
-                }
-              }
-              break
-            }
-
-            case 'summary_generating':
-              break
-
-            case 'summary_update':
-              if (evt.payload?.summary) {
-                setSession(prev => prev ? { ...prev, summary: evt.payload.summary } : prev)
-              }
-              break
-
-            case 'error':
-              serverError = typeof evt.error === 'string' ? evt.error : 'Nana hit an error generating this answer.'
-              setAgentStatus(null)  // clear optimistic copy so error isn't hidden behind a spinner
-              setIsStreaming(false)
-              void reader.cancel().catch(() => {})
-              break
-
-            case 'tool_call': {
-              // Agentic-mode progress event. Don't touch sawFinal/serverError —
-              // these are pure progress bookkeeping. Append on 'started',
-              // mark complete in place on 'completed'.
-              const name = typeof evt.name === 'string' ? evt.name : 'tool'
-              const args = (evt.args && typeof evt.args === 'object') ? evt.args as Record<string, unknown> : {}
-              const id = `${name}:${JSON.stringify(args)}`
-              const status: 'started' | 'completed' = evt.status === 'completed' ? 'completed' : 'started'
-              const summary = typeof evt.result_summary === 'string' ? evt.result_summary : undefined
-
-              setToolProgress(prev => {
-                if (status === 'started') {
-                  if (prev.some(p => p.id === id)) return prev
-                  return [...prev, { id, name, args, status: 'started' }]
-                }
-                return prev.map(p => p.id === id ? { ...p, status: 'completed', result_summary: summary } : p)
-              })
-              break
-            }
-          }
-        }
-      }
-
-      // Watchdog: stream closed cleanly but no `final` arrived. Either the brain
-      // emitted an `error` event, or the response ended early. Surface what we
-      // can so the user never sees a silent dead-end.
-      if (!sawFinal) {
-        if (serverError) {
-          setAskError({ message: serverError })
-        } else if (localStreamText) {
-          commitPartialAsMessage()
-        } else {
-          setAskError({ message: 'The connection ended before Nana could answer. Please try again.' })
-        }
-      }
-
-    } catch (e: any) {
-      if (e?.name === 'AbortError') return
-      // Mid-stream drop with partial tokens already received: commit the partial
-      // so the user keeps what Nana actually said, rather than losing it to an
-      // error toast.
-      if (!sawFinal && localStreamText) {
-        commitPartialAsMessage()
-      } else {
-        const status = typeof e?.status === 'number' ? e.status : undefined
-        const message =
-          status === 401 ? 'You need to be signed in to ask Nana. Open this in a browser where you\'re logged in.'
-          : status === 402 ? 'Deep Research needs an active subscription. Visit /unlock to subscribe.'
-          : status === 429 ? 'You\'re sending questions too fast. Give it a moment and try again.'
-          : (typeof e?.message === 'string' && e.message) || 'Something went wrong. Please try again.'
-        setAskError({ status, message })
-      }
-    } finally {
-      setIsStreaming(false)
-      setAgentStatus(null)  // clear any leftover progress copy on stream end
-    }
-  }, [question, isStreaming, session, devilsAdvocate, deepMode, activeTab, activeSchool, localShortlist])
-
-  function stopStream() {
-    abortRef.current?.abort()
-    setIsStreaming(false)
-  }
-
-  function startNewConversation() {
-    abortRef.current?.abort()
-    setIsStreaming(false)
-    setSession(null)
-    setMessages([])
-    setStreamBuf('')
-    setActiveQuestion('')
-    setActiveParsed(null)
-    setActiveShareToken(undefined)
-    setCandidates([])
-    setAskError(null)
-    setQuestion('')
-    inputRef.current?.focus()
-  }
 
   function handleKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === 'Enter' && !e.shiftKey) {

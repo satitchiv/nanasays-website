@@ -1,0 +1,324 @@
+'use client'
+
+import Link from 'next/link'
+import type { ResearchMessage, StreamFormat } from '@/lib/nana/types'
+// The bubble's classNames (dh-msg-nana, dh-msg-nana-prose, etc.) live in
+// decision-hub.css. Importing it here means anywhere NanaBubble is mounted
+// gets the styles automatically — Research Room's right rail can embed
+// the bubble without having to also import decision-hub.css separately.
+import './decision-hub.css'
+
+// Slice 3d phase 2: chat bubble + streaming helpers extracted from
+// DecisionHub.tsx. Behaviour-preserving — same className contract
+// (dh-msg-nana, dh-msg-nana-prose, etc. styled by decision-hub.css), same
+// section-by-section progressive extraction, same prose vs structured
+// branching. DecisionHub imports NanaMsgBubble + helpers from here; the
+// Research Room right rail (slice 3d phase 4) embeds NanaMsgBubble in a
+// read-only configuration (no shareToken Link, no tour question affordance
+// — controlled via props).
+
+// ── Helpers ──────────────────────────────────────────────────────────────
+
+/**
+ * Map internal tool names to parent-friendly labels for the progress log.
+ * Used by both DecisionHub's tool-progress strip and (in phase 4) the
+ * Research Room chat panel — exported here so both share one source.
+ */
+export function prettyToolName(name: string): string {
+  switch (name) {
+    case 'rankSchools':        return 'Ranking schools'
+    case 'filterSchools':      return 'Filtering schools'
+    case 'searchSchoolText':   return 'Searching school sites'
+    case 'compareSchools':     return 'Comparing schools'
+    case 'getSchoolFacts':     return 'Looking up school details'
+    case 'searchSafeguarding': return 'Checking safeguarding records'
+    default:                   return name
+  }
+}
+
+/**
+ * Pull a string field out of a partial JSON buffer as it streams.
+ * Tolerates whitespace around the colon, decodes JSON escapes correctly,
+ * and handles partial \uXXXX or trailing-backslash chunk boundaries.
+ * Mirrors the implementation in NanaPanel.tsx — keep them in sync.
+ */
+export function extractStreamingField(buf: string, key: string): string {
+  if (!buf) return ''
+  const re = new RegExp(`"${key}"\\s*:\\s*"((?:[^"\\\\]|\\\\.)*)`, 's')
+  const m = buf.match(re)
+  if (!m) return ''
+  return decodeJsonString(m[1])
+}
+
+export function decodeJsonString(s: string): string {
+  let out = ''
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i]
+    if (c !== '\\') { out += c; continue }
+    const n = s[i + 1]
+    if (n === undefined) break
+    if (n === 'u') {
+      const hex = s.slice(i + 2, i + 6)
+      if (hex.length < 4) break
+      out += String.fromCharCode(parseInt(hex, 16))
+      i += 5
+      continue
+    }
+    switch (n) {
+      case 'n':  out += '\n'; break
+      case 't':  out += '\t'; break
+      case 'r':  out += '\r'; break
+      case 'b':  out += '\b'; break
+      case 'f':  out += '\f'; break
+      case '"':  out += '"';  break
+      case '\\': out += '\\'; break
+      case '/':  out += '/';  break
+      default:   out += n;     break
+    }
+    i += 1
+  }
+  return out
+}
+
+/** Very simple inline markdown: bold, line breaks */
+export function renderMd(text: unknown): React.ReactNode[] {
+  let str: string
+  if (typeof text === 'string') {
+    str = text
+  } else if (Array.isArray(text)) {
+    str = text.map(item => `• ${typeof item === 'string' ? item : JSON.stringify(item)}`).join('\n')
+  } else if (text != null) {
+    str = JSON.stringify(text)
+  } else {
+    str = ''
+  }
+  if (!str) return []
+  return str.split('\n').map((line, i) => {
+    const parts = line.split(/(\*\*[^*]+\*\*)/g)
+    return (
+      <span key={i}>
+        {parts.map((p, j) =>
+          p.startsWith('**') && p.endsWith('**')
+            ? <strong key={j}>{p.slice(2, -2)}</strong>
+            : <span key={j}>{p}</span>
+        )}
+        {i < str.split('\n').length - 1 && <br />}
+      </span>
+    )
+  })
+}
+
+export function isSafeUrl(url: string): boolean {
+  try { const u = new URL(url); return u.protocol === 'https:' || u.protocol === 'http:' }
+  catch { return false }
+}
+
+// ── Confidence badge ─────────────────────────────────────────────────────
+
+export function ConfidenceBadge({ level }: { level: string }) {
+  const map: Record<string, [string, string]> = {
+    high:   ['dh-conf--high',   'High confidence'],
+    medium: ['dh-conf--medium', 'Medium confidence'],
+    low:    ['dh-conf--low',    'Low confidence'],
+    none:   ['dh-conf--none',   'No data'],
+  }
+  const [cls, label] = map[level] ?? ['', level]
+  return <span className={`dh-conf-badge ${cls}`}>{label}</span>
+}
+
+// ── Bubble ───────────────────────────────────────────────────────────────
+
+export interface NanaMsgBubbleProps {
+  msg?:           ResearchMessage
+  isStreaming?:   boolean
+  streamBuf?:     string
+  streamFormat?:  StreamFormat
+}
+
+export function NanaMsgBubble({
+  msg,
+  isStreaming,
+  streamBuf,
+  streamFormat,
+}: NanaMsgBubbleProps) {
+  const parsed = msg?.parsed as any
+  const s = parsed?.sections ?? {}
+
+  // ── Phase A: prose-mode render ──
+  // Triggered by either: live stream marked as prose (intent router path), or
+  // a finalised message persisted in prose_v1 format. Renders plain markdown
+  // and the citation chips; skips the structured "Watch Out / What we don't
+  // know" callouts entirely.
+  const isProseMode =
+    (isStreaming && streamFormat === 'prose') ||
+    parsed?.format === 'prose_v1'
+
+  if (isProseMode) {
+    // During streaming streamBuf is the partial markdown. Strip any trailing
+    // <!-- nana-meta ... start because renderMd treats text as plain spans
+    // (not HTML), so the comment opener would otherwise be visible mid-stream
+    // until the closing --> arrives. After final, parsed.prose is the
+    // already-cleaned text from the runner.
+    const rawProse = isStreaming
+      ? (streamBuf || '')
+      : (parsed?.prose || msg?.rawText || '')
+    const proseText = isStreaming
+      ? rawProse.replace(/<!--\s*nana-meta[\s\S]*$/i, '').trimEnd()
+      : rawProse
+    const citations: string[] = Array.isArray(parsed?.citations) ? parsed.citations : []
+
+    return (
+      <div className="dh-msg-nana">
+        {proseText
+          ? <div className="dh-msg-nana-prose">{renderMd(proseText)}</div>
+          : (
+            <div className="dh-skeleton">
+              <div className="dh-skeleton-line dh-skeleton-line--80" />
+              <div className="dh-skeleton-line dh-skeleton-line--60" />
+            </div>
+          )
+        }
+        {!isStreaming && citations.length > 0 && (
+          <div className="dh-sources">
+            {citations
+              .filter(url => typeof url === 'string' && isSafeUrl(url))
+              .slice(0, 6)
+              .map((url, i) => {
+                let label = 'source'
+                try { label = new URL(url).hostname.replace(/^www\./, '') } catch {}
+                return (
+                  <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="dh-source-pill dh-source-pill--chat">
+                    {label.slice(0, 40)} ↗
+                  </a>
+                )
+              })}
+          </div>
+        )}
+        {!isStreaming && msg?.shareToken && (
+          <Link href={`/nana/answer/${msg.shareToken}`} className="dh-msg-share" target="_blank">
+            Share ↗
+          </Link>
+        )}
+      </div>
+    )
+  }
+
+  // ── Structured render (legacy + agentic fallback) ──
+
+  // Progressive extraction during streaming — pull each section out of the partial JSON
+  // as it arrives, so the bubble fills in section-by-section instead of popping at the end.
+  const live = isStreaming && streamBuf
+    ? {
+        short_answer:      extractStreamingField(streamBuf, 'short_answer'),
+        confirmed_facts:   extractStreamingField(streamBuf, 'confirmed_facts'),
+        what_this_means:   extractStreamingField(streamBuf, 'what_this_means'),
+        tradeoff:          extractStreamingField(streamBuf, 'tradeoff'),
+        what_we_dont_know: extractStreamingField(streamBuf, 'what_we_dont_know'),
+      }
+    : null
+
+  // Resolve "best available" value for each section: live partial wins while streaming,
+  // committed parsed value wins after final.
+  const shortAnswer    = live?.short_answer      || s.short_answer       || ''
+  const confirmedFacts = live?.confirmed_facts   || s.confirmed_facts    || ''
+  const whatThisMeans  = live?.what_this_means   || s.what_this_means    || ''
+  const tradeoff       = live?.tradeoff          || s.tradeoff           || ''
+  const whatWeDontKnow = live?.what_we_dont_know || s.what_we_dont_know  || ''
+
+  // Skeleton only while streaming AND we haven't even started receiving short_answer yet.
+  const showSkeleton = isStreaming && !shortAnswer
+
+  // Fallback: if parsing failed entirely, or sections are empty, render raw text so the
+  // user always sees Nana's actual answer instead of a blank bubble.
+  const renderedAnySection = !!(shortAnswer || confirmedFacts || whatThisMeans || tradeoff || whatWeDontKnow)
+  const fallbackText = !isStreaming && !renderedAnySection
+    ? (parsed?.answer_markdown || msg?.rawText || '')
+    : ''
+
+  return (
+    <div className="dh-msg-nana">
+      {shortAnswer && (
+        <>
+          <p className="dh-msg-nana-eyebrow">Short answer</p>
+          <p className="dh-msg-nana-lead">{renderMd(shortAnswer)}</p>
+        </>
+      )}
+
+      {!isStreaming && parsed?.confidence && <ConfidenceBadge level={parsed.confidence} />}
+
+      {showSkeleton && (
+        <div className="dh-skeleton">
+          <div className="dh-skeleton-line dh-skeleton-line--80" />
+          <div className="dh-skeleton-line dh-skeleton-line--60" />
+          <div className="dh-skeleton-line dh-skeleton-line--90" />
+        </div>
+      )}
+
+      {confirmedFacts && confirmedFacts !== 'Nothing to flag here.' && (
+        <p className="dh-msg-nana-prose">{renderMd(confirmedFacts)}</p>
+      )}
+
+      {whatThisMeans && whatThisMeans !== 'Nothing to flag here.' && (
+        <div className="dh-ans-section">
+          <p className="dh-msg-nana-eyebrow">What this means</p>
+          <p className="dh-msg-nana-prose">{renderMd(whatThisMeans)}</p>
+        </div>
+      )}
+
+      {tradeoff && tradeoff !== 'Nothing to flag here.' && (
+        <div className="dh-msg-nana-tradeoff">
+          <p className="dh-msg-nana-tradeoff-label">⚠ Watch out</p>
+          {renderMd(tradeoff)}
+        </div>
+      )}
+
+      {whatWeDontKnow && whatWeDontKnow !== 'Nothing to flag here.' && (
+        <div className="dh-ans-section dh-ans-section--dim">
+          <p className="dh-msg-nana-eyebrow">What we don&apos;t know</p>
+          <p className="dh-msg-nana-prose">{renderMd(whatWeDontKnow)}</p>
+        </div>
+      )}
+
+      {fallbackText && (
+        <div className="dh-ans-section">
+          <p className="dh-msg-nana-prose">{renderMd(fallbackText)}</p>
+        </div>
+      )}
+
+      {!isStreaming && msg?.parseError && (
+        <div className="dh-msg-nana-tradeoff">
+          <p className="dh-msg-nana-tradeoff-label">Heads up</p>
+          <p className="dh-msg-nana-prose">
+            Nana&apos;s answer didn&apos;t come back in the expected shape, so the structured callouts (sources, tour question) may be missing.
+          </p>
+        </div>
+      )}
+
+      {!isStreaming && parsed?.tour_question && (
+        <div className="dh-msg-nana-tour">
+          <p className="dh-msg-nana-tour-label">Tour question</p>
+          <p className="dh-msg-nana-tour-q">&ldquo;{parsed.tour_question}&rdquo;</p>
+        </div>
+      )}
+
+      {!isStreaming && parsed?.sources_used && parsed.sources_used.length > 0 && (
+        <div className="dh-sources">
+          {parsed.sources_used
+            .filter((s: any) => s.source_url && s.section_label && isSafeUrl(s.source_url))
+            .slice(0, 6)
+            .map((s: any, i: number) => (
+              <a key={i} href={s.source_url} target="_blank" rel="noopener noreferrer" className="dh-source-pill dh-source-pill--chat">
+                {s.section_label.slice(0, 40)} ↗
+              </a>
+            ))}
+        </div>
+      )}
+
+      {!isStreaming && msg?.shareToken && (
+        <Link href={`/nana/answer/${msg.shareToken}`} className="dh-msg-share" target="_blank">
+          Share ↗
+        </Link>
+      )}
+    </div>
+  )
+}

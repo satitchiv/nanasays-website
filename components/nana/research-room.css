@@ -589,18 +589,25 @@
   border-top: 1px solid var(--rr-border);
   padding: 12px 14px;
   background: var(--rr-white);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 .rr-chat-input-row {
   display: flex;
   gap: 6px;
-  align-items: center;
+  align-items: flex-end;
   background: var(--rr-white);
   border: 1.5px solid var(--rr-border);
   border-radius: var(--rr-r-md);
   padding: 4px 4px 4px 14px;
   transition: border-color .15s;
-  opacity: 0.6;
 }
+.rr-chat-input-row:focus-within {
+  border-color: var(--rr-teal);
+  box-shadow: 0 0 0 3px var(--rr-teal-bg);
+}
+.rr-chat-input-row textarea,
 .rr-chat-input-row input {
   flex: 1;
   background: transparent;
@@ -610,7 +617,14 @@
   font-size: 13.5px;
   padding: 8px 0;
   color: var(--rr-navy);
+  resize: none;
+  line-height: 1.4;
+  min-height: 32px;
+  max-height: 120px;
 }
+.rr-chat-input-row textarea:disabled,
+.rr-chat-input-row input:disabled { opacity: 0.5; }
+.rr-chat-input-row textarea::placeholder,
 .rr-chat-input-row input::placeholder { color: var(--rr-muted); }
 .rr-chat-input-row button {
   background: var(--rr-navy);
@@ -621,8 +635,197 @@
   font-size: 12px;
   font-weight: 800;
   padding: 8px 14px;
-  cursor: not-allowed;
+  cursor: pointer;
   letter-spacing: .04em;
+  flex-shrink: 0;
+}
+.rr-chat-input-row button:hover:not(:disabled) { background: var(--rr-navy-lt); }
+.rr-chat-input-row button:disabled { cursor: not-allowed; opacity: 0.5; }
+.rr-chat-new-btn {
+  align-self: flex-start;
+  background: transparent;
+  border: 1px solid var(--rr-border);
+  border-radius: var(--rr-r-pill);
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  color: var(--rr-muted);
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.rr-chat-new-btn:hover:not(:disabled) { border-color: var(--rr-teal); color: var(--rr-teal-dk); }
+.rr-chat-new-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ─── Live chat content ──────────────────────────────────────────── */
+/* User bubble — sits right-aligned above each Nana response */
+.rr-bubble-user {
+  align-self: flex-end;
+  max-width: 88%;
+  background: var(--rr-teal-bg);
+  border: 1px solid var(--rr-teal);
+  border-radius: var(--rr-r-md);
+  padding: 8px 12px;
+  font-family: var(--rr-sans);
+  font-size: 13.5px;
+  color: var(--rr-navy);
+  line-height: 1.45;
+  margin: 8px 0 4px;
+  white-space: pre-wrap;
+}
+/* Agent-status copy ("Looking into our library — one moment…") */
+.rr-agent-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--rr-sans);
+  font-size: 12.5px;
+  color: var(--rr-muted);
+  font-style: italic;
+  margin: 6px 0;
+  padding: 6px 10px;
+  background: var(--rr-off);
+  border-radius: var(--rr-r-sm);
+  align-self: flex-start;
+}
+.rr-agent-status-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--rr-teal);
+  animation: rr-pulse 1.2s ease-in-out infinite;
+}
+@keyframes rr-pulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.2); }
+}
+/* Tool-call progress strip (Deep mode only — but shows whenever the
+   server emits tool_call events; harmless when empty) */
+.rr-tool-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0;
+}
+.rr-tool-pill {
+  font-family: var(--rr-mono);
+  font-size: 10.5px;
+  letter-spacing: .03em;
+  padding: 3px 8px;
+  border-radius: var(--rr-r-pill);
+  border: 1px solid var(--rr-border);
+  color: var(--rr-muted);
+  background: var(--rr-white);
+}
+.rr-tool-pill--completed {
+  border-color: var(--rr-teal);
+  color: var(--rr-teal-dk);
+  background: var(--rr-teal-bg);
+}
+.rr-chat-error {
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  color: var(--rr-rust);
+  background: rgba(220, 79, 42, 0.08);
+  border: 1px solid var(--rr-rust);
+  border-radius: var(--rr-r-sm);
+  padding: 10px 12px;
+  margin: 8px 0;
+}
+
+/* ─── NanaMsgBubble overrides for Research Room's light chat panel ─────
+   The dh-msg-nana* rules in decision-hub.css assume a dark navy chat
+   panel (white text on rgba-white-7 backgrounds). Research Room's panel
+   is light — without these overrides, all bubble copy is invisible.
+   Scoped to .rr-app so DecisionHub's existing styling stays intact. */
+.rr-app .dh-msg-nana {
+  background: var(--rr-white);
+  border: 1px solid var(--rr-border);
+  color: var(--rr-body);
+  font-family: var(--rr-sans);
+  font-size: 13.5px;
+  line-height: 1.6;
+  box-shadow: 0 2px 8px var(--rr-shadow);
+}
+.rr-app .dh-msg-nana-eyebrow {
+  color: var(--rr-teal-dk);
+}
+.rr-app .dh-msg-nana-lead {
+  font-family: var(--rr-display);
+  color: var(--rr-navy);
+  font-weight: 700;
+}
+.rr-app .dh-msg-nana-prose {
+  color: var(--rr-body);
+}
+.rr-app .dh-msg-nana-tradeoff {
+  /* Amber tone-on-light still reads clearly; just lift the body text */
+  color: var(--rr-navy);
+}
+.rr-app .dh-msg-nana-tradeoff-label {
+  color: var(--rr-amber);
+}
+.rr-app .dh-msg-nana-tour {
+  background: var(--rr-off);
+  border-color: var(--rr-border);
+}
+.rr-app .dh-msg-nana-tour-label {
+  color: var(--rr-teal-dk);
+}
+.rr-app .dh-msg-nana-tour-q {
+  color: var(--rr-navy-lt);
+}
+.rr-app .dh-msg-share,
+.rr-app .dh-msg-affordance {
+  color: var(--rr-teal-dk);
+}
+.rr-app .dh-conf-badge {
+  /* Confidence badge — keep DH colour scheme, just tighten contrast */
+  background: var(--rr-off);
+  color: var(--rr-navy);
+}
+.rr-app .dh-source-pill,
+.rr-app .dh-source-pill--chat {
+  background: var(--rr-off);
+  border: 1px solid var(--rr-border);
+  color: var(--rr-teal-dk);
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--rr-r-pill);
+  text-decoration: none;
+  margin-right: 6px;
+}
+.rr-app .dh-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 8px;
+}
+.rr-app .dh-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0;
+}
+.rr-app .dh-skeleton-line {
+  height: 10px;
+  background: var(--rr-off-2);
+  border-radius: 3px;
+  animation: rr-skeleton 1.4s ease-in-out infinite;
+}
+.rr-app .dh-skeleton-line--80 { width: 80%; }
+.rr-app .dh-skeleton-line--60 { width: 60%; }
+.rr-app .dh-skeleton-line--90 { width: 90%; }
+@keyframes rr-skeleton {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 0.7; }
+}
+.rr-app .dh-ans-section {
+  margin-top: 10px;
+}
+.rr-app .dh-ans-section--dim .dh-msg-nana-prose {
+  color: var(--rr-muted);
 }
 
 /* ════════════════════════════════════════════════════════════════════
