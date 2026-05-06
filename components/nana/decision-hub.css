@@ -699,19 +699,19 @@
   background: #34C3A0;
   color: #fff;
   border-radius: 16px 16px 4px 16px;
-  padding: 10px 14px;
-  font-size: 13px;
+  padding: 11px 15px;
+  font-size: 14.5px;
   line-height: 1.5;
 }
 .dh-msg-nana {
   background: rgba(255,255,255,.07);
   border: 1px solid rgba(255,255,255,.1);
   border-radius: 4px 16px 16px 16px;
-  padding: 14px 16px;
-  font-size: 13px;
+  padding: 16px 18px;
+  font-size: 14.5px;
 }
 .dh-msg-nana-eyebrow {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: .12em;
   text-transform: uppercase;
@@ -720,13 +720,13 @@
 }
 .dh-msg-nana-lead {
   font-family: var(--dh-serif);
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.55;
   color: #ffffff;
   margin-bottom: 10px;
 }
 .dh-msg-nana-prose {
-  font-size: 12px;
+  font-size: 14px;
   line-height: 1.6;
   color: rgba(255,255,255,.65);
   margin-bottom: 8px;
