@@ -129,6 +129,19 @@ export async function POST(req: NextRequest) {
   const useShortlistAgentic  = deepMode && lockedShortlistSlugs.length >= 2
 
   // ── Session setup ──
+  // Slice 3e: research_sessions.child_id is now NOT NULL. New rows must
+  // be scoped to the user's currently-active child. Read once here and
+  // reuse for both insert paths below. NULL active_child_id means the
+  // user finished onboarding without creating a child — block the
+  // request with a clear error (Research Room flow can't reach this
+  // state, but DecisionHub legacy could).
+  const { data: pp } = await supabase
+    .from('parent_profiles')
+    .select('active_child_id')
+    .eq('id', user.id)
+    .maybeSingle<{ active_child_id: string | null }>()
+  const activeChildId = pp?.active_child_id ?? null
+
   let sessionId: string
   if (incomingSessionId) {
     const { data: sess } = await supabase
@@ -141,17 +154,23 @@ export async function POST(req: NextRequest) {
     if (sess) {
       sessionId = sess.id
     } else {
+      if (!activeChildId) {
+        return jsonError(400, 'No active child set on profile — add a child first to start a research session.')
+      }
       const { data: newSess, error } = await supabase
         .from('research_sessions')
-        .insert({ user_id: user.id, title: question.slice(0, 80) })
+        .insert({ user_id: user.id, title: question.slice(0, 80), child_id: activeChildId })
         .select('id').single()
       if (error || !newSess) return jsonError(500, 'Could not create session')
       sessionId = newSess.id
     }
   } else {
+    if (!activeChildId) {
+      return jsonError(400, 'No active child set on profile — add a child first to start a research session.')
+    }
     const { data: newSess, error } = await supabase
       .from('research_sessions')
-      .insert({ user_id: user.id, title: question.slice(0, 80) })
+      .insert({ user_id: user.id, title: question.slice(0, 80), child_id: activeChildId })
       .select('id').single()
     if (error || !newSess) return jsonError(500, 'Could not create session')
     sessionId = newSess.id
