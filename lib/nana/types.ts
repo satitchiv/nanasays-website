@@ -29,6 +29,23 @@ export interface RecommendedSchool {
   concern?: string
 }
 
+// Slice 5: Nana emits proposals into parsed_answer.proposed_actions when a
+// chat answer surfaces a comparison-worthy dimension. The user clicks
+// "+ Add as row" to confirm; the server-side function reconstructs the
+// proposal from this JSON and writes the row. Nana herself never writes.
+export interface ProposedAddRow {
+  kind:        'propose_add_row'
+  row_name:    string
+  group_name:  string
+  weight?:     number
+  cell_data:   Record<string, { value: string | number | null; source?: string | null; note?: string }>
+}
+
+export type ProposedAction = ProposedAddRow
+// Keyed by short proposal_id (^[a-zA-Z0-9_-]{1,40}$). Function reads
+// parsed_answer.proposed_actions[proposal_id] when confirming.
+export type ProposedActions = Record<string, ProposedAction>
+
 export interface ParsedAnswer {
   sections:             ParsedSections
   confidence:           'high' | 'medium' | 'low' | 'none'
@@ -38,6 +55,7 @@ export interface ParsedAnswer {
   sources_used?:        SourceUsed[]
   recommended_schools?: RecommendedSchool[]
   answer_markdown?:     string
+  proposed_actions?:    ProposedActions
 }
 
 export interface ResearchMessage {

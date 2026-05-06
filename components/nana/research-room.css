@@ -731,6 +731,146 @@
   border-radius: var(--rr-r-sm);
   padding: 10px 12px;
   margin: 8px 0;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  justify-content: space-between;
+}
+.rr-chat-error-dismiss {
+  background: transparent;
+  border: none;
+  color: var(--rr-rust);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+.rr-chat-error-dismiss:hover { opacity: 0.7; }
+
+/* ── Slice 5 · proposed actions ────────────────────────────────────────
+   "+ Add as row" affordances under any Nana bubble that emitted a
+   proposed_actions JSON. Each button is a pill — neutral when idle, teal
+   tint when added. */
+.rr-proposed-actions {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--rr-border);
+}
+.rr-proposed-eyebrow {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--rr-muted);
+  margin: 0 0 8px;
+}
+.rr-proposed-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.rr-proposed-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 6px 8px;
+  border: 1px solid var(--rr-border);
+  border-radius: 100px;
+  background: var(--rr-white);
+  color: var(--rr-navy);
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.rr-proposed-btn:hover:not(:disabled) {
+  border-color: var(--rr-teal);
+  background: var(--rr-teal-bg);
+  transform: translateY(-1px);
+}
+.rr-proposed-btn:disabled {
+  cursor: default;
+}
+.rr-proposed-btn.is-added {
+  border-color: var(--rr-teal);
+  background: var(--rr-teal-bg);
+  color: var(--rr-teal-dk);
+}
+.rr-proposed-btn-icon {
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1;
+}
+.rr-proposed-btn-label {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rr-proposed-btn-group {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--rr-muted);
+  padding: 2px 6px;
+  border-radius: 100px;
+  background: rgba(27, 50, 82, 0.06);
+}
+.rr-proposed-btn.is-added .rr-proposed-btn-group {
+  background: rgba(52, 195, 160, 0.15);
+  color: var(--rr-teal-dk);
+}
+
+/* ── Slice 5 · custom-row remove button + error banner ───────────────── */
+.rr-cmp-dim {
+  position: relative;
+}
+.rr-cmp-row-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 100px;
+  border: 1px solid var(--rr-border);
+  background: var(--rr-white);
+  color: var(--rr-muted);
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 700;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 120ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.rr-cmp-dim:hover .rr-cmp-row-remove,
+.rr-cmp-row-remove:focus-visible {
+  opacity: 1;
+}
+.rr-cmp-row-remove:hover:not(:disabled) {
+  border-color: var(--rr-rust);
+  color: var(--rr-rust);
+}
+.rr-cmp-row-remove:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+.rr-cmp-error {
+  margin-top: 16px;
+  padding: 10px 12px;
+  border-radius: var(--rr-r-sm);
+  border: 1px solid var(--rr-rust);
+  background: rgba(220, 79, 42, 0.08);
+  color: var(--rr-rust);
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
 }
 
 /* ─── NanaMsgBubble overrides for Research Room's light chat panel ─────
@@ -1396,11 +1536,21 @@
   .rr-cmp-stats {
     text-align: left;
   }
-  .rr-cmp-corner,
-  .rr-cmp-dim {
-    /* On narrow screens the sticky-left columns crowd the cells.
+  .rr-cmp-corner {
+    /* On narrow screens the sticky-left column crowds the cells.
        Let the user pan freely instead. */
     position: static;
+  }
+  .rr-cmp-dim {
+    /* Keep .rr-cmp-dim as the absolute-positioning anchor for the
+       custom-row × button (slice 5). Codex final-pass #8: the prior
+       `position: static` here broke the × on mobile. */
+    position: relative;
+  }
+  .rr-cmp-row-remove {
+    /* Touch screens have no hover, so always show the × on mobile so
+       the affordance is reachable. */
+    opacity: 1;
   }
   .rr-cmp-table {
     min-width: 720px;

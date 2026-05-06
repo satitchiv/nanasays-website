@@ -80,6 +80,46 @@ export default async function ResearchRoomPage() {
     }
   }
 
+  // Slice 5 prereq: load most-recent session for the active child + its
+  // messages so the chat panel rehydrates instead of showing a blank
+  // surface every page load. Mirrors the pattern in
+  // app/nana/decision-hub/page.tsx, scoped to (user, active child).
+  let initialSession: import('@/lib/nana/types').Session | null = null
+  let initialMessages: import('@/lib/nana/types').ResearchMessage[] = []
+
+  if (user && activeChildId) {
+    const svc = supabaseService()
+    const { data: sessions } = await svc
+      .from('research_sessions')
+      .select('id, title, summary, created_at, last_active_at')
+      .eq('user_id', user.id)
+      .eq('child_id', activeChildId)
+      .order('last_active_at', { ascending: false })
+      .limit(1)
+
+    if (sessions && sessions[0]) {
+      initialSession = {
+        id:             sessions[0].id,
+        title:          sessions[0].title,
+        summary:        sessions[0].summary as import('@/lib/nana/types').DecisionSummary | null,
+        created_at:     sessions[0].created_at,
+        last_active_at: sessions[0].last_active_at,
+      }
+      const { data: msgs } = await svc
+        .from('research_session_messages')
+        .select('id, question, parsed_answer, share_token, created_at')
+        .eq('session_id', initialSession.id)
+        .order('created_at', { ascending: true })
+      initialMessages = (msgs ?? []).map(m => ({
+        id:         m.id,
+        question:   m.question,
+        parsed:     (m.parsed_answer ?? null) as import('@/lib/nana/types').ParsedAnswer | null,
+        shareToken: m.share_token ?? undefined,
+        createdAt:  m.created_at,
+      }))
+    }
+  }
+
   const childSummaries = children.map(c => ({
     id: c.id,
     name: c.name,
@@ -95,6 +135,8 @@ export default async function ResearchRoomPage() {
       familyPreferences={familyPreferences}
       initialActiveChildId={activeChildId}
       comparisonData={comparisonData}
+      initialSession={initialSession}
+      initialMessages={initialMessages}
     />
   )
 }

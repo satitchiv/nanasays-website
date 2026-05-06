@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   PLACEHOLDER_DATA,
@@ -17,10 +18,48 @@ type Props = {
   activeChildName?: string | null
 }
 
+// Slice 5: rows whose id starts with `cmp-` came from comparison_rows
+// (added via "+ Add as row"). Those are removable via undo_add_row.
+// Canonical rows (fees, oxbridge, etc.) keep their stable string ids.
+function isCustomRow(rowId: string): boolean {
+  return rowId.startsWith('cmp-')
+}
+function customRowDbId(rowId: string): string {
+  return rowId.replace(/^cmp-/, '')
+}
+
 export default function ComparisonView({ data = PLACEHOLDER_DATA, activeChildName = null }: Props) {
   const [lens, setLens] = useState<Lens>('child')
+  const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null)
+  const [removeError, setRemoveError] = useState<string | null>(null)
+  const router = useRouter()
   const { schools, rows } = data
   const childLensLabel = activeChildName ? `${activeChildName} fit` : 'Child fit'
+
+  async function handleRemoveRow(uiRowId: string) {
+    const dbId = customRowDbId(uiRowId)
+    setPendingRemoveId(uiRowId)
+    setRemoveError(null)
+    try {
+      const res = await fetch('/api/research-room/write-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'undo_add_row', row_id: dbId }),
+      })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        const code = typeof j?.code === 'string' ? j.code : 'request_failed'
+        setRemoveError(`Could not remove the row (${code}).`)
+        return
+      }
+      router.refresh()
+    } catch (e) {
+      console.error('[comparison-view remove]', e)
+      setRemoveError('Network error while removing the row.')
+    } finally {
+      setPendingRemoveId(null)
+    }
+  }
 
   if (schools.length === 0) {
     return (
@@ -96,10 +135,23 @@ export default function ComparisonView({ data = PLACEHOLDER_DATA, activeChildNam
           ))}
 
           {rows.map((row) => (
-            <RowCells key={row.id} row={row} schools={schools} />
+            <RowCells
+              key={row.id}
+              row={row}
+              schools={schools}
+              onRemove={isCustomRow(row.id) ? handleRemoveRow : null}
+              removing={pendingRemoveId === row.id}
+            />
           ))}
         </div>
       </div>
+
+      {removeError && (
+        <div className="rr-cmp-error" role="alert">
+          {removeError}
+          <button type="button" className="rr-chat-error-dismiss" onClick={() => setRemoveError(null)}>×</button>
+        </div>
+      )}
     </div>
   )
 }
@@ -107,9 +159,13 @@ export default function ComparisonView({ data = PLACEHOLDER_DATA, activeChildNam
 function RowCells({
   row,
   schools,
+  onRemove,
+  removing,
 }: {
   row: ComparisonRow
   schools: SchoolColumn[]
+  onRemove: ((rowId: string) => void) | null
+  removing: boolean
 }) {
   return (
     <>
@@ -121,6 +177,18 @@ function RowCells({
               {' '}
               <em>{row.emphasis}</em>
             </>
+          )}
+          {onRemove && (
+            <button
+              type="button"
+              className="rr-cmp-row-remove"
+              aria-label={`Remove row ${row.label}`}
+              onClick={() => onRemove(row.id)}
+              disabled={removing}
+              title="Remove this row"
+            >
+              {removing ? '…' : '×'}
+            </button>
           )}
         </div>
         {row.blurb && <div className="rr-cmp-dim-blurb">{row.blurb}</div>}

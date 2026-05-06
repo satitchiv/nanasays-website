@@ -1,6 +1,6 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { ComparisonData, RowCell, SchoolColumn } from '@/components/nana/comparison-placeholder'
+import type { ComparisonData, ComparisonRow, RowCell, SchoolColumn } from '@/components/nana/comparison-placeholder'
 import {
   KNOWN_FULL_BOARDING_NAMES,
   assertUserId,
@@ -280,7 +280,7 @@ export async function loadComparisonData(
     })
   }
 
-  const tableRows = [
+  const tableRows: ComparisonRow[] = [
     { id: 'fees',     label: 'Fees',           emphasis: 'annual',    blurb: 'Senior fees from the school site',         cells: cellsFor('fees') },
     { id: 'a-star-a', label: 'A*–A',           emphasis: 'A-level',   blurb: 'Share of grades at A* or A',                cells: cellsFor('a-star-a') },
     { id: 'oxbridge', label: 'Oxbridge',       emphasis: 'recent yr', blurb: 'Leavers placed at Oxford or Cambridge',     cells: cellsFor('oxbridge') },
@@ -292,5 +292,75 @@ export async function loadComparisonData(
     { id: 'boarding', label: 'Boarding',                              blurb: 'Type · gender mix',                         cells: cellsFor('boarding') },
   ]
 
+  // Slice 5: append rows the parent has confirmed via "+ Add as row" in
+  // chat. These come from comparison_rows for the active research_session
+  // (one per child). undone_at IS NULL filter respects the soft-delete.
+  // Anything that fails here logs but does not break the canonical 9 rows.
+  try {
+    const customRows = await loadComparisonRows(supabase, userId, childId, schools)
+    if (customRows.length > 0) tableRows.push(...customRows)
+  } catch (e) {
+    console.error('[loadComparisonData comparison_rows]', e)
+  }
+
   return { schools, rows: tableRows }
+}
+
+// ─── Slice 5 · custom row loader ──────────────────────────────────────────
+
+async function loadComparisonRows(
+  supabase: SupabaseClient,
+  userId: string,
+  childId: string | null,
+  schools: SchoolColumn[],
+): Promise<ComparisonRow[]> {
+  // Active session for this child = most recent non-archived. Slice 5
+  // semantic: "one active session per child." Pre-multi-child sessions
+  // (NULL child_id) keep working when childId is NULL.
+  let sessionQuery = supabase
+    .from('research_sessions')
+    .select('id, child_id, last_active_at')
+    .eq('user_id', userId)
+    .order('last_active_at', { ascending: false })
+    .limit(1)
+  sessionQuery = childId
+    ? sessionQuery.eq('child_id', childId)
+    : sessionQuery.is('child_id', null)
+  const { data: sessions, error: sessionError } = await sessionQuery
+  if (sessionError) throw new Error(`research_sessions read failed: ${sessionError.message}`)
+  const sessionId = sessions?.[0]?.id
+  if (!sessionId) return []
+
+  const { data: rowsRaw, error: rowsError } = await supabase
+    .from('comparison_rows')
+    .select('id, row_name, group_name, weight, cell_data, created_at')
+    .eq('session_id', sessionId)
+    .is('undone_at', null)
+    .order('created_at', { ascending: true })
+  if (rowsError) throw new Error(`comparison_rows read failed: ${rowsError.message}`)
+
+  const rows = (rowsRaw ?? []) as Array<{
+    id: string
+    row_name: string
+    group_name: string
+    weight: number
+    cell_data: Record<string, { value?: string | number | null; source?: string | null; note?: string }> | null
+    created_at: string
+  }>
+
+  return rows.map(r => {
+    const cells: RowCell[] = schools.map(col => {
+      const c = r.cell_data?.[col.slug]
+      if (!c || c.value == null || c.value === '') return { kind: 'empty' }
+      const primary = typeof c.value === 'number' ? String(c.value) : c.value
+      const sub = typeof c.note === 'string' && c.note ? c.note : undefined
+      return { kind: 'value', primary, sub }
+    })
+    return {
+      id:       `cmp-${r.id}`,
+      label:    r.row_name,
+      emphasis: r.group_name,
+      cells,
+    }
+  })
 }

@@ -8,6 +8,7 @@ import ChildBriefTab, { type ChildSummary, type FamilyPreferences } from './Chil
 import ResearchRoomChat, { type ChatState } from './ResearchRoomChat'
 import ComparisonView from './ComparisonView'
 import type { ComparisonData } from './comparison-placeholder'
+import type { Session, ResearchMessage } from '@/lib/nana/types'
 import './research-room.css'
 
 type Tab = 'brief' | 'compare' | 'verdict' | 'partner'
@@ -18,6 +19,8 @@ type Props = {
   familyPreferences?: FamilyPreferences
   initialActiveChildId?: string | null
   comparisonData?: ComparisonData
+  initialSession?: Session | null
+  initialMessages?: ResearchMessage[]
 }
 
 const TAB_ORDER: Tab[] = ['brief', 'compare', 'verdict', 'partner']
@@ -52,6 +55,8 @@ export default function ResearchRoom({
   familyPreferences,
   initialActiveChildId = null,
   comparisonData,
+  initialSession   = null,
+  initialMessages  = [],
 }: Props) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<Tab>('compare')
@@ -326,6 +331,8 @@ export default function ResearchRoom({
           onToggleFocus={handleToggleFocus}
           onToggleBuildMode={handleToggleBuildMode}
           shortlistSlugs={comparisonData?.schools.map(s => s.slug) ?? []}
+          initialSession={initialSession}
+          initialMessages={initialMessages}
         />
       </div>
     </div>

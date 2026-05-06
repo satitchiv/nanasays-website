@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { useNanaChat } from '@/lib/nana/use-nana-chat'
 import { NanaMsgBubble, prettyToolName } from './NanaBubble'
 import type { Session, ResearchMessage } from '@/lib/nana/types'
@@ -58,10 +59,16 @@ function ChatBody({
   buildMode,
   onToggleBuildMode,
   chat,
+  onConfirmAddRow,
+  actionError,
+  onDismissActionError,
 }: {
-  buildMode:         boolean
-  onToggleBuildMode: () => void
-  chat:              ReturnType<typeof useNanaChat>
+  buildMode:            boolean
+  onToggleBuildMode:    () => void
+  chat:                 ReturnType<typeof useNanaChat>
+  onConfirmAddRow:      (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
+  actionError:          string | null
+  onDismissActionError: () => void
 }) {
   const {
     messages,
@@ -122,7 +129,7 @@ function ChatBody({
         {messages.map(msg => (
           <div key={msg.id}>
             <div className="rr-bubble-user">{msg.question}</div>
-            <NanaMsgBubble msg={msg} />
+            <NanaMsgBubble msg={msg} onConfirmAddRow={onConfirmAddRow} />
           </div>
         ))}
 
@@ -155,6 +162,13 @@ function ChatBody({
         {askError && !isStreaming && (
           <div className="rr-chat-error" role="alert">
             {askError.message}
+          </div>
+        )}
+
+        {actionError && (
+          <div className="rr-chat-error" role="alert">
+            {actionError}
+            <button type="button" className="rr-chat-error-dismiss" onClick={onDismissActionError}>×</button>
           </div>
         )}
 
@@ -235,6 +249,40 @@ export default function ResearchRoomChat({
   })
 
   const isMobile = useIsMobile()
+  const router   = useRouter()
+
+  // Slice 5: confirm a "+ Add as row" proposal. Posts to write-action; on
+  // success refreshes the page so loadComparisonData re-reads
+  // comparison_rows. Errors get surfaced via askError-style alert below
+  // the thread (cheap; no toast lib in this codebase).
+  const [actionError, setActionError] = useState<string | null>(null)
+  async function onConfirmAddRow(messageId: string, proposalId: string): Promise<{ ok: boolean; code?: string }> {
+    try {
+      const res = await fetch('/api/research-room/write-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add_row', message_id: messageId, proposal_id: proposalId }),
+      })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        const code = typeof j?.code === 'string' ? j.code : 'request_failed'
+        if (code === 'duplicate_name') {
+          setActionError('A row with that name already exists in this comparison.')
+        } else {
+          setActionError(`Could not add the row (${code}).`)
+        }
+        return { ok: false, code }
+      }
+      setActionError(null)
+      router.refresh()
+      return { ok: true }
+    } catch (e) {
+      console.error('[research-room write-action]', e)
+      setActionError('Network error while adding the row.')
+      return { ok: false, code: 'network' }
+    }
+  }
+
 
   const sheetRef = useRef<HTMLDivElement | null>(null)
   const sheetCloseRef = useRef<HTMLButtonElement | null>(null)
@@ -396,7 +444,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         )}
       </aside>
@@ -467,7 +515,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         </>
       )}

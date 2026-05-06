@@ -1,7 +1,8 @@
 'use client'
 
+import { useState } from 'react'
 import Link from 'next/link'
-import type { ResearchMessage, StreamFormat } from '@/lib/nana/types'
+import type { ResearchMessage, StreamFormat, ProposedAction } from '@/lib/nana/types'
 // The bubble's classNames (dh-msg-nana, dh-msg-nana-prose, etc.) live in
 // decision-hub.css. Importing it here means anywhere NanaBubble is mounted
 // gets the styles automatically — Research Room's right rail can embed
@@ -133,6 +134,13 @@ export interface NanaMsgBubbleProps {
   isStreaming?:   boolean
   streamBuf?:     string
   streamFormat?:  StreamFormat
+  // Slice 5: when set, render the "+ Add as row" affordance for each
+  // entry in parsed.proposed_actions and call this handler on click.
+  // Returns { ok, code? } so the button can switch between pending /
+  // added / error states without optimistic-flickering. Research Room
+  // mounts this; Decision Hub leaves it undefined to keep the existing
+  // surface unchanged.
+  onConfirmAddRow?: (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
 }
 
 export function NanaMsgBubble({
@@ -140,6 +148,7 @@ export function NanaMsgBubble({
   isStreaming,
   streamBuf,
   streamFormat,
+  onConfirmAddRow,
 }: NanaMsgBubbleProps) {
   const parsed = msg?.parsed as any
   const s = parsed?.sections ?? {}
@@ -193,6 +202,13 @@ export function NanaMsgBubble({
                 )
               })}
           </div>
+        )}
+        {!isStreaming && msg?.id && onConfirmAddRow && parsed?.proposed_actions && (
+          <ProposedActionsList
+            messageId={msg.id}
+            actions={parsed.proposed_actions}
+            onConfirm={onConfirmAddRow}
+          />
         )}
         {!isStreaming && msg?.shareToken && (
           <Link href={`/nana/answer/${msg.shareToken}`} className="dh-msg-share" target="_blank">
@@ -314,11 +330,98 @@ export function NanaMsgBubble({
         </div>
       )}
 
+      {!isStreaming && msg?.id && onConfirmAddRow && parsed?.proposed_actions && (
+        <ProposedActionsList
+          messageId={msg.id}
+          actions={parsed.proposed_actions}
+          onConfirm={onConfirmAddRow}
+        />
+      )}
       {!isStreaming && msg?.shareToken && (
         <Link href={`/nana/answer/${msg.shareToken}`} className="dh-msg-share" target="_blank">
           Share ↗
         </Link>
       )}
     </div>
+  )
+}
+
+// ── Proposed actions ────────────────────────────────────────────────────
+// Slice 5: render one "+ Add as row" affordance per proposal Nana emits.
+// State is local-only for now — page reload loses the "Added ↩" marker
+// because ResearchMessage.actions[] isn't threaded through yet (follow-up).
+// The server is idempotent, so re-clicking after reload returns deduped.
+
+function ProposedActionsList({
+  messageId,
+  actions,
+  onConfirm,
+}: {
+  messageId: string
+  actions:   Record<string, ProposedAction>
+  onConfirm: (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
+}) {
+  const entries = Object.entries(actions ?? {}).filter(
+    (e): e is [string, ProposedAction] => e[1] && e[1].kind === 'propose_add_row',
+  )
+  if (entries.length === 0) return null
+
+  return (
+    <div className="rr-proposed-actions">
+      <p className="rr-proposed-eyebrow">Add to your comparison?</p>
+      <div className="rr-proposed-list">
+        {entries.map(([proposalId, action]) => (
+          <ProposedActionButton
+            key={proposalId}
+            label={action.row_name}
+            group={action.group_name}
+            onClick={() => onConfirm(messageId, proposalId)}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+type AddState = 'idle' | 'pending' | 'added' | 'error'
+
+function ProposedActionButton({
+  label,
+  group,
+  onClick,
+}: {
+  label:   string
+  group:   string
+  onClick: () => Promise<{ ok: boolean; code?: string }>
+}) {
+  const [state, setState] = useState<AddState>('idle')
+
+  async function handle() {
+    if (state === 'pending' || state === 'added') return
+    setState('pending')
+    const result = await onClick()
+    setState(result.ok ? 'added' : 'error')
+  }
+
+  const isAdded   = state === 'added'
+  const isPending = state === 'pending'
+  const isError   = state === 'error'
+
+  return (
+    <button
+      type="button"
+      className={`rr-proposed-btn${isAdded ? ' is-added' : ''}${isError ? ' is-error' : ''}${isPending ? ' is-pending' : ''}`}
+      onClick={handle}
+      disabled={isPending || isAdded}
+      title={`${group} · ${label}`}
+    >
+      <span className="rr-proposed-btn-icon" aria-hidden="true">
+        {isAdded ? '✓' : isPending ? '…' : isError ? '!' : '+'}
+      </span>
+      <span className="rr-proposed-btn-label">
+        {isAdded ? 'Added' : isPending ? 'Adding…' : isError ? 'Try again' : label}
+      </span>
+      <span className="rr-proposed-btn-group">{group}</span>
+    </button>
   )
 }
