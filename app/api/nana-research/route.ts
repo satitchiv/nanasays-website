@@ -130,32 +130,53 @@ export async function POST(req: NextRequest) {
 
   // ── Session setup ──
   // Slice 3e: research_sessions.child_id is now NOT NULL. New rows must
-  // be scoped to the user's currently-active child. Read once here and
-  // reuse for both insert paths below. NULL active_child_id means the
-  // user finished onboarding without creating a child — block the
-  // request with a clear error (Research Room flow can't reach this
-  // state, but DecisionHub legacy could).
-  const { data: pp } = await supabase
-    .from('parent_profiles')
-    .select('active_child_id')
-    .eq('id', user.id)
-    .maybeSingle<{ active_child_id: string | null }>()
-  const activeChildId = pp?.active_child_id ?? null
+  // be scoped to the user's currently-active child.
+  //
+  // Codex 3e P2 #2 fix: mirror the Research Room page's fallback —
+  // validate persisted active_child_id against the user's active children;
+  // if it's null/stale, fall back to the first active child. The page
+  // does this server-side at /nana/research-room/page.tsx; the API now
+  // matches so users with active children but null/stale active_child_id
+  // don't render the page successfully but 400 on submit.
+  const [profileRes, childrenRes] = await Promise.all([
+    supabase
+      .from('parent_profiles')
+      .select('active_child_id')
+      .eq('id', user.id)
+      .maybeSingle<{ active_child_id: string | null }>(),
+    supabase
+      .from('children')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('is_archived', false)
+      .order('created_at', { ascending: true }),
+  ])
+  const persistedActiveChildId = profileRes.data?.active_child_id ?? null
+  const activeChildIds = (childrenRes.data ?? []).map((c: { id: string }) => c.id)
+  const stillActive = persistedActiveChildId && activeChildIds.includes(persistedActiveChildId)
+  const activeChildId: string | null =
+    stillActive ? persistedActiveChildId : (activeChildIds[0] ?? null)
 
   let sessionId: string
   if (incomingSessionId) {
+    // Codex 3e P2 #1 fix: validate the incoming session's child_id matches
+    // the resolved active child. Otherwise a client could submit a session
+    // from child A while the user's active child is B and we'd leak
+    // messages across children. If mismatch, fall through to the
+    // create-new path (treat as "user wanted a fresh conversation for
+    // this child").
     const { data: sess } = await supabase
       .from('research_sessions')
-      .select('id')
+      .select('id, child_id')
       .eq('id', incomingSessionId)
       .eq('user_id', user.id)
-      .maybeSingle()
+      .maybeSingle<{ id: string; child_id: string | null }>()
 
-    if (sess) {
+    if (sess && sess.child_id === activeChildId) {
       sessionId = sess.id
     } else {
       if (!activeChildId) {
-        return jsonError(400, 'No active child set on profile — add a child first to start a research session.')
+        return jsonError(400, 'Add or select a child before starting a research session.')
       }
       const { data: newSess, error } = await supabase
         .from('research_sessions')
@@ -166,7 +187,7 @@ export async function POST(req: NextRequest) {
     }
   } else {
     if (!activeChildId) {
-      return jsonError(400, 'No active child set on profile — add a child first to start a research session.')
+      return jsonError(400, 'Add or select a child before starting a research session.')
     }
     const { data: newSess, error } = await supabase
       .from('research_sessions')
