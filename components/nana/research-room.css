@@ -1822,20 +1822,35 @@
 }
 
 .rr-cmp-dim {
-  padding: 16px 20px;
+  /* Slice 6.5 polish: match cell padding (22px 24px) so the label
+     baseline aligns with the right-side content. align-self:start
+     keeps the label top-anchored even when other cells in the row
+     have longer wrapped values (otherwise grid stretch made the
+     label look centered).                                        */
+  padding: 22px 20px;
   border-right: 1px solid var(--rr-border);
   border-bottom: 1px solid var(--rr-border);
   position: sticky;
   left: 0;
   z-index: 3;
   background: var(--rr-white);
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  text-align: left;
 }
 .rr-cmp-dim-name {
   font-family: var(--rr-display);
-  font-size: 17px;
-  font-weight: 800;
-  line-height: 1.2;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
   color: var(--rr-navy);
+  letter-spacing: -0.005em;
+  /* Avoid awkward mid-word breaks ("2025-" / "2026") when the
+     column is narrow.                                          */
+  word-break: normal;
+  overflow-wrap: break-word;
 }
 .rr-cmp-dim-name em {
   color: var(--rr-teal-dk);
