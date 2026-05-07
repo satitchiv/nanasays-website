@@ -982,6 +982,142 @@
   font-size: 14px;
 }
 
+/* ── Slice 6.5 · topic-lens pill + review panel (✦ focused mini-table) ─ */
+/* Teal accent to read as "build a focused view" — distinct from add-row
+   (neutral) and re-rank (amber). Click expands to a review panel that
+   shows the row specs before committing.                                */
+.rr-proposed-btn--topic-lens {
+  border-color: var(--rr-teal, #2c8a8a);
+  color: var(--rr-teal-dk, #1a5454);
+  background: rgba(44, 138, 138, 0.06);
+}
+.rr-proposed-btn--topic-lens:hover:not(:disabled) {
+  border-color: var(--rr-teal, #2c8a8a);
+  background: rgba(44, 138, 138, 0.14);
+  transform: translateY(-1px);
+}
+.rr-proposed-btn--topic-lens .rr-proposed-btn-icon { font-size: 14px; }
+.rr-proposed-btn--topic-lens.is-added {
+  border-color: var(--rr-green, #2c8a4a);
+  color: var(--rr-green-dk, #1a5430);
+  background: rgba(44, 138, 74, 0.10);
+}
+
+.rr-topic-lens-review {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  margin-top: 6px;
+  padding: 14px;
+  border: 1px solid var(--rr-teal, #2c8a8a);
+  border-radius: 12px;
+  background: rgba(44, 138, 138, 0.04);
+}
+.rr-topic-lens-head {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+.rr-topic-lens-icon {
+  flex: 0 0 auto;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--rr-teal, #2c8a8a);
+}
+.rr-topic-lens-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--rr-ink, #1a2230);
+}
+.rr-topic-lens-sub {
+  margin: 4px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--rr-ink-mid, #5b6375);
+}
+.rr-topic-lens-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rr-topic-lens-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--rr-white, #fff);
+  border: 1px solid var(--rr-line, #e3e6ec);
+}
+.rr-topic-lens-row-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--rr-ink, #1a2230);
+}
+.rr-topic-lens-row-group {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--rr-ink-mid, #5b6375);
+}
+.rr-topic-lens-base-hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--rr-ink-mid, #5b6375);
+  font-style: italic;
+}
+.rr-topic-lens-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.rr-topic-lens-cancel,
+.rr-topic-lens-confirm {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, transform 120ms ease;
+}
+.rr-topic-lens-cancel {
+  background: transparent;
+  color: var(--rr-ink-mid, #5b6375);
+  border-color: var(--rr-line, #e3e6ec);
+}
+.rr-topic-lens-cancel:hover:not(:disabled) {
+  background: var(--rr-line-soft, #f1f3f7);
+  color: var(--rr-ink, #1a2230);
+}
+.rr-topic-lens-confirm {
+  background: var(--rr-teal, #2c8a8a);
+  color: #fff;
+  border-color: var(--rr-teal, #2c8a8a);
+}
+.rr-topic-lens-confirm:hover:not(:disabled) {
+  transform: translateY(-1px);
+  background: var(--rr-teal-dk, #1a5454);
+  border-color: var(--rr-teal-dk, #1a5454);
+}
+.rr-topic-lens-confirm.is-pending,
+.rr-topic-lens-confirm.is-pending:hover {
+  background: var(--rr-ink-mid, #5b6375);
+  border-color: var(--rr-ink-mid, #5b6375);
+  cursor: progress;
+  transform: none;
+}
+.rr-topic-lens-confirm.is-error {
+  background: var(--rr-error, #b53030);
+  border-color: var(--rr-error, #b53030);
+}
+
 /* ── Slice 6 commit 7 · active-overlay chip in comparison header ──────── */
 .rr-cmp-overlay-chip {
   display: inline-flex;

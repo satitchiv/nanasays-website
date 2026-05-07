@@ -78,6 +78,7 @@ function ChatBody({
   chat,
   onConfirmAddRow,
   onApplyReRank,
+  onConfirmTopicLens,
   canSaveAsLens,
   onSaveAsLens,
   actionError,
@@ -88,6 +89,7 @@ function ChatBody({
   chat:                 ReturnType<typeof useNanaChat>
   onConfirmAddRow:      (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
   onApplyReRank?:       (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
+  onConfirmTopicLens?:  (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
   canSaveAsLens?:       boolean
   onSaveAsLens?:        (lensName: string) => Promise<{ ok: boolean; code?: string; existingLensId?: string }>
   actionError:          string | null
@@ -152,7 +154,7 @@ function ChatBody({
         {messages.map(msg => (
           <div key={msg.id}>
             <div className="rr-bubble-user">{msg.question}</div>
-            <NanaMsgBubble msg={msg} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} />
+            <NanaMsgBubble msg={msg} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onConfirmTopicLens={onConfirmTopicLens} />
           </div>
         ))}
 
@@ -336,6 +338,40 @@ export default function ResearchRoomChat({
     }
   }
 
+  // Slice 6.5: confirm a "Create [topic] lens with N new rows" proposal.
+  // Same shape as onConfirmAddRow but routed at action='create_topic_lens'.
+  // The RPC inserts the lens + N rows + flips active_lens_id atomically;
+  // router.refresh() re-runs the page server fragment and the loader picks
+  // up the topic rows on the active lens.
+  async function onConfirmTopicLens(messageId: string, proposalId: string): Promise<{ ok: boolean; code?: string }> {
+    try {
+      const res = await fetch('/api/research-room/write-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create_topic_lens', message_id: messageId, proposal_id: proposalId }),
+      })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        const code = typeof j?.code === 'string' ? j.code : 'request_failed'
+        if (code === 'duplicate_name') {
+          setActionError('A lens with that name already exists in this session.')
+        } else if (code === 'empty_after_resolution') {
+          setActionError('This topic-lens proposal has no rows to insert.')
+        } else {
+          setActionError(`Could not create the topic lens (${code}).`)
+        }
+        return { ok: false, code }
+      }
+      setActionError(null)
+      router.refresh()
+      return { ok: true }
+    } catch (e) {
+      console.error('[research-room write-action] create_topic_lens', e)
+      setActionError('Network error while creating the topic lens.')
+      return { ok: false, code: 'network' }
+    }
+  }
+
 
   const sheetRef = useRef<HTMLDivElement | null>(null)
   const sheetCloseRef = useRef<HTMLButtonElement | null>(null)
@@ -497,7 +533,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         )}
       </aside>
@@ -568,7 +604,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         </>
       )}

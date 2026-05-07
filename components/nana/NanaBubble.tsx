@@ -146,6 +146,12 @@ export interface NanaMsgBubbleProps {
   // no fetch — the consumer applies the view_spec as a sort/filter
   // overlay on the comparison table. Save-as-lens UX is commit 8.
   onApplyReRank?: (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
+  // Slice 6.5: when set, render the "Create [topic] lens with N new
+  // rows ▸" pill for each propose_create_topic_lens entry. First click
+  // expands to show the row specs; second click POSTs to write-action
+  // (action='create_topic_lens') which triggers the create_topic_lens
+  // RPC on the server.
+  onConfirmTopicLens?: (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
 }
 
 export function NanaMsgBubble({
@@ -155,6 +161,7 @@ export function NanaMsgBubble({
   streamFormat,
   onConfirmAddRow,
   onApplyReRank,
+  onConfirmTopicLens,
 }: NanaMsgBubbleProps) {
   const parsed = msg?.parsed as any
   const s = parsed?.sections ?? {}
@@ -209,13 +216,14 @@ export function NanaMsgBubble({
               })}
           </div>
         )}
-        {!isStreaming && msg?.id && (onConfirmAddRow || onApplyReRank) && parsed?.proposed_actions && (
+        {!isStreaming && msg?.id && (onConfirmAddRow || onApplyReRank || onConfirmTopicLens) && parsed?.proposed_actions && (
           <ProposedActionsList
             messageId={msg.id}
             actions={parsed.proposed_actions}
             activeProposalIds={msg.activeProposalIds}
             onConfirm={onConfirmAddRow}
             onApplyReRank={onApplyReRank}
+            onConfirmTopicLens={onConfirmTopicLens}
           />
         )}
         {!isStreaming && msg?.shareToken && (
@@ -345,6 +353,7 @@ export function NanaMsgBubble({
           activeProposalIds={msg.activeProposalIds}
           onConfirm={onConfirmAddRow}
           onApplyReRank={onApplyReRank}
+          onConfirmTopicLens={onConfirmTopicLens}
         />
       )}
       {!isStreaming && msg?.shareToken && (
@@ -370,16 +379,20 @@ function ProposedActionsList({
   activeProposalIds,
   onConfirm,
   onApplyReRank,
+  onConfirmTopicLens,
 }: {
-  messageId:          string
-  actions:            Record<string, ProposedAction>
-  activeProposalIds?: string[]
-  onConfirm?:         (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
-  onApplyReRank?:     (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
+  messageId:           string
+  actions:             Record<string, ProposedAction>
+  activeProposalIds?:  string[]
+  onConfirm?:          (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
+  onApplyReRank?:      (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
+  onConfirmTopicLens?: (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
 }) {
   // Slice 6: kind-aware dispatch. add_row keeps the existing pill/flow;
-  // re_rank gets a new ↻ pill that triggers a pure client-state apply.
-  // create_lens proposals are filtered out for now — UI lands in commit 8.
+  // re_rank gets a ↻ pill that triggers a pure client-state apply.
+  // Slice 6.5: propose_create_topic_lens gets an expand-to-review pill.
+  // propose_create_lens proposals are filtered out (slice 6 dropped that
+  // flow in favour of save-view-as-lens on re-rank).
   const allEntries = Object.entries(actions ?? {})
   const addRowEntries = onConfirm
     ? allEntries.filter(
@@ -393,14 +406,27 @@ function ProposedActionsList({
           e[1] && e[1].kind === 'propose_re_rank',
       )
     : []
-  if (addRowEntries.length === 0 && reRankEntries.length === 0) return null
+  const topicLensEntries = onConfirmTopicLens
+    ? allEntries.filter(
+        (e): e is [string, ProposedAction & { kind: 'propose_create_topic_lens' }] =>
+          e[1] && e[1].kind === 'propose_create_topic_lens',
+      )
+    : []
+  if (addRowEntries.length === 0 && reRankEntries.length === 0 && topicLensEntries.length === 0) return null
 
   const activeSet = new Set(activeProposalIds ?? [])
-  const eyebrow = addRowEntries.length > 0 && reRankEntries.length > 0
+  const hasMultipleKinds = [
+    addRowEntries.length > 0,
+    reRankEntries.length > 0,
+    topicLensEntries.length > 0,
+  ].filter(Boolean).length > 1
+  const eyebrow = hasMultipleKinds
     ? 'Try one of these on your comparison?'
     : addRowEntries.length > 0
       ? 'Add to your comparison?'
-      : 'Try a different ranking?'
+      : reRankEntries.length > 0
+        ? 'Try a different ranking?'
+        : 'Build a focused view?'
 
   return (
     <div className="rr-proposed-actions">
@@ -423,6 +449,147 @@ function ProposedActionsList({
             onClick={() => onApplyReRank!(messageId, proposalId, action.view_spec, action.label)}
           />
         ))}
+        {topicLensEntries.map(([proposalId, action]) => (
+          <TopicLensButton
+            key={proposalId}
+            topicName={action.topic_name}
+            lensName={action.lens_name}
+            embeddedRows={action.embedded_rows}
+            visibleBaseRows={action.visible_base_rows}
+            isAddedInTable={activeSet.has(proposalId)}
+            onConfirm={() => onConfirmTopicLens!(messageId, proposalId)}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// Slice 6.5 — topic-lens pill. First click expands to a review panel
+// showing the lens name + the row specs Nana wants to add; second click
+// calls onConfirm which posts to write-action (action='create_topic_lens')
+// and triggers the create_topic_lens RPC. Mirrors ProposedActionButton's
+// pending/added/error state machine but with an extra "expanded" mode.
+function TopicLensButton({
+  topicName,
+  lensName,
+  embeddedRows,
+  visibleBaseRows,
+  isAddedInTable,
+  onConfirm,
+}: {
+  topicName:        string
+  lensName:         string
+  embeddedRows:     ReadonlyArray<{ row_name: string; group_name: string }>
+  visibleBaseRows?: ReadonlyArray<string>
+  isAddedInTable:   boolean
+  onConfirm:        () => Promise<{ ok: boolean; code?: string }>
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const [override, setOverride] = useState<LocalOverride>(null)
+  const rowCount = embeddedRows.length
+
+  async function handleConfirm() {
+    if (override === 'pending') return
+    if (override === 'optimistic-added' || isAddedInTable) return
+    setOverride('pending')
+    const result = await onConfirm()
+    setOverride(result.ok ? 'optimistic-added' : 'error')
+  }
+
+  // Drop the optimistic marker once server truth says active.
+  useEffect(() => {
+    if (override === 'optimistic-added' && isAddedInTable) {
+      setOverride(null)
+    }
+  }, [override, isAddedInTable])
+
+  const isPending = override === 'pending'
+  const isError   = override === 'error'
+  const isAdded   = !isPending && !isError && (override === 'optimistic-added' || isAddedInTable)
+
+  // Collapsed pill: single click expands. The expanded panel has its own
+  // confirm button so users always preview before writing.
+  if (!expanded && !isAdded) {
+    return (
+      <button
+        type="button"
+        className={`rr-proposed-btn rr-proposed-btn--topic-lens${isError ? ' is-error' : ''}`}
+        onClick={() => { setExpanded(true); setOverride(null) }}
+        title={`Create ${topicName} lens with ${rowCount} new rows — preview before saving`}
+      >
+        <span className="rr-proposed-btn-icon" aria-hidden="true">✦</span>
+        <span className="rr-proposed-btn-label">
+          Create {topicName} lens with {rowCount} new row{rowCount === 1 ? '' : 's'}
+        </span>
+        <span className="rr-proposed-btn-group" aria-hidden="true">▸</span>
+      </button>
+    )
+  }
+
+  if (isAdded) {
+    return (
+      <button
+        type="button"
+        className="rr-proposed-btn rr-proposed-btn--topic-lens is-added"
+        disabled
+        title={`${lensName} lens — created`}
+      >
+        <span className="rr-proposed-btn-icon" aria-hidden="true">✓</span>
+        <span className="rr-proposed-btn-label">{lensName} lens — created</span>
+      </button>
+    )
+  }
+
+  // Expanded review panel: shows the row specs Nana wants to add. Confirm
+  // fires the actual write. Cancel collapses back without writing.
+  return (
+    <div className="rr-topic-lens-review">
+      <div className="rr-topic-lens-head">
+        <span className="rr-topic-lens-icon" aria-hidden="true">✦</span>
+        <div>
+          <p className="rr-topic-lens-title">Create {lensName} lens</p>
+          <p className="rr-topic-lens-sub">
+            Adds {rowCount} new row{rowCount === 1 ? '' : 's'} you&apos;ll see only under this lens
+            {visibleBaseRows && visibleBaseRows.length > 0
+              ? `. Keeps ${visibleBaseRows.length} base row${visibleBaseRows.length === 1 ? '' : 's'} visible alongside.`
+              : '.'}
+          </p>
+        </div>
+      </div>
+
+      <ul className="rr-topic-lens-rows">
+        {embeddedRows.map((r, i) => (
+          <li key={i} className="rr-topic-lens-row">
+            <span className="rr-topic-lens-row-name">{r.row_name}</span>
+            <span className="rr-topic-lens-row-group">{r.group_name}</span>
+          </li>
+        ))}
+      </ul>
+
+      {visibleBaseRows && visibleBaseRows.length > 0 && (
+        <p className="rr-topic-lens-base-hint">
+          Plus base rows: {visibleBaseRows.join(' · ')}
+        </p>
+      )}
+
+      <div className="rr-topic-lens-actions">
+        <button
+          type="button"
+          className="rr-topic-lens-cancel"
+          onClick={() => { setExpanded(false); setOverride(null) }}
+          disabled={isPending}
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          className={`rr-topic-lens-confirm${isPending ? ' is-pending' : ''}${isError ? ' is-error' : ''}`}
+          onClick={handleConfirm}
+          disabled={isPending}
+        >
+          {isPending ? 'Creating…' : isError ? 'Try again' : `Create ${lensName} lens`}
+        </button>
       </div>
     </div>
   )

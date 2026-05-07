@@ -19,15 +19,19 @@ import { getUnlockedUser } from '@/lib/paid-status'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-type AddRowBody         = { action: 'add_row';            message_id: string; proposal_id: string }
-type UndoRowBody        = { action: 'undo_add_row';       row_id: string }
-type RestoreRowBody     = { action: 'restore_row';        row_id: string }
+type AddRowBody          = { action: 'add_row';            message_id: string; proposal_id: string }
+type UndoRowBody         = { action: 'undo_add_row';       row_id: string }
+type RestoreRowBody      = { action: 'restore_row';        row_id: string }
 // Slice 6: lens write actions. Both call confirm_lens_from_proposal
 // under the hood; the lens_name_override lever is the only thing that
 // differs at the route layer.
-type CreateLensBody     = { action: 'create_lens';        message_id: string; proposal_id: string }
-type SaveViewAsLensBody = { action: 'save_view_as_lens';  message_id: string; proposal_id: string; lens_name: string }
-type Body = AddRowBody | UndoRowBody | RestoreRowBody | CreateLensBody | SaveViewAsLensBody
+type CreateLensBody      = { action: 'create_lens';        message_id: string; proposal_id: string }
+type SaveViewAsLensBody  = { action: 'save_view_as_lens';  message_id: string; proposal_id: string; lens_name: string }
+// Slice 6.5: topic lens. Calls create_topic_lens which atomically
+// inserts a comparison_lenses row + N comparison_rows with
+// created_by_lens_id set + flips active_lens_id.
+type CreateTopicLensBody = { action: 'create_topic_lens';  message_id: string; proposal_id: string }
+type Body = AddRowBody | UndoRowBody | RestoreRowBody | CreateLensBody | SaveViewAsLensBody | CreateTopicLensBody
 
 const UUID_RX        = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
 const PROPOSAL_ID_RX = /^[a-zA-Z0-9_-]{1,40}$/
@@ -66,7 +70,15 @@ function parseBody(raw: unknown): { body: Body | null; error?: string } {
     return { body: { action, message_id: o.message_id, proposal_id: o.proposal_id, lens_name: trimmed } }
   }
 
-  return { body: null, error: 'action must be add_row | undo_add_row | restore_row | create_lens | save_view_as_lens' }
+  // Slice 6.5 — create_topic_lens: same shape as create_lens (no override).
+  // The RPC reads embedded_rows + base_lens_kind from the proposal.
+  if (action === 'create_topic_lens') {
+    if (typeof o.message_id !== 'string' || !UUID_RX.test(o.message_id))                return { body: null, error: 'message_id must be a UUID' }
+    if (typeof o.proposal_id !== 'string' || !PROPOSAL_ID_RX.test(o.proposal_id as string)) return { body: null, error: 'proposal_id must match ^[a-zA-Z0-9_-]{1,40}$' }
+    return { body: { action, message_id: o.message_id, proposal_id: o.proposal_id } }
+  }
+
+  return { body: null, error: 'action must be add_row | undo_add_row | restore_row | create_lens | save_view_as_lens | create_topic_lens' }
 }
 
 async function getAuthClient() {
@@ -328,6 +340,47 @@ export async function POST(req: NextRequest) {
       }, { status: 409 })
     }
     console.error('[write-action] unexpected confirm_lens_from_proposal status:', status)
+    return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
+  }
+
+  // Slice 6.5 — create_topic_lens: atomic bundled write. Inserts
+  // comparison_lenses + N comparison_rows + flips active_lens_id.
+  if (body.action === 'create_topic_lens') {
+    const { data, error: rpcErr } = await supabase
+      .rpc('create_topic_lens', {
+        p_message_id:  body.message_id,
+        p_proposal_id: body.proposal_id,
+      })
+    if (rpcErr) return rpcErrorToResponse(rpcErr, 'create_topic_lens')
+
+    const result = Array.isArray(data) ? data[0] : data
+    if (!result) return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
+
+    const { lens_id, status, lens_data } = result as { lens_id: string | null; status: string; lens_data: unknown }
+
+    if (status === 'fresh') {
+      return NextResponse.json({ ok: true, status, lens_id, lens: lens_data }, { status: 201 })
+    }
+    if (status === 'deduped') {
+      return NextResponse.json({ ok: true, status, lens_id, lens: lens_data }, { status: 200 })
+    }
+    if (status === 'duplicate_name') {
+      return NextResponse.json({
+        ok: false,
+        code: 'duplicate_name',
+        existing: lens_data,
+        existing_lens_id: lens_id,
+        suggest: ['rename', 'cancel'],
+      }, { status: 409 })
+    }
+    if (status === 'empty_after_resolution') {
+      return NextResponse.json({
+        ok: false,
+        code: 'empty_after_resolution',
+        detail: 'The topic-lens proposal has no rows to insert.',
+      }, { status: 409 })
+    }
+    console.error('[write-action] unexpected create_topic_lens status:', status)
     return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
   }
 
