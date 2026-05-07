@@ -141,6 +141,11 @@ export interface NanaMsgBubbleProps {
   // mounts this; Decision Hub leaves it undefined to keep the existing
   // surface unchanged.
   onConfirmAddRow?: (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
+  // Slice 6: when set, render the "↻ Re-rank by …" pill for each
+  // propose_re_rank entry. Click is purely client-side — no DB write,
+  // no fetch — the consumer applies the view_spec as a sort/filter
+  // overlay on the comparison table. Save-as-lens UX is commit 8.
+  onApplyReRank?: (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
 }
 
 export function NanaMsgBubble({
@@ -149,6 +154,7 @@ export function NanaMsgBubble({
   streamBuf,
   streamFormat,
   onConfirmAddRow,
+  onApplyReRank,
 }: NanaMsgBubbleProps) {
   const parsed = msg?.parsed as any
   const s = parsed?.sections ?? {}
@@ -203,12 +209,13 @@ export function NanaMsgBubble({
               })}
           </div>
         )}
-        {!isStreaming && msg?.id && onConfirmAddRow && parsed?.proposed_actions && (
+        {!isStreaming && msg?.id && (onConfirmAddRow || onApplyReRank) && parsed?.proposed_actions && (
           <ProposedActionsList
             messageId={msg.id}
             actions={parsed.proposed_actions}
             activeProposalIds={msg.activeProposalIds}
             onConfirm={onConfirmAddRow}
+            onApplyReRank={onApplyReRank}
           />
         )}
         {!isStreaming && msg?.shareToken && (
@@ -331,12 +338,13 @@ export function NanaMsgBubble({
         </div>
       )}
 
-      {!isStreaming && msg?.id && onConfirmAddRow && parsed?.proposed_actions && (
+      {!isStreaming && msg?.id && (onConfirmAddRow || onApplyReRank) && parsed?.proposed_actions && (
         <ProposedActionsList
           messageId={msg.id}
           actions={parsed.proposed_actions}
           activeProposalIds={msg.activeProposalIds}
           onConfirm={onConfirmAddRow}
+          onApplyReRank={onApplyReRank}
         />
       )}
       {!isStreaming && msg?.shareToken && (
@@ -361,34 +369,89 @@ function ProposedActionsList({
   actions,
   activeProposalIds,
   onConfirm,
+  onApplyReRank,
 }: {
   messageId:          string
   actions:            Record<string, ProposedAction>
   activeProposalIds?: string[]
-  onConfirm:          (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
+  onConfirm?:         (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
+  onApplyReRank?:     (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
 }) {
-  const entries = Object.entries(actions ?? {}).filter(
-    (e): e is [string, ProposedAction] => e[1] && e[1].kind === 'propose_add_row',
-  )
-  if (entries.length === 0) return null
+  // Slice 6: kind-aware dispatch. add_row keeps the existing pill/flow;
+  // re_rank gets a new ↻ pill that triggers a pure client-state apply.
+  // create_lens proposals are filtered out for now — UI lands in commit 8.
+  const allEntries = Object.entries(actions ?? {})
+  const addRowEntries = onConfirm
+    ? allEntries.filter(
+        (e): e is [string, ProposedAction & { kind: 'propose_add_row' }] =>
+          e[1] && e[1].kind === 'propose_add_row',
+      )
+    : []
+  const reRankEntries = onApplyReRank
+    ? allEntries.filter(
+        (e): e is [string, ProposedAction & { kind: 'propose_re_rank' }] =>
+          e[1] && e[1].kind === 'propose_re_rank',
+      )
+    : []
+  if (addRowEntries.length === 0 && reRankEntries.length === 0) return null
 
   const activeSet = new Set(activeProposalIds ?? [])
+  const eyebrow = addRowEntries.length > 0 && reRankEntries.length > 0
+    ? 'Try one of these on your comparison?'
+    : addRowEntries.length > 0
+      ? 'Add to your comparison?'
+      : 'Try a different ranking?'
 
   return (
     <div className="rr-proposed-actions">
-      <p className="rr-proposed-eyebrow">Add to your comparison?</p>
+      <p className="rr-proposed-eyebrow">{eyebrow}</p>
       <div className="rr-proposed-list">
-        {entries.map(([proposalId, action]) => (
+        {addRowEntries.map(([proposalId, action]) => (
           <ProposedActionButton
             key={proposalId}
             label={action.row_name}
             group={action.group_name}
             isActiveInTable={activeSet.has(proposalId)}
-            onClick={() => onConfirm(messageId, proposalId)}
+            onClick={() => onConfirm!(messageId, proposalId)}
+          />
+        ))}
+        {reRankEntries.map(([proposalId, action]) => (
+          <ReRankButton
+            key={proposalId}
+            label={action.label}
+            rationale={action.rationale}
+            onClick={() => onApplyReRank!(messageId, proposalId, action.view_spec, action.label)}
           />
         ))}
       </div>
     </div>
+  )
+}
+
+// Slice 6 — re-rank pill. No async, no fetch, no state — clicks fire
+// the parent's apply-overlay callback synchronously. The parent owns
+// the ephemeral view state so two clicks on different re-rank pills in
+// different chat answers replace each other (last-click-wins). Save-as-
+// lens affordance lives in the comparison header (commit 8), not here.
+function ReRankButton({
+  label,
+  rationale,
+  onClick,
+}: {
+  label:     string
+  rationale?: string
+  onClick:    () => void
+}) {
+  return (
+    <button
+      type="button"
+      className="rr-proposed-btn rr-proposed-btn--rerank"
+      onClick={onClick}
+      title={rationale ? `${label} — ${rationale}` : label}
+    >
+      <span className="rr-proposed-btn-icon" aria-hidden="true">↻</span>
+      <span className="rr-proposed-btn-label">{label}</span>
+    </button>
   )
 }
 

@@ -822,6 +822,67 @@
   color: var(--rr-teal-dk);
 }
 
+/* ── Slice 6 commit 7 · re-rank pill (↻ ephemeral view) ───────────────── */
+/* Distinct from + Add as row: amber accent so the parent reads it as
+   "try a different angle" rather than "add a permanent thing". */
+.rr-proposed-btn--rerank {
+  border-color: var(--rr-amber, #d4a64a);
+  color: var(--rr-amber-dk, #8a6420);
+  background: rgba(212, 166, 74, 0.06);
+}
+.rr-proposed-btn--rerank:hover:not(:disabled) {
+  border-color: var(--rr-amber, #d4a64a);
+  background: rgba(212, 166, 74, 0.14);
+  transform: translateY(-1px);
+}
+.rr-proposed-btn--rerank .rr-proposed-btn-icon {
+  font-size: 14px;
+}
+
+/* ── Slice 6 commit 7 · active-overlay chip in comparison header ──────── */
+.rr-cmp-overlay-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 6px 8px 6px 12px;
+  border: 1px solid var(--rr-amber, #d4a64a);
+  border-radius: 100px;
+  background: rgba(212, 166, 74, 0.08);
+  color: var(--rr-amber-dk, #8a6420);
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  font-weight: 500;
+  max-width: max-content;
+}
+.rr-cmp-overlay-chip-icon {
+  font-weight: 800;
+  font-size: 14px;
+  line-height: 1;
+}
+.rr-cmp-overlay-chip-text strong {
+  font-weight: 700;
+}
+.rr-cmp-overlay-chip-meta {
+  color: var(--rr-amber-dk, #8a6420);
+  opacity: 0.7;
+  font-weight: 400;
+}
+.rr-cmp-overlay-chip-clear {
+  border: 0;
+  background: transparent;
+  color: var(--rr-amber-dk, #8a6420);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+  border-radius: 50%;
+  transition: background 120ms ease;
+}
+.rr-cmp-overlay-chip-clear:hover {
+  background: rgba(212, 166, 74, 0.18);
+}
+
 /* ── Slice 5 · custom-row remove button + error banner ───────────────── */
 .rr-cmp-dim {
   position: relative;

@@ -50,6 +50,11 @@ type Props = {
   // active-lens fallback resolves to the right base when the parent
   // hasn't created a custom lens yet.
   lensView?:           'general' | 'child_fit'
+  // Slice 6 commit 7: re-rank pill click handler. Owned by ResearchRoom
+  // (which holds the ephemeral view state). Pure client-state — no DB
+  // write, no fetch. The receive-side applies viewSpec.weights as a
+  // sort/filter overlay on the comparison table.
+  onApplyReRank?:      (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
 }
 
 const DRAG_TAP_THRESHOLD = 5
@@ -65,6 +70,7 @@ function ChatBody({
   onToggleBuildMode,
   chat,
   onConfirmAddRow,
+  onApplyReRank,
   actionError,
   onDismissActionError,
 }: {
@@ -72,6 +78,7 @@ function ChatBody({
   onToggleBuildMode:    () => void
   chat:                 ReturnType<typeof useNanaChat>
   onConfirmAddRow:      (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
+  onApplyReRank?:       (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
   actionError:          string | null
   onDismissActionError: () => void
 }) {
@@ -134,7 +141,7 @@ function ChatBody({
         {messages.map(msg => (
           <div key={msg.id}>
             <div className="rr-bubble-user">{msg.question}</div>
-            <NanaMsgBubble msg={msg} onConfirmAddRow={onConfirmAddRow} />
+            <NanaMsgBubble msg={msg} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} />
           </div>
         ))}
 
@@ -238,6 +245,7 @@ export default function ResearchRoomChat({
   initialSession   = null,
   initialMessages  = [],
   lensView         = 'general',
+  onApplyReRank,
 }: Props) {
   // One chat hook instance — but only ONE ChatBody (desktop OR mobile)
   // is mounted at a time so the hook's inputRef/chatEndRef attach to the
@@ -451,7 +459,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         )}
       </aside>
@@ -522,7 +530,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         </>
       )}

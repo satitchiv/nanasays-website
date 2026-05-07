@@ -69,6 +69,32 @@ export default function ResearchRoom({
   const [buildMode, setBuildMode] = useState(false)
   const [activeChildId, setActiveChildId] = useState<string | null>(initialActiveChildId)
 
+  // Slice 6 commit 7 — ephemeral re-rank view. Pure client state; no DB
+  // write. Set when the parent clicks a "↻ Re-rank by …" pill in the
+  // chat panel. Cleared by clicking the × in the comparison header (or
+  // landed in commit 8 — saved as a lens via "Save this view as a lens").
+  // Refreshing the page drops this state back to null.
+  type EphemeralView = {
+    weights:       Record<string, number>  // canonical row_name → 0..5
+    visibleRows?:  string[]                // canonical row_name allowlist
+    label:         string
+    sourceMessageId: string
+    sourceProposalId: string
+  } | null
+  const [ephemeralView, setEphemeralView] = useState<EphemeralView>(null)
+
+  function handleApplyReRank(messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) {
+    // Last-click-wins: replacing the previous re-rank entirely.
+    setEphemeralView({
+      weights:          viewSpec.weights,
+      visibleRows:      viewSpec.visible_rows,
+      label,
+      sourceMessageId:  messageId,
+      sourceProposalId: proposalId,
+    })
+  }
+  function handleClearReRank() { setEphemeralView(null) }
+
   // Persist the active child to parent_profiles + refresh server data
   // so the comparison table re-fetches per the new child's shortlist.
   // Failures revert local state to keep UI consistent with DB truth.
@@ -291,7 +317,18 @@ export default function ResearchRoom({
                           Showing <strong>{activeChild.name}&rsquo;s</strong> matches
                         </div>
                       )}
-                      <ComparisonView data={comparisonData} activeChildName={activeChild?.name ?? null} lens={lens} loadError={comparisonError} />
+                      <ComparisonView
+                        data={comparisonData}
+                        activeChildName={activeChild?.name ?? null}
+                        lens={lens}
+                        loadError={comparisonError}
+                        viewOverlay={ephemeralView ? {
+                          weights:     ephemeralView.weights,
+                          visibleRows: ephemeralView.visibleRows ?? null,
+                          label:       ephemeralView.label,
+                        } : null}
+                        onClearOverlay={handleClearReRank}
+                      />
                     </>
                   ) : t === 'brief' ? (
                     <ChildBriefTab
@@ -339,6 +376,7 @@ export default function ResearchRoom({
           initialSession={initialSession}
           initialMessages={initialMessages}
           lensView={lens ?? 'general'}
+          onApplyReRank={handleApplyReRank}
         />
       </div>
     </div>

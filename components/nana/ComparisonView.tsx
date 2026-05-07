@@ -21,6 +21,18 @@ type Props = {
   // sets this string and we surface it as a banner instead of falling
   // through to demo schools.
   loadError?: string | null
+  // Slice 6 commit 7 — ephemeral view overlay. When set, the table
+  // re-orders rows: weighted rows float to the top in weight-descending
+  // order; unweighted rows fall to the bottom in their original order.
+  // visibleRows (when non-null) further filters the row set before sort.
+  // Pure visual overlay — the underlying comparison_rows are unchanged.
+  // Cleared by clicking the × in the active-view chip (onClearOverlay).
+  viewOverlay?: {
+    weights:     Record<string, number>   // canonical row_name → 0..5
+    visibleRows: string[] | null          // null = no filter; array = allowlist
+    label:       string                   // pill label, e.g. "Re-rank by academics + value"
+  } | null
+  onClearOverlay?: () => void
 }
 
 // Slice 5.5: ALL rows live in comparison_rows now (no more hardcoded
@@ -38,14 +50,53 @@ export default function ComparisonView({
   activeChildName = null,
   lens = 'general',
   loadError = null,
+  viewOverlay = null,
+  onClearOverlay,
 }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null)
   const [removeError, setRemoveError] = useState<string | null>(null)
-  const { schools, rows } = data
+  const { schools, rows: rawRows } = data
   const childLensLabel = activeChildName ? `${activeChildName} fit` : 'Child fit'
+
+  // Slice 6 commit 7 — apply ephemeral overlay (filter + sort). Stable
+  // sort: rows with a weight come first, ordered by weight desc; ties
+  // and unweighted rows preserve original index. Row labels are matched
+  // case-insensitively + trimmed against the overlay keys (the validator
+  // normalizes proposal keys to canonical row_name strings, but defence
+  // in depth costs nothing here).
+  const rows = (() => {
+    if (!viewOverlay) return rawRows
+    const norm = (s: string) => s.trim().toLowerCase()
+    const wMap = new Map<string, number>()
+    for (const [k, v] of Object.entries(viewOverlay.weights)) {
+      if (typeof v === 'number' && Number.isFinite(v)) wMap.set(norm(k), v)
+    }
+    const visibleSet = viewOverlay.visibleRows
+      ? new Set(viewOverlay.visibleRows.map(norm))
+      : null
+    const filtered = visibleSet
+      ? rawRows.filter(r => visibleSet.has(norm(r.label)))
+      : rawRows
+    const indexed = filtered.map((row, idx) => ({
+      row,
+      idx,
+      weight: wMap.get(norm(row.label)) ?? null,
+    }))
+    indexed.sort((a, b) => {
+      const aW = a.weight, bW = b.weight
+      // Weighted rows first
+      if (aW !== null && bW === null) return -1
+      if (aW === null && bW !== null) return 1
+      // Both weighted: descending weight
+      if (aW !== null && bW !== null && aW !== bW) return bW - aW
+      // Same weight (or both unweighted): preserve original order
+      return a.idx - b.idx
+    })
+    return indexed.map(x => x.row)
+  })()
 
   // Slice 5.5a: lens switch via URL param. The server reads searchParams.lens
   // in page.tsx and re-fetches the right rows. router.replace keeps history
@@ -148,6 +199,29 @@ export default function ComparisonView({
           <strong>{lens === 'general' ? 'General' : childLensLabel}</strong> active
         </div>
       </div>
+
+      {/* Slice 6 commit 7 — ephemeral re-rank chip. Shows the active
+          view label with × to clear. Save-as-lens affordance is commit 8. */}
+      {viewOverlay && (
+        <div className="rr-cmp-overlay-chip" role="status">
+          <span className="rr-cmp-overlay-chip-icon" aria-hidden="true">↻</span>
+          <span className="rr-cmp-overlay-chip-text">
+            <strong>{viewOverlay.label}</strong>
+            <span className="rr-cmp-overlay-chip-meta"> · view applied (not saved)</span>
+          </span>
+          {onClearOverlay && (
+            <button
+              type="button"
+              className="rr-cmp-overlay-chip-clear"
+              onClick={onClearOverlay}
+              aria-label="Reset to base lens"
+              title="Reset to base lens"
+            >
+              ×
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="rr-cmp-table-wrap">
         <div className="rr-cmp-table" style={{ gridTemplateColumns }}>

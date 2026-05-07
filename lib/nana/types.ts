@@ -41,7 +41,36 @@ export interface ProposedAddRow {
   cell_data:   Record<string, { value: string | number | null; source?: string | null; note?: string }>
 }
 
-export type ProposedAction = ProposedAddRow
+// Slice 6: re-rank and create-lens proposals. Both carry a view_spec
+// (base lens + per-row weights + optional row-name allowlist for
+// visibility). Re-rank is ephemeral — applied client-side, no DB write
+// — until the user opts to save it as a lens. Create-lens is durable
+// from first click.
+//
+// Row keys in `view_spec.weights` are CANONICAL row labels exactly as
+// they appear on the comparison table (the validator does the
+// canonicalisation; UI can do a direct row-name lookup).
+export interface ProposeViewSpec {
+  base_lens_kind: 'general' | 'child_fit'
+  weights:        Record<string, number>
+  visible_rows?:  string[]
+}
+
+export interface ProposeReRank {
+  kind:       'propose_re_rank'
+  label:      string
+  rationale?: string
+  view_spec:  ProposeViewSpec
+}
+
+export interface ProposeCreateLens {
+  kind:           'propose_create_lens'
+  lens_name:      string
+  lens_question?: string
+  view_spec:      ProposeViewSpec
+}
+
+export type ProposedAction = ProposedAddRow | ProposeReRank | ProposeCreateLens
 // Keyed by short proposal_id (^[a-zA-Z0-9_-]{1,40}$). Function reads
 // parsed_answer.proposed_actions[proposal_id] when confirming.
 export type ProposedActions = Record<string, ProposedAction>
