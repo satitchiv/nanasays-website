@@ -45,6 +45,11 @@ type Props = {
   shortlistSlugs?:     string[]
   initialSession?:     Session | null
   initialMessages?:    ResearchMessage[]
+  // Slice 6: the page's active ?lens= selection. Threaded through
+  // use-nana-chat → /api/nana-research as `lensView` so the route's
+  // active-lens fallback resolves to the right base when the parent
+  // hasn't created a custom lens yet.
+  lensView?:           'general' | 'child_fit'
 }
 
 const DRAG_TAP_THRESHOLD = 5
@@ -232,6 +237,7 @@ export default function ResearchRoomChat({
   shortlistSlugs   = [],
   initialSession   = null,
   initialMessages  = [],
+  lensView         = 'general',
 }: Props) {
   // One chat hook instance — but only ONE ChatBody (desktop OR mobile)
   // is mounted at a time so the hook's inputRef/chatEndRef attach to the
@@ -243,6 +249,7 @@ export default function ResearchRoomChat({
       activeTab:        'compare',
       activeSchoolSlug: null,
       shortlistSlugs,
+      lensView,
     }),
     // Read-only: ignore ui_intent. DecisionHub uses these for tab switching;
     // Research Room's tabs are driven by the user, not Nana.

@@ -338,6 +338,7 @@ export default function ResearchRoom({
           shortlistSlugs={comparisonData?.schools.map(s => s.slug) ?? []}
           initialSession={initialSession}
           initialMessages={initialMessages}
+          lensView={lens ?? 'general'}
         />
       </div>
     </div>

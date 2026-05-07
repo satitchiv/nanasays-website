@@ -27,6 +27,12 @@ export interface NanaChatServerParams {
   activeTab:        string
   activeSchoolSlug: string | null
   shortlistSlugs:   string[]
+  // Slice 6: caller's view of the active base lens (derived from the
+  // ?lens= URL parameter for research-room consumers; omitted for
+  // legacy DecisionHub callers). The route prefers
+  // research_sessions.active_lens_id → comparison_lenses.base_lens_kind
+  // when set, falling back to this hint when no custom lens is active.
+  lensView?:        'general' | 'child_fit'
 }
 
 export interface UseNanaChatOptions {
@@ -216,6 +222,8 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
           activeTab: sp.activeTab,
           activeSchoolSlug: sp.activeSchoolSlug,
           shortlistSlugs: sp.shortlistSlugs,
+          // Slice 6: optional hint; route prefers DB-derived lens when set.
+          ...(sp.lensView ? { lensView: sp.lensView } : {}),
         }),
         signal: ac.signal,
       })

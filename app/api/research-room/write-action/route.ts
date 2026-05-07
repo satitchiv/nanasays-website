@@ -19,10 +19,15 @@ import { getUnlockedUser } from '@/lib/paid-status'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-type AddRowBody     = { action: 'add_row';      message_id: string; proposal_id: string }
-type UndoRowBody    = { action: 'undo_add_row'; row_id: string }
-type RestoreRowBody = { action: 'restore_row';  row_id: string }
-type Body = AddRowBody | UndoRowBody | RestoreRowBody
+type AddRowBody         = { action: 'add_row';            message_id: string; proposal_id: string }
+type UndoRowBody        = { action: 'undo_add_row';       row_id: string }
+type RestoreRowBody     = { action: 'restore_row';        row_id: string }
+// Slice 6: lens write actions. Both call confirm_lens_from_proposal
+// under the hood; the lens_name_override lever is the only thing that
+// differs at the route layer.
+type CreateLensBody     = { action: 'create_lens';        message_id: string; proposal_id: string }
+type SaveViewAsLensBody = { action: 'save_view_as_lens';  message_id: string; proposal_id: string; lens_name: string }
+type Body = AddRowBody | UndoRowBody | RestoreRowBody | CreateLensBody | SaveViewAsLensBody
 
 const UUID_RX        = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
 const PROPOSAL_ID_RX = /^[a-zA-Z0-9_-]{1,40}$/
@@ -43,7 +48,25 @@ function parseBody(raw: unknown): { body: Body | null; error?: string } {
     return { body: { action, row_id: o.row_id } as Body }
   }
 
-  return { body: null, error: 'action must be add_row | undo_add_row | restore_row' }
+  // Slice 6 — create_lens: proposal carries lens_name; override forbidden.
+  if (action === 'create_lens') {
+    if (typeof o.message_id !== 'string' || !UUID_RX.test(o.message_id))                return { body: null, error: 'message_id must be a UUID' }
+    if (typeof o.proposal_id !== 'string' || !PROPOSAL_ID_RX.test(o.proposal_id as string)) return { body: null, error: 'proposal_id must match ^[a-zA-Z0-9_-]{1,40}$' }
+    return { body: { action, message_id: o.message_id, proposal_id: o.proposal_id } }
+  }
+
+  // Slice 6 — save_view_as_lens: re-rank proposal with user-supplied
+  // name (1..40 chars after btrim). RPC validates these bounds server-side.
+  if (action === 'save_view_as_lens') {
+    if (typeof o.message_id !== 'string' || !UUID_RX.test(o.message_id))                return { body: null, error: 'message_id must be a UUID' }
+    if (typeof o.proposal_id !== 'string' || !PROPOSAL_ID_RX.test(o.proposal_id as string)) return { body: null, error: 'proposal_id must match ^[a-zA-Z0-9_-]{1,40}$' }
+    if (typeof o.lens_name  !== 'string')                                               return { body: null, error: 'lens_name must be a string' }
+    const trimmed = o.lens_name.trim()
+    if (trimmed.length < 1 || trimmed.length > 40)                                      return { body: null, error: 'lens_name must be 1..40 chars (after trim)' }
+    return { body: { action, message_id: o.message_id, proposal_id: o.proposal_id, lens_name: trimmed } }
+  }
+
+  return { body: null, error: 'action must be add_row | undo_add_row | restore_row | create_lens | save_view_as_lens' }
 }
 
 async function getAuthClient() {
@@ -258,6 +281,53 @@ export async function POST(req: NextRequest) {
       suggest: ['view_existing', 'cancel'],
     }, { status: 409 })
     console.error('[write-action] unexpected restore_row status:', status)
+    return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
+  }
+
+  // Slice 6 — create_lens / save_view_as_lens both call the same RPC.
+  // The RPC discriminates by proposal.kind: propose_create_lens forbids
+  // override, propose_re_rank requires it. The route maps both action
+  // strings to one RPC call with the appropriate override argument.
+  if (body.action === 'create_lens' || body.action === 'save_view_as_lens') {
+    const override = body.action === 'save_view_as_lens' ? body.lens_name : null
+    const { data, error: rpcErr } = await supabase
+      .rpc('confirm_lens_from_proposal', {
+        p_message_id:         body.message_id,
+        p_proposal_id:        body.proposal_id,
+        p_lens_name_override: override,
+      })
+    if (rpcErr) return rpcErrorToResponse(rpcErr, 'confirm_lens_from_proposal')
+
+    const result = Array.isArray(data) ? data[0] : data
+    if (!result) return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
+
+    const { lens_id, status, lens_data } = result as { lens_id: string | null; status: string; lens_data: unknown }
+
+    if (status === 'fresh') {
+      return NextResponse.json({ ok: true, status, lens_id, lens: lens_data }, { status: 201 })
+    }
+    if (status === 'deduped') {
+      // Same proposal already saved; RPC re-flipped active_lens_id so UX
+      // is "now active".
+      return NextResponse.json({ ok: true, status, lens_id, lens: lens_data }, { status: 200 })
+    }
+    if (status === 'duplicate_name') {
+      return NextResponse.json({
+        ok: false,
+        code: 'duplicate_name',
+        existing: lens_data,
+        existing_lens_id: lens_id,
+        suggest: ['rename', 'cancel'],
+      }, { status: 409 })
+    }
+    if (status === 'empty_after_resolution') {
+      return NextResponse.json({
+        ok: false,
+        code: 'empty_after_resolution',
+        detail: 'The rows referenced by this proposal are no longer active.',
+      }, { status: 409 })
+    }
+    console.error('[write-action] unexpected confirm_lens_from_proposal status:', status)
     return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
   }
 

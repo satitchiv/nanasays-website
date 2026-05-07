@@ -120,6 +120,13 @@ export async function POST(req: NextRequest) {
   const shortlistSlugs: string[]        = Array.isArray(body?.shortlistSlugs)
     ? body.shortlistSlugs.filter((s: unknown) => typeof s === 'string').slice(0, 10)
     : []
+  // Slice 6: client hint for the active base lens (research-room only).
+  // Used as fallback when the session has no custom lens active. The
+  // route prefers research_sessions.active_lens_id → lens.base_lens_kind
+  // when set; treat client hint as untrusted and only accept the two
+  // valid enum values.
+  const lensViewHint: 'general' | 'child_fit' =
+    body?.lensView === 'child_fit' ? 'child_fit' : 'general'
 
   // Deep mode = agentic loop scoped to the parent's shortlist. Capped at 4.
   // Decision is made BEFORE the mode-based routing so a vague-sounding question
@@ -298,6 +305,47 @@ export async function POST(req: NextRequest) {
     else req.signal.addEventListener('abort', () => ac.abort(), { once: true })
   }
 
+  // Slice 6: resolve the active base lens for this session.
+  //   - If research_sessions.active_lens_id points at a custom lens, take
+  //     its base_lens_kind (the underlying row pool).
+  //   - Otherwise, trust the client's lensView hint (sanitized above).
+  // Then pull the active row labels for that base from comparison_rows.
+  // The runner threads both into the Pass-2 extractor so propose_re_rank /
+  // propose_create_lens proposals reference rows the parent actually sees.
+  let baseLensKind: 'general' | 'child_fit' = lensViewHint
+  let activeRowNames: string[] = []
+  try {
+    type LensJoin = { base_lens_kind?: 'general' | 'child_fit' | null } | { base_lens_kind?: 'general' | 'child_fit' | null }[] | null
+    const { data: sessRow } = await supabase
+      .from('research_sessions')
+      .select('active_lens_id, lens:active_lens_id(base_lens_kind)')
+      .eq('id', sessionId)
+      .maybeSingle<{ active_lens_id: string | null; lens: LensJoin }>()
+    // Supabase joins return arrays for to-many but single object for to-one;
+    // we declared the FK as singular but type the join defensively.
+    const lensJoin = sessRow?.lens
+    const lensBase = Array.isArray(lensJoin) ? lensJoin[0]?.base_lens_kind : lensJoin?.base_lens_kind
+    if (lensBase === 'general' || lensBase === 'child_fit') {
+      baseLensKind = lensBase
+    }
+
+    const { data: rows } = await supabase
+      .from('comparison_rows')
+      .select('row_name, sort_order')
+      .eq('session_id', sessionId)
+      .eq('lens_kind', baseLensKind)
+      .is('undone_at', null)
+      .order('sort_order', { ascending: true })
+      .limit(100)
+    activeRowNames = (rows ?? [])
+      .map((r: { row_name: string }) => r.row_name)
+      .filter((s): s is string => typeof s === 'string' && s.length > 0)
+  } catch (e) {
+    // Loader failure is non-fatal — Pass 2 silently skips C/D when
+    // activeRowNames is empty. B propose_add_row is unaffected.
+    console.error('[nana-research] active-lens/rows resolve failed:', e)
+  }
+
   // verbosity='chat' tells the agentic brain to emit the trimmed schema (4
   // sections, optional ones may be omitted) instead of the full report schema.
   // Saves 500-1500 output tokens per answer = the biggest perceived-speed win.
@@ -306,7 +354,17 @@ export async function POST(req: NextRequest) {
   // slug allowlist (slice 5-FU1). prose-runner sanitizes against ^[a-z0-9-]{1,80}$
   // before the slugs reach the prompt, so the route's typeof-string filter is
   // sufficient defence-in-depth at this layer.
-  const streamOpts = { signal: ac.signal, devilsAdvocate, parentContext, verbosity: 'chat' as const, shortlistSlugs }
+  // Slice 6 additions: baseLensKind + activeRowNames feed the Pass-2 extractor
+  // so propose_re_rank / propose_create_lens reference rows that exist.
+  const streamOpts = {
+    signal: ac.signal,
+    devilsAdvocate,
+    parentContext,
+    verbosity: 'chat' as const,
+    shortlistSlugs,
+    baseLensKind,
+    activeRowNames,
+  }
 
   const encoder = new TextEncoder()
   const stream = new ReadableStream({
