@@ -239,23 +239,32 @@ export default async function ResearchRoomPage({
       // the loader's base-wins de-dup drops it. Marking it "Added" in chat
       // would be a lie ("you can't see it anywhere"). Filter such rows out
       // of activeProposalIds so the bubble shows "+ Add" again.
+      // Slice 6.5 (Codex final-pass P2 #2): include created_by_lens_id so
+      // base-row "Added" derivation can scope to non-topic rows. Without
+      // it, a topic row coincidentally sharing a row_name with a chat
+      // add_row proposal would falsely flip the chat pill to ✓ Added.
       const { data: activeRows } = await svc
         .from('comparison_rows')
-        .select('lens_kind, row_name, idempotency_key, source_message_id')
+        .select('lens_kind, row_name, idempotency_key, source_message_id, created_by_lens_id')
         .eq('session_id', initialSession.id)
         .is('undone_at', null)
       type ActiveRow = {
-        lens_kind:        'general' | 'child_fit' | 'chat'
-        row_name:         string
-        idempotency_key:  string | null
-        source_message_id: string | null
+        lens_kind:           'general' | 'child_fit' | 'chat'
+        row_name:            string
+        idempotency_key:     string | null
+        source_message_id:   string | null
+        created_by_lens_id:  string | null
       }
       const allActive = (activeRows ?? []) as ActiveRow[]
       const norm = (s: string) => s.trim().toLowerCase()
-      const generalNames  = new Set(allActive.filter(r => r.lens_kind === 'general').map(r => norm(r.row_name)))
-      const childFitNames = new Set(allActive.filter(r => r.lens_kind === 'child_fit').map(r => norm(r.row_name)))
+      // Topic rows are not eligible for the "Added" derivation paths —
+      // those paths only describe chat add_row proposals and base/seed
+      // row coverage. Filter them out before computing names + keys.
+      const baseAndChatActive = allActive.filter(r => r.created_by_lens_id == null)
+      const generalNames  = new Set(baseAndChatActive.filter(r => r.lens_kind === 'general').map(r => norm(r.row_name)))
+      const childFitNames = new Set(baseAndChatActive.filter(r => r.lens_kind === 'child_fit').map(r => norm(r.row_name)))
       const activeIdempotencyKeys = new Set(
-        allActive
+        baseAndChatActive
           .filter(r => r.lens_kind === 'chat')
           .filter(r => r.idempotency_key != null && r.source_message_id != null)
           .filter(r => {
@@ -266,7 +275,7 @@ export default async function ResearchRoomPage({
           .map(r => r.idempotency_key as string)
       )
 
-      type StampedAction = { kind?: string; proposal_id?: string; idempotency_key?: string }
+      type StampedAction = { kind?: string; proposal_id?: string; idempotency_key?: string; lens_id?: string }
 
       // Round-5 polish: a proposal counts as "Added" if EITHER (a) its own
       // chat row is active and visible in some tab, OR (b) ANY active row
@@ -275,7 +284,16 @@ export default async function ResearchRoomPage({
       // "+ Add" — confusing, since the dimension is already in the
       // comparison. The route's F1 cross-lens block would then 409 the
       // click, surfacing an error the user shouldn't have hit.
-      const allActiveRowNames = new Set(allActive.map(r => norm(r.row_name)))
+      // Slice 6.5: scope to base/seed/chat rows so a topic row doesn't
+      // shadow a chat proposal.
+      const allActiveRowNames = new Set(baseAndChatActive.map(r => norm(r.row_name)))
+
+      // Slice 6.5: mirror set for topic-lens proposals. A topic-lens
+      // proposal counts as "Created" iff the create_topic_lens RPC stamped
+      // an `add_topic_lens` action whose `lens_id` still exists in the
+      // user's saved lenses (CASCADE on FK delete would have removed it
+      // from savedLenses if its lens were gone).
+      const savedLensIds = new Set(savedLenses.map(l => l.id))
 
       initialMessages = (msgs ?? []).map(m => {
         const stamps = (m.actions ?? []) as StampedAction[]
@@ -287,6 +305,19 @@ export default async function ResearchRoomPage({
           if (a.kind !== 'add_row') continue
           if (!a.proposal_id || !a.idempotency_key) continue
           if (!activeIdempotencyKeys.has(a.idempotency_key)) continue
+          if (seen.has(a.proposal_id)) continue
+          seen.add(a.proposal_id)
+          activeProposalIds.push(a.proposal_id)
+        }
+
+        // (a-bis, slice 6.5) topic-lens proposal "Created" state. The
+        // RPC stamps `add_topic_lens` with the new lens_id; we count the
+        // proposal as Created iff that lens_id still resolves to a row
+        // in savedLenses (i.e. it wasn't deleted/cascaded).
+        for (const a of stamps) {
+          if (a.kind !== 'add_topic_lens') continue
+          if (!a.proposal_id || !a.lens_id) continue
+          if (!savedLensIds.has(a.lens_id)) continue
           if (seen.has(a.proposal_id)) continue
           seen.add(a.proposal_id)
           activeProposalIds.push(a.proposal_id)
