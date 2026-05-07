@@ -89,6 +89,16 @@ export default function ResearchRoom({
   const [buildMode, setBuildMode] = useState(false)
   const [activeChildId, setActiveChildId] = useState<string | null>(initialActiveChildId)
 
+  // 6-FU5 — optimistic active-lens id. Declared up here (before any
+  // closure that references it) because handleSwitchActiveLens flips
+  // it before the POST resolves; placing the state lower triggers a
+  // temporal-dead-zone error at module init.
+  const [optimisticActiveLensId, setOptimisticActiveLensId] =
+    useState<string | null>(activeLensId)
+  useEffect(() => {
+    setOptimisticActiveLensId(activeLensId)
+  }, [activeLensId])
+
   // Slice 6 commits 7+8 — ephemeral view. Pure client state; no DB
   // write. The single source of truth is `rowOrder` (an explicit list
   // of row IDs in display order). Both inputs flow into it:
@@ -174,11 +184,14 @@ export default function ResearchRoom({
   // re-loads comparisonData against a different row UUID set; the
   // stale overlay would either filter to nothing or pin the wrong
   // rows. Drop it on either transition. Pill clicks themselves don't
-  // change `lens` or `activeLensId`, so the just-set view survives.
+  // change `lens` or the optimistic active-lens id, so the just-set
+  // view survives. Tracking the optimistic id (not the prop) means
+  // the clear fires the moment the user picks a new lens, not 1.5s
+  // later when router.refresh resolves.
   useEffect(() => {
     setEphemeralView(null)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lens, activeLensId])
+  }, [lens, optimisticActiveLensId])
 
   // Slice 6 commit 9 — save the current ephemeral view as a permanent
   // lens. Only works when the view originated from a ↻ pill (source =
@@ -369,11 +382,12 @@ export default function ResearchRoom({
   // map visible_rows UUIDs → canonical row_names so ComparisonView's
   // case-insensitive filter logic keeps working unchanged.
   //
-  // Falls back to undefined when no lens is active or the lens is
-  // empty (UUID misses are silent — same posture as the RPC's
-  // unresolved-name drop on save).
-  const activeLens = activeLensId
-    ? savedLenses.find(l => l.id === activeLensId) ?? null
+  // Falls back to null when no lens is active. UUID misses are
+  // silent (same posture as the RPC's unresolved-name drop on save).
+  // Reads optimisticActiveLensId so the overlay flips with the click,
+  // not 1.5s later.
+  const activeLens = optimisticActiveLensId
+    ? savedLenses.find(l => l.id === optimisticActiveLensId) ?? null
     : null
 
   const activeLensOverlay = (() => {
@@ -442,13 +456,16 @@ export default function ResearchRoom({
       : null
 
   // Picker dropdown action — switch which saved lens drives the view
-  // (or clear back to base via lensId === null). Calls the existing
-  // /api/research-room/active-lens route shipped during slice 6, then
-  // refreshes server data so loadComparisonData re-fetches against the
-  // new effective base lens.
+  // (or clear back to base via lensId === null). 6-FU5: flip the
+  // client mirror BEFORE the fetch so the picker label + table
+  // overlay update on click; the server refresh reconciles in the
+  // background. Roll back optimistic state on POST failure so the
+  // UI matches DB truth.
   async function handleSwitchActiveLens(lensId: string | null) {
     if (!initialSession) return
-    if (lensId === activeLensId) return
+    if (lensId === optimisticActiveLensId) return
+    const prev = optimisticActiveLensId
+    setOptimisticActiveLensId(lensId)
     try {
       const res = await fetch('/api/research-room/active-lens', {
         method:  'POST',
@@ -458,11 +475,13 @@ export default function ResearchRoom({
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         console.error('[switch-active-lens]', res.status, body?.code)
+        setOptimisticActiveLensId(prev)
         return
       }
       router.refresh()
     } catch (e) {
       console.error('[switch-active-lens]', e)
+      setOptimisticActiveLensId(prev)
     }
   }
 
@@ -554,7 +573,7 @@ export default function ResearchRoom({
                         onClearOverlay={handleClearReRank}
                         onReorderRows={handleReorderRows}
                         savedLenses={savedLenses}
-                        activeLensId={activeLensId}
+                        activeLensId={optimisticActiveLensId}
                         onSwitchActiveLens={handleSwitchActiveLens}
                       />
                     </>
