@@ -204,6 +204,10 @@ export default async function ResearchRoomPage({
     // schools but no rows (the seeder hasn't run yet). On error, keep
     // comparisonData as the empty default + flag the error so the UI
     // can surface a banner instead of falling through to demo data.
+    //
+    // Slice 6.5: pass activeLensId so topic rows (created_by_lens_id =
+    // activeLensId) surface alongside base rows. When null or pointing
+    // at a saved/re-rank lens, the loader hides all topic rows.
     try {
       comparisonData = await loadComparisonData(
         svc,
@@ -211,6 +215,7 @@ export default async function ResearchRoomPage({
         activeChildId,
         effectiveLens,
         initialSession?.id ?? null,
+        activeLensId,
       )
     } catch (e) {
       console.error('[research-room loadComparisonData]', e)
