@@ -870,6 +870,17 @@
 .rr-chat-rail-chip--save:hover:not(:disabled) {
   background: rgba(52, 195, 160, 0.18);
 }
+/* Slice 6.5 — topic-lens chip mirrors save-view's teal accent because
+   both produce a comparison_lenses row. ✦ + 'Create lens for…' is the
+   discoverable entry point for the propose_create_topic_lens flow. */
+.rr-chat-rail-chip--topic-lens:not(:disabled) {
+  border-color: var(--rr-teal);
+  background: var(--rr-teal-bg, rgba(52, 195, 160, 0.1));
+  color: var(--rr-teal-dk);
+}
+.rr-chat-rail-chip--topic-lens:hover:not(:disabled) {
+  background: rgba(52, 195, 160, 0.18);
+}
 
 /* Inline save-as-lens form expands beside / below the chips. */
 .rr-chat-rail-save-form {
