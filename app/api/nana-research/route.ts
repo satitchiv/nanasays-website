@@ -301,7 +301,12 @@ export async function POST(req: NextRequest) {
   // verbosity='chat' tells the agentic brain to emit the trimmed schema (4
   // sections, optional ones may be omitted) instead of the full report schema.
   // Saves 500-1500 output tokens per answer = the biggest perceived-speed win.
-  const streamOpts = { signal: ac.signal, devilsAdvocate, parentContext, verbosity: 'chat' as const }
+  //
+  // shortlistSlugs is forwarded so prose-runner can use it as the proposed_actions
+  // slug allowlist (slice 5-FU1). prose-runner sanitizes against ^[a-z0-9-]{1,80}$
+  // before the slugs reach the prompt, so the route's typeof-string filter is
+  // sufficient defence-in-depth at this layer.
+  const streamOpts = { signal: ac.signal, devilsAdvocate, parentContext, verbosity: 'chat' as const, shortlistSlugs }
 
   const encoder = new TextEncoder()
   const stream = new ReadableStream({
