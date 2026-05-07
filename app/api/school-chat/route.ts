@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createClient } from '@supabase/supabase-js'
 import { isPaidModeOn } from '@/lib/paid-mode'
+import { buildStructuredBlock as buildStructuredBlockShared } from '@/lib/server/nana-brain.js'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
@@ -304,21 +305,14 @@ function sourceLabel(row: any): string {
 
 function buildStructuredBlock(structured: any): string {
   if (!structured) return ''
-  const lines: string[] = []
-
-  if (structured.fees_min || structured.fees_max) {
-    const cur = structured.fees_currency || ''
-    const range = [structured.fees_min, structured.fees_max].filter(Boolean).join('–')
-    lines.push(`Annual fees: ${cur} ${range}`.trim())
-  }
-  if (structured.languages?.length)      lines.push(`Languages of instruction: ${structured.languages.join(', ')}`)
-  if (structured.curriculum?.length)     lines.push(`Curriculum: ${structured.curriculum.join(', ')}`)
-  if (structured.accreditations?.length) lines.push(`Accreditations: ${structured.accreditations.join(', ')}`)
-  if (structured.grade_levels?.grades?.length) lines.push(`Grade levels: ${structured.grade_levels.grades.join(', ')}`)
-  if (structured.facilities?.length)     lines.push(`Facilities: ${structured.facilities.slice(0, 10).join(', ')}`)
-
-  if (!lines.length) return ''
-  return `\nVERIFIED STRUCTURED FACTS (extracted from school data — treat as authoritative):\n${lines.join('\n')}\n`
+  // Delegate to the shared canonical-key renderer (nana-brain.js) so the
+  // portal assistant surfaces the same sports profile (tier, DMT, coaching
+  // staff, cup history, programmes) that /dev/nana-test sees. The shared
+  // helper returns the literal '(no structured data)' sentinel when the
+  // input is empty — treat that as the empty-block case.
+  const block = buildStructuredBlockShared(structured)
+  if (!block || block === '(no structured data)') return ''
+  return `\nVERIFIED STRUCTURED FACTS (extracted from school data — treat as authoritative):\n${block}\n`
 }
 
 function buildPrompt(
