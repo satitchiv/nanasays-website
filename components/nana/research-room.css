@@ -1481,6 +1481,87 @@
   color: var(--rr-muted);
   margin-left: 6px;
 }
+/* Slice 6 close — saved-lens picker. The trigger reuses the lens-tab
+   pill style so it sits flush with General/Child fit; the menu floats
+   beneath, clamped to a comfortable width. */
+.rr-cmp-lens-picker {
+  position: relative;
+  display: inline-block;
+}
+.rr-cmp-lens-tab--picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.rr-cmp-lens-picker-caret {
+  font-size: 10px;
+  line-height: 1;
+  margin-top: 1px;
+}
+.rr-cmp-lens-picker-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 30;
+  min-width: 240px;
+  max-width: 320px;
+  background: var(--rr-white);
+  border: 1.5px solid var(--rr-border);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px var(--rr-shadow);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.rr-cmp-lens-picker-eyebrow {
+  font-family: var(--rr-sans);
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--rr-muted);
+  font-weight: 800;
+  padding: 6px 8px 4px;
+}
+.rr-cmp-lens-picker-item {
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  color: var(--rr-navy);
+  cursor: pointer;
+  text-align: left;
+}
+.rr-cmp-lens-picker-item:hover {
+  background: var(--rr-cream, #f7f3ec);
+}
+.rr-cmp-lens-picker-item.is-active {
+  background: var(--rr-teal-soft, rgba(120, 200, 200, 0.18));
+  font-weight: 700;
+}
+.rr-cmp-lens-picker-check {
+  color: var(--rr-teal-dk);
+  font-weight: 800;
+  text-align: center;
+}
+.rr-cmp-lens-picker-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.rr-cmp-lens-picker-base {
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--rr-muted);
+  font-weight: 700;
+}
 .rr-cmp-stats {
   font-family: var(--rr-sans);
   font-size: 12px;

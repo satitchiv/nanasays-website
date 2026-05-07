@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -31,6 +31,15 @@ import {
 
 type Lens = 'general' | 'child_fit'
 
+// Slice 6 close — minimal lens shape consumed by the picker dropdown.
+// Mirrors the SavedLens type in ResearchRoom (kept loose here to avoid
+// a cross-component type cycle).
+type LensListItem = {
+  id:             string
+  lens_name:      string
+  base_lens_kind: Lens
+}
+
 type Props = {
   data?: ComparisonData
   activeChildName?: string | null
@@ -39,17 +48,21 @@ type Props = {
   // sets this string and we surface it as a banner instead of falling
   // through to demo schools.
   loadError?: string | null
-  // Slice 6 commits 7+8 — ephemeral view overlay. rowOrder is an
-  // explicit list of row IDs in display order (set by either ↻ pill
-  // click — the parent component computes the order from weights — OR
-  // by drag-end). visibleRows (canonical row_names, if non-null)
-  // further filters the row set before sort. Pure visual overlay; the
-  // underlying comparison_rows are unchanged. Cleared via × in the
-  // chip (onClearOverlay) or by saving as a lens (commit 9).
+  // Slice 6 commits 7+8 — view overlay. rowOrder is an explicit list of
+  // row IDs in display order. visibleRows (canonical row_names, if
+  // non-null) further filters the row set before sort. Pure visual
+  // overlay; the underlying comparison_rows are unchanged.
+  //
+  // Two `kind`s drive subtly different chrome:
+  //   - 'ephemeral' (pill / drag) renders the "view applied (not saved)"
+  //     chip with × so the parent can clear back to base lens.
+  //   - 'saved' (active saved lens) renders no chip — the picker
+  //     dropdown is the indicator. Clearing is via the picker.
   viewOverlay?: {
     rowOrder:    string[]                 // row IDs in display order
     visibleRows: string[] | null          // null = no filter; array = canonical row_name allowlist
-    label:       string                   // chip label
+    label:       string                   // chip label (ephemeral) / lens name (saved)
+    kind:        'ephemeral' | 'saved'
   } | null
   onClearOverlay?: () => void
   // Slice 6 commit 8 — drag-end callback. ComparisonView fires this
@@ -57,6 +70,13 @@ type Props = {
   // position. The parent (ResearchRoom) updates ephemeralView.rowOrder
   // and the table re-renders.
   onReorderRows?: (rowIds: string[]) => void
+  // Slice 6 close — saved lens picker. savedLenses is the full list for
+  // the session; activeLensId selects which one (if any) drives the
+  // overlay. onSwitchActiveLens calls /api/research-room/active-lens +
+  // router.refresh; lensId === null clears back to the URL base lens.
+  savedLenses?: LensListItem[]
+  activeLensId?: string | null
+  onSwitchActiveLens?: (lensId: string | null) => Promise<void> | void
 }
 
 // Slice 5.5: ALL rows live in comparison_rows now (no more hardcoded
@@ -77,14 +97,42 @@ export default function ComparisonView({
   viewOverlay = null,
   onClearOverlay,
   onReorderRows,
+  savedLenses = [],
+  activeLensId = null,
+  onSwitchActiveLens,
 }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null)
   const [removeError, setRemoveError] = useState<string | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const pickerRef = useRef<HTMLDivElement | null>(null)
   const { schools, rows: rawRows } = data
   const childLensLabel = activeChildName ? `${activeChildName} fit` : 'Child fit'
+  const activeLens = activeLensId
+    ? savedLenses.find(l => l.id === activeLensId) ?? null
+    : null
+
+  // Close the picker when the parent clicks outside or hits Escape.
+  // Mounted only when open so it's a no-op during the common case.
+  useEffect(() => {
+    if (!pickerOpen) return
+    function onDocClick(e: MouseEvent) {
+      if (!pickerRef.current) return
+      if (pickerRef.current.contains(e.target as Node)) return
+      setPickerOpen(false)
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setPickerOpen(false)
+    }
+    document.addEventListener('mousedown', onDocClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDocClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [pickerOpen])
 
   // Slice 6 commits 7+8 — apply ephemeral overlay (filter + sort).
   // Source of truth is `rowOrder`: an explicit list of row IDs. Rows
@@ -118,13 +166,22 @@ export default function ComparisonView({
   // in page.tsx and re-fetches the right rows. router.replace keeps history
   // tidy (no per-click entry); cloning the existing search params preserves
   // anything already on the URL (e.g. future ?ref=, ?from=, etc.).
+  //
+  // Slice 6 close — clicking a base-lens tab also clears the active
+  // saved lens (if any). Otherwise the URL flips but the saved lens
+  // keeps driving the overlay, which is confusing.
   function switchLens(next: Lens) {
-    if (next === lens) return
-    const params = new URLSearchParams(searchParams?.toString() ?? '')
-    if (next === 'general') params.delete('lens')
-    else params.set('lens', next)
-    const qs = params.toString()
-    router.replace(qs ? `${pathname}?${qs}` : pathname)
+    const baseChanged = next !== lens
+    if (baseChanged) {
+      const params = new URLSearchParams(searchParams?.toString() ?? '')
+      if (next === 'general') params.delete('lens')
+      else params.set('lens', next)
+      const qs = params.toString()
+      router.replace(qs ? `${pathname}?${qs}` : pathname)
+    }
+    if (activeLensId && onSwitchActiveLens) {
+      void onSwitchActiveLens(null)
+    }
   }
 
   async function handleRemoveRow(uiRowId: string) {
@@ -193,8 +250,8 @@ export default function ComparisonView({
           <button
             type="button"
             role="tab"
-            aria-selected={lens === 'general'}
-            className={`rr-cmp-lens-tab${lens === 'general' ? ' is-active' : ''}`}
+            aria-selected={!activeLens && lens === 'general'}
+            className={`rr-cmp-lens-tab${!activeLens && lens === 'general' ? ' is-active' : ''}`}
             onClick={() => switchLens('general')}
           >
             General comparison
@@ -202,23 +259,68 @@ export default function ComparisonView({
           <button
             type="button"
             role="tab"
-            aria-selected={lens === 'child_fit'}
-            className={`rr-cmp-lens-tab${lens === 'child_fit' ? ' is-active' : ''}`}
+            aria-selected={!activeLens && lens === 'child_fit'}
+            className={`rr-cmp-lens-tab${!activeLens && lens === 'child_fit' ? ' is-active' : ''}`}
             onClick={() => switchLens('child_fit')}
           >
             {childLensLabel}
           </button>
+          {/* Slice 6 close — saved-lens picker. Hidden until the parent
+              has saved at least one lens. The active lens (if any) is
+              also shown as the button label so the picker doubles as
+              the active-lens indicator. */}
+          {savedLenses.length > 0 && (
+            <div className="rr-cmp-lens-picker" ref={pickerRef}>
+              <button
+                type="button"
+                className={`rr-cmp-lens-tab rr-cmp-lens-tab--picker${activeLens ? ' is-active' : ''}`}
+                aria-haspopup="menu"
+                aria-expanded={pickerOpen}
+                onClick={() => setPickerOpen(o => !o)}
+                title={activeLens ? `Active lens: ${activeLens.lens_name}` : 'Pick a saved lens'}
+              >
+                {activeLens ? activeLens.lens_name : 'Saved lenses'}
+                <span aria-hidden className="rr-cmp-lens-picker-caret">▾</span>
+              </button>
+              {pickerOpen && (
+                <div role="menu" className="rr-cmp-lens-picker-menu">
+                  <div className="rr-cmp-lens-picker-eyebrow">Saved lenses · this session</div>
+                  {savedLenses.map(l => {
+                    const isActive = l.id === activeLensId
+                    return (
+                      <button
+                        key={l.id}
+                        type="button"
+                        role="menuitem"
+                        className={`rr-cmp-lens-picker-item${isActive ? ' is-active' : ''}`}
+                        onClick={() => {
+                          setPickerOpen(false)
+                          if (onSwitchActiveLens) void onSwitchActiveLens(isActive ? null : l.id)
+                        }}
+                      >
+                        <span className="rr-cmp-lens-picker-check" aria-hidden>{isActive ? '✓' : ''}</span>
+                        <span className="rr-cmp-lens-picker-name">{l.lens_name}</span>
+                        <span className="rr-cmp-lens-picker-base">{l.base_lens_kind === 'child_fit' ? 'child fit' : 'general'}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
         <div className="rr-cmp-stats">
           {rows.length} rows · {schools.length} schools
           <br />
-          <strong>{lens === 'general' ? 'General' : childLensLabel}</strong> active
+          <strong>{activeLens ? activeLens.lens_name : (lens === 'general' ? 'General' : childLensLabel)}</strong> active
         </div>
       </div>
 
       {/* Slice 6 commit 7 — ephemeral re-rank chip. Shows the active
-          view label with × to clear. Save-as-lens affordance is commit 8. */}
-      {viewOverlay && (
+          view label with × to clear. Saved-lens overlays skip the
+          chip — the picker dropdown above already indicates which
+          lens is active. */}
+      {viewOverlay && viewOverlay.kind === 'ephemeral' && (
         <div className="rr-cmp-overlay-chip" role="status">
           <span className="rr-cmp-overlay-chip-icon" aria-hidden="true">↻</span>
           <span className="rr-cmp-overlay-chip-text">
@@ -248,7 +350,11 @@ export default function ComparisonView({
               <div className="rr-cmp-corner-title">
                 {schools.length} schools, <em>{rows.length} dimensions</em>
               </div>
-              <div className="rr-cmp-corner-meta">{lens === 'general' ? 'General lens' : `${childLensLabel} lens`}</div>
+              <div className="rr-cmp-corner-meta">
+                {activeLens
+                  ? `${activeLens.lens_name} lens`
+                  : (lens === 'general' ? 'General lens' : `${childLensLabel} lens`)}
+              </div>
             </div>
             {schools.map((s, i) => (
               <div key={s.slug} className="rr-cmp-head">

@@ -14,6 +14,22 @@ import './research-room.css'
 type Tab = 'brief' | 'compare' | 'verdict' | 'partner'
 type Lens = 'general' | 'child_fit'
 
+// Slice 6 close — saved lenses surface in the picker dropdown. weights
+// + visible_rows are UUID-keyed (resolved at save time by
+// confirm_lens_from_proposal). The component re-keys against the
+// loaded comparison rows by stripping the `cmp-` prefix; rows missing
+// from the current load fall out silently (consistent with the RPC's
+// "drop unresolved" stance).
+export type SavedLens = {
+  id:             string
+  lens_name:      string
+  lens_question:  string | null
+  base_lens_kind: Lens
+  weights:        Record<string, number>
+  visible_rows:   string[] | null
+  created_at:     string
+}
+
 type Props = {
   childOptions: ChildOption[]
   childSummaries?: ChildSummary[]
@@ -24,6 +40,8 @@ type Props = {
   lens?: Lens
   initialSession?: Session | null
   initialMessages?: ResearchMessage[]
+  savedLenses?: SavedLens[]
+  activeLensId?: string | null
 }
 
 const TAB_ORDER: Tab[] = ['brief', 'compare', 'verdict', 'partner']
@@ -62,6 +80,8 @@ export default function ResearchRoom({
   lens             = 'general',
   initialSession   = null,
   initialMessages  = [],
+  savedLenses      = [],
+  activeLensId     = null,
 }: Props) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<Tab>('compare')
@@ -330,6 +350,99 @@ export default function ResearchRoom({
       ? childSummaries.find((c) => c.id === activeChildId) ?? null
       : null
 
+  // Slice 6 close — derive a viewOverlay from the active saved lens.
+  // The lens stores weights + visible_rows keyed by row UUID; the
+  // loader yields rows with id `cmp-${uuid}`. We rebuild rowOrder by
+  // sorting rows by weight desc (stable on tie via original idx) and
+  // map visible_rows UUIDs → canonical row_names so ComparisonView's
+  // case-insensitive filter logic keeps working unchanged.
+  //
+  // Falls back to undefined when no lens is active or the lens is
+  // empty (UUID misses are silent — same posture as the RPC's
+  // unresolved-name drop on save).
+  const activeLens = activeLensId
+    ? savedLenses.find(l => l.id === activeLensId) ?? null
+    : null
+
+  const activeLensOverlay = (() => {
+    if (!activeLens) return null
+    const rawRows = comparisonData?.rows ?? []
+    const stripPrefix = (uiId: string) => uiId.replace(/^cmp-/, '')
+
+    const weights = activeLens.weights ?? {}
+    const visibleSet = activeLens.visible_rows
+      ? new Set(activeLens.visible_rows)
+      : null
+
+    const filtered = visibleSet
+      ? rawRows.filter(r => visibleSet.has(stripPrefix(r.id)))
+      : rawRows
+    if (filtered.length === 0) return null
+
+    const indexed = filtered.map((row, idx) => ({
+      id: row.id,
+      label: row.label,
+      idx,
+      weight: weights[stripPrefix(row.id)] ?? null,
+    }))
+    indexed.sort((a, b) => {
+      const aW = a.weight, bW = b.weight
+      if (aW !== null && bW === null) return -1
+      if (aW === null && bW !== null) return 1
+      if (aW !== null && bW !== null && aW !== bW) return bW - aW
+      return a.idx - b.idx
+    })
+    return {
+      rowOrder:    indexed.map(x => x.id),
+      visibleRows: visibleSet ? indexed.map(x => x.label) : null,
+    }
+  })()
+
+  // Effective overlay: ephemeral (pill/drag) wins over saved lens. When
+  // the parent clears the ephemeral chip, the saved lens overlay
+  // resumes — clearing back to base lens is a separate action via the
+  // picker (Activate "General comparison" tab).
+  const effectiveOverlay = ephemeralView
+    ? {
+        rowOrder:    ephemeralView.rowOrder,
+        visibleRows: ephemeralView.visibleRows ?? null,
+        label:       ephemeralView.label,
+        kind:        'ephemeral' as const,
+      }
+    : activeLensOverlay
+      ? {
+          rowOrder:    activeLensOverlay.rowOrder,
+          visibleRows: activeLensOverlay.visibleRows,
+          label:       activeLens?.lens_name ?? '',
+          kind:        'saved' as const,
+        }
+      : null
+
+  // Picker dropdown action — switch which saved lens drives the view
+  // (or clear back to base via lensId === null). Calls the existing
+  // /api/research-room/active-lens route shipped during slice 6, then
+  // refreshes server data so loadComparisonData re-fetches against the
+  // new effective base lens.
+  async function handleSwitchActiveLens(lensId: string | null) {
+    if (!initialSession) return
+    if (lensId === activeLensId) return
+    try {
+      const res = await fetch('/api/research-room/active-lens', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ session_id: initialSession.id, lens_id: lensId }),
+      })
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        console.error('[switch-active-lens]', res.status, body?.code)
+        return
+      }
+      router.refresh()
+    } catch (e) {
+      console.error('[switch-active-lens]', e)
+    }
+  }
+
   const shellClass = [
     'rr-shell',
     chatState === 'closed' ? 'rr-shell-chat-closed' : '',
@@ -414,13 +527,12 @@ export default function ResearchRoom({
                         activeChildName={activeChild?.name ?? null}
                         lens={lens}
                         loadError={comparisonError}
-                        viewOverlay={ephemeralView ? {
-                          rowOrder:    ephemeralView.rowOrder,
-                          visibleRows: ephemeralView.visibleRows ?? null,
-                          label:       ephemeralView.label,
-                        } : null}
+                        viewOverlay={effectiveOverlay}
                         onClearOverlay={handleClearReRank}
                         onReorderRows={handleReorderRows}
+                        savedLenses={savedLenses}
+                        activeLensId={activeLensId}
+                        onSwitchActiveLens={handleSwitchActiveLens}
                       />
                     </>
                   ) : t === 'brief' ? (

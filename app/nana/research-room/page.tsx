@@ -103,12 +103,27 @@ export default async function ResearchRoomPage({
   //   5. Load messages + activeProposalIds for the chat panel.
   let initialSession: import('@/lib/nana/types').Session | null = null
   let initialMessages: import('@/lib/nana/types').ResearchMessage[] = []
+  let activeLensId: string | null = null
+  // Slice 6 close — saved lenses available to the lens picker dropdown.
+  // weights are UUID-keyed (resolved by confirm_lens_from_proposal at
+  // save time); visible_rows is a UUID array. ResearchRoom maps both
+  // back to row IDs to drive the comparison overlay client-side.
+  type SavedLens = {
+    id:             string
+    lens_name:      string
+    lens_question:  string | null
+    base_lens_kind: 'general' | 'child_fit'
+    weights:        Record<string, number>
+    visible_rows:   string[] | null
+    created_at:     string
+  }
+  let savedLenses: SavedLens[] = []
 
   if (user && activeChildId) {
     const svc = supabaseService()
     const { data: sessions } = await svc
       .from('research_sessions')
-      .select('id, title, summary, created_at, last_active_at')
+      .select('id, title, summary, created_at, last_active_at, active_lens_id')
       .eq('user_id', user.id)
       .eq('child_id', activeChildId)
       .order('last_active_at', { ascending: false })
@@ -122,6 +137,7 @@ export default async function ResearchRoomPage({
         created_at:     sessions[0].created_at,
         last_active_at: sessions[0].last_active_at,
       }
+      activeLensId = (sessions[0].active_lens_id as string | null) ?? null
     }
 
     // Load shortlist context once. Both the seeder and (in future) the
@@ -144,6 +160,46 @@ export default async function ResearchRoomPage({
       }
     }
 
+    // Slice 6 close — load saved lenses for the picker dropdown. Order
+    // by created_at so the most recent saves appear at the top of the
+    // list. Lookup is scoped to the session, so cross-session leakage
+    // is impossible (and the DB triggers in slice 6 enforce the same
+    // invariant at the database layer).
+    if (initialSession) {
+      const { data: lensRows } = await svc
+        .from('comparison_lenses')
+        .select('id, lens_name, lens_question, base_lens_kind, weights, visible_rows, created_at')
+        .eq('session_id', initialSession.id)
+        .order('created_at', { ascending: false })
+      type LensRow = {
+        id:             string
+        lens_name:      string
+        lens_question:  string | null
+        base_lens_kind: 'general' | 'child_fit'
+        weights:        Record<string, number> | null
+        visible_rows:   string[] | null
+        created_at:     string
+      }
+      savedLenses = ((lensRows ?? []) as LensRow[]).map(r => ({
+        id:             r.id,
+        lens_name:      r.lens_name,
+        lens_question:  r.lens_question,
+        base_lens_kind: r.base_lens_kind,
+        weights:        (r.weights ?? {}) as Record<string, number>,
+        visible_rows:   r.visible_rows,
+        created_at:     r.created_at,
+      }))
+    }
+
+    // If a saved lens is active, the comparison rows we load must
+    // belong to that lens's base_lens_kind — its weights/visible_rows
+    // are UUID-keyed against rows in that base. URL-driven lens stays
+    // the source of truth when active_lens_id is null.
+    const activeLens = activeLensId
+      ? savedLenses.find(l => l.id === activeLensId) ?? null
+      : null
+    const effectiveLens: LensKind = activeLens ? activeLens.base_lens_kind : lens
+
     // Lens-aware comparison load. With no session, the loader returns
     // schools but no rows (the seeder hasn't run yet). On error, keep
     // comparisonData as the empty default + flag the error so the UI
@@ -153,7 +209,7 @@ export default async function ResearchRoomPage({
         svc,
         user.id,
         activeChildId,
-        lens,
+        effectiveLens,
         initialSession?.id ?? null,
       )
     } catch (e) {
@@ -274,6 +330,8 @@ export default async function ResearchRoomPage({
       lens={lens}
       initialSession={initialSession}
       initialMessages={initialMessages}
+      savedLenses={savedLenses}
+      activeLensId={activeLensId}
     />
   )
 }

@@ -576,15 +576,16 @@ export default function ResearchRoomChat({
   )
 }
 
-// Slice 6 commit 9 — chip rail above the chat input. Discoverable
-// commands surface the four moves the parent can make on the
-// comparison table: add a row, re-rank, create a lens, save the
-// current view. The first three chips PRE-FILL the input with a
-// bulletproof phrasing the classifier already understands; the
-// parent finishes the sentence and hits send. The 'Save view'
-// chip is contextual — only enabled when an ephemeral pill-
-// derived view is active — and short-circuits the chat entirely:
-// click → inline name input → write-action POST → router.refresh.
+// Slice 6 — chip rail above the chat input. Discoverable commands
+// surface three moves the parent can make on the comparison table:
+// add a row, re-rank, save the current view. The first two chips
+// PRE-FILL the input with phrasing the classifier already understands;
+// the parent finishes the sentence and hits send. The 'Save view' chip
+// is contextual — only enabled when an ephemeral pill-derived view is
+// active — and short-circuits the chat entirely: click → inline name
+// input → write-action POST → router.refresh. (The "Create a lens…"
+// chip was dropped at slice 6 close; Re-rank + Save view covers the
+// same flow without a separate proposal kind.)
 function ChatActionsRail({
   disabled,
   canSaveAsLens,
@@ -632,10 +633,6 @@ function ChatActionsRail({
       <button type="button" className="rr-chat-rail-chip" disabled={disabled}
               onClick={() => onChipFill('Rank these by ')}>
         <span aria-hidden>↻</span> Re-rank by…
-      </button>
-      <button type="button" className="rr-chat-rail-chip" disabled={disabled}
-              onClick={() => onChipFill('Create a lens for ')}>
-        <span aria-hidden>✦</span> Create a lens…
       </button>
       <button
         type="button"
