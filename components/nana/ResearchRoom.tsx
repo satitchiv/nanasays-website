@@ -69,30 +69,83 @@ export default function ResearchRoom({
   const [buildMode, setBuildMode] = useState(false)
   const [activeChildId, setActiveChildId] = useState<string | null>(initialActiveChildId)
 
-  // Slice 6 commit 7 — ephemeral re-rank view. Pure client state; no DB
-  // write. Set when the parent clicks a "↻ Re-rank by …" pill in the
-  // chat panel. Cleared by clicking the × in the comparison header (or
-  // landed in commit 8 — saved as a lens via "Save this view as a lens").
+  // Slice 6 commits 7+8 — ephemeral view. Pure client state; no DB
+  // write. The single source of truth is `rowOrder` (an explicit list
+  // of row IDs in display order). Both inputs flow into it:
+  //   - Drag-to-reorder (commit 8): drag-end sets rowOrder directly.
+  //   - ↻ Re-rank pill (commit 7): pill click computes rowOrder from
+  //     weights at click time and stores both. Weights stay around for
+  //     save-as-lens metadata (commit 9).
   // Refreshing the page drops this state back to null.
   type EphemeralView = {
-    weights:       Record<string, number>  // canonical row_name → 0..5
-    visibleRows?:  string[]                // canonical row_name allowlist
-    label:         string
-    sourceMessageId: string
-    sourceProposalId: string
+    rowOrder:         string[]                       // row IDs in display order
+    visibleRows?:     string[]                       // canonical row_name allowlist
+    weights?:         Record<string, number>         // canonical row_name → 0..5 (pill source only)
+    label:            string                         // "↻ Re-rank by …" or "Custom view"
+    source:           'drag' | 'pill'
+    sourceMessageId?: string
+    sourceProposalId?: string
   } | null
   const [ephemeralView, setEphemeralView] = useState<EphemeralView>(null)
 
+  // Pill-click handler: compute initial rowOrder from weights against
+  // the currently-loaded comparison rows, then store both.
   function handleApplyReRank(messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) {
-    // Last-click-wins: replacing the previous re-rank entirely.
+    const rawRows = comparisonData?.rows ?? []
+    const norm = (s: string) => s.trim().toLowerCase()
+    const wMap = new Map<string, number>()
+    for (const [k, v] of Object.entries(viewSpec.weights)) {
+      if (typeof v === 'number' && Number.isFinite(v)) wMap.set(norm(k), v)
+    }
+    const visibleSet = viewSpec.visible_rows
+      ? new Set(viewSpec.visible_rows.map(norm))
+      : null
+    const filtered = visibleSet
+      ? rawRows.filter(r => visibleSet.has(norm(r.label)))
+      : rawRows
+    const indexed = filtered.map((row, idx) => ({
+      id: row.id,
+      idx,
+      weight: wMap.get(norm(row.label)) ?? null,
+    }))
+    indexed.sort((a, b) => {
+      const aW = a.weight, bW = b.weight
+      if (aW !== null && bW === null) return -1
+      if (aW === null && bW !== null) return 1
+      if (aW !== null && bW !== null && aW !== bW) return bW - aW
+      return a.idx - b.idx
+    })
     setEphemeralView({
-      weights:          viewSpec.weights,
+      rowOrder:         indexed.map(x => x.id),
       visibleRows:      viewSpec.visible_rows,
+      weights:          viewSpec.weights,
       label,
+      source:           'pill',
       sourceMessageId:  messageId,
       sourceProposalId: proposalId,
     })
   }
+
+  // Drag-reorder handler (commit 8): rowIds are the new ordering.
+  // Replaces any active pill view — last action wins. Label changes to
+  // "Custom view" so the chip distinguishes user-arranged from
+  // Nana-suggested.
+  function handleReorderRows(rowIds: string[]) {
+    setEphemeralView(prev => {
+      // If a pill view was active, preserve its weights for save-as-lens
+      // (the parent may have manually tweaked Nana's suggestion).
+      const carriedWeights = prev?.source === 'pill' ? prev.weights : undefined
+      const carriedVisible = prev?.visibleRows
+      return {
+        rowOrder:    rowIds,
+        visibleRows: carriedVisible,
+        weights:     carriedWeights,
+        label:       prev?.source === 'pill' ? `${prev.label} (edited)` : 'Custom view',
+        source:      'drag',
+      }
+    })
+  }
+
   function handleClearReRank() { setEphemeralView(null) }
 
   // Persist the active child to parent_profiles + refresh server data
@@ -323,11 +376,12 @@ export default function ResearchRoom({
                         lens={lens}
                         loadError={comparisonError}
                         viewOverlay={ephemeralView ? {
-                          weights:     ephemeralView.weights,
+                          rowOrder:    ephemeralView.rowOrder,
                           visibleRows: ephemeralView.visibleRows ?? null,
                           label:       ephemeralView.label,
                         } : null}
                         onClearOverlay={handleClearReRank}
+                        onReorderRows={handleReorderRows}
                       />
                     </>
                   ) : t === 'brief' ? (

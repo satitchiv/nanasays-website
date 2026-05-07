@@ -822,6 +822,46 @@
   color: var(--rr-teal-dk);
 }
 
+/* ── Slice 6 commit 8 · drag handle on each comparison row ──────────── */
+.rr-cmp-row-drag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+  border: 0;
+  background: transparent;
+  color: var(--rr-muted);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  cursor: grab;
+  border-radius: 4px;
+  opacity: 0;
+  transition: opacity 120ms ease, background 120ms ease, color 120ms ease;
+}
+.rr-cmp-dim:hover .rr-cmp-row-drag,
+.rr-cmp-row-drag:focus-visible {
+  opacity: 1;
+}
+.rr-cmp-row-drag:hover {
+  background: var(--rr-off);
+  color: var(--rr-navy);
+}
+.rr-cmp-row-drag:active,
+.rr-cmp-table-row.is-dragging .rr-cmp-row-drag {
+  cursor: grabbing;
+  opacity: 1;
+  background: var(--rr-teal-bg, rgba(52, 195, 160, 0.12));
+  color: var(--rr-teal-dk);
+}
+.rr-cmp-table-row.is-dragging {
+  border-radius: var(--rr-r-md);
+}
+/* While dragging, reduce hover noise on neighbouring cells. */
+.rr-cmp-table-row.is-dragging .rr-cmp-cell:hover { background: var(--rr-white); }
+
 /* ── Slice 6 commit 7 · re-rank pill (↻ ephemeral view) ───────────────── */
 /* Distinct from + Add as row: amber accent so the parent reads it as
    "try a different angle" rather than "add a permanent thing". */
@@ -1358,9 +1398,20 @@
   -webkit-overflow-scrolling: touch;
 }
 .rr-cmp-table {
-  display: grid;
-  /* grid-template-columns set inline based on schools.length */
+  /* Slice 6 commit 8 — switched from one big CSS grid to a flex
+     column of grid-rows. Each .rr-cmp-table-row is its own
+     display: grid with the same gridTemplateColumns set inline.
+     This makes individual rows draggable as single DOM elements
+     (dnd-kit can't lift cells out of one shared parent grid). The
+     visual layout is identical because column widths still come
+     from the same gridTemplateColumns inline style. */
+  display: flex;
+  flex-direction: column;
   min-width: 1100px;
+}
+.rr-cmp-table-row {
+  display: grid;
+  /* gridTemplateColumns set inline */
 }
 
 .rr-cmp-corner {
