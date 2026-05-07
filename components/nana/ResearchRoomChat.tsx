@@ -55,6 +55,13 @@ type Props = {
   // write, no fetch. The receive-side applies viewSpec.weights as a
   // sort/filter overlay on the comparison table.
   onApplyReRank?:      (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
+  // Slice 6 commit 9: Save-as-lens flow. canSaveAsLens reflects whether
+  // there's a pill-derived ephemeral view that can be saved (ResearchRoom
+  // owns the state). onSaveAsLens fires the write-action POST and on
+  // success clears the overlay + refreshes the page so the new lens
+  // becomes active via loadActiveLens.
+  canSaveAsLens?:      boolean
+  onSaveAsLens?:       (lensName: string) => Promise<{ ok: boolean; code?: string; existingLensId?: string }>
 }
 
 const DRAG_TAP_THRESHOLD = 5
@@ -71,6 +78,8 @@ function ChatBody({
   chat,
   onConfirmAddRow,
   onApplyReRank,
+  canSaveAsLens,
+  onSaveAsLens,
   actionError,
   onDismissActionError,
 }: {
@@ -79,6 +88,8 @@ function ChatBody({
   chat:                 ReturnType<typeof useNanaChat>
   onConfirmAddRow:      (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
   onApplyReRank?:       (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
+  canSaveAsLens?:       boolean
+  onSaveAsLens?:        (lensName: string) => Promise<{ ok: boolean; code?: string; existingLensId?: string }>
   actionError:          string | null
   onDismissActionError: () => void
 }) {
@@ -187,6 +198,31 @@ function ChatBody({
         <div ref={chatEndRef} />
       </div>
 
+      {/* Slice 6 commit 9 — chip rail above the chat input.
+          Discoverable commands. Each chip pre-fills bulletproof
+          phrasing the classifier already understands; the parent
+          customises the bracketed bit and hits send. The Save view
+          chip is enabled only when an ephemeral pill-derived view
+          is currently active (canSaveAsLens). */}
+      <ChatActionsRail
+        disabled={isStreaming}
+        canSaveAsLens={Boolean(canSaveAsLens && onSaveAsLens)}
+        onChipFill={(prefix) => {
+          setQuestion(prefix)
+          // Defer focus + cursor-to-end so React commits the value first.
+          requestAnimationFrame(() => {
+            inputRef.current?.focus()
+            const el = inputRef.current
+            if (el) {
+              el.setSelectionRange(prefix.length, prefix.length)
+              el.style.height = 'auto'
+              el.style.height = Math.min(el.scrollHeight, 120) + 'px'
+            }
+          })
+        }}
+        onSaveAsLens={onSaveAsLens}
+      />
+
       <form
         className="rr-chat-input"
         onSubmit={e => { e.preventDefault(); ask() }}
@@ -246,6 +282,8 @@ export default function ResearchRoomChat({
   initialMessages  = [],
   lensView         = 'general',
   onApplyReRank,
+  canSaveAsLens    = false,
+  onSaveAsLens,
 }: Props) {
   // One chat hook instance — but only ONE ChatBody (desktop OR mobile)
   // is mounted at a time so the hook's inputRef/chatEndRef attach to the
@@ -459,7 +497,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         )}
       </aside>
@@ -530,10 +568,111 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         </>
       )}
     </>
   )
 }
+
+// Slice 6 commit 9 — chip rail above the chat input. Discoverable
+// commands surface the four moves the parent can make on the
+// comparison table: add a row, re-rank, create a lens, save the
+// current view. The first three chips PRE-FILL the input with a
+// bulletproof phrasing the classifier already understands; the
+// parent finishes the sentence and hits send. The 'Save view'
+// chip is contextual — only enabled when an ephemeral pill-
+// derived view is active — and short-circuits the chat entirely:
+// click → inline name input → write-action POST → router.refresh.
+function ChatActionsRail({
+  disabled,
+  canSaveAsLens,
+  onChipFill,
+  onSaveAsLens,
+}: {
+  disabled:      boolean
+  canSaveAsLens: boolean
+  onChipFill:    (prefix: string) => void
+  onSaveAsLens?: (lensName: string) => Promise<{ ok: boolean; code?: string; existingLensId?: string }>
+}) {
+  const [savePromptOpen, setSavePromptOpen] = useState(false)
+  const [lensName,       setLensName]       = useState('')
+  const [saveError,      setSaveError]      = useState<string | null>(null)
+  const [saving,         setSaving]         = useState(false)
+
+  async function submitSave() {
+    if (!onSaveAsLens) return
+    setSaveError(null)
+    setSaving(true)
+    const result = await onSaveAsLens(lensName)
+    setSaving(false)
+    if (result.ok) {
+      setSavePromptOpen(false)
+      setLensName('')
+      return
+    }
+    if (result.code === 'duplicate_name') {
+      setSaveError('A lens with that name already exists. Pick a different name.')
+    } else if (result.code === 'bad_name') {
+      setSaveError('Name must be 1–40 characters.')
+    } else if (result.code === 'empty_after_resolution') {
+      setSaveError('The rows referenced by this view are no longer active.')
+    } else {
+      setSaveError('Could not save the lens. Try again.')
+    }
+  }
+
+  return (
+    <div className="rr-chat-rail">
+      <button type="button" className="rr-chat-rail-chip" disabled={disabled}
+              onClick={() => onChipFill('Add a row about ')}>
+        <span aria-hidden>+</span> Add a row…
+      </button>
+      <button type="button" className="rr-chat-rail-chip" disabled={disabled}
+              onClick={() => onChipFill('Rank these by ')}>
+        <span aria-hidden>↻</span> Re-rank by…
+      </button>
+      <button type="button" className="rr-chat-rail-chip" disabled={disabled}
+              onClick={() => onChipFill('Create a lens for ')}>
+        <span aria-hidden>✦</span> Create a lens…
+      </button>
+      <button
+        type="button"
+        className="rr-chat-rail-chip rr-chat-rail-chip--save"
+        disabled={disabled || !canSaveAsLens}
+        title={canSaveAsLens ? 'Save the current view as a permanent lens' : 'Apply a re-rank first to enable Save view'}
+        onClick={() => { setSavePromptOpen(true); setSaveError(null) }}
+      >
+        <span aria-hidden>✦</span> Save view
+      </button>
+
+      {savePromptOpen && (
+        <form
+          className="rr-chat-rail-save-form"
+          onSubmit={e => { e.preventDefault(); submitSave() }}
+        >
+          <input
+            type="text"
+            value={lensName}
+            onChange={e => setLensName(e.target.value)}
+            placeholder="Name this lens (e.g. Academics + value)"
+            maxLength={40}
+            disabled={saving}
+            autoFocus
+            className="rr-chat-rail-save-input"
+          />
+          <button type="submit" className="rr-chat-rail-save-submit" disabled={saving || lensName.trim().length === 0}>
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+          <button type="button" className="rr-chat-rail-save-cancel" disabled={saving}
+                  onClick={() => { setSavePromptOpen(false); setSaveError(null); setLensName('') }}>
+            Cancel
+          </button>
+          {saveError && <span className="rr-chat-rail-save-error" role="alert">{saveError}</span>}
+        </form>
+      )}
+    </div>
+  )
+}
+

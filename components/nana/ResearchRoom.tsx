@@ -148,6 +148,45 @@ export default function ResearchRoom({
 
   function handleClearReRank() { setEphemeralView(null) }
 
+  // Slice 6 commit 9 — save the current ephemeral view as a permanent
+  // lens. Only works when the view originated from a ↻ pill (source =
+  // 'pill') because the save_view_as_lens RPC reconstructs view_spec
+  // from parsed_answer.proposed_actions[id]. If the user dragged after
+  // the pill click, save is still allowed — the RPC saves the original
+  // proposal's spec, not the dragged tweaks. Future commit could add a
+  // separate "save current arrangement" RPC for drag-only views.
+  const canSaveAsLens = !!(ephemeralView && (ephemeralView.source === 'pill' || (ephemeralView.source === 'drag' && ephemeralView.sourceProposalId && ephemeralView.sourceMessageId)))
+
+  async function handleSaveAsLens(lensName: string): Promise<{ ok: boolean; code?: string; existingLensId?: string }> {
+    if (!ephemeralView || !ephemeralView.sourceMessageId || !ephemeralView.sourceProposalId) {
+      return { ok: false, code: 'no_savable_view' }
+    }
+    const trimmed = lensName.trim()
+    if (trimmed.length < 1 || trimmed.length > 40) return { ok: false, code: 'bad_name' }
+    try {
+      const res = await fetch('/api/research-room/write-action', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          action:      'save_view_as_lens',
+          message_id:  ephemeralView.sourceMessageId,
+          proposal_id: ephemeralView.sourceProposalId,
+          lens_name:   trimmed,
+        }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (res.ok && body.ok) {
+        setEphemeralView(null)
+        router.refresh()
+        return { ok: true }
+      }
+      return { ok: false, code: body.code, existingLensId: body.existing_lens_id }
+    } catch (e) {
+      console.error('[save-as-lens]', e)
+      return { ok: false, code: 'network' }
+    }
+  }
+
   // Persist the active child to parent_profiles + refresh server data
   // so the comparison table re-fetches per the new child's shortlist.
   // Failures revert local state to keep UI consistent with DB truth.
@@ -431,6 +470,8 @@ export default function ResearchRoom({
           initialMessages={initialMessages}
           lensView={lens ?? 'general'}
           onApplyReRank={handleApplyReRank}
+          canSaveAsLens={canSaveAsLens}
+          onSaveAsLens={handleSaveAsLens}
         />
       </div>
     </div>

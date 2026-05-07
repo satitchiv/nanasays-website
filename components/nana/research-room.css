@@ -822,6 +822,109 @@
   color: var(--rr-teal-dk);
 }
 
+/* ── Slice 6 commit 9 · chip rail above the chat input ──────────────── */
+/* Discoverable commands. Sits between the message thread and the
+   input form. Wraps to two lines on narrow widths. */
+.rr-chat-rail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px 0;
+  border-top: 1px solid var(--rr-border);
+}
+.rr-chat-rail-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px 5px 8px;
+  border: 1px solid var(--rr-border);
+  border-radius: 100px;
+  background: var(--rr-white);
+  color: var(--rr-navy);
+  font-family: var(--rr-sans);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, color 120ms ease;
+}
+.rr-chat-rail-chip > span[aria-hidden] {
+  font-weight: 800;
+  font-size: 13px;
+  line-height: 1;
+}
+.rr-chat-rail-chip:hover:not(:disabled) {
+  border-color: var(--rr-teal);
+  background: var(--rr-teal-bg, rgba(52, 195, 160, 0.1));
+  color: var(--rr-teal-dk);
+}
+.rr-chat-rail-chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+/* Save-view chip is teal-toned to match the lens iconography. */
+.rr-chat-rail-chip--save:not(:disabled) {
+  border-color: var(--rr-teal);
+  background: var(--rr-teal-bg, rgba(52, 195, 160, 0.1));
+  color: var(--rr-teal-dk);
+}
+.rr-chat-rail-chip--save:hover:not(:disabled) {
+  background: rgba(52, 195, 160, 0.18);
+}
+
+/* Inline save-as-lens form expands beside / below the chips. */
+.rr-chat-rail-save-form {
+  display: flex;
+  flex: 1 1 100%;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 6px 4px 0;
+}
+.rr-chat-rail-save-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--rr-border);
+  border-radius: 6px;
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  color: var(--rr-navy);
+  background: var(--rr-white);
+}
+.rr-chat-rail-save-input:focus {
+  outline: 2px solid var(--rr-teal);
+  outline-offset: 1px;
+}
+.rr-chat-rail-save-submit {
+  padding: 6px 12px;
+  border: 1px solid var(--rr-teal);
+  border-radius: 6px;
+  background: var(--rr-teal);
+  color: white;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+}
+.rr-chat-rail-save-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.rr-chat-rail-save-cancel {
+  padding: 6px 10px;
+  border: 1px solid var(--rr-border);
+  border-radius: 6px;
+  background: var(--rr-white);
+  color: var(--rr-muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.rr-chat-rail-save-error {
+  flex: 1 1 100%;
+  font-size: 11px;
+  color: var(--rr-danger, #b1583e);
+  margin-top: 2px;
+}
+
 /* ── Slice 6 commit 8 · drag handle on each comparison row ──────────── */
 .rr-cmp-row-drag {
   display: inline-flex;
