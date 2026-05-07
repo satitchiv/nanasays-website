@@ -170,17 +170,23 @@ export default function ComparisonView({
   // Slice 6 close — clicking a base-lens tab also clears the active
   // saved lens (if any). Otherwise the URL flips but the saved lens
   // keeps driving the overlay, which is confusing.
-  function switchLens(next: Lens) {
-    const baseChanged = next !== lens
-    if (baseChanged) {
+  //
+  // Codex P2: sequence the two mutations. Firing router.replace and
+  // onSwitchActiveLens concurrently means the URL change can land
+  // server-side BEFORE the active-lens POST resolves, briefly
+  // rendering the new base lens with the OLD active_lens_id still
+  // overriding it. Awaiting the clear first means the URL change
+  // re-fetches against DB truth.
+  async function switchLens(next: Lens) {
+    if (activeLensId && onSwitchActiveLens) {
+      await onSwitchActiveLens(null)
+    }
+    if (next !== lens) {
       const params = new URLSearchParams(searchParams?.toString() ?? '')
       if (next === 'general') params.delete('lens')
       else params.set('lens', next)
       const qs = params.toString()
       router.replace(qs ? `${pathname}?${qs}` : pathname)
-    }
-    if (activeLensId && onSwitchActiveLens) {
-      void onSwitchActiveLens(null)
     }
   }
 

@@ -168,6 +168,18 @@ export default function ResearchRoom({
 
   function handleClearReRank() { setEphemeralView(null) }
 
+  // Codex P1: ephemeralView's rowOrder/visibleRows reference the row
+  // set that was loaded WHEN the pill/drag fired. Switching base lens
+  // (URL `lens` prop changes) or activating/clearing a saved lens
+  // re-loads comparisonData against a different row UUID set; the
+  // stale overlay would either filter to nothing or pin the wrong
+  // rows. Drop it on either transition. Pill clicks themselves don't
+  // change `lens` or `activeLensId`, so the just-set view survives.
+  useEffect(() => {
+    setEphemeralView(null)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lens, activeLensId])
+
   // Slice 6 commit 9 — save the current ephemeral view as a permanent
   // lens. Only works when the view originated from a ↻ pill (source =
   // 'pill') because the save_view_as_lens RPC reconstructs view_spec
@@ -377,7 +389,18 @@ export default function ResearchRoom({
     const filtered = visibleSet
       ? rawRows.filter(r => visibleSet.has(stripPrefix(r.id)))
       : rawRows
-    if (filtered.length === 0) return null
+    // Codex P1: when the active lens references no live rows (lens
+    // saved against a row set that's since been undone), still drive
+    // the overlay — returning null here would let the unfiltered base
+    // table render under the saved-lens label. Empty rowOrder + empty
+    // visibleRows means ComparisonView's overlay filter drops every
+    // row, which is the truthful "this lens has no rows left" state.
+    if (filtered.length === 0) {
+      return {
+        rowOrder:    [],
+        visibleRows: [],
+      }
+    }
 
     const indexed = filtered.map((row, idx) => ({
       id: row.id,

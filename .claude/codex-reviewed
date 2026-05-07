@@ -1,7 +1,1 @@
-2026-05-07 14:25 UTC
-chatbot-renderer-fix branch
-2 rounds:
-- round 1: 2 BLOCKs (cup_results sort, school_teams_visible label) + 1 NIT (DMT reasoning) — all applied
-- round 2: 0 BLOCKs, 1 NIT (cup variant coverage) applied; 1 NIT (legacy display-shape DMT regex) deferred — not in production data per Codex
-package: /tmp/renderer-fix-evidence/codex-review-final.md + codex-round2-final.md
-output:  /tmp/renderer-fix-evidence/codex-output-2.txt + codex-output-round2.txt
+2026-05-07T16:49:17Z slice-6-close+codex-r1
