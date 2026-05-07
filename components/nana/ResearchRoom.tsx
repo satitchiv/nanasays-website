@@ -12,6 +12,7 @@ import type { Session, ResearchMessage } from '@/lib/nana/types'
 import './research-room.css'
 
 type Tab = 'brief' | 'compare' | 'verdict' | 'partner'
+type Lens = 'general' | 'child_fit'
 
 type Props = {
   childOptions: ChildOption[]
@@ -19,6 +20,8 @@ type Props = {
   familyPreferences?: FamilyPreferences
   initialActiveChildId?: string | null
   comparisonData?: ComparisonData
+  comparisonError?: string | null
+  lens?: Lens
   initialSession?: Session | null
   initialMessages?: ResearchMessage[]
 }
@@ -55,6 +58,8 @@ export default function ResearchRoom({
   familyPreferences,
   initialActiveChildId = null,
   comparisonData,
+  comparisonError = null,
+  lens             = 'general',
   initialSession   = null,
   initialMessages  = [],
 }: Props) {
@@ -275,9 +280,9 @@ export default function ResearchRoom({
                             Side by side, <em>through your child&rsquo;s eyes.</em>
                           </h1>
                           <p className="rr-view-meta">
-                            Two lenses to start: <strong>{activeChild ? `${activeChild.name} fit` : 'Child fit'}</strong> (child-weighted) and{' '}
-                            <strong>Raw comparison</strong> (neutral). Slice 2 ships the
-                            read-only table — child weighting + chat-driven rows land later.
+                            Two lenses: <strong>General comparison</strong> (universally-relevant rows every parent sees) and{' '}
+                            <strong>{activeChild ? `${activeChild.name} fit` : 'Child fit'}</strong> (tailored to your child&rsquo;s profile).
+                            Chat with Nana to add custom rows; rows added from chat can be removed with ×.
                           </p>
                         </div>
                       </div>
@@ -286,7 +291,7 @@ export default function ResearchRoom({
                           Showing <strong>{activeChild.name}&rsquo;s</strong> matches
                         </div>
                       )}
-                      <ComparisonView data={comparisonData} activeChildName={activeChild?.name ?? null} />
+                      <ComparisonView data={comparisonData} activeChildName={activeChild?.name ?? null} lens={lens} loadError={comparisonError} />
                     </>
                   ) : t === 'brief' ? (
                     <ChildBriefTab

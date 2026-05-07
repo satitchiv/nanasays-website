@@ -125,6 +125,29 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
   onUiIntentRef.current   = opts.onUiIntent
   endpointRef.current     = opts.endpoint ?? '/api/nana-research'
 
+  // Slice 5-FU2: sync activeProposalIds from server (router.refresh()
+  // re-runs the page server component). The hook owns its own messages
+  // state after mount, so we'd otherwise miss × removals / re-adds that
+  // change which proposals are currently materialised as table rows.
+  // Stable signature dep avoids per-render churn — only fires when the
+  // (msg_id, active_proposals) tuple actually changes.
+  const activeProposalsSig = opts.initialMessages
+    .map(m => `${m.id}:${(m.activeProposalIds ?? []).slice().sort().join(',')}`)
+    .join('|')
+  useEffect(() => {
+    const byId = new Map<string, string[]>(
+      opts.initialMessages.map(m => [m.id, m.activeProposalIds ?? []])
+    )
+    setMessages(prev => prev.map(m => {
+      const next = byId.get(m.id)
+      if (!next) return m
+      const cur = m.activeProposalIds ?? []
+      if (cur.length === next.length && cur.every((v, i) => v === next[i])) return m
+      return { ...m, activeProposalIds: next }
+    }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeProposalsSig])
+
   // Auto-scroll chat to bottom on new messages or stream tokens
   useEffect(() => {
     if (chatEndRef.current) {
@@ -291,8 +314,17 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
                 typeof evt.payload?.parseError === 'string' ? evt.payload.parseError : undefined
               setIsStreaming(false)
               if (localParsed || hasContent || rawText) {
+                // Slice-5 round-4 fix (Codex F2): prefer the server-issued
+                // DB id from the persisted message. confirm_add_row
+                // requires a real id; the local UUID fallback only applies
+                // before the route fix has landed (older deploy) — those
+                // bubbles will fail confirm_add_row with "message not
+                // found" until a refresh rehydrates the real id.
+                const serverMessageId = typeof evt.messageId === 'string' && evt.messageId
+                  ? evt.messageId
+                  : null
                 setMessages(prev => [...prev, {
-                  id:        crypto.randomUUID?.() ?? Math.random().toString(36).slice(2),
+                  id:        serverMessageId ?? crypto.randomUUID?.() ?? Math.random().toString(36).slice(2),
                   question:  q,
                   parsed:    localParsed,
                   rawText,

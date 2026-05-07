@@ -66,6 +66,12 @@ export interface ResearchMessage {
   parseError?: string
   shareToken?: string
   createdAt:   string
+  // Slice 5-FU2: proposal_ids whose corresponding comparison_row is currently
+  // active (undone_at IS NULL) in the table. Server-derived; lets the chat
+  // bubble's "+ Add as row" button flip between "+ Add" / "✓ Added" based on
+  // table truth instead of local click history. Empty for non-rehydrated
+  // messages (streaming chat in this session) — they fall back to local state.
+  activeProposalIds?: string[]
 }
 
 export interface ToolStep {

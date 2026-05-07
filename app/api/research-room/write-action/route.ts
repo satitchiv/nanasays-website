@@ -119,6 +119,51 @@ export async function POST(req: NextRequest) {
   if (!isPaid) return NextResponse.json({ ok: false, code: 'payment_required' }, { status: 402 })
 
   if (body.action === 'add_row') {
+    // Round-4 fix (Codex F1): cross-lens collision pre-check. The RPC's
+    // duplicate_name only fires for same-lens collisions; without this
+    // guard a chat proposal whose row_name matches a seeded General row
+    // creates a chat row that the loader hides via base-wins de-dup —
+    // user sees "✓ Added" with no visible row and no × affordance.
+    //
+    // Reading parsed_answer here is allowed by RLS (user owns the session),
+    // and the small race window between this check and the RPC insert is
+    // bounded (only the user writes to their session).
+    {
+      const { data: msgRow, error: msgErr } = await supabase
+        .from('research_session_messages')
+        .select('session_id, parsed_answer')
+        .eq('id', body.message_id)
+        .maybeSingle()
+      if (msgErr) {
+        console.error('[write-action] cross-lens precheck — message lookup', msgErr)
+      } else if (msgRow) {
+        type ProposalLite = { row_name?: unknown; lens_kind?: unknown }
+        const proposals = ((msgRow.parsed_answer as { proposed_actions?: Record<string, ProposalLite> } | null)?.proposed_actions) ?? {}
+        const proposal = proposals[body.proposal_id]
+        const proposedName  = typeof proposal?.row_name === 'string' ? proposal.row_name.trim().toLowerCase() : null
+        const proposedLens  = proposal?.lens_kind === 'general' || proposal?.lens_kind === 'child_fit' ? proposal.lens_kind : 'chat'
+        if (proposedName && proposedLens === 'chat') {
+          const { data: collisions } = await supabase
+            .from('comparison_rows')
+            .select('id, row_name')
+            .eq('session_id', msgRow.session_id)
+            .in('lens_kind', ['general', 'child_fit'])
+            .is('undone_at', null)
+          const collision = (collisions ?? []).find(
+            (r: { row_name: string }) => r.row_name.trim().toLowerCase() === proposedName,
+          )
+          if (collision) {
+            return NextResponse.json({
+              ok: false,
+              code: 'duplicate_name',
+              existing_row_id: collision.id,
+              suggest: ['view_existing', 'cancel'],
+            }, { status: 409 })
+          }
+        }
+      }
+    }
+
     const { data, error: rpcErr } = await supabase
       .rpc('confirm_add_row', { p_message_id: body.message_id, p_proposal_id: body.proposal_id })
     if (rpcErr) return rpcErrorToResponse(rpcErr, 'confirm_add_row')
@@ -153,6 +198,34 @@ export async function POST(req: NextRequest) {
   }
 
   if (body.action === 'undo_add_row') {
+    // Codex post-round-5 hardening: only chat-added rows are user-removable.
+    // The UI already hides × for non-chat rows in ComparisonView, but the
+    // RPC accepts any owned row id — defence-in-depth refusal at the route
+    // prevents a future UI bug or a direct PostgREST hit from soft-deleting
+    // seeded General/child_fit rows. Slice 5.5f-bis would gate this when
+    // a "Restore hidden seeded rows" affordance ships.
+    {
+      const { data: row, error: rowErr } = await supabase
+        .from('comparison_rows')
+        .select('lens_kind')
+        .eq('id', body.row_id)
+        .maybeSingle()
+      if (rowErr) {
+        console.error('[write-action] undo precheck — row lookup', rowErr)
+        return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
+      }
+      if (!row) {
+        return NextResponse.json({ ok: false, code: 'not_found' }, { status: 404 })
+      }
+      if (row.lens_kind !== 'chat') {
+        return NextResponse.json({
+          ok: false,
+          code: 'forbidden_seeded_row',
+          detail: 'Seeded comparison rows are not user-removable in this slice.',
+        }, { status: 403 })
+      }
+    }
+
     const { data, error: rpcErr } = await supabase.rpc('undo_add_row', { p_row_id: body.row_id })
     if (rpcErr) return rpcErrorToResponse(rpcErr, 'undo_add_row')
 

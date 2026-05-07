@@ -1,28 +1,27 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ComparisonData, ComparisonRow, RowCell, SchoolColumn } from '@/components/nana/comparison-placeholder'
-import {
-  KNOWN_FULL_BOARDING_NAMES,
-  assertUserId,
-  normalizeSchoolName,
-} from './school-name-overrides'
+import { assertUserId } from './school-name-overrides'
 
-// Real-data shape mapper for the Research Room Comparison table.
-// Reads shortlisted_schools × schools × school_structured_data × school_sensitive
-// for the active user and produces a ComparisonData payload that
-// ComparisonView already knows how to render.
+// Slice 5.5b — lens-aware single-source comparison loader.
+//
+// Pre-5.5: this file held nine hardcoded canonical rows (fees, A*–A,
+// Oxbridge, ...) plus a side-load of comparison_rows for chat-added rows.
+// Post-5.5: ALL rows live in comparison_rows. The General-lens rows are
+// seeded by lib/research-room/seed-rows.ts on first load; child_fit rows
+// will follow in slice 5.5e/h. The cell builders moved to seed-rows.ts.
 
-type StructuredRow = {
-  school_slug:        string
-  fees_min:           number | null
-  fees_max:           number | null
-  fees_currency:      string | null
-  exam_results:       Record<string, unknown> | null
-  university_destinations: Record<string, unknown> | null
-  admissions_format:  Record<string, unknown> | null
-  sports_profile:     Record<string, unknown> | null
-  student_community:  Record<string, unknown> | null
-  bursary_note:       string | null
+export type LensKind = 'general' | 'child_fit'
+
+type ComparisonRowDb = {
+  id:           string
+  row_name:     string
+  group_name:   string
+  weight:       number
+  cell_data:    Record<string, { value?: string | number | null; source?: string | null; note?: string }> | null
+  sort_order:   number
+  lens_kind:    'general' | 'child_fit' | 'chat'
+  created_at:   string
 }
 
 type SchoolMeta = {
@@ -34,163 +33,33 @@ type SchoolMeta = {
   gender_split:  string | null
 }
 
-type ISIRow = {
-  school_slug: string
-  date:        string | null
-  title:       string | null
-  summary:     string | null
-}
+// ─── Public entrypoint ──────────────────────────────────────────────────────
 
-// Boarding/day classification + name normalization live in
-// lib/school-name-overrides.ts (shared with the recommender).
-
-// ─── Sport tier short label (uses same prose-keyword scan as recommender) ─
-function sportShortLabel(tier: string | null | undefined): string {
-  if (!tier) return '—'
-  const lc = tier.toLowerCase()
-  if (/national.elite|elite.national|national.champion|leading.uk|top 1\b|top 1%|one of the uk's leading/.test(lc)) return 'National elite'
-  if (/national.strong|nationally.competitive|nationally.strong|national.level|nationally|leading independent|sector.leading|elite.tier/.test(lc)) return 'National strong'
-  if (/regional.strong|strong regional|regional.national|national.regional|strong national|strong.competitive/.test(lc)) return 'Regional-strong'
-  if (/regional|county/.test(lc)) return 'Regional'
-  if (/local|school.level|recreational|inter.house/.test(lc)) return 'Local'
-  return 'Mid-tier'
-}
-
-// ─── Cell builders ────────────────────────────────────────────────────────
-
-function feesCell(s: StructuredRow): RowCell {
-  const min = typeof s.fees_min === 'number' ? s.fees_min : null
-  const max = typeof s.fees_max === 'number' ? s.fees_max : null
-  const cur = s.fees_currency ?? 'GBP'
-  if (min == null && max == null) return { kind: 'empty' }
-  const sym = cur === 'GBP' ? '£' : cur === 'USD' ? '$' : ''
-  const fmt = (n: number) => `${sym}${n.toLocaleString()}`
-  if (min != null && max != null && max !== min) {
-    return { kind: 'value', primary: `${fmt(min)}–${fmt(max)}`, numeric: true }
-  }
-  return { kind: 'value', primary: fmt(min ?? max!), numeric: true }
-}
-
-function aLevelPctCell(s: StructuredRow): RowCell {
-  const al = (s.exam_results as any)?.a_level as Record<string, unknown> | undefined
-  const pct = al?.pct_a_star_a
-  if (typeof pct !== 'number') return { kind: 'empty' }
-  return { kind: 'value', primary: `${Math.round(pct)}%`, numeric: true }
-}
-
-function oxbridgeCell(s: StructuredRow): RowCell {
-  const u = s.university_destinations
-  if (!u) return { kind: 'empty' }
-  const ox = Number(u.oxford_count ?? 0)
-  const cam = Number(u.cambridge_count ?? 0)
-  const total = ox + cam
-  if (!total) return { kind: 'empty' }
-  const yr = u.year ? ` (${String(u.year).slice(-2)})` : ''
-  return { kind: 'value', primary: `${total} places${yr}`, sub: 'Oxford + Cambridge' }
-}
-
-function houseSizeCell(s: StructuredRow): RowCell {
-  const total = (s.student_community as any)?.total_pupils
-  if (typeof total !== 'number') return { kind: 'empty' }
-  let sub = ''
-  if (total <= 400) sub = 'Small'
-  else if (total <= 800) sub = 'Mid-size'
-  else if (total <= 1200) sub = 'Larger'
-  else sub = 'Very large'
-  return { kind: 'value', primary: `~${total.toLocaleString()}`, sub }
-}
-
-function sportCell(s: StructuredRow): RowCell {
-  const tier = (s.sports_profile as any)?.competitive_tier as string | undefined
-  const label = sportShortLabel(tier)
-  if (label === '—') return { kind: 'empty' }
-  return { kind: 'value', primary: label }
-}
-
-function isiCell(isi: ISIRow | undefined): RowCell {
-  if (!isi) return { kind: 'empty' }
-  const yr = isi.date ? ` (${isi.date.slice(0, 4)})` : ''
-  // Try to extract grade from title/summary — ISI uses Excellent / Good / Sound
-  const text = `${isi.title ?? ''} ${isi.summary ?? ''}`.toLowerCase()
-  let grade = '—'
-  if (/\bexcellent\b/.test(text)) grade = 'Excellent'
-  else if (/\bgood\b/.test(text)) grade = 'Good'
-  else if (/\bsound\b/.test(text)) grade = 'Sound'
-  else if (/\bunsatisfactory\b/.test(text)) grade = 'Unsatisfactory'
-  if (grade === '—') return { kind: 'value', primary: 'Inspected', sub: isi.date?.slice(0, 4) }
-  return { kind: 'value', primary: grade, sub: yr.replace(/[()\s]/g, '') }
-}
-
-function entryWindowCell(s: StructuredRow): RowCell {
-  const af = s.admissions_format as Record<string, unknown> | null
-  const ep = af?.entry_points
-  if (ep == null) return { kind: 'empty' }
-  // entry_points can be: a string, an array of strings, or an array of
-  // objects with one of {label, year, age, term} keys. Extract known
-  // shapes; never stringify a raw object into the UI (would leak JSON).
-  let label = ''
-  if (typeof ep === 'string') {
-    label = ep
-  } else if (Array.isArray(ep)) {
-    const first = ep.find(x => x != null)
-    if (typeof first === 'string') {
-      label = first
-    } else if (first && typeof first === 'object') {
-      const f = first as Record<string, unknown>
-      if      (typeof f.label === 'string')                            label = f.label
-      else if (typeof f.year  === 'string' || typeof f.year  === 'number') label = String(f.year)
-      else if (typeof f.age   === 'string' || typeof f.age   === 'number') label = String(f.age)
-      else if (typeof f.term  === 'string')                            label = f.term
-      // unknown shape → leave label='' so we render an empty cell rather
-      // than spilling stringified JSON into the table.
-    }
-  }
-  label = label.trim().slice(0, 40)
-  if (!label) return { kind: 'empty' }
-  return { kind: 'value', primary: label }
-}
-
-function bursaryCell(s: StructuredRow): RowCell {
-  const note = s.bursary_note
-  if (!note || !note.trim()) return { kind: 'empty' }
-  // Pull a short headline — first sentence or up to 50 chars
-  const trimmed = note.replace(/\s+/g, ' ').trim()
-  const m = trimmed.match(/up to (\d+%)/i) ?? trimmed.match(/(\d+% bursary)/i)
-  if (m) return { kind: 'value', primary: m[0] }
-  const short = trimmed.length > 40 ? trimmed.slice(0, 37) + '…' : trimmed
-  return { kind: 'value', primary: short }
-}
-
-// 4-light verdict row dropped after Codex review (slice 2 v3): the
-// thresholds (small school = good pastoral, no bursary = poor value,
-// oxbridge count = ambition) are product opinions, not neutral facts.
-// Slice 4 will introduce a real fit-score keyed by child profile.
-
-function boardingCell(meta: SchoolMeta): RowCell {
-  const norm = normalizeSchoolName(meta.name)
-  const knownBoarding = KNOWN_FULL_BOARDING_NAMES.has(norm)
-  const flag = meta.boarding === true || knownBoarding
-  const gender = (meta.gender_split ?? '').toLowerCase()
-  const sub =
-    gender === 'boys' || gender === 'boys only' ? 'Boys' :
-    gender === 'girls' || gender === 'girls only' ? 'Girls' :
-    gender ? 'Co-ed' : ''
-  if (flag) return { kind: 'value', primary: 'Boarding', sub: sub || 'Day + boarding' }
-  return { kind: 'value', primary: 'Day', sub }
-}
-
-// ─── Main entrypoint ──────────────────────────────────────────────────────
-
+/**
+ * Load the comparison surface for one (user, child) pair, scoped to a
+ * specific lens tab and a specific research session.
+ *
+ * Returns the schools header (column metadata) plus the rows that belong
+ * in the active lens. Rows live in comparison_rows; the loader does no
+ * cell-building of its own. If the session has not been seeded yet, the
+ * caller is expected to call seedResearchSession() before calling this.
+ *
+ * Empty shortlist → empty payload (schools=[], rows=[]).
+ * Missing session → schools rendered, but no rows (the seeder runs on
+ * the first chat — until then, comparison is read-only empty).
+ */
 export async function loadComparisonData(
-  supabase: SupabaseClient,
-  userId: string,
-  childId: string | null = null,
+  supabase:  SupabaseClient,
+  userId:    string,
+  childId:   string | null,
+  lens:      LensKind,
+  sessionId: string | null,
 ): Promise<ComparisonData> {
   assertUserId(userId, 'loadComparisonData')
 
-  // 1. Shortlist — filter to this child's rows, OR parent-wide (NULL
-  // child_id) when no child is selected. The /my-shortlist page still
-  // sees ALL rows; only Research Room is per-child scoped.
+  // 1. Shortlist — same scoping as before. Per-child when childId is set,
+  // parent-wide otherwise (legacy behavior for users still on the old
+  // pre-multi-child flow).
   let shortlistQuery = supabase
     .from('shortlisted_schools')
     .select('school_slug, added_at')
@@ -202,49 +71,25 @@ export async function loadComparisonData(
   const { data: rows, error: shortlistError } = await shortlistQuery
 
   if (shortlistError) {
-    // Swallowing this would render an empty Comparison table; surface it
-    // so the page-level catch logs and we don't silently lose data.
     throw new Error(`loadComparisonData: shortlist read failed: ${shortlistError.message}`)
   }
 
   const slugs = (rows ?? []).map((r: { school_slug: string }) => r.school_slug)
   if (slugs.length === 0) return { schools: [], rows: [] }
 
-  // 2. Parallel fetch metadata + structured + ISI rows. All three are
-  // service-role reads against RLS-locked tables; if any fails (RLS
-  // regression, schema change), we want to know — silent empty cells
-  // would mask real outages.
-  const [schoolsRes, structRes, isiRes] = await Promise.all([
-    supabase.from('schools')
-      .select('slug, name, city, region, boarding, gender_split')
-      .in('slug', slugs),
-    supabase.from('school_structured_data')
-      .select('school_slug, fees_min, fees_max, fees_currency, exam_results, university_destinations, admissions_format, sports_profile, student_community, bursary_note')
-      .in('school_slug', slugs),
-    supabase.from('school_sensitive')
-      .select('school_slug, date, title, summary')
-      .in('school_slug', slugs)
-      .eq('source', 'isi')
-      .order('date', { ascending: false }),
-  ])
+  // 2. School column headers. We only need light metadata — the seeder is
+  // responsible for any structured-data joins that turn into cell content.
+  const { data: schoolsRaw, error: schoolsError } = await supabase
+    .from('schools')
+    .select('slug, name, city, region, boarding, gender_split')
+    .in('slug', slugs)
 
-  if (schoolsRes.error) throw new Error(`loadComparisonData: schools read failed: ${schoolsRes.error.message}`)
-  if (structRes.error)  throw new Error(`loadComparisonData: structured read failed: ${structRes.error.message}`)
-  if (isiRes.error)     throw new Error(`loadComparisonData: isi read failed: ${isiRes.error.message}`)
+  if (schoolsError) throw new Error(`loadComparisonData: schools read failed: ${schoolsError.message}`)
 
   const schoolMap = new Map<string, SchoolMeta>(
-    (schoolsRes.data ?? []).map((s: any) => [s.slug, s])
+    (schoolsRaw ?? []).map((s: SchoolMeta) => [s.slug, s])
   )
-  const structMap = new Map<string, StructuredRow>(
-    (structRes.data ?? []).map((s: any) => [s.school_slug, s])
-  )
-  // Take latest ISI per school (rows already sorted desc)
-  const isiMap = new Map<string, ISIRow>()
-  for (const i of (isiRes.data ?? []) as ISIRow[]) {
-    if (!isiMap.has(i.school_slug)) isiMap.set(i.school_slug, i)
-  }
 
-  // 3. Build columns (school headers) — one per slug, in shortlist order
   const schools: SchoolColumn[] = []
   for (const slug of slugs) {
     const m = schoolMap.get(slug)
@@ -257,98 +102,63 @@ export async function loadComparisonData(
     })
   }
 
-  if (schools.length === 0) return { schools: [], rows: [] }
-
-  // 4. Build the 10 rows
-  const cellsFor = (rowKey: string): RowCell[] => {
-    return schools.map(col => {
-      const struct = structMap.get(col.slug) ?? {} as StructuredRow
-      const meta = schoolMap.get(col.slug)!
-      const isi = isiMap.get(col.slug)
-      switch (rowKey) {
-        case 'fees':       return feesCell(struct)
-        case 'a-star-a':   return aLevelPctCell(struct)
-        case 'oxbridge':   return oxbridgeCell(struct)
-        case 'pastoral':   return houseSizeCell(struct)
-        case 'sport':      return sportCell(struct)
-        case 'isi':        return isiCell(isi)
-        case 'y9-entry':   return entryWindowCell(struct)
-        case 'bursary':    return bursaryCell(struct)
-        case 'boarding':   return boardingCell(meta)
-        default:           return { kind: 'empty' }
-      }
-    })
+  if (schools.length === 0 || sessionId == null) {
+    return { schools, rows: [] }
   }
 
-  const tableRows: ComparisonRow[] = [
-    { id: 'fees',     label: 'Fees',           emphasis: 'annual',    blurb: 'Senior fees from the school site',         cells: cellsFor('fees') },
-    { id: 'a-star-a', label: 'A*–A',           emphasis: 'A-level',   blurb: 'Share of grades at A* or A',                cells: cellsFor('a-star-a') },
-    { id: 'oxbridge', label: 'Oxbridge',       emphasis: 'recent yr', blurb: 'Leavers placed at Oxford or Cambridge',     cells: cellsFor('oxbridge') },
-    { id: 'pastoral', label: 'Total pupils',                          blurb: 'School-wide; smaller = closer pastoral',    cells: cellsFor('pastoral') },
-    { id: 'sport',    label: 'Sport tier',                            blurb: 'Competitive standing across major sports',  cells: cellsFor('sport') },
-    { id: 'isi',      label: 'ISI inspection',                        blurb: 'Most recent overall outcome',               cells: cellsFor('isi') },
-    { id: 'y9-entry', label: 'Entry window',                          blurb: 'Earliest published entry point',            cells: cellsFor('y9-entry') },
-    { id: 'bursary',  label: 'Bursary',                               blurb: 'Maximum means-tested fee remission',        cells: cellsFor('bursary') },
-    { id: 'boarding', label: 'Boarding',                              blurb: 'Type · gender mix',                         cells: cellsFor('boarding') },
-  ]
-
-  // Slice 5: append rows the parent has confirmed via "+ Add as row" in
-  // chat. These come from comparison_rows for the active research_session
-  // (one per child). undone_at IS NULL filter respects the soft-delete.
-  // Anything that fails here logs but does not break the canonical 9 rows.
-  try {
-    const customRows = await loadComparisonRows(supabase, userId, childId, schools)
-    if (customRows.length > 0) tableRows.push(...customRows)
-  } catch (e) {
-    console.error('[loadComparisonData comparison_rows]', e)
-  }
-
+  // 3. Lens-scoped row read. The active tab's rows + chat rows show
+  // together; chat rows whose row_name collides with a base-lens row are
+  // de-duped (base wins) so the user sees one row, not two.
+  const baseLens = lens  // 'general' | 'child_fit'
+  const tableRows = await loadLensRows(supabase, sessionId, schools, baseLens)
   return { schools, rows: tableRows }
 }
 
-// ─── Slice 5 · custom row loader ──────────────────────────────────────────
+// ─── Lens-aware row loader ──────────────────────────────────────────────────
 
-async function loadComparisonRows(
+async function loadLensRows(
   supabase: SupabaseClient,
-  userId: string,
-  childId: string | null,
+  sessionId: string,
   schools: SchoolColumn[],
+  baseLens: LensKind,
 ): Promise<ComparisonRow[]> {
-  // Active session for this child = most recent non-archived. Slice 5
-  // semantic: "one active session per child." Pre-multi-child sessions
-  // (NULL child_id) keep working when childId is NULL.
-  let sessionQuery = supabase
-    .from('research_sessions')
-    .select('id, child_id, last_active_at')
-    .eq('user_id', userId)
-    .order('last_active_at', { ascending: false })
-    .limit(1)
-  sessionQuery = childId
-    ? sessionQuery.eq('child_id', childId)
-    : sessionQuery.is('child_id', null)
-  const { data: sessions, error: sessionError } = await sessionQuery
-  if (sessionError) throw new Error(`research_sessions read failed: ${sessionError.message}`)
-  const sessionId = sessions?.[0]?.id
-  if (!sessionId) return []
-
+  // Read both the base lens AND chat rows in one query. The lens-scoped
+  // index idx_comparison_rows_session_lens_active backs this.
   const { data: rowsRaw, error: rowsError } = await supabase
     .from('comparison_rows')
-    .select('id, row_name, group_name, weight, cell_data, created_at')
+    .select('id, row_name, group_name, weight, cell_data, sort_order, lens_kind, created_at')
     .eq('session_id', sessionId)
+    .in('lens_kind', [baseLens, 'chat'])
     .is('undone_at', null)
-    .order('created_at', { ascending: true })
+
   if (rowsError) throw new Error(`comparison_rows read failed: ${rowsError.message}`)
 
-  const rows = (rowsRaw ?? []) as Array<{
-    id: string
-    row_name: string
-    group_name: string
-    weight: number
-    cell_data: Record<string, { value?: string | number | null; source?: string | null; note?: string }> | null
-    created_at: string
-  }>
+  const all = (rowsRaw ?? []) as ComparisonRowDb[]
 
-  return rows.map(r => {
+  // De-dup: if a chat row has the same (case-insensitive, trimmed) row_name
+  // as a base-lens row, drop the chat copy — base wins. Codex round-1
+  // flagged this as a visible-set hazard; doing it loader-side keeps the
+  // schema simple (per-lens uniqueness only at the DB level).
+  const baseNames = new Set(
+    all.filter(r => r.lens_kind === baseLens).map(r => normalizeRowName(r.row_name))
+  )
+  const filtered = all.filter(r => {
+    if (r.lens_kind !== 'chat') return true
+    return !baseNames.has(normalizeRowName(r.row_name))
+  })
+
+  // Sort: base-lens rows by sort_order (the seeder pins these to 100, 200,
+  // 300, ...); chat rows fall to the bottom by created_at because they
+  // default to sort_order=0. Tiebreaker = created_at for stability.
+  filtered.sort((a, b) => {
+    const aIsChat = a.lens_kind === 'chat'
+    const bIsChat = b.lens_kind === 'chat'
+    if (aIsChat !== bIsChat) return aIsChat ? 1 : -1
+    if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order
+    return a.created_at.localeCompare(b.created_at)
+  })
+
+  return filtered.map(r => {
     const cells: RowCell[] = schools.map(col => {
       const c = r.cell_data?.[col.slug]
       if (!c || c.value == null || c.value === '') return { kind: 'empty' }
@@ -356,11 +166,20 @@ async function loadComparisonRows(
       const sub = typeof c.note === 'string' && c.note ? c.note : undefined
       return { kind: 'value', primary, sub }
     })
+    // group_name lives on the row in the DB but isn't shown next to every
+    // label — repeating "Pastoral" / "Academics" alongside each row is
+    // visual noise. Section-header rendering can use group_name later.
+    // emphasis stays available for finer per-row qualifiers (e.g. "annual",
+    // "A-level") set by chat proposals; seeded specs leave it unset.
     return {
-      id:       `cmp-${r.id}`,
-      label:    r.row_name,
-      emphasis: r.group_name,
+      id:        `cmp-${r.id}`,
+      label:     r.row_name,
       cells,
+      removable: r.lens_kind === 'chat',
     }
   })
+}
+
+function normalizeRowName(name: string): string {
+  return name.trim().toLowerCase()
 }

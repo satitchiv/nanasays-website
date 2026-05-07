@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import type { ResearchMessage, StreamFormat, ProposedAction } from '@/lib/nana/types'
 // The bubble's classNames (dh-msg-nana, dh-msg-nana-prose, etc.) live in
@@ -207,6 +207,7 @@ export function NanaMsgBubble({
           <ProposedActionsList
             messageId={msg.id}
             actions={parsed.proposed_actions}
+            activeProposalIds={msg.activeProposalIds}
             onConfirm={onConfirmAddRow}
           />
         )}
@@ -334,6 +335,7 @@ export function NanaMsgBubble({
         <ProposedActionsList
           messageId={msg.id}
           actions={parsed.proposed_actions}
+          activeProposalIds={msg.activeProposalIds}
           onConfirm={onConfirmAddRow}
         />
       )}
@@ -348,23 +350,29 @@ export function NanaMsgBubble({
 
 // ── Proposed actions ────────────────────────────────────────────────────
 // Slice 5: render one "+ Add as row" affordance per proposal Nana emits.
-// State is local-only for now — page reload loses the "Added ↩" marker
-// because ResearchMessage.actions[] isn't threaded through yet (follow-up).
-// The server is idempotent, so re-clicking after reload returns deduped.
+// Slice 5-FU2: button "Added" state is now derived from server truth
+// (msg.activeProposalIds) instead of local click history. So × removing a
+// row in the comparison table flips this button back to "+ Add" after
+// router.refresh(), and re-clicking auto-restores via confirm_add_row's
+// idempotency match. Local override only spans the in-flight request.
 
 function ProposedActionsList({
   messageId,
   actions,
+  activeProposalIds,
   onConfirm,
 }: {
-  messageId: string
-  actions:   Record<string, ProposedAction>
-  onConfirm: (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
+  messageId:          string
+  actions:            Record<string, ProposedAction>
+  activeProposalIds?: string[]
+  onConfirm:          (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
 }) {
   const entries = Object.entries(actions ?? {}).filter(
     (e): e is [string, ProposedAction] => e[1] && e[1].kind === 'propose_add_row',
   )
   if (entries.length === 0) return null
+
+  const activeSet = new Set(activeProposalIds ?? [])
 
   return (
     <div className="rr-proposed-actions">
@@ -375,6 +383,7 @@ function ProposedActionsList({
             key={proposalId}
             label={action.row_name}
             group={action.group_name}
+            isActiveInTable={activeSet.has(proposalId)}
             onClick={() => onConfirm(messageId, proposalId)}
           />
         ))}
@@ -383,37 +392,69 @@ function ProposedActionsList({
   )
 }
 
-type AddState = 'idle' | 'pending' | 'added' | 'error'
+type LocalOverride = 'pending' | 'optimistic-added' | 'error' | null
 
 function ProposedActionButton({
   label,
   group,
+  isActiveInTable,
   onClick,
 }: {
-  label:   string
-  group:   string
-  onClick: () => Promise<{ ok: boolean; code?: string }>
+  label:           string
+  group:           string
+  isActiveInTable: boolean
+  onClick:         () => Promise<{ ok: boolean; code?: string }>
 }) {
-  const [state, setState] = useState<AddState>('idle')
+  // The base "is this row in the table right now?" state is server-driven
+  // (isActiveInTable). The local override covers the in-flight click AND
+  // the brief gap between fetch resolving and router.refresh() landing —
+  // without 'optimistic-added' the button briefly flashes back to grey "+"
+  // before the new server prop arrives.
+  const [override, setOverride] = useState<LocalOverride>(null)
 
   async function handle() {
-    if (state === 'pending' || state === 'added') return
-    setState('pending')
+    if (override === 'pending') return
+    // Codex investigation finding (post round-5): a green ✓ Added button
+    // can come from EITHER (a) the proposal's own chat row being active
+    // via idempotency_key match, OR (b) any active row of the session
+    // having the same row_name (name-match polish). In case (b),
+    // re-clicking would hit the route's F1 cross-lens block → 409 →
+    // button flips green→red "Try again". Users perceive that visual
+    // jolt as "the row was removed" even though nothing was deleted.
+    //
+    // Fix: make ✓ Added inert. The auto-restore-via-re-click path that
+    // motivated the original clickable-when-added behaviour fires from
+    // the grey + Add state (after × removes the row, isActiveInTable
+    // flips false → button greys → click works → confirm_add_row
+    // auto-restores). So nothing of value is lost by this guard.
+    if (override === 'optimistic-added' || isActiveInTable) return
+    setOverride('pending')
     const result = await onClick()
-    setState(result.ok ? 'added' : 'error')
+    setOverride(result.ok ? 'optimistic-added' : 'error')
   }
 
-  const isAdded   = state === 'added'
-  const isPending = state === 'pending'
-  const isError   = state === 'error'
+  // Once the prop reflects the row is active, drop the optimistic marker.
+  // Server is now the single source of truth — no need for the override.
+  useEffect(() => {
+    if (override === 'optimistic-added' && isActiveInTable) {
+      setOverride(null)
+    }
+  }, [override, isActiveInTable])
+
+  const isPending = override === 'pending'
+  const isError   = override === 'error'
+  const isAdded   = !isPending && !isError && (override === 'optimistic-added' || isActiveInTable)
 
   return (
     <button
       type="button"
       className={`rr-proposed-btn${isAdded ? ' is-added' : ''}${isError ? ' is-error' : ''}${isPending ? ' is-pending' : ''}`}
       onClick={handle}
+      // Disable while pending OR added — added is now inert (see handle()).
+      // The grey + Add state stays clickable as the only path that can
+      // create or auto-restore a chat row.
       disabled={isPending || isAdded}
-      title={`${group} · ${label}`}
+      title={isAdded ? `${group} · ${label} — already in your comparison` : `${group} · ${label}`}
     >
       <span className="rr-proposed-btn-icon" aria-hidden="true">
         {isAdded ? '✓' : isPending ? '…' : isError ? '!' : '+'}

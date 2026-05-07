@@ -5,7 +5,8 @@ import { cookies } from 'next/headers'
 import { isResearchRoomEnabled } from '@/lib/feature-flags'
 import { getUnlockedUser } from '@/lib/paid-status'
 import { supabaseService } from '@/lib/supabase-admin'
-import { loadComparisonData } from '@/lib/research-comparison'
+import { loadComparisonData, type LensKind } from '@/lib/research-comparison'
+import { loadShortlistContext, seedResearchSession } from '@/lib/research-room/seed-rows'
 import { loadActiveChildren } from '@/lib/children'
 import { ONBOARDING_FIELDS } from '@/lib/onboarding-fields'
 import ResearchRoom from '@/components/nana/ResearchRoom'
@@ -17,7 +18,15 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-export default async function ResearchRoomPage() {
+// Next 14.2.x: searchParams is synchronous. The Promise-shape is
+// Next 15+; using it here would silently leave the value un-resolved.
+type SearchParams = { lens?: string }
+
+export default async function ResearchRoomPage({
+  searchParams,
+}: {
+  searchParams: SearchParams
+}) {
   if (!isResearchRoomEnabled()) {
     notFound()
   }
@@ -26,6 +35,11 @@ export default async function ResearchRoomPage() {
   if (!isPaid) {
     redirect('/unlock?next=/nana/research-room')
   }
+
+  // Slice 5.5a: lens read from URL search param. Defaults to 'general'.
+  // Tab clicks call router.replace('?lens=...') so the server re-renders
+  // with the active lens scope.
+  const lens: LensKind = searchParams.lens === 'child_fit' ? 'child_fit' : 'general'
 
   const cookieStore = await cookies()
   const authClient = createServerClient(
@@ -39,7 +53,13 @@ export default async function ResearchRoomPage() {
   // load active children, and scope the comparison data fetch to the
   // active child. NULL active_child_id falls back to parent-wide rows
   // (legacy behavior — pre-multi-child shortlist data).
-  let comparisonData
+  // Slice 5.5 round-4 fix (Codex F3): comparisonData starts as an explicit
+  // empty payload, never undefined, so a load error doesn't fall through
+  // to ComparisonView's PLACEHOLDER_DATA demo schools. comparisonError
+  // surfaces a banner.
+  let comparisonData: import('@/components/nana/comparison-placeholder').ComparisonData =
+    { schools: [], rows: [] }
+  let comparisonError: string | null = null
   let children: Awaited<ReturnType<typeof loadActiveChildren>> = []
   let activeChildId: string | null = null
   let familyPreferences: Record<string, string | null> | undefined
@@ -72,18 +92,15 @@ export default async function ResearchRoomPage() {
         familyPreferences[f.field] = (typeof v === 'string' && v) ? v : null
       }
     }
-
-    try {
-      comparisonData = await loadComparisonData(supabaseService(), user.id, activeChildId)
-    } catch (e) {
-      console.error('[research-room loadComparisonData]', e)
-    }
   }
 
-  // Slice 5 prereq: load most-recent session for the active child + its
-  // messages so the chat panel rehydrates instead of showing a blank
-  // surface every page load. Mirrors the pattern in
-  // app/nana/decision-hub/page.tsx, scoped to (user, active child).
+  // Slice 5.5 prereq order:
+  //   1. Resolve session  (was: after loadComparisonData; moved up because
+  //      the lens-aware loader needs sessionId).
+  //   2. Load shortlist context  (used by both seeder and loader).
+  //   3. Seed General-lens rows  (idempotent; no-op after the first run).
+  //   4. Lens-aware loadComparisonData  (reads comparison_rows by lens).
+  //   5. Load messages + activeProposalIds for the chat panel.
   let initialSession: import('@/lib/nana/types').Session | null = null
   let initialMessages: import('@/lib/nana/types').ResearchMessage[] = []
 
@@ -105,18 +122,136 @@ export default async function ResearchRoomPage() {
         created_at:     sessions[0].created_at,
         last_active_at: sessions[0].last_active_at,
       }
+    }
+
+    // Load shortlist context once. Both the seeder and (in future) the
+    // child-fit cell-builder consume it.
+    let ctx: Awaited<ReturnType<typeof loadShortlistContext>> | null = null
+    try {
+      ctx = await loadShortlistContext(svc, user.id, activeChildId)
+    } catch (e) {
+      console.error('[research-room loadShortlistContext]', e)
+    }
+
+    // Seed only when there's an active session AND a non-empty shortlist.
+    // Brand-new users without a session yet get an empty comparison until
+    // their first chat lazily creates the session.
+    if (initialSession && ctx && ctx.slugs.length > 0) {
+      try {
+        await seedResearchSession(svc, user.id, initialSession.id, ctx)
+      } catch (e) {
+        console.error('[research-room seedResearchSession]', e)
+      }
+    }
+
+    // Lens-aware comparison load. With no session, the loader returns
+    // schools but no rows (the seeder hasn't run yet). On error, keep
+    // comparisonData as the empty default + flag the error so the UI
+    // can surface a banner instead of falling through to demo data.
+    try {
+      comparisonData = await loadComparisonData(
+        svc,
+        user.id,
+        activeChildId,
+        lens,
+        initialSession?.id ?? null,
+      )
+    } catch (e) {
+      console.error('[research-room loadComparisonData]', e)
+      comparisonError = 'Could not load your comparison. Refresh the page; if the problem persists, contact support.'
+    }
+
+    if (initialSession) {
       const { data: msgs } = await svc
         .from('research_session_messages')
-        .select('id, question, parsed_answer, share_token, created_at')
+        .select('id, question, parsed_answer, share_token, created_at, actions')
         .eq('session_id', initialSession.id)
         .order('created_at', { ascending: true })
-      initialMessages = (msgs ?? []).map(m => ({
-        id:         m.id,
-        question:   m.question,
-        parsed:     (m.parsed_answer ?? null) as import('@/lib/nana/types').ParsedAnswer | null,
-        shareToken: m.share_token ?? undefined,
-        createdAt:  m.created_at,
-      }))
+
+      // Slice 5-FU2: derive activeProposalIds per message so the chat
+      // bubble's "✓ Added" badge tracks the table's actual contents.
+      // Soft-deleted (× removed) rows fall out, flipping the bubble button
+      // back to "+ Add" and unblocking re-add via auto-restore.
+      //
+      // Round-4 fix (Codex F1): a chat row whose row_name collides with
+      // BOTH base lenses (general AND child_fit) is hidden in every tab —
+      // the loader's base-wins de-dup drops it. Marking it "Added" in chat
+      // would be a lie ("you can't see it anywhere"). Filter such rows out
+      // of activeProposalIds so the bubble shows "+ Add" again.
+      const { data: activeRows } = await svc
+        .from('comparison_rows')
+        .select('lens_kind, row_name, idempotency_key, source_message_id')
+        .eq('session_id', initialSession.id)
+        .is('undone_at', null)
+      type ActiveRow = {
+        lens_kind:        'general' | 'child_fit' | 'chat'
+        row_name:         string
+        idempotency_key:  string | null
+        source_message_id: string | null
+      }
+      const allActive = (activeRows ?? []) as ActiveRow[]
+      const norm = (s: string) => s.trim().toLowerCase()
+      const generalNames  = new Set(allActive.filter(r => r.lens_kind === 'general').map(r => norm(r.row_name)))
+      const childFitNames = new Set(allActive.filter(r => r.lens_kind === 'child_fit').map(r => norm(r.row_name)))
+      const activeIdempotencyKeys = new Set(
+        allActive
+          .filter(r => r.lens_kind === 'chat')
+          .filter(r => r.idempotency_key != null && r.source_message_id != null)
+          .filter(r => {
+            const n = norm(r.row_name)
+            // Hidden in EVERY tab iff both base lenses shadow it.
+            return !(generalNames.has(n) && childFitNames.has(n))
+          })
+          .map(r => r.idempotency_key as string)
+      )
+
+      type StampedAction = { kind?: string; proposal_id?: string; idempotency_key?: string }
+
+      // Round-5 polish: a proposal counts as "Added" if EITHER (a) its own
+      // chat row is active and visible in some tab, OR (b) ANY active row
+      // (seeded or chat) in the session has the same row_name. Without
+      // (b), a proposal whose row_name matches a seeded row would render
+      // "+ Add" — confusing, since the dimension is already in the
+      // comparison. The route's F1 cross-lens block would then 409 the
+      // click, surfacing an error the user shouldn't have hit.
+      const allActiveRowNames = new Set(allActive.map(r => norm(r.row_name)))
+
+      initialMessages = (msgs ?? []).map(m => {
+        const stamps = (m.actions ?? []) as StampedAction[]
+        const activeProposalIds: string[] = []
+        const seen = new Set<string>()
+
+        // (a) chat row exists active and visible.
+        for (const a of stamps) {
+          if (a.kind !== 'add_row') continue
+          if (!a.proposal_id || !a.idempotency_key) continue
+          if (!activeIdempotencyKeys.has(a.idempotency_key)) continue
+          if (seen.has(a.proposal_id)) continue
+          seen.add(a.proposal_id)
+          activeProposalIds.push(a.proposal_id)
+        }
+
+        // (b) any active row covers the proposal's row_name.
+        type ProposalLite = { row_name?: unknown }
+        const proposals = (((m.parsed_answer as { proposed_actions?: Record<string, ProposalLite> } | null)?.proposed_actions) ?? {}) as Record<string, ProposalLite>
+        for (const [pid, prop] of Object.entries(proposals)) {
+          if (seen.has(pid)) continue
+          const rn = typeof prop?.row_name === 'string' ? norm(prop.row_name) : null
+          if (!rn) continue
+          if (!allActiveRowNames.has(rn)) continue
+          seen.add(pid)
+          activeProposalIds.push(pid)
+        }
+
+        return {
+          id:                 m.id,
+          question:           m.question,
+          parsed:             (m.parsed_answer ?? null) as import('@/lib/nana/types').ParsedAnswer | null,
+          shareToken:         m.share_token ?? undefined,
+          createdAt:          m.created_at,
+          activeProposalIds,
+        }
+      })
     }
   }
 
@@ -135,6 +270,8 @@ export default async function ResearchRoomPage() {
       familyPreferences={familyPreferences}
       initialActiveChildId={activeChildId}
       comparisonData={comparisonData}
+      comparisonError={comparisonError}
+      lens={lens}
       initialSession={initialSession}
       initialMessages={initialMessages}
     />

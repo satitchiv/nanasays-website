@@ -341,9 +341,13 @@ export async function POST(req: NextRequest) {
         for await (const event of generator) {
           if (ac.signal.aborted) break
           if ((event as any)?.type === 'final') {
+            // Slice-5 round-4 fix (Codex F2): defer the 'final' event
+            // send until after the message is persisted so we can include
+            // the real DB id. Without this the client appended a fake
+            // crypto.randomUUID() id, and any subsequent + Add as row
+            // click would post that id to confirm_add_row → "message not
+            // found" because no row matches.
             finalPayload = (event as any).payload
-            const uiIntent = computeUiIntent(mode, mentionedSlugs, finalPayload?.parsed)
-            send({ ...event as object, shareToken, uiIntent })
           } else {
             send(event)
           }
@@ -352,18 +356,29 @@ export async function POST(req: NextRequest) {
         if (!ac.signal.aborted) send({ type: 'error', error: e?.message ?? String(e), code: 'unexpected' })
       }
 
-      // ── Post-stream: save message + generate summary ──
+      // ── Post-stream: save message + emit final + generate summary ──
       if (finalPayload && !ac.signal.aborted) {
         const parsed = finalPayload.parsed ?? null
 
-        send({ type: 'summary_generating', payload: { sessionId } })
+        const { data: insertedRow, error: insertError } = await supabase
+          .from('research_session_messages')
+          .insert({
+            session_id:    sessionId,
+            question:      question.slice(0, 2000),
+            parsed_answer: parsed ?? null,
+            share_token:   shareToken,
+          })
+          .select('id')
+          .single()
+        if (insertError) console.error('[research] message insert failed:', insertError.message)
+        const insertedMessageId: string | null = insertedRow?.id ?? null
 
-        await supabase.from('research_session_messages').insert({
-          session_id:    sessionId,
-          question:      question.slice(0, 2000),
-          parsed_answer: parsed ?? null,
-          share_token:   shareToken,
-        })
+        // NOW emit the final event with the persisted message id. The
+        // client uses this id when calling confirm_add_row.
+        const uiIntent = computeUiIntent(mode, mentionedSlugs, parsed)
+        send({ type: 'final', payload: finalPayload, shareToken, uiIntent, messageId: insertedMessageId })
+
+        send({ type: 'summary_generating', payload: { sessionId } })
 
         // Log to Mission Control dashboard
         // finalPayload has backend/usage/cost/model directly — there is no .telemetry wrapper

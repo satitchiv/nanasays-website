@@ -1,40 +1,64 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
-  PLACEHOLDER_DATA,
+  EMPTY_DATA,
   type ComparisonData,
   type ComparisonRow,
   type RowCell,
   type SchoolColumn,
 } from './comparison-placeholder'
 
-type Lens = 'child' | 'raw'
+type Lens = 'general' | 'child_fit'
 
 type Props = {
   data?: ComparisonData
   activeChildName?: string | null
+  lens?: Lens
+  // Round-4 fix (Codex F3): when the server-side load throws, the page
+  // sets this string and we surface it as a banner instead of falling
+  // through to demo schools.
+  loadError?: string | null
 }
 
-// Slice 5: rows whose id starts with `cmp-` came from comparison_rows
-// (added via "+ Add as row"). Those are removable via undo_add_row.
-// Canonical rows (fees, oxbridge, etc.) keep their stable string ids.
-function isCustomRow(rowId: string): boolean {
-  return rowId.startsWith('cmp-')
-}
+// Slice 5.5: ALL rows live in comparison_rows now (no more hardcoded
+// canonical rows). Every row id is `cmp-<dbId>`. Removability is set by the
+// loader: only chat-added rows have row.removable = true. Seeded
+// General/child_fit rows are part of the base comparison and aren't
+// user-removable until slice 5.5f-bis ships a "Restore hidden rows"
+// affordance.
 function customRowDbId(rowId: string): string {
   return rowId.replace(/^cmp-/, '')
 }
 
-export default function ComparisonView({ data = PLACEHOLDER_DATA, activeChildName = null }: Props) {
-  const [lens, setLens] = useState<Lens>('child')
+export default function ComparisonView({
+  data = EMPTY_DATA,
+  activeChildName = null,
+  lens = 'general',
+  loadError = null,
+}: Props) {
+  const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null)
   const [removeError, setRemoveError] = useState<string | null>(null)
-  const router = useRouter()
   const { schools, rows } = data
   const childLensLabel = activeChildName ? `${activeChildName} fit` : 'Child fit'
+
+  // Slice 5.5a: lens switch via URL param. The server reads searchParams.lens
+  // in page.tsx and re-fetches the right rows. router.replace keeps history
+  // tidy (no per-click entry); cloning the existing search params preserves
+  // anything already on the URL (e.g. future ?ref=, ?from=, etc.).
+  function switchLens(next: Lens) {
+    if (next === lens) return
+    const params = new URLSearchParams(searchParams?.toString() ?? '')
+    if (next === 'general') params.delete('lens')
+    else params.set('lens', next)
+    const qs = params.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname)
+  }
 
   async function handleRemoveRow(uiRowId: string) {
     const dbId = customRowDbId(uiRowId)
@@ -59,6 +83,20 @@ export default function ComparisonView({ data = PLACEHOLDER_DATA, activeChildNam
     } finally {
       setPendingRemoveId(null)
     }
+  }
+
+  // Server-side load error: show an explicit banner. We deliberately do
+  // NOT fall through to the empty-state CTA (which would suggest "add some
+  // schools") because the user might already have schools — they just
+  // failed to load.
+  if (loadError) {
+    return (
+      <div className="rr-cmp-empty" role="alert">
+        <div className="rr-cmp-empty-eyebrow">Comparison unavailable</div>
+        <h2 className="rr-cmp-empty-title">Something went wrong loading your comparison.</h2>
+        <p className="rr-cmp-empty-body">{loadError}</p>
+      </div>
+    )
   }
 
   if (schools.length === 0) {
@@ -88,29 +126,26 @@ export default function ComparisonView({ data = PLACEHOLDER_DATA, activeChildNam
           <button
             type="button"
             role="tab"
-            aria-selected={lens === 'child'}
-            className={`rr-cmp-lens-tab${lens === 'child' ? ' is-active' : ''}`}
-            onClick={() => setLens('child')}
+            aria-selected={lens === 'general'}
+            className={`rr-cmp-lens-tab${lens === 'general' ? ' is-active' : ''}`}
+            onClick={() => switchLens('general')}
           >
-            {childLensLabel}
+            General comparison
           </button>
           <button
             type="button"
             role="tab"
-            aria-selected={lens === 'raw'}
-            className={`rr-cmp-lens-tab${lens === 'raw' ? ' is-active' : ''}`}
-            onClick={() => setLens('raw')}
+            aria-selected={lens === 'child_fit'}
+            className={`rr-cmp-lens-tab${lens === 'child_fit' ? ' is-active' : ''}`}
+            onClick={() => switchLens('child_fit')}
           >
-            Raw comparison
+            {childLensLabel}
           </button>
-          <span className="rr-cmp-lens-hint">
-            Both lenses show the same data in slice 2 — child-weighted re-ranking lands in slice 4.
-          </span>
         </div>
         <div className="rr-cmp-stats">
           {rows.length} rows · {schools.length} schools
           <br />
-          <strong>{lens === 'child' ? childLensLabel : 'Raw'}</strong> active
+          <strong>{lens === 'general' ? 'General' : childLensLabel}</strong> active
         </div>
       </div>
 
@@ -121,7 +156,7 @@ export default function ComparisonView({ data = PLACEHOLDER_DATA, activeChildNam
             <div className="rr-cmp-corner-title">
               {schools.length} schools, <em>{rows.length} dimensions</em>
             </div>
-            <div className="rr-cmp-corner-meta">read-only · slice 2</div>
+            <div className="rr-cmp-corner-meta">{lens === 'general' ? 'General lens' : `${childLensLabel} lens`}</div>
           </div>
 
           {schools.map((s, i) => (
@@ -139,7 +174,7 @@ export default function ComparisonView({ data = PLACEHOLDER_DATA, activeChildNam
               key={row.id}
               row={row}
               schools={schools}
-              onRemove={isCustomRow(row.id) ? handleRemoveRow : null}
+              onRemove={row.removable ? handleRemoveRow : null}
               removing={pendingRemoveId === row.id}
             />
           ))}

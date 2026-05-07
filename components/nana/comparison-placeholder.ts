@@ -19,6 +19,11 @@ export type ComparisonRow = {
   emphasis?: string
   blurb?: string
   cells: RowCell[]
+  // Slice 5.5: only chat-added rows are user-removable. Seeded General /
+  // child_fit rows are part of the base comparison (a "Restore hidden rows"
+  // affordance — slice 5.5f-bis — would be needed before making them
+  // user-removable). Defaults to false.
+  removable?: boolean
 }
 
 export type ComparisonData = {
