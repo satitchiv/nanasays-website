@@ -1,0 +1,144 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
+import { cookies, headers } from 'next/headers'
+import { isResearchRoomEnabled } from '@/lib/feature-flags'
+import { getUnlockedUser } from '@/lib/paid-status'
+
+// POST /api/research-room/shortlist
+//
+// In-room shortlist mutations (slice 6.6 Phase A). Direct-manipulation
+// add / remove for the comparison-view column header. Mirrors the
+// active-lens route's trust pattern (direct params, not LLM-originated
+// content reconstruction) and gates: feature flag + paid + origin.
+//
+// Two SECURITY DEFINER RPCs back this:
+//   - add_school_to_shortlist(child_id, school_slug)
+//   - remove_school_from_shortlist(child_id, school_slug)
+// Both validate auth + child ownership + slug shape; add also school-exists.
+
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
+type AddBody    = { action: 'add';    child_id: string; school_slug: string }
+type RemoveBody = { action: 'remove'; child_id: string; school_slug: string }
+type Body       = AddBody | RemoveBody
+
+const UUID_RX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+const SLUG_RX = /^[a-z0-9-]{1,80}$/
+
+function parseBody(raw: unknown): { body: Body | null; error?: string } {
+  if (!raw || typeof raw !== 'object') return { body: null, error: 'body must be a JSON object' }
+  const o = raw as Record<string, unknown>
+  const action = o.action
+
+  if (action !== 'add' && action !== 'remove') {
+    return { body: null, error: 'action must be add | remove' }
+  }
+  if (typeof o.child_id !== 'string' || !UUID_RX.test(o.child_id)) {
+    return { body: null, error: 'child_id must be a UUID' }
+  }
+  if (typeof o.school_slug !== 'string' || !SLUG_RX.test(o.school_slug.toLowerCase())) {
+    return { body: null, error: 'school_slug must match ^[a-z0-9-]{1,80}$' }
+  }
+  return {
+    body: {
+      action,
+      child_id:    o.child_id,
+      school_slug: o.school_slug.toLowerCase(),
+    } as Body,
+  }
+}
+
+async function getAuthClient() {
+  const cookieStore = await cookies()
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } },
+  )
+}
+
+// Origin check — same belt-and-braces as write-action / active-lens.
+async function isAllowedOrigin(): Promise<boolean> {
+  const h = await headers()
+  const origin = h.get('origin')
+  if (!origin) return true
+  const host = h.get('host')
+  if (!host) return false
+  try {
+    const originHost = new URL(origin).host
+    if (originHost === host) return true
+  } catch { /* malformed Origin */ }
+  return false
+}
+
+function rpcErrorToResponse(err: { code?: string; message?: string }, fallback: string): NextResponse {
+  const code = err.code ?? ''
+  if (code === '28000') return NextResponse.json({ ok: false, code: 'unauthorized' }, { status: 401 })
+  if (code === '42501') return NextResponse.json({ ok: false, code: 'forbidden' }, { status: 403 })
+  if (code === '22023') return NextResponse.json({ ok: false, code: 'invalid_payload' }, { status: 400 })
+  console.error('[research-room/shortlist]', fallback, err.code, err.message)
+  return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
+}
+
+export async function POST(req: NextRequest) {
+  if (!isResearchRoomEnabled()) {
+    return NextResponse.json({ ok: false, code: 'feature_disabled' }, { status: 404 })
+  }
+  if (!(await isAllowedOrigin())) {
+    return NextResponse.json({ ok: false, code: 'forbidden_origin' }, { status: 403 })
+  }
+
+  let raw: unknown
+  try {
+    raw = await req.json()
+  } catch {
+    return NextResponse.json({ ok: false, code: 'invalid_json' }, { status: 400 })
+  }
+  const { body, error } = parseBody(raw)
+  if (!body) return NextResponse.json({ ok: false, code: 'invalid_payload', detail: error }, { status: 400 })
+
+  const supabase = await getAuthClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ ok: false, code: 'unauthorized' }, { status: 401 })
+
+  const { isPaid } = await getUnlockedUser()
+  if (!isPaid) return NextResponse.json({ ok: false, code: 'payment_required' }, { status: 402 })
+
+  if (body.action === 'add') {
+    const { data, error: rpcErr } = await supabase
+      .rpc('add_school_to_shortlist', {
+        p_child_id:    body.child_id,
+        p_school_slug: body.school_slug,
+      })
+    if (rpcErr) return rpcErrorToResponse(rpcErr, 'add_school_to_shortlist')
+
+    const result = Array.isArray(data) ? data[0] : data
+    if (!result) return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
+
+    const { school_slug, status } = result as { school_slug: string; status: string }
+    if (status === 'added' || status === 'already_present') {
+      return NextResponse.json({ ok: true, status, school_slug }, { status: status === 'added' ? 201 : 200 })
+    }
+    console.error('[research-room/shortlist] unexpected add status:', status)
+    return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
+  }
+
+  // body.action === 'remove'
+  const { data, error: rpcErr } = await supabase
+    .rpc('remove_school_from_shortlist', {
+      p_child_id:    body.child_id,
+      p_school_slug: body.school_slug,
+    })
+  if (rpcErr) return rpcErrorToResponse(rpcErr, 'remove_school_from_shortlist')
+
+  const result = Array.isArray(data) ? data[0] : data
+  if (!result) return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
+
+  const { school_slug, status } = result as { school_slug: string; status: string }
+  if (status === 'removed' || status === 'not_present') {
+    return NextResponse.json({ ok: true, status, school_slug }, { status: 200 })
+  }
+  console.error('[research-room/shortlist] unexpected remove status:', status)
+  return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
+}

@@ -1224,6 +1224,146 @@
   gap: 8px;
 }
 
+/* ── Slice 6.6 · in-room shortlist mutations ───────────────────────────
+   + Add school button + popup + per-column × button.                 */
+.rr-cmp-add-school {
+  position: relative;
+}
+.rr-cmp-add-school-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 100px;
+  border: 1px dashed var(--rr-teal);
+  background: rgba(52, 195, 160, 0.06);
+  color: var(--rr-teal-dk);
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 120ms ease, transform 120ms ease, border-color 120ms ease;
+}
+.rr-cmp-add-school-btn:hover {
+  background: rgba(52, 195, 160, 0.14);
+  border-style: solid;
+  transform: translateY(-1px);
+}
+.rr-cmp-add-popup {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  width: 320px;
+  padding: 10px;
+  border-radius: 12px;
+  border: 1px solid var(--rr-border);
+  background: var(--rr-white);
+  box-shadow: 0 12px 32px var(--rr-shadow), 0 2px 8px var(--rr-shadow);
+}
+.rr-cmp-add-input {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--rr-border);
+  background: var(--rr-off);
+  font-family: var(--rr-sans);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 120ms ease, background-color 120ms ease;
+}
+.rr-cmp-add-input:focus {
+  border-color: var(--rr-teal);
+  background: var(--rr-white);
+}
+.rr-cmp-add-results {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+.rr-cmp-add-hint {
+  padding: 10px 12px;
+  font-family: var(--rr-sans);
+  font-size: 12px;
+  color: var(--rr-muted);
+  font-style: italic;
+}
+.rr-cmp-add-result {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 90ms ease;
+}
+.rr-cmp-add-result:hover,
+.rr-cmp-add-result.is-active {
+  background: rgba(52, 195, 160, 0.10);
+  border-color: rgba(52, 195, 160, 0.20);
+}
+.rr-cmp-add-result-name {
+  font-family: var(--rr-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--rr-navy);
+}
+.rr-cmp-add-result-meta {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  color: var(--rr-muted);
+}
+
+/* Per-column × in the school header row. Mirrors the row × pattern but
+   anchored to .rr-cmp-head. Codex final-pass note: focus-visible AND
+   hover both reveal it; on touch screens it's always visible.        */
+.rr-cmp-head { position: relative; }
+.rr-cmp-head-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 100px;
+  border: 1px solid var(--rr-border);
+  background: var(--rr-white);
+  color: var(--rr-muted);
+  font-size: 14px;
+  line-height: 1;
+  font-weight: 700;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 120ms ease, background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+.rr-cmp-head:hover .rr-cmp-head-remove,
+.rr-cmp-head-remove:focus-visible {
+  opacity: 1;
+}
+.rr-cmp-head-remove:hover:not(:disabled) {
+  background: rgba(220, 79, 42, 0.10);
+  color: var(--rr-rust);
+  border-color: var(--rr-rust);
+}
+.rr-cmp-head-remove:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+@media (max-width: 880px) {
+  /* Touch screens: always visible (no hover). */
+  .rr-cmp-head-remove { opacity: 1; }
+}
+
 /* ─── NanaMsgBubble overrides for Research Room's light chat panel ─────
    The dh-msg-nana* rules in decision-hub.css assume a dark navy chat
    panel (white text on rgba-white-7 backgrounds). Research Room's panel

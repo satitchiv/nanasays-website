@@ -567,6 +567,7 @@ export default function ResearchRoom({
                       <ComparisonView
                         data={comparisonData}
                         activeChildName={activeChild?.name ?? null}
+                        activeChildId={activeChildId}
                         lens={lens}
                         loadError={comparisonError}
                         viewOverlay={effectiveOverlay}

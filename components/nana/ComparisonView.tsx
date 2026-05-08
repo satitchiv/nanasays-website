@@ -77,6 +77,11 @@ type Props = {
   savedLenses?: LensListItem[]
   activeLensId?: string | null
   onSwitchActiveLens?: (lensId: string | null) => Promise<void> | void
+  // Slice 6.6 — in-room shortlist mutations. activeChildId scopes the
+  // add/remove RPCs (each child has its own shortlist). When null, the
+  // + Add school + × column controls are hidden — there's no shortlist
+  // to mutate without a child context.
+  activeChildId?: string | null
 }
 
 // Slice 5.5: ALL rows live in comparison_rows now (no more hardcoded
@@ -100,6 +105,7 @@ export default function ComparisonView({
   savedLenses = [],
   activeLensId = null,
   onSwitchActiveLens,
+  activeChildId = null,
 }: Props) {
   const router = useRouter()
   const pathname = usePathname()
@@ -108,6 +114,80 @@ export default function ComparisonView({
   const [removeError, setRemoveError] = useState<string | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const pickerRef = useRef<HTMLDivElement | null>(null)
+  // Slice 6.6 — in-room shortlist mutation state.
+  const [addOpen, setAddOpen] = useState(false)
+  const [removingSlug, setRemovingSlug] = useState<string | null>(null)
+  const [shortlistError, setShortlistError] = useState<string | null>(null)
+  const addPanelRef = useRef<HTMLDivElement | null>(null)
+
+  // Close the add panel on outside click / Escape (mirror picker behaviour).
+  useEffect(() => {
+    if (!addOpen) return
+    function onDocClick(e: MouseEvent) {
+      if (!addPanelRef.current) return
+      if (addPanelRef.current.contains(e.target as Node)) return
+      setAddOpen(false)
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setAddOpen(false)
+    }
+    document.addEventListener('mousedown', onDocClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDocClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [addOpen])
+
+  async function handleAddSchool(slug: string) {
+    if (!activeChildId) return
+    setShortlistError(null)
+    try {
+      const res = await fetch('/api/research-room/shortlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add', child_id: activeChildId, school_slug: slug }),
+      })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        const code = typeof j?.code === 'string' ? j.code : 'request_failed'
+        setShortlistError(`Could not add the school (${code}).`)
+        return
+      }
+      setAddOpen(false)
+      router.refresh()
+    } catch (e) {
+      console.error('[ComparisonView add school]', e)
+      setShortlistError('Network error adding the school.')
+    }
+  }
+
+  async function handleRemoveSchool(slug: string) {
+    if (!activeChildId) return
+    if (removingSlug) return
+    setShortlistError(null)
+    setRemovingSlug(slug)
+    try {
+      const res = await fetch('/api/research-room/shortlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'remove', child_id: activeChildId, school_slug: slug }),
+      })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        const code = typeof j?.code === 'string' ? j.code : 'request_failed'
+        setShortlistError(`Could not remove the school (${code}).`)
+        setRemovingSlug(null)
+        return
+      }
+      router.refresh()
+      // Leave removingSlug set until refresh lands; the column unmounts then.
+    } catch (e) {
+      console.error('[ComparisonView remove school]', e)
+      setShortlistError('Network error removing the school.')
+      setRemovingSlug(null)
+    }
+  }
   const { schools, rows: rawRows } = data
   const childLensLabel = activeChildName ? `${activeChildName} fit` : 'Child fit'
   const activeLens = activeLensId
@@ -320,7 +400,37 @@ export default function ComparisonView({
           <br />
           <strong>{activeLens ? activeLens.lens_name : (lens === 'general' ? 'General' : childLensLabel)}</strong> active
         </div>
+        {/* Slice 6.6 — in-room school adder. Only renders when a child
+            is active (the shortlist is per-child). Click opens the
+            inline search popup. */}
+        {activeChildId && (
+          <div className="rr-cmp-add-school" ref={addPanelRef}>
+            <button
+              type="button"
+              className="rr-cmp-add-school-btn"
+              aria-haspopup="dialog"
+              aria-expanded={addOpen}
+              onClick={() => setAddOpen(o => !o)}
+            >
+              <span aria-hidden>+</span> Add school
+            </button>
+            {addOpen && (
+              <SchoolAddPopup
+                excludeSlugs={schools.map(s => s.slug)}
+                onPick={handleAddSchool}
+                onClose={() => setAddOpen(false)}
+              />
+            )}
+          </div>
+        )}
       </div>
+
+      {shortlistError && (
+        <div className="rr-cmp-error" role="alert">
+          {shortlistError}
+          <button type="button" className="rr-chat-error-dismiss" onClick={() => setShortlistError(null)}>×</button>
+        </div>
+      )}
 
       {/* Slice 6 commit 7 — ephemeral re-rank chip. Shows the active
           view label with × to clear. Saved-lens overlays skip the
@@ -362,15 +472,30 @@ export default function ComparisonView({
                   : (lens === 'general' ? 'General lens' : `${childLensLabel} lens`)}
               </div>
             </div>
-            {schools.map((s, i) => (
-              <div key={s.slug} className="rr-cmp-head">
-                <div className="rr-cmp-head-rank">
-                  No. <strong>{String(i + 1).padStart(2, '0')}</strong>
+            {schools.map((s, i) => {
+              const isRemoving = removingSlug === s.slug
+              return (
+                <div key={s.slug} className="rr-cmp-head">
+                  <div className="rr-cmp-head-rank">
+                    No. <strong>{String(i + 1).padStart(2, '0')}</strong>
+                  </div>
+                  <div className="rr-cmp-head-name">{s.name}</div>
+                  <div className="rr-cmp-head-meta">{s.meta}</div>
+                  {activeChildId && (
+                    <button
+                      type="button"
+                      className="rr-cmp-head-remove"
+                      aria-label={`Remove ${s.name} from comparison`}
+                      title="Remove this school"
+                      onClick={() => handleRemoveSchool(s.slug)}
+                      disabled={isRemoving}
+                    >
+                      {isRemoving ? '…' : '×'}
+                    </button>
+                  )}
                 </div>
-                <div className="rr-cmp-head-name">{s.name}</div>
-                <div className="rr-cmp-head-meta">{s.meta}</div>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           {/* Slice 6 commit 8 — sortable data rows. DnD wraps the rows
@@ -548,6 +673,136 @@ function SortableRow({
           <CellBody cell={row.cells[i] ?? { kind: 'empty' }} />
         </div>
       ))}
+    </div>
+  )
+}
+
+// Slice 6.6 — in-room school adder. Debounced search against `schools`,
+// excludes already-shortlisted slugs (Codex final-pass note), keyboard
+// nav with arrow keys + Enter. Uses the browser-side supabase client
+// because schools is publicly readable; no need to round-trip a route.
+function SchoolAddPopup({
+  excludeSlugs,
+  onPick,
+  onClose,
+}: {
+  excludeSlugs: string[]
+  onPick:       (slug: string) => void
+  onClose:      () => void
+}) {
+  type Hit = { slug: string; name: string; region: string | null; country: string | null }
+  const [query, setQuery] = useState('')
+  const [hits, setHits] = useState<Hit[]>([])
+  const [loading, setLoading] = useState(false)
+  const [activeIdx, setActiveIdx] = useState(0)
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const excludeSet = new Set(excludeSlugs)
+
+  useEffect(() => {
+    inputRef.current?.focus()
+  }, [])
+
+  useEffect(() => {
+    const q = query.trim()
+    if (q.length < 2) {
+      setHits([])
+      setLoading(false)
+      return
+    }
+    const ac = new AbortController()
+    const timer = setTimeout(async () => {
+      setLoading(true)
+      try {
+        // Lazy-load to avoid pulling supabase-browser into the
+        // ComparisonView SSR slice.
+        const { createSupabaseBrowser } = await import('@/lib/supabase-browser')
+        const supabase = createSupabaseBrowser()
+        const { data, error } = await supabase
+          .from('schools')
+          .select('slug, name, region, country')
+          .ilike('name', `%${q}%`)
+          .order('name', { ascending: true })
+          .limit(12)
+          .abortSignal(ac.signal)
+        if (error) {
+          if (error.code !== '20') console.error('[SchoolAddPopup search]', error)
+          return
+        }
+        const filtered = ((data ?? []) as Hit[]).filter(h => !excludeSet.has(h.slug))
+        setHits(filtered.slice(0, 8))
+        setActiveIdx(0)
+      } finally {
+        setLoading(false)
+      }
+    }, 200)
+    return () => {
+      clearTimeout(timer)
+      ac.abort()
+    }
+    // excludeSet is rebuilt every render but excludeSlugs is the stable
+    // input; depend on its joined form to avoid re-running on identity flips.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, excludeSlugs.join(',')])
+
+  function handleKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveIdx(i => Math.min(hits.length - 1, i + 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveIdx(i => Math.max(0, i - 1))
+    } else if (e.key === 'Enter') {
+      if (hits[activeIdx]) {
+        e.preventDefault()
+        onPick(hits[activeIdx].slug)
+      }
+    } else if (e.key === 'Escape') {
+      onClose()
+    }
+  }
+
+  return (
+    <div className="rr-cmp-add-popup" role="dialog" aria-label="Add a school to your comparison">
+      <input
+        ref={inputRef}
+        type="search"
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        onKeyDown={handleKey}
+        placeholder="Search schools by name…"
+        className="rr-cmp-add-input"
+        autoComplete="off"
+        spellCheck={false}
+      />
+      <div className="rr-cmp-add-results" role="listbox">
+        {query.trim().length < 2 && (
+          <div className="rr-cmp-add-hint">Type 2+ characters to search.</div>
+        )}
+        {query.trim().length >= 2 && loading && hits.length === 0 && (
+          <div className="rr-cmp-add-hint">Searching…</div>
+        )}
+        {query.trim().length >= 2 && !loading && hits.length === 0 && (
+          <div className="rr-cmp-add-hint">No matches. (Already-shortlisted schools are filtered out.)</div>
+        )}
+        {hits.map((h, i) => (
+          <button
+            key={h.slug}
+            type="button"
+            role="option"
+            aria-selected={i === activeIdx}
+            className={`rr-cmp-add-result${i === activeIdx ? ' is-active' : ''}`}
+            onClick={() => onPick(h.slug)}
+            onMouseEnter={() => setActiveIdx(i)}
+          >
+            <span className="rr-cmp-add-result-name">{h.name}</span>
+            {(h.region || h.country) && (
+              <span className="rr-cmp-add-result-meta">
+                {[h.region, h.country].filter(Boolean).join(' · ')}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
