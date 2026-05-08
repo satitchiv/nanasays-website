@@ -363,6 +363,50 @@ export async function POST(req: NextRequest) {
   // sufficient defence-in-depth at this layer.
   // Slice 6 additions: baseLensKind + activeRowNames feed the Pass-2 extractor
   // so propose_re_rank / propose_create_lens reference rows that exist.
+
+  // ── P1+P2 (research-panel-excellence-plan.md): Research Context Pack ──
+  // When NANA_PACK_V1=on, build a single privacy-shaped tray of context the
+  // runners read from. Default OFF: chatbot behaves identically to today.
+  // The pack is additive — existing context fields (parentContext, etc.) are
+  // still populated and threaded; the pack just adds one more.
+  let researchPack: any = null
+  const NANA_PACK_V1_ON = process.env.NANA_PACK_V1 === 'on'
+  if (NANA_PACK_V1_ON) {
+    try {
+      // @ts-ignore — assembler is .ts, dynamic import keeps the static
+      // graph clean for the flag-off path.
+      const { assembleResearchContextPack } = await import('@/lib/server/research-context-pack')
+      // @ts-ignore
+      const { logPackTelemetry } = await import('@/lib/server/pack-prompt-injection.js')
+      researchPack = await assembleResearchContextPack(
+        supabase,
+        {
+          user_id: user.id,
+          child_id: activeChildId,
+          session_id: sessionId,
+          shortlist: shortlistSlugs,
+          mentioned_slugs: mentionedSlugs,
+          active_school_slug: activeSchoolSlug,
+          base_lens_kind: baseLensKind,
+          intent: intentMatch
+            ? {
+                kind: (intentMatch as any).intent ?? null,
+                dimension: (intentMatch as any).dimension ?? null,
+                target_slugs: (intentMatch as any).schoolSlugs ?? [],
+                confidence: (intentMatch as any).confidence ?? null,
+              }
+            : null,
+        },
+        question,
+      )
+      logPackTelemetry('route', researchPack)
+    } catch (e: any) {
+      // Pack assembly failure must NEVER break the chat. Log + fall through.
+      console.error('[nana-research] pack assembly failed:', e?.message ?? String(e))
+      researchPack = null
+    }
+  }
+
   const streamOpts = {
     signal: ac.signal,
     devilsAdvocate,
@@ -371,6 +415,7 @@ export async function POST(req: NextRequest) {
     shortlistSlugs,
     baseLensKind,
     activeRowNames,
+    pack: researchPack, // NEW (P1+P2): null when NANA_PACK_V1 off
   }
 
   const encoder = new TextEncoder()
