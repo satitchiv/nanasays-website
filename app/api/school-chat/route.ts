@@ -124,13 +124,17 @@ function buildContactsBlock(contacts: any[]): string {
 async function retrieve(slug: string, question: string) {
   const maxWords = 8000
 
-  // Always fetch the NanaSays profile row (pinned baseline)
-  const { data: profileRow } = await supabase
+  // Always fetch the NanaSays profile row (pinned baseline).
+  // D7-3 (2026-05-08): handle BOTH legacy 'nanasays' and new 'nanasays_internal'
+  // source_types — the latter is what crawl-school-site.js writes after the
+  // self-ref URL fix. Use .in() + .limit(1) instead of .eq() + .single().
+  const { data: profileRows } = await supabase
     .from('school_knowledge')
     .select('*')
     .eq('school_slug', slug)
-    .eq('source_type', 'nanasays')
-    .single()
+    .in('source_type', ['nanasays', 'nanasays_internal'])
+    .limit(1)
+  const profileRow = (profileRows && profileRows[0]) || null
 
   // Check if embeddings exist
   const { count: embCount } = await supabase
@@ -138,6 +142,12 @@ async function retrieve(slug: string, question: string) {
     .select('*', { count: 'exact', head: true })
     .eq('school_slug', slug)
     .not('embedding', 'is', null)
+
+  // Helper: drop both internal source_types from candidate lists.
+  const isInternalProfile = (r: any) =>
+    r?.source_type === 'nanasays' ||
+    r?.source_type === 'nanasays_internal' ||
+    (typeof r?.source_url === 'string' && r.source_url.startsWith('internal://'))
 
   let candidates: any[] = []
 
@@ -150,7 +160,7 @@ async function retrieve(slug: string, question: string) {
         match_count: 8,
       })
       if (!error && vectorResults) {
-        candidates = vectorResults.filter((r: any) => r.source_type !== 'nanasays')
+        candidates = vectorResults.filter((r: any) => !isInternalProfile(r))
       }
     } catch {
       // fall through to keyword
@@ -158,9 +168,10 @@ async function retrieve(slug: string, question: string) {
         .from('school_knowledge')
         .select('*')
         .eq('school_slug', slug)
-        .neq('source_type', 'nanasays')
+        .not('source_type', 'in', '("nanasays","nanasays_internal")')
       const keywords = extractKeywords(question)
       candidates = (rows || [])
+        .filter((r: any) => !isInternalProfile(r))
         .map(r => ({ ...r, score: scoreChunk(r.content, keywords) }))
         .sort((a, b) => b.score - a.score)
     }
@@ -169,9 +180,10 @@ async function retrieve(slug: string, question: string) {
       .from('school_knowledge')
       .select('*')
       .eq('school_slug', slug)
-      .neq('source_type', 'nanasays')
+      .not('source_type', 'in', '("nanasays","nanasays_internal")')
     const keywords = extractKeywords(question)
     candidates = (rows || [])
+      .filter((r: any) => !isInternalProfile(r))
       .map(r => ({ ...r, score: scoreChunk(r.content, keywords) }))
       .sort((a, b) => b.score - a.score)
   }
@@ -197,7 +209,9 @@ async function retrieve(slug: string, question: string) {
 
   for (const row of candidates) {
     if (selected.length >= 6) break
-    if (row.source_type === 'nanasays') continue
+    // D7-3 (2026-05-08): defence-in-depth — vector RPC may not have been
+    // updated to filter both source types yet. Skip both + internal:// URLs.
+    if (isInternalProfile(row)) continue
 
     const sourceCount = sourceCounts[row.source_url] || 0
     if (sourceCount >= 2) continue
@@ -298,7 +312,8 @@ function buildNewsBlock(newsChunks: { education: any[]; area: any[] }): string {
 const SENSITIVE_CATEGORIES = new Set(['fees', 'scholarships', 'admissions', 'support'])
 
 function sourceLabel(row: any): string {
-  if (row.source_type === 'nanasays') return 'NanaSays profile data'
+  // D7-3 (2026-05-08): handle both legacy 'nanasays' and new 'nanasays_internal'.
+  if (row.source_type === 'nanasays' || row.source_type === 'nanasays_internal') return 'NanaSays profile data'
   if (row.source_type === 'pdf') return `PDF: ${row.title}`
   return `school website — ${row.category} page`
 }
@@ -518,7 +533,11 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    const profileRow = chunks.find((r: any) => r.source_type === 'nanasays')
+    // D7-3 (2026-05-08): handle both legacy + new internal source types so
+    // school-name resolution still finds the profile after T1.4 rename.
+    const profileRow = chunks.find((r: any) =>
+      r.source_type === 'nanasays' || r.source_type === 'nanasays_internal'
+    )
     const schoolName = profileRow?.title?.replace(' — NanaSays Profile Data', '') || slug
 
     // Detect intent then fetch news in parallel with nothing (already have school data)
