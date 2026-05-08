@@ -7,6 +7,7 @@ import ChildSelector, { type ChildOption } from './ChildSelector'
 import ChildBriefTab, { type ChildSummary, type FamilyPreferences } from './ChildBriefTab'
 import ResearchRoomChat, { type ChatState } from './ResearchRoomChat'
 import ComparisonView from './ComparisonView'
+import SchoolAdder from './SchoolAdder'
 import type { ComparisonData } from './comparison-placeholder'
 import type { Session, ResearchMessage } from '@/lib/nana/types'
 import './research-room.css'
@@ -560,8 +561,15 @@ export default function ResearchRoom({
                         </div>
                       </div>
                       {activeChild && (
-                        <div className="rr-cmp-showing-for" role="status">
-                          Showing <strong>{activeChild.name}&rsquo;s</strong> matches
+                        <div className="rr-cmp-showing-row">
+                          <div className="rr-cmp-showing-for" role="status">
+                            Showing <strong>{activeChild.name}&rsquo;s</strong> matches
+                          </div>
+                          <SchoolAdder
+                            childId={activeChildId}
+                            excludeSlugs={(comparisonData?.schools ?? []).map(s => s.slug)}
+                            variant="compact"
+                          />
                         </div>
                       )}
                       <ComparisonView

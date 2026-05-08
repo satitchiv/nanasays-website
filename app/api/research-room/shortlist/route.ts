@@ -116,11 +116,14 @@ export async function POST(req: NextRequest) {
     const result = Array.isArray(data) ? data[0] : data
     if (!result) return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
 
-    const { school_slug, status } = result as { school_slug: string; status: string }
-    if (status === 'added' || status === 'already_present') {
-      return NextResponse.json({ ok: true, status, school_slug }, { status: status === 'added' ? 201 : 200 })
+    // RPC OUT columns are out_slug + out_status (renamed in
+    // 2026-05-10-fix-shortlist-rpc-ambiguity.sql to avoid the
+    // school_slug name colliding with the table column).
+    const { out_slug, out_status } = result as { out_slug: string; out_status: string }
+    if (out_status === 'added' || out_status === 'already_present') {
+      return NextResponse.json({ ok: true, status: out_status, school_slug: out_slug }, { status: out_status === 'added' ? 201 : 200 })
     }
-    console.error('[research-room/shortlist] unexpected add status:', status)
+    console.error('[research-room/shortlist] unexpected add status:', out_status)
     return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
   }
 
@@ -135,10 +138,10 @@ export async function POST(req: NextRequest) {
   const result = Array.isArray(data) ? data[0] : data
   if (!result) return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
 
-  const { school_slug, status } = result as { school_slug: string; status: string }
-  if (status === 'removed' || status === 'not_present') {
-    return NextResponse.json({ ok: true, status, school_slug }, { status: 200 })
+  const { out_slug, out_status } = result as { out_slug: string; out_status: string }
+  if (out_status === 'removed' || out_status === 'not_present') {
+    return NextResponse.json({ ok: true, status: out_status, school_slug: out_slug }, { status: 200 })
   }
-  console.error('[research-room/shortlist] unexpected remove status:', status)
+  console.error('[research-room/shortlist] unexpected remove status:', out_status)
   return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
 }

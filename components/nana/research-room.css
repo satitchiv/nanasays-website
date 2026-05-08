@@ -1249,6 +1249,15 @@
   border-style: solid;
   transform: translateY(-1px);
 }
+/* Compact variant — sits inline next to the active-child pill, so it
+   matches that pill's vertical rhythm (smaller font, tighter padding,
+   pill-radius). */
+.rr-cmp-add-school-btn--compact {
+  padding: 6px 12px;
+  font-size: 12px;
+  letter-spacing: .4px;
+  border-radius: var(--rr-r-pill);
+}
 .rr-cmp-add-popup {
   position: absolute;
   top: calc(100% + 6px);
@@ -2783,6 +2792,15 @@
   border: 1px solid var(--rr-teal);
   padding: 6px 12px;
   border-radius: var(--rr-r-pill);
+}
+/* Slice 6.6 — wrap the active-child pill + the in-room SchoolAdder
+   in a single row so the + Add school control doesn't claim its own
+   vertical band. flex-wrap keeps things sane on narrow screens.   */
+.rr-cmp-showing-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
   margin-bottom: 18px;
 }
 .rr-cmp-showing-for strong {
