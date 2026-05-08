@@ -14,6 +14,9 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 type Hit = { slug: string; name: string; region: string | null; country: string | null }
+// Richness map keyed by slug. 0 = no school_structured_data row.
+// Higher = more populated structural fields (sports/fees/facilities/etc.).
+type Richness = Map<string, number>
 
 export default function SchoolAdder({
   childId,
@@ -125,27 +128,41 @@ function normName(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
-// Pick the "primary" record from a duplicate-name group. Heuristic
-// (chosen because the database has dups like Reed's where one entry
-// has incorrect region):
-//   1. Prefer a slug that ends in `-uk` if any (treated as canonical
-//      UK record by the data team).
-//   2. Else prefer the entry with both region + country populated.
-//   3. Else prefer the entry with country populated.
-//   4. Else shortest slug (the un-numbered base slug).
-function pickPrimary(entries: Hit[]): Hit {
-  const ukSuffix = entries.find(e => e.slug.endsWith('-uk'))
-  if (ukSuffix) return ukSuffix
-  const both = entries.find(e => e.region && e.country)
-  if (both) return both
-  const country = entries.find(e => e.country)
-  if (country) return country
-  return [...entries].sort((a, b) => a.slug.length - b.slug.length || a.slug.localeCompare(b.slug))[0]
+// Pick the "primary" record from a duplicate-name group.
+//
+// Codex t13: previous heuristic put metadata-completeness ahead of
+// data-richness, which fails on cases like Reed's where the WRONG
+// record has region+country populated but no actual structured data.
+// New heuristic ordering:
+//   1. Highest data-richness score (count of populated structural
+//      fields per school_structured_data row; 0 if no row exists).
+//   2. Tie → prefer slug ending in `-uk` (informal canonical marker).
+//   3. Tie → entry with country populated.
+//   4. Tie → shortest slug.
+//
+// `region` is intentionally NOT a tiebreaker because Reed's proves
+// region can be incorrect/garbage on the empty record while NULL on
+// the rich one.
+function pickPrimary(entries: Hit[], richness: Richness): Hit {
+  const sorted = [...entries].sort((a, b) => {
+    const ra = richness.get(a.slug) ?? 0
+    const rb = richness.get(b.slug) ?? 0
+    if (ra !== rb) return rb - ra                                          // higher richness first
+    const ua = a.slug.endsWith('-uk') ? 1 : 0
+    const ub = b.slug.endsWith('-uk') ? 1 : 0
+    if (ua !== ub) return ub - ua                                          // -uk suffix wins
+    const ca = a.country ? 1 : 0
+    const cb = b.country ? 1 : 0
+    if (ca !== cb) return cb - ca                                          // country populated wins
+    if (a.slug.length !== b.slug.length) return a.slug.length - b.slug.length
+    return a.slug.localeCompare(b.slug)
+  })
+  return sorted[0]
 }
 
 type Group = { name: string; primary: Hit; alternates: Hit[] }
 
-function groupByName(hits: Hit[]): Group[] {
+function groupByName(hits: Hit[], richness: Richness): Group[] {
   const map = new Map<string, Hit[]>()
   for (const h of hits) {
     const key = normName(h.name)
@@ -155,8 +172,11 @@ function groupByName(hits: Hit[]): Group[] {
   // Stable order: by name (for display), entries already came pre-sorted by name asc.
   const out: Group[] = []
   Array.from(map.values()).forEach((entries: Hit[]) => {
-    const primary = pickPrimary(entries)
-    const alternates = entries.filter((e: Hit) => e.slug !== primary.slug)
+    const primary = pickPrimary(entries, richness)
+    // Sort alternates by richness too so the most useful ones surface first.
+    const alternates = entries
+      .filter((e: Hit) => e.slug !== primary.slug)
+      .sort((a, b) => (richness.get(b.slug) ?? 0) - (richness.get(a.slug) ?? 0))
     out.push({ name: primary.name, primary, alternates })
   })
   return out
@@ -177,6 +197,7 @@ function SchoolAddPopup({
 }) {
   const [query, setQuery] = useState('')
   const [hits, setHits] = useState<Hit[]>([])
+  const [richness, setRichness] = useState<Richness>(new Map())
   const [loading, setLoading] = useState(false)
   const [activeIdx, setActiveIdx] = useState(0)
   // Codex t12 T1.3: groups with >1 entry are collapsed by default;
@@ -197,6 +218,7 @@ function SchoolAddPopup({
     const q = query.trim()
     if (q.length < 2) {
       setHits([])
+      setRichness(new Map())
       setLoading(false)
       return
     }
@@ -206,6 +228,10 @@ function SchoolAddPopup({
       try {
         const { createSupabaseBrowser } = await import('@/lib/supabase-browser')
         const supabase = createSupabaseBrowser()
+        // Codex t13: bump SQL limit from 8 to 50 so groupByName has
+        // enough candidate rows for big duplicate-name groups (e.g.
+        // "St Joseph's School" has 65 records). After grouping we
+        // slice the top 8 *groups* — see render below.
         let q1 = supabase
           .from('schools')
           .select('slug, name, region, country')
@@ -215,7 +241,7 @@ function SchoolAddPopup({
         }
         const { data, error } = await q1
           .order('name', { ascending: true })
-          .limit(8)
+          .limit(50)
           .abortSignal(ac.signal)
         if (error) {
           const looksAborted =
@@ -225,8 +251,51 @@ function SchoolAddPopup({
           if (!looksAborted) console.error('[SchoolAddPopup search]', error)
           return
         }
-        setHits((data ?? []) as Hit[])
+        const candidates = (data ?? []) as Hit[]
+        setHits(candidates)
         setActiveIdx(0)
+
+        // Codex t13: data-richness lookup. Fetch which candidate slugs
+        // have school_structured_data + how many key structural fields
+        // are populated. Used by pickPrimary to choose the data-rich
+        // slug as the visible group leader (Reed's case proves
+        // metadata completeness on schools.* is not a quality signal).
+        if (candidates.length > 0) {
+          const slugs = candidates.map(h => h.slug)
+          const { data: enrich, error: enrichErr } = await supabase
+            .from('school_structured_data')
+            .select('school_slug, sports_profile, fees_min, facilities, university_destinations, exam_results')
+            .in('school_slug', slugs)
+            .abortSignal(ac.signal)
+          if (enrichErr) {
+            const looksAborted =
+              ac.signal.aborted ||
+              /abort/i.test(enrichErr.message ?? '')
+            if (!looksAborted) console.warn('[SchoolAddPopup richness]', enrichErr.message)
+            setRichness(new Map())
+          } else {
+            const m: Richness = new Map()
+            for (const row of (enrich ?? []) as Array<{
+              school_slug: string
+              sports_profile: unknown
+              fees_min: number | null
+              facilities: unknown[] | null
+              university_destinations: unknown
+              exam_results: unknown
+            }>) {
+              let score = 0
+              if (row.sports_profile != null)                                       score++
+              if (row.fees_min != null)                                             score++
+              if (Array.isArray(row.facilities) && row.facilities.length > 0)       score++
+              if (row.university_destinations != null)                              score++
+              if (row.exam_results != null)                                         score++
+              m.set(row.school_slug, score)
+            }
+            setRichness(m)
+          }
+        } else {
+          setRichness(new Map())
+        }
       } finally {
         setLoading(false)
       }
@@ -247,7 +316,12 @@ function SchoolAddPopup({
     isPrimary:        boolean
     isOnlyMember:     boolean
   }
-  const groups = groupByName(hits)
+  // Codex t13: group from up to 50 candidate hits, then slice the top
+  // 8 groups for display. Previously `.limit(8)` ran before grouping,
+  // so a same-name group of 65 records exposed only the first 7
+  // alternates inside one group and starved every other group.
+  const allGroups = groupByName(hits, richness)
+  const groups = allGroups.slice(0, 8)
   const flat: FlatEntry[] = []
   for (const group of groups) {
     flat.push({ hit: group.primary, group, isPrimary: true, isOnlyMember: group.alternates.length === 0 })

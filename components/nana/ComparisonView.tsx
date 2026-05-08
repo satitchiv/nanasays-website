@@ -185,6 +185,16 @@ export default function ComparisonView({
     })
     if (needsUpdate) setOptimisticallyRemoved(next)
   }, [data.schools, optimisticallyRemoved])
+
+  // Codex t13 follow-up: the optimistic set is keyed by slug only.
+  // If the user switches active child (Maya → Otis) while a remove is
+  // in flight, the slug could leak into the new child's view (each
+  // child has their own shortlist). Clear the set on activeChildId
+  // change so cross-child removes don't bleed.
+  useEffect(() => {
+    setOptimisticallyRemoved(new Set())
+    setShortlistError(null)
+  }, [activeChildId])
   // Codex P1#2: optimistic filter must apply to BOTH schools AND each
   // row's cells in lockstep. row.cells[] is indexed by school position,
   // so dropping a school from `schools` without dropping the matching
