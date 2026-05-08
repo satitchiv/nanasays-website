@@ -181,13 +181,28 @@ export default function ComparisonView({
         return
       }
       router.refresh()
-      // Leave removingSlug set until refresh lands; the column unmounts then.
+      // Codex r1 P1: previously left removingSlug set "until refresh
+      // lands"; but router.refresh preserves client state, so the slug
+      // would never clear and subsequent removes were silently blocked
+      // by the early-return guard above. The post-refresh sync effect
+      // below clears removingSlug once the new schools prop no longer
+      // includes the removed slug.
     } catch (e) {
       console.error('[ComparisonView remove school]', e)
       setShortlistError('Network error removing the school.')
       setRemovingSlug(null)
     }
   }
+
+  // Codex r1 P1 sync effect: clear removingSlug once the schools prop
+  // no longer contains that slug (i.e. the post-router.refresh load
+  // landed and the column has unmounted).
+  useEffect(() => {
+    if (!removingSlug) return
+    if (!data.schools.some(s => s.slug === removingSlug)) {
+      setRemovingSlug(null)
+    }
+  }, [data.schools, removingSlug])
   const { schools, rows: rawRows } = data
   const childLensLabel = activeChildName ? `${activeChildName} fit` : 'Child fit'
   const activeLens = activeLensId
@@ -319,8 +334,32 @@ export default function ComparisonView({
         <p className="rr-cmp-empty-body">
           The comparison table fills in automatically once you've saved a few.
         </p>
+        {/* Slice 6.6 (Codex r1 P2): the in-room add affordance also
+            renders in the empty state. Without it the user's only path
+            forward was "Browse schools →" (an external page), defeating
+            the in-room workspace promise. */}
+        {activeChildId && (
+          <div className="rr-cmp-empty-add" ref={addPanelRef}>
+            <button
+              type="button"
+              className="rr-cmp-add-school-btn"
+              aria-haspopup="dialog"
+              aria-expanded={addOpen}
+              onClick={() => setAddOpen(o => !o)}
+            >
+              <span aria-hidden>+</span> Add school
+            </button>
+            {addOpen && (
+              <SchoolAddPopup
+                excludeSlugs={[]}
+                onPick={handleAddSchool}
+                onClose={() => setAddOpen(false)}
+              />
+            )}
+          </div>
+        )}
         <Link href="/schools" className="rr-cmp-empty-cta">
-          Browse schools →
+          {activeChildId ? 'Or browse schools →' : 'Browse schools →'}
         </Link>
       </div>
     )
@@ -696,7 +735,6 @@ function SchoolAddPopup({
   const [loading, setLoading] = useState(false)
   const [activeIdx, setActiveIdx] = useState(0)
   const inputRef = useRef<HTMLInputElement | null>(null)
-  const excludeSet = new Set(excludeSlugs)
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -717,19 +755,35 @@ function SchoolAddPopup({
         // ComparisonView SSR slice.
         const { createSupabaseBrowser } = await import('@/lib/supabase-browser')
         const supabase = createSupabaseBrowser()
-        const { data, error } = await supabase
+        // Codex r1 P2: push slug exclusion into SQL so a query that
+        // matches 12 already-shortlisted names doesn't produce a false
+        // "No matches". `.not('slug', 'in', '(...)' )` filters in the
+        // DB; the limit then applies to non-shortlisted hits only.
+        // Empty exclude list short-circuits to no filter.
+        let q1 = supabase
           .from('schools')
           .select('slug, name, region, country')
           .ilike('name', `%${q}%`)
+        if (excludeSlugs.length > 0) {
+          q1 = q1.not('slug', 'in', `(${excludeSlugs.join(',')})`)
+        }
+        const { data, error } = await q1
           .order('name', { ascending: true })
-          .limit(12)
+          .limit(8)
           .abortSignal(ac.signal)
+        // Codex r1 NIT: the abort error doesn't have a stable .code
+        // value across PostgREST/supabase versions. Skip logging when
+        // the AbortController fired OR when the error name/message
+        // looks abort-like.
         if (error) {
-          if (error.code !== '20') console.error('[SchoolAddPopup search]', error)
+          const looksAborted =
+            ac.signal.aborted ||
+            /abort/i.test(error.message ?? '') ||
+            /abort/i.test((error as { name?: string }).name ?? '')
+          if (!looksAborted) console.error('[SchoolAddPopup search]', error)
           return
         }
-        const filtered = ((data ?? []) as Hit[]).filter(h => !excludeSet.has(h.slug))
-        setHits(filtered.slice(0, 8))
+        setHits((data ?? []) as Hit[])
         setActiveIdx(0)
       } finally {
         setLoading(false)
@@ -739,8 +793,8 @@ function SchoolAddPopup({
       clearTimeout(timer)
       ac.abort()
     }
-    // excludeSet is rebuilt every render but excludeSlugs is the stable
-    // input; depend on its joined form to avoid re-running on identity flips.
+    // excludeSlugs is the stable input; depend on its joined form to
+    // avoid re-running on identity flips.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, excludeSlugs.join(',')])
 

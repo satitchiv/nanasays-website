@@ -1261,6 +1261,19 @@
   background: var(--rr-white);
   box-shadow: 0 12px 32px var(--rr-shadow), 0 2px 8px var(--rr-shadow);
 }
+/* Empty-state variant — center the popup so it doesn't go off-screen
+   on the empty CTA layout. */
+.rr-cmp-empty-add {
+  position: relative;
+  display: inline-flex;
+  margin: 16px 0 8px;
+}
+.rr-cmp-empty-add .rr-cmp-add-popup {
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  text-align: left;
+}
 .rr-cmp-add-input {
   width: 100%;
   padding: 8px 12px;
