@@ -151,7 +151,7 @@ export interface NanaMsgBubbleProps {
   // expands to show the row specs; second click POSTs to write-action
   // (action='create_topic_lens') which triggers the create_topic_lens
   // RPC on the server.
-  onConfirmTopicLens?: (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
+  onConfirmTopicLens?: (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string; merged?: { rows_inserted: number; rows_updated: number } }>
 }
 
 export function NanaMsgBubble({
@@ -386,7 +386,7 @@ function ProposedActionsList({
   activeProposalIds?:  string[]
   onConfirm?:          (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
   onApplyReRank?:      (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
-  onConfirmTopicLens?: (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
+  onConfirmTopicLens?: (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string; merged?: { rows_inserted: number; rows_updated: number } }>
 }) {
   // Slice 6: kind-aware dispatch. add_row keeps the existing pill/flow;
   // re_rank gets a ↻ pill that triggers a pure client-state apply.
@@ -483,30 +483,44 @@ function TopicLensButton({
   embeddedRows:     ReadonlyArray<{ row_name: string; group_name: string }>
   visibleBaseRows?: ReadonlyArray<string>
   isAddedInTable:   boolean
-  onConfirm:        () => Promise<{ ok: boolean; code?: string }>
+  onConfirm:        () => Promise<{ ok: boolean; code?: string; merged?: { rows_inserted: number; rows_updated: number } }>
 }) {
   const [expanded, setExpanded] = useState(false)
   const [override, setOverride] = useState<LocalOverride>(null)
+  // Slice 6.6 Tier 2: when the RPC returns status='merged', capture the
+  // {rows_inserted, rows_updated} counts so the success state reads
+  // "Tennis lens refreshed: 4 updated, 1 added" instead of "created".
+  const [mergeSummary, setMergeSummary] = useState<{ rows_inserted: number; rows_updated: number } | null>(null)
   const rowCount = embeddedRows.length
 
   async function handleConfirm() {
     if (override === 'pending') return
-    if (override === 'optimistic-added' || isAddedInTable) return
+    if (override === 'optimistic-added' || override === 'optimistic-merged' || isAddedInTable) return
     setOverride('pending')
     const result = await onConfirm()
-    setOverride(result.ok ? 'optimistic-added' : 'error')
+    if (result.ok) {
+      if (result.merged) {
+        setMergeSummary(result.merged)
+        setOverride('optimistic-merged')
+      } else {
+        setOverride('optimistic-added')
+      }
+    } else {
+      setOverride('error')
+    }
   }
 
   // Drop the optimistic marker once server truth says active.
   useEffect(() => {
-    if (override === 'optimistic-added' && isAddedInTable) {
+    if ((override === 'optimistic-added' || override === 'optimistic-merged') && isAddedInTable) {
       setOverride(null)
     }
   }, [override, isAddedInTable])
 
   const isPending = override === 'pending'
   const isError   = override === 'error'
-  const isAdded   = !isPending && !isError && (override === 'optimistic-added' || isAddedInTable)
+  const isMerged  = override === 'optimistic-merged'
+  const isAdded   = !isPending && !isError && (override === 'optimistic-added' || override === 'optimistic-merged' || isAddedInTable)
 
   // Collapsed pill: single click expands. The expanded panel has its own
   // confirm button so users always preview before writing.
@@ -528,6 +542,29 @@ function TopicLensButton({
   }
 
   if (isAdded) {
+    // Slice 6.6 Tier 2: distinguish "created" (fresh lens) from "refreshed"
+    // (merge into existing lens). The optimistic-merged branch carries
+    // mergeSummary; once router.refresh() flips isAddedInTable we drop
+    // the override and fall back to the generic "created" copy — the
+    // merge counts are transient feedback for the click, not durable.
+    if (isMerged && mergeSummary) {
+      const { rows_updated, rows_inserted } = mergeSummary
+      const parts: string[] = []
+      if (rows_updated > 0)  parts.push(`${rows_updated} updated`)
+      if (rows_inserted > 0) parts.push(`${rows_inserted} added`)
+      const summary = parts.length > 0 ? parts.join(', ') : 'no changes'
+      return (
+        <button
+          type="button"
+          className="rr-proposed-btn rr-proposed-btn--topic-lens is-added"
+          disabled
+          title={`${lensName} lens refreshed: ${summary}`}
+        >
+          <span className="rr-proposed-btn-icon" aria-hidden="true">↻</span>
+          <span className="rr-proposed-btn-label">{lensName} lens refreshed — {summary}</span>
+        </button>
+      )
+    }
     return (
       <button
         type="button"
@@ -622,7 +659,11 @@ function ReRankButton({
   )
 }
 
-type LocalOverride = 'pending' | 'optimistic-added' | 'error' | null
+// 'optimistic-merged' is set by TopicLensButton (slice 6.6 Tier 2) when
+// the server returned status='merged' instead of 'fresh'. Other buttons
+// don't use it. Same lifecycle as 'optimistic-added' — cleared once the
+// table reflects server truth via msg.activeProposalIds.
+type LocalOverride = 'pending' | 'optimistic-added' | 'optimistic-merged' | 'error' | null
 
 function ProposedActionButton({
   label,

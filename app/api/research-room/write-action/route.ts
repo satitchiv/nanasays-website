@@ -364,6 +364,18 @@ export async function POST(req: NextRequest) {
     if (status === 'deduped') {
       return NextResponse.json({ ok: true, status, lens_id, lens: lens_data }, { status: 200 })
     }
+    // Slice 6.6 Tier 2: same lens_name in same session + lens has topic
+    // rows → RPC merged the new schools' cells into existing topic rows
+    // (and INSERTed any rows whose names were new). lens_data carries a
+    // _merge_summary computed field with {rows_inserted, rows_updated}
+    // so the UI can render "Tennis lens refreshed: 4 updated, 1 added."
+    if (status === 'merged') {
+      const merge_summary =
+        lens_data && typeof lens_data === 'object' && '_merge_summary' in (lens_data as Record<string, unknown>)
+          ? (lens_data as Record<string, unknown>)._merge_summary
+          : null
+      return NextResponse.json({ ok: true, status, lens_id, lens: lens_data, merge_summary }, { status: 200 })
+    }
     if (status === 'duplicate_name') {
       return NextResponse.json({
         ok: false,

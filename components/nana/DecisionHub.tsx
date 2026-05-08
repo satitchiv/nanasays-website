@@ -1052,7 +1052,7 @@ export function DecisionHub({
             ) : (
               <button
                 className="dh-chat-ask-btn"
-                onClick={ask}
+                onClick={() => ask()}
                 disabled={!question.trim()}
               >
                 Ask →

@@ -39,6 +39,11 @@ type LensListItem = {
   id:             string
   lens_name:      string
   base_lens_kind: Lens
+  // Slice 6.6 Tier 3: drives the ↻ Refresh lens button on the active-
+  // lens chip. True for topic lenses (created via create_topic_lens RPC
+  // — have rows with created_by_lens_id = this.id). False/undefined for
+  // saved/re-rank lenses created via confirm_lens_from_proposal.
+  is_topic_lens?: boolean
 }
 
 type Props = {
@@ -83,6 +88,14 @@ type Props = {
   // + Add school + × column controls are hidden — there's no shortlist
   // to mutate without a child context.
   activeChildId?: string | null
+  // Slice 6.6 Tier 3 — fired when the user clicks the ↻ Refresh lens
+  // affordance on a topic lens. Parent (ResearchRoom) bridges to the
+  // chat hook by submitting "Create a lens for <topicName>" so Nana
+  // re-emits a propose_create_topic_lens proposal that — on confirm —
+  // hits the create_topic_lens RPC's MERGE branch (slice 6.6 Tier 2)
+  // and refreshes the lens with the current shortlist. Only rendered
+  // when an active lens is a topic lens.
+  onRefreshTopicLens?: (topicName: string) => void
 }
 
 // Slice 5.5: ALL rows live in comparison_rows now (no more hardcoded
@@ -107,6 +120,7 @@ export default function ComparisonView({
   activeLensId = null,
   onSwitchActiveLens,
   activeChildId = null,
+  onRefreshTopicLens,
 }: Props) {
   const router = useRouter()
   const pathname = usePathname()
@@ -123,6 +137,34 @@ export default function ComparisonView({
   // slug back so the column reappears with the error banner.
   const [optimisticallyRemoved, setOptimisticallyRemoved] = useState<Set<string>>(new Set())
   const [shortlistError, setShortlistError] = useState<string | null>(null)
+
+  // Slice 6.6 Tier 3.5 — zoom state for the comparison table. Three
+  // discrete steps (small / normal / large) give predictable layout vs
+  // a continuous slider. Persisted to localStorage so the parent's
+  // preference sticks across reloads. SSR-safe init: read on mount in
+  // useEffect, not in useState's initialiser.
+  const ZOOM_STEPS = [0.85, 1.0, 1.15] as const
+  type ZoomStep = typeof ZOOM_STEPS[number]
+  const [zoom, setZoom] = useState<ZoomStep>(1.0)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const raw = window.localStorage.getItem('rr-cmp-zoom')
+    if (!raw) return
+    const n = parseFloat(raw)
+    const match = ZOOM_STEPS.find(s => Math.abs(s - n) < 0.001)
+    if (match) setZoom(match)
+    // ZOOM_STEPS is a frozen const; safe to omit from deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  function adjustZoom(delta: -1 | 1) {
+    const idx = ZOOM_STEPS.indexOf(zoom)
+    const next = ZOOM_STEPS[Math.max(0, Math.min(ZOOM_STEPS.length - 1, idx + delta))]
+    if (next === zoom) return
+    setZoom(next)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('rr-cmp-zoom', String(next))
+    }
+  }
 
   async function handleRemoveSchool(slug: string) {
     if (!activeChildId) return
@@ -427,10 +469,51 @@ export default function ComparisonView({
             </div>
           )}
         </div>
+        {/* Slice 6.6 Tier 3.5: stats row is now a single inline strip
+            holding rows/schools count, the active-lens label, the ↻
+            Refresh affordance (topic lenses only), and the zoom −/+
+            controls. Two-line layout was wasting vertical space the
+            user wanted for the table. */}
         <div className="rr-cmp-stats">
-          {rows.length} rows · {schools.length} schools
-          <br />
-          <strong>{activeLens ? activeLens.lens_name : (lens === 'general' ? 'General' : childLensLabel)}</strong> active
+          <span className="rr-cmp-stats-counts">{rows.length} rows · {schools.length} schools</span>
+          <span className="rr-cmp-stats-divider" aria-hidden="true">·</span>
+          <span className="rr-cmp-stats-active">
+            <strong>{activeLens ? activeLens.lens_name : (lens === 'general' ? 'General' : childLensLabel)}</strong> active
+          </span>
+          {activeLens && activeLens.is_topic_lens && onRefreshTopicLens && (
+            <button
+              type="button"
+              className="rr-cmp-stats-refresh"
+              onClick={() => onRefreshTopicLens(activeLens.lens_name)}
+              title={`Ask Nana to fill ${activeLens.lens_name} data for any newly-shortlisted schools.`}
+              aria-label={`Refresh ${activeLens.lens_name} lens with current shortlist`}
+            >
+              <span aria-hidden="true">↻</span> Refresh
+            </button>
+          )}
+          <span className="rr-cmp-stats-zoom" role="group" aria-label="Table zoom">
+            <span className="rr-cmp-stats-zoom-icon" aria-hidden="true">🔍</span>
+            <button
+              type="button"
+              className="rr-cmp-stats-zoom-btn"
+              onClick={() => adjustZoom(-1)}
+              disabled={zoom === ZOOM_STEPS[0]}
+              aria-label="Zoom out"
+              title="Zoom out"
+            >
+              <span aria-hidden="true">−</span>
+            </button>
+            <button
+              type="button"
+              className="rr-cmp-stats-zoom-btn"
+              onClick={() => adjustZoom(1)}
+              disabled={zoom === ZOOM_STEPS[ZOOM_STEPS.length - 1]}
+              aria-label="Zoom in"
+              title="Zoom in"
+            >
+              <span aria-hidden="true">+</span>
+            </button>
+          </span>
         </div>
         {/* Slice 6.6 — the + Add school control moved to the
             ResearchRoom header (next to the active-child pill) so the
@@ -471,7 +554,11 @@ export default function ComparisonView({
         </div>
       )}
 
-      <div className="rr-cmp-table-wrap">
+
+      <div
+        className="rr-cmp-table-wrap"
+        style={{ zoom }}
+      >
         <div className="rr-cmp-table">
           {/* Header row */}
           <div className="rr-cmp-table-row rr-cmp-table-row--head" style={{ gridTemplateColumns }}>

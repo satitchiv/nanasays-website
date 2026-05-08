@@ -180,6 +180,24 @@ export default async function ResearchRoomPage({
         visible_rows:   string[] | null
         created_at:     string
       }
+      // Slice 6.6 Tier 3: detect which lenses are TOPIC lenses (have at
+      // least one comparison_rows entry with created_by_lens_id pointing
+      // back at them and undone_at IS NULL). Used by the ↻ Refresh lens
+      // button on the comparison header — only visible on topic lenses.
+      // Saved/re-rank lenses don't get the button (they're a view of base
+      // rows; refresh-with-shortlist isn't meaningful for them).
+      const lensIdList = ((lensRows ?? []) as LensRow[]).map(r => r.id)
+      const topicLensIdSet = new Set<string>()
+      if (lensIdList.length > 0) {
+        const { data: topicRowOwners } = await svc
+          .from('comparison_rows')
+          .select('created_by_lens_id')
+          .in('created_by_lens_id', lensIdList)
+          .is('undone_at', null)
+        for (const r of (topicRowOwners ?? []) as { created_by_lens_id: string | null }[]) {
+          if (r.created_by_lens_id) topicLensIdSet.add(r.created_by_lens_id)
+        }
+      }
       savedLenses = ((lensRows ?? []) as LensRow[]).map(r => ({
         id:             r.id,
         lens_name:      r.lens_name,
@@ -188,6 +206,7 @@ export default async function ResearchRoomPage({
         weights:        (r.weights ?? {}) as Record<string, number>,
         visible_rows:   r.visible_rows,
         created_at:     r.created_at,
+        is_topic_lens:  topicLensIdSet.has(r.id),
       }))
     }
 

@@ -83,7 +83,12 @@ export interface UseNanaChatReturn {
   chatEndRef:        React.RefObject<HTMLDivElement>
   inputRef:          React.RefObject<HTMLTextAreaElement>
   // Actions
-  ask:               () => Promise<void>
+  // Slice 6.6 Tier 3 — optional overrideQuestion bypasses the input
+  // textarea state. Used by ResearchRoom's ↻ Refresh lens flow which
+  // synthesises "Create a lens for <topic>" without the user typing.
+  // When omitted (existing call sites: Enter key + Send button + chip
+  // pre-fill flow) the hook reads `question` state as before.
+  ask:               (overrideQuestion?: string) => Promise<void>
   stopStream:        () => void
   startNewConversation: () => void
 }
@@ -161,8 +166,12 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
     }
   }, [messages, streamBuf, isStreaming])
 
-  const ask = useCallback(async () => {
-    const q = question.trim()
+  const ask = useCallback(async (overrideQuestion?: string) => {
+    // Slice 6.6 Tier 3: synthetic refresh-lens calls bypass `question`
+    // state (the textarea may have unrelated draft text). Otherwise the
+    // hook reads from state as it always has.
+    const raw = typeof overrideQuestion === 'string' ? overrideQuestion : question
+    const q = raw.trim()
     if (!q || isStreaming) return
 
     abortRef.current?.abort()
