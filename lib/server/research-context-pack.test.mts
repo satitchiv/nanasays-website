@@ -415,6 +415,45 @@ test('assembleResearchContextPack: P5 — school without projection sets source=
   assert.equal(eton.projection, undefined)
 })
 
+test('assembleResearchContextPack: T4.17 — wrong-version projection is ignored', async () => {
+  // A v1.0.0 row alone (without a v1.1.0 row) must NOT surface in the pack —
+  // the loader filters on KNOWN_PROJECTION_VERSIONS.rugby = v1.1.0.
+  // Behaviour-preserving guarantee for the chatbot once T4.17 ships.
+  const supabase = buildMockSupabase({
+    parent_profiles: [{ id: 'p', child_year: null, boarding_pref: null, budget_range: null, top_priority: null, home_region: null }],
+    children: [],
+    research_sessions: [{ id: 's', user_id: 'p', title: '', summary: null, child_id: null }],
+    research_session_messages: [],
+    schools: [{ slug: 'plymouth-college', name: 'Plymouth College', country: 'United Kingdom' }],
+    school_structured_data: [{ school_slug: 'plymouth-college', sports_profile: { rugby: { competitive_tier: 'national' } } }],
+    school_fact_projections: [
+      {
+        school_slug: 'plymouth-college',
+        dimension: 'rugby',
+        projection_version: 'rugby-projector@1.0.0', // older — should be ignored
+        status: 'success',
+        quality: { projection: { competitive_tier: 'should_be_filtered_out' } },
+        projected_at: '2026-05-01',
+      },
+    ],
+    school_facts: [],
+    comparison_rows: [],
+    comparison_lenses: [],
+  })
+  const pack = await assembleResearchContextPack(
+    supabase,
+    {
+      user_id: 'p', child_id: null, session_id: 's',
+      shortlist: ['plymouth-college'], mentioned_slugs: [], active_school_slug: null,
+      base_lens_kind: 'general', intent: null,
+    },
+    'rugby?',
+  )
+  const ply = pack.schools['plymouth-college']
+  assert.equal(ply.source, 'structured', 'wrong-version projection should not promote source to mixed')
+  assert.equal(ply.projection, undefined, 'projection payload should be dropped when version mismatches')
+})
+
 test('assembleResearchContextPack: shortlist-of-3 fits under 5000 tokens', async () => {
   const slugs = ['school-a', 'school-b', 'school-c']
   const supabase = buildMockSupabase({

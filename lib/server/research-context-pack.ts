@@ -9,6 +9,7 @@ import {
   type SafeCell,
   type SafeRecentMessage,
 } from './pack-redactors'
+import { loadDimensionEvidencePack } from './dimension-evidence-pack'
 
 /**
  * research-context-pack.ts — single source of truth for chatbot context.
@@ -610,8 +611,11 @@ async function fetchSchoolBundle(
   ctx: AssemblyContext,
   _question: string,
 ): Promise<PackSchool | null> {
-  // Fetch core meta + structured + (rugby) projection in parallel.
-  const [metaRes, structuredRes, projectionRes, factsRes] = await Promise.all([
+  // Fetch core meta + structured + (rugby) projection + facts in parallel.
+  // T4.17: rugby projection now goes through loadDimensionEvidencePack which
+  // filters on the trusted projection_version. Non-rugby dimensions still
+  // return null (no entry in KNOWN_PROJECTION_VERSIONS yet).
+  const [metaRes, structuredRes, projectionPack, factsRes] = await Promise.all([
     supabase
       .from('schools')
       .select('slug, name, country, boarding_type, gender_split, fees_usd_min, fees_usd_max, is_international')
@@ -622,17 +626,7 @@ async function fetchSchoolBundle(
       .select(SSD_WHITELIST.join(', '))
       .eq('school_slug', slug)
       .maybeSingle(),
-    // Rugby projection only (per plan P5 — non-rugby cutover BLOCKED behind
-    // strengthened gate). status='success' per migration schema.
-    supabase
-      .from('school_fact_projections')
-      .select('id, dimension, projection_version, status, quality, projected_at')
-      .eq('school_slug', slug)
-      .eq('dimension', 'rugby')
-      .eq('status', 'success')
-      .order('projected_at', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+    loadDimensionEvidencePack(supabase, slug, 'rugby'),
     // Atomic facts (active only)
     supabase
       .from('school_facts')
@@ -658,12 +652,9 @@ async function fetchSchoolBundle(
 
   let projection: Record<string, unknown> | undefined
   let source: PackSchool['source'] = structured ? 'structured' : 'empty'
-  if (projectionRes.data) {
-    const q = (projectionRes.data as any).quality as Record<string, unknown> | null
-    if (q?.projection) {
-      projection = q.projection as Record<string, unknown>
-      source = structured ? 'mixed' : 'projection'
-    }
+  if (projectionPack) {
+    projection = projectionPack.projection
+    source = structured ? 'mixed' : 'projection'
   }
 
   // Atomic facts → small array
