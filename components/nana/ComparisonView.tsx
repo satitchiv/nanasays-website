@@ -115,15 +115,24 @@ export default function ComparisonView({
   const [removeError, setRemoveError] = useState<string | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const pickerRef = useRef<HTMLDivElement | null>(null)
-  // Slice 6.6 — column-remove state (the + Add lives in SchoolAdder).
-  const [removingSlug, setRemovingSlug] = useState<string | null>(null)
+  // Slice 6.6 t12 T1.1 + Codex P1#2 — optimistic column remove. The
+  // slug goes into this set the moment the user clicks ×; the column
+  // disappears immediately. The POST + router.refresh continue in
+  // background; on success the server prop drops the slug too and the
+  // sync useEffect clears the optimistic entry. On error we drop the
+  // slug back so the column reappears with the error banner.
+  const [optimisticallyRemoved, setOptimisticallyRemoved] = useState<Set<string>>(new Set())
   const [shortlistError, setShortlistError] = useState<string | null>(null)
 
   async function handleRemoveSchool(slug: string) {
     if (!activeChildId) return
-    if (removingSlug) return
+    if (optimisticallyRemoved.has(slug)) return  // already in-flight
     setShortlistError(null)
-    setRemovingSlug(slug)
+    setOptimisticallyRemoved(prev => {
+      const next = new Set(prev)
+      next.add(slug)
+      return next
+    })
     try {
       const res = await fetch('/api/research-room/shortlist', {
         method: 'POST',
@@ -134,33 +143,65 @@ export default function ComparisonView({
         const j = await res.json().catch(() => ({}))
         const code = typeof j?.code === 'string' ? j.code : 'request_failed'
         setShortlistError(`Could not remove the school (${code}).`)
-        setRemovingSlug(null)
+        // Drop the slug back so the column reappears.
+        setOptimisticallyRemoved(prev => {
+          const next = new Set(prev)
+          next.delete(slug)
+          return next
+        })
         return
       }
       router.refresh()
-      // Codex r1 P1: previously left removingSlug set "until refresh
-      // lands"; but router.refresh preserves client state, so the slug
-      // would never clear and subsequent removes were silently blocked
-      // by the early-return guard above. The post-refresh sync effect
-      // below clears removingSlug once the new schools prop no longer
-      // includes the removed slug.
+      // Optimistic entry stays set until the server prop reflects the
+      // remove (sync useEffect below). This avoids a flash where the
+      // column briefly reappears between the fetch resolving and the
+      // re-rendered server data landing.
     } catch (e) {
       console.error('[ComparisonView remove school]', e)
       setShortlistError('Network error removing the school.')
-      setRemovingSlug(null)
+      setOptimisticallyRemoved(prev => {
+        const next = new Set(prev)
+        next.delete(slug)
+        return next
+      })
     }
   }
 
-  // Codex r1 P1 sync effect: clear removingSlug once the schools prop
-  // no longer contains that slug (i.e. the post-router.refresh load
-  // landed and the column has unmounted).
+  // Sync effect: drop optimistic entries once the server data no
+  // longer contains them (router.refresh has landed). Codex P1#2:
+  // ensures the optimistic set doesn't grow stale across multiple
+  // remove cycles.
   useEffect(() => {
-    if (!removingSlug) return
-    if (!data.schools.some(s => s.slug === removingSlug)) {
-      setRemovingSlug(null)
+    if (optimisticallyRemoved.size === 0) return
+    const liveSlugs = new Set(data.schools.map(s => s.slug))
+    let needsUpdate = false
+    const next = new Set<string>()
+    optimisticallyRemoved.forEach(slug => {
+      if (liveSlugs.has(slug)) {
+        next.add(slug)  // server still has it — keep optimistic
+      } else {
+        needsUpdate = true  // server dropped it → drop optimistic
+      }
+    })
+    if (needsUpdate) setOptimisticallyRemoved(next)
+  }, [data.schools, optimisticallyRemoved])
+  // Codex P1#2: optimistic filter must apply to BOTH schools AND each
+  // row's cells in lockstep. row.cells[] is indexed by school position,
+  // so dropping a school from `schools` without dropping the matching
+  // index from each row's cells would offset every cell to the wrong
+  // column. visibleSchoolIndices is computed once and used for both.
+  const rawSchools = data.schools
+  const visibleSchoolIndices: number[] = []
+  for (let i = 0; i < rawSchools.length; i++) {
+    if (!optimisticallyRemoved.has(rawSchools[i].slug)) {
+      visibleSchoolIndices.push(i)
     }
-  }, [data.schools, removingSlug])
-  const { schools, rows: rawRows } = data
+  }
+  const schools = visibleSchoolIndices.map(i => rawSchools[i])
+  const rawRows = data.rows.map(r => ({
+    ...r,
+    cells: visibleSchoolIndices.map(i => r.cells[i] ?? { kind: 'empty' as const }),
+  }))
   const childLensLabel = activeChildName ? `${activeChildName} fit` : 'Child fit'
   const activeLens = activeLensId
     ? savedLenses.find(l => l.id === activeLensId) ?? null
@@ -435,30 +476,29 @@ export default function ComparisonView({
                   : (lens === 'general' ? 'General lens' : `${childLensLabel} lens`)}
               </div>
             </div>
-            {schools.map((s, i) => {
-              const isRemoving = removingSlug === s.slug
-              return (
-                <div key={s.slug} className="rr-cmp-head">
-                  <div className="rr-cmp-head-rank">
-                    No. <strong>{String(i + 1).padStart(2, '0')}</strong>
-                  </div>
-                  <div className="rr-cmp-head-name">{s.name}</div>
-                  <div className="rr-cmp-head-meta">{s.meta}</div>
-                  {activeChildId && (
-                    <button
-                      type="button"
-                      className="rr-cmp-head-remove"
-                      aria-label={`Remove ${s.name} from comparison`}
-                      title="Remove this school"
-                      onClick={() => handleRemoveSchool(s.slug)}
-                      disabled={isRemoving}
-                    >
-                      {isRemoving ? '…' : '×'}
-                    </button>
-                  )}
+            {schools.map((s, i) => (
+              // Slice 6.6 t12 T1.1: column disappears optimistically,
+              // so no per-column "removing…" indicator needed — the
+              // column is already gone the moment the user clicks ×.
+              <div key={s.slug} className="rr-cmp-head">
+                <div className="rr-cmp-head-rank">
+                  No. <strong>{String(i + 1).padStart(2, '0')}</strong>
                 </div>
-              )
-            })}
+                <div className="rr-cmp-head-name">{s.name}</div>
+                <div className="rr-cmp-head-meta">{s.meta}</div>
+                {activeChildId && (
+                  <button
+                    type="button"
+                    className="rr-cmp-head-remove"
+                    aria-label={`Remove ${s.name} from comparison`}
+                    title="Remove this school"
+                    onClick={() => handleRemoveSchool(s.slug)}
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            ))}
           </div>
 
           {/* Slice 6 commit 8 — sortable data rows. DnD wraps the rows

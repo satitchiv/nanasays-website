@@ -13,24 +13,21 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
-
 type Hit = { slug: string; name: string; region: string | null; country: string | null }
 
 export default function SchoolAdder({
   childId,
   excludeSlugs,
   variant = 'inline',
-  onError,
 }: {
   childId:        string | null
   excludeSlugs:   string[]
   variant?:       'inline' | 'compact'
-  onError?:       (msg: string) => void
 }) {
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [pending, setPending] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const wrapRef = useRef<HTMLDivElement | null>(null)
 
   // Outside click + Escape close the panel.
@@ -59,6 +56,7 @@ export default function SchoolAdder({
   async function handlePick(slug: string) {
     if (pending) return
     setPending(true)
+    setError(null)
     try {
       const res = await fetch('/api/research-room/shortlist', {
         method: 'POST',
@@ -68,14 +66,25 @@ export default function SchoolAdder({
       if (!res.ok) {
         const j = await res.json().catch(() => ({}))
         const code = typeof j?.code === 'string' ? j.code : 'request_failed'
-        onError?.(`Could not add the school (${code}).`)
+        // Codex t12 P1: surface the error inline. The previous
+        // `onError?.()` swallow path silently no-op'd at both call
+        // sites, leaving the user thinking nothing had happened.
+        if (code === 'payment_required') {
+          setError('Adding schools is a paid-tier feature.')
+        } else if (code === 'invalid_payload') {
+          setError("Couldn't add that school (invalid input).")
+        } else if (code === 'unauthorized') {
+          setError('Please sign in again to add schools.')
+        } else {
+          setError(`Couldn't add the school (${code}).`)
+        }
         return
       }
       setOpen(false)
       router.refresh()
     } catch (e) {
       console.error('[SchoolAdder add school]', e)
-      onError?.('Network error adding the school.')
+      setError('Network error adding the school. Try again.')
     } finally {
       setPending(false)
     }
@@ -100,6 +109,8 @@ export default function SchoolAdder({
       {open && (
         <SchoolAddPopup
           excludeSlugs={excludeSlugs}
+          error={error}
+          onDismissError={() => setError(null)}
           onPick={handlePick}
           onClose={() => setOpen(false)}
         />
@@ -108,19 +119,69 @@ export default function SchoolAdder({
   )
 }
 
+// Normalize school name for grouping: lowercase + collapse whitespace.
+// Names like "Reed's School" and "Reed's School " collapse to one key.
+function normName(s: string): string {
+  return s.trim().toLowerCase().replace(/\s+/g, ' ')
+}
+
+// Pick the "primary" record from a duplicate-name group. Heuristic
+// (chosen because the database has dups like Reed's where one entry
+// has incorrect region):
+//   1. Prefer a slug that ends in `-uk` if any (treated as canonical
+//      UK record by the data team).
+//   2. Else prefer the entry with both region + country populated.
+//   3. Else prefer the entry with country populated.
+//   4. Else shortest slug (the un-numbered base slug).
+function pickPrimary(entries: Hit[]): Hit {
+  const ukSuffix = entries.find(e => e.slug.endsWith('-uk'))
+  if (ukSuffix) return ukSuffix
+  const both = entries.find(e => e.region && e.country)
+  if (both) return both
+  const country = entries.find(e => e.country)
+  if (country) return country
+  return [...entries].sort((a, b) => a.slug.length - b.slug.length || a.slug.localeCompare(b.slug))[0]
+}
+
+type Group = { name: string; primary: Hit; alternates: Hit[] }
+
+function groupByName(hits: Hit[]): Group[] {
+  const map = new Map<string, Hit[]>()
+  for (const h of hits) {
+    const key = normName(h.name)
+    if (!map.has(key)) map.set(key, [])
+    map.get(key)!.push(h)
+  }
+  // Stable order: by name (for display), entries already came pre-sorted by name asc.
+  const out: Group[] = []
+  Array.from(map.values()).forEach((entries: Hit[]) => {
+    const primary = pickPrimary(entries)
+    const alternates = entries.filter((e: Hit) => e.slug !== primary.slug)
+    out.push({ name: primary.name, primary, alternates })
+  })
+  return out
+}
+
 function SchoolAddPopup({
   excludeSlugs,
+  error,
+  onDismissError,
   onPick,
   onClose,
 }: {
-  excludeSlugs: string[]
-  onPick:       (slug: string) => void
-  onClose:      () => void
+  excludeSlugs:    string[]
+  error:           string | null
+  onDismissError:  () => void
+  onPick:          (slug: string) => void
+  onClose:         () => void
 }) {
   const [query, setQuery] = useState('')
   const [hits, setHits] = useState<Hit[]>([])
   const [loading, setLoading] = useState(false)
   const [activeIdx, setActiveIdx] = useState(0)
+  // Codex t12 T1.3: groups with >1 entry are collapsed by default;
+  // user clicks a toggle to reveal alternates. Don't silently hide.
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const inputRef = useRef<HTMLInputElement | null>(null)
 
   // Validate excludeSlugs once per render so a stray UUID-shaped or
@@ -177,21 +238,46 @@ function SchoolAddPopup({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, safeExclude.join(',')])
 
-  // Suppress unused-var warning for UUID_RE; kept around in case future
-  // call sites need to validate child_id locally.
-  void UUID_RE
+  // Build a flat list of "selectable" entries respecting expand state.
+  // Each entry knows its hit + group context for rendering. Keyboard
+  // nav and activeIdx index into this flat list.
+  type FlatEntry = {
+    hit:              Hit
+    group:            Group
+    isPrimary:        boolean
+    isOnlyMember:     boolean
+  }
+  const groups = groupByName(hits)
+  const flat: FlatEntry[] = []
+  for (const group of groups) {
+    flat.push({ hit: group.primary, group, isPrimary: true, isOnlyMember: group.alternates.length === 0 })
+    if (expandedGroups.has(normName(group.name))) {
+      for (const alt of group.alternates) {
+        flat.push({ hit: alt, group, isPrimary: false, isOnlyMember: false })
+      }
+    }
+  }
+
+  function toggleGroup(name: string) {
+    const k = normName(name)
+    setExpandedGroups(prev => {
+      const next = new Set(prev)
+      if (next.has(k)) next.delete(k); else next.add(k)
+      return next
+    })
+  }
 
   function handleKey(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      setActiveIdx(i => Math.min(hits.length - 1, i + 1))
+      setActiveIdx(i => Math.min(flat.length - 1, i + 1))
     } else if (e.key === 'ArrowUp') {
       e.preventDefault()
       setActiveIdx(i => Math.max(0, i - 1))
     } else if (e.key === 'Enter') {
-      if (hits[activeIdx]) {
+      if (flat[activeIdx]) {
         e.preventDefault()
-        onPick(hits[activeIdx].slug)
+        onPick(flat[activeIdx].hit.slug)
       }
     } else if (e.key === 'Escape') {
       onClose()
@@ -204,41 +290,72 @@ function SchoolAddPopup({
         ref={inputRef}
         type="search"
         value={query}
-        onChange={e => setQuery(e.target.value)}
+        onChange={e => { setQuery(e.target.value); onDismissError() }}
         onKeyDown={handleKey}
         placeholder="Search schools by name…"
         className="rr-cmp-add-input"
         autoComplete="off"
         spellCheck={false}
       />
+      {error && (
+        <div className="rr-cmp-add-error" role="alert">
+          {error}
+          <button type="button" className="rr-cmp-add-error-dismiss" onClick={onDismissError} aria-label="Dismiss error">×</button>
+        </div>
+      )}
       <div className="rr-cmp-add-results" role="listbox">
-        {query.trim().length < 2 && (
+        {query.trim().length < 2 && !error && (
           <div className="rr-cmp-add-hint">Type 2+ characters to search.</div>
         )}
-        {query.trim().length >= 2 && loading && hits.length === 0 && (
+        {query.trim().length >= 2 && loading && flat.length === 0 && (
           <div className="rr-cmp-add-hint">Searching…</div>
         )}
-        {query.trim().length >= 2 && !loading && hits.length === 0 && (
+        {query.trim().length >= 2 && !loading && flat.length === 0 && (
           <div className="rr-cmp-add-hint">No matches. (Already-shortlisted schools are filtered out.)</div>
         )}
-        {hits.map((h, i) => (
-          <button
-            key={h.slug}
-            type="button"
-            role="option"
-            aria-selected={i === activeIdx}
-            className={`rr-cmp-add-result${i === activeIdx ? ' is-active' : ''}`}
-            onClick={() => onPick(h.slug)}
-            onMouseEnter={() => setActiveIdx(i)}
-          >
-            <span className="rr-cmp-add-result-name">{h.name}</span>
-            {(h.region || h.country) && (
-              <span className="rr-cmp-add-result-meta">
-                {[h.region, h.country].filter(Boolean).join(' · ')}
-              </span>
-            )}
-          </button>
-        ))}
+        {flat.map((entry, i) => {
+          const { hit, group, isPrimary } = entry
+          const isExpanded = expandedGroups.has(normName(group.name))
+          const altCount = group.alternates.length
+          return (
+            <div
+              key={hit.slug}
+              className={`rr-cmp-add-row${isPrimary ? '' : ' rr-cmp-add-row--alt'}`}
+            >
+              <button
+                type="button"
+                role="option"
+                aria-selected={i === activeIdx}
+                className={`rr-cmp-add-result${i === activeIdx ? ' is-active' : ''}`}
+                onClick={() => onPick(hit.slug)}
+                onMouseEnter={() => setActiveIdx(i)}
+              >
+                <span className="rr-cmp-add-result-name">{hit.name}</span>
+                {(hit.region || hit.country) ? (
+                  <span className="rr-cmp-add-result-meta">
+                    {[hit.region, hit.country].filter(Boolean).join(' · ')}
+                  </span>
+                ) : (
+                  !isPrimary && <span className="rr-cmp-add-result-meta">no location data</span>
+                )}
+              </button>
+              {/* Group expand toggle — only on the primary row of a
+                  multi-entry group. Lets the parent see + pick from
+                  the alternates instead of silently hiding them. */}
+              {isPrimary && altCount > 0 && (
+                <button
+                  type="button"
+                  className="rr-cmp-add-group-toggle"
+                  aria-label={isExpanded ? `Hide ${altCount} other record${altCount === 1 ? '' : 's'}` : `Show ${altCount} other record${altCount === 1 ? '' : 's'}`}
+                  onClick={(ev) => { ev.stopPropagation(); toggleGroup(group.name) }}
+                  title={isExpanded ? 'Collapse alternates' : `${altCount} other record${altCount === 1 ? '' : 's'} match this name`}
+                >
+                  {isExpanded ? '▴' : `▾ +${altCount}`}
+                </button>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )

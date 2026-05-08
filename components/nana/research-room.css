@@ -1191,7 +1191,9 @@
   line-height: 1;
   font-weight: 700;
   cursor: pointer;
-  opacity: 0;
+  /* Codex t12 T1.2: 25% baseline / 100% on hover-focus so chat-added
+     row removal is discoverable without hovering. */
+  opacity: 0.25;
   transition: all 120ms ease;
   display: flex;
   align-items: center;
@@ -1199,6 +1201,7 @@
   padding: 0;
 }
 .rr-cmp-dim:hover .rr-cmp-row-remove,
+.rr-cmp-row-remove:hover,
 .rr-cmp-row-remove:focus-visible {
   opacity: 1;
 }
@@ -1343,9 +1346,82 @@
   color: var(--rr-muted);
 }
 
+/* Slice 6.6 t12 T1.3 — duplicate-name grouping in the search popup.
+   Multi-entry groups render the primary as a normal row; the toggle
+   button (▾ +N / ▴) at the right edge expands the alternates beneath
+   (visually indented).                                              */
+.rr-cmp-add-row {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+}
+.rr-cmp-add-row .rr-cmp-add-result {
+  flex: 1 1 auto;
+}
+.rr-cmp-add-row--alt {
+  margin-left: 16px;
+  position: relative;
+}
+.rr-cmp-add-row--alt::before {
+  content: '↳';
+  position: absolute;
+  left: -14px;
+  top: 8px;
+  font-size: 12px;
+  color: var(--rr-muted);
+}
+.rr-cmp-add-group-toggle {
+  flex: 0 0 auto;
+  padding: 0 8px;
+  border: none;
+  background: transparent;
+  color: var(--rr-muted);
+  font-size: 11px;
+  font-family: var(--rr-sans);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background-color 90ms ease, color 90ms ease;
+}
+.rr-cmp-add-group-toggle:hover {
+  background: var(--rr-off);
+  color: var(--rr-navy);
+}
+
+/* Slice 6.6 t12 P1 — error banner inside the SchoolAdder popup. The
+   prior `onError?.()` swallow path silently no-op'd at both call
+   sites, so add failures looked like nothing happened. Inline error
+   here so the user always sees what went wrong.                    */
+.rr-cmp-add-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--rr-rust);
+  background: rgba(220, 79, 42, 0.08);
+  color: var(--rr-rust);
+  font-family: var(--rr-sans);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.rr-cmp-add-error-dismiss {
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  color: var(--rr-rust);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
 /* Per-column × in the school header row. Mirrors the row × pattern but
-   anchored to .rr-cmp-head. Codex final-pass note: focus-visible AND
-   hover both reveal it; on touch screens it's always visible.        */
+   anchored to .rr-cmp-head. Codex t12 T1.2: always faintly visible
+   (25%) so the user can find it without hovering, full opacity on
+   hover/focus. Same treatment applied to .rr-cmp-row-remove for
+   consistency.                                                      */
 .rr-cmp-head { position: relative; }
 .rr-cmp-head-remove {
   position: absolute;
@@ -1361,7 +1437,7 @@
   line-height: 1;
   font-weight: 700;
   cursor: pointer;
-  opacity: 0;
+  opacity: 0.25;
   transition: opacity 120ms ease, background-color 120ms ease, color 120ms ease, border-color 120ms ease;
   display: flex;
   align-items: center;
@@ -1369,6 +1445,7 @@
   padding: 0;
 }
 .rr-cmp-head:hover .rr-cmp-head-remove,
+.rr-cmp-head-remove:hover,
 .rr-cmp-head-remove:focus-visible {
   opacity: 1;
 }
@@ -1380,10 +1457,6 @@
 .rr-cmp-head-remove:disabled {
   opacity: 0.5;
   cursor: progress;
-}
-@media (max-width: 880px) {
-  /* Touch screens: always visible (no hover). */
-  .rr-cmp-head-remove { opacity: 1; }
 }
 
 /* ─── NanaMsgBubble overrides for Research Room's light chat panel ─────
