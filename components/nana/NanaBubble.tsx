@@ -4,14 +4,14 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import type { ResearchMessage, StreamFormat, ProposedAction } from '@/lib/nana/types'
 // The bubble's classNames (dh-msg-nana, dh-msg-nana-prose, etc.) live in
-// decision-hub.css. Importing it here means anywhere NanaBubble is mounted
+// nana-bubble.css. Importing it here means anywhere NanaBubble is mounted
 // gets the styles automatically — Research Room's right rail can embed
-// the bubble without having to also import decision-hub.css separately.
-import './decision-hub.css'
+// the bubble without having to also import nana-bubble.css separately.
+import './nana-bubble.css'
 
 // Slice 3d phase 2: chat bubble + streaming helpers extracted from
 // DecisionHub.tsx. Behaviour-preserving — same className contract
-// (dh-msg-nana, dh-msg-nana-prose, etc. styled by decision-hub.css), same
+// (dh-msg-nana, dh-msg-nana-prose, etc. styled by nana-bubble.css), same
 // section-by-section progressive extraction, same prose vs structured
 // branching. DecisionHub imports NanaMsgBubble + helpers from here; the
 // Research Room right rail (slice 3d phase 4) embeds NanaMsgBubble in a

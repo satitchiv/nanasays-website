@@ -11,9 +11,7 @@ Disallow: /checkout
 Disallow: /my-reports
 Disallow: /my-shortlist
 Disallow: /schools/*/report
-Disallow: /nana/decision-hub
 Disallow: /nana/research-room
-Disallow: /nana/research
 Disallow: /claim
 Disallow: /admin
 Disallow: /demo

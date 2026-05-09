@@ -1078,10 +1078,10 @@
 }
 
 /* ─── NanaMsgBubble overrides for Research Room's light chat panel ─────
-   The dh-msg-nana* rules in decision-hub.css assume a dark navy chat
+   The dh-msg-nana* rules in nana-bubble.css assume a dark navy chat
    panel (white text on rgba-white-7 backgrounds). Research Room's panel
    is light — without these overrides, all bubble copy is invisible.
-   Scoped to .rr-app so DecisionHub's existing styling stays intact. */
+   Scoped to .rr-app so the bubble's default styling stays intact. */
 .rr-app .dh-msg-nana {
   background: var(--rr-white);
   border: 1px solid var(--rr-border);
