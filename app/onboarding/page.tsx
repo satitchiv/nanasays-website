@@ -33,7 +33,7 @@ export default async function OnboardingPage() {
       .eq('id', user.id)
       .maybeSingle()
     if (profile) {
-      const p = profile as Record<string, unknown>
+      const p = profile as unknown as Record<string, unknown>
       for (const field of fieldNames) {
         const v = p[field]
         if (typeof v === 'string' && v) initialAnswers[field] = v

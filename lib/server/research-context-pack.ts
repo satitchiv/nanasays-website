@@ -111,6 +111,12 @@ export type ResearchContextPack = {
     top_priority: string | null
     boarding_pref: string | null
     child_year: string | null
+    // T4.16 Gap B prefs (ranking inputs for ethos_match / intl_share /
+    // device_policy dims). 'no-preference' option in onboarding maps to
+    // null here so dim.rank()'s if (!want) short-circuit fires cleanly.
+    ethos_pref: string | null
+    intl_pref: string | null
+    phone_pref: string | null
   }
   child: MinimisedChild | null
   session: { id: string; title: string; rolling_summary: string | null; turn_count: number }
@@ -274,6 +280,30 @@ export async function assembleResearchContextPack(
   }
 
   // ── Build draft pack ─────────────────────────────────────────────────────
+  // T4.16 Gap B: child-first read for the 3 ranking prefs (Slice 3.3 model
+  // — child_profile is source of truth, parent_profiles is the seed
+  // template + fallback for childless flows). 'no-preference' → null so
+  // dim.rank()'s if (!want) short-circuit fires cleanly and the dim
+  // contributes 0 to ranking instead of biasing it. child_profile is JSONB
+  // and editable via API, so allowlist here too; unknown intl/phone values
+  // must not behave like high/strict by accident.
+  const childProfileObj = (childRow?.child_profile ?? {}) as Record<string, unknown>
+  const prefAllowed = {
+    ethos_pref: new Set([
+      'church_of_england', 'roman_catholic', 'methodist', 'quaker',
+      'jewish', 'muslim', 'mixed_faith', 'christian_general', 'secular',
+    ]),
+    intl_pref: new Set(['low', 'high']),
+    phone_pref: new Set(['strict', 'flexible']),
+  } as const
+  type PrefKey = keyof typeof prefAllowed
+  const readPref = (key: PrefKey): string | null => {
+    const childVal = childProfileObj[key]
+    const parentVal = parentProfile?.[key] ?? null
+    const raw = (typeof childVal === 'string' && childVal) ? childVal : parentVal
+    if (!raw || raw === 'no-preference') return null
+    return prefAllowed[key].has(raw) ? raw : null
+  }
   const pack: ResearchContextPack = {
     parent: {
       user_id: ctx.user_id,
@@ -282,6 +312,9 @@ export async function assembleResearchContextPack(
       top_priority: parentProfile?.top_priority ?? null,
       boarding_pref: parentProfile?.boarding_pref ?? null,
       child_year: parentProfile?.child_year ?? null,
+      ethos_pref: readPref('ethos_pref'),
+      intl_pref:  readPref('intl_pref'),
+      phone_pref: readPref('phone_pref'),
     },
     child: childMinimal,
     session: {
@@ -386,9 +419,13 @@ function uniq<T>(xs: T[]): T[] {
 }
 
 async function fetchParent(supabase: SupabaseClient, userId: string) {
+  // T4.16 Gap B (2026-05-09): added ethos_pref / intl_pref / phone_pref.
+  // Read here as the *fallback* template only — Slice 3.3 source of truth
+  // is each child's child_profile JSONB. The pack.parent constructor below
+  // reads child-first, parent-fallback for these 3 keys.
   const { data } = await supabase
     .from('parent_profiles')
-    .select('id, child_year, boarding_pref, budget_range, top_priority, home_region')
+    .select('id, child_year, boarding_pref, budget_range, top_priority, home_region, ethos_pref, intl_pref, phone_pref')
     .eq('id', userId)
     .maybeSingle<{
       id: string
@@ -397,6 +434,9 @@ async function fetchParent(supabase: SupabaseClient, userId: string) {
       budget_range: string | null
       top_priority: string | null
       home_region: string | null
+      ethos_pref: string | null
+      intl_pref: string | null
+      phone_pref: string | null
     }>()
   return data
 }

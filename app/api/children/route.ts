@@ -67,16 +67,21 @@ export async function POST(req: NextRequest) {
   // onboarding answers as a starting template; can be tweaked
   // independently from the Brief tab.
   const svc = supabaseService()
-  const { data: pp } = await svc
+  const { data: pp, error: ppErr } = await svc
     .from('parent_profiles')
     .select(ONBOARDING_FIELD_NAMES.join(', '))
     .eq('id', user.id)
     .maybeSingle()
 
+  if (ppErr) {
+    console.error('[POST /api/children] parent_profiles seed read failed:', ppErr.message)
+    return NextResponse.json({ error: 'Failed to seed child profile' }, { status: 500 })
+  }
+
   const childProfile: Record<string, unknown> = {}
   if (pp) {
     for (const key of ONBOARDING_FIELD_NAMES) {
-      const v = (pp as Record<string, unknown>)[key]
+      const v = (pp as unknown as Record<string, unknown>)[key]
       if (v != null) childProfile[key] = v
     }
   }

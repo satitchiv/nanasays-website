@@ -124,6 +124,60 @@ export const ONBOARDING_FIELDS: OnboardingField[] = [
       { value: 'no-concern',   label: "No, this doesn't apply" },
     ],
   },
+  // T4.16 Gap B (2026-05-09): three preference fields that feed the
+  // ethos_match / intl_share / device_policy ranking dims. Stored on
+  // child_profile JSONB like every other field (Slice 3.3 pattern).
+  // 'no-preference' values are normalized → null in the ctx.parent
+  // builder before reaching dim.rank(), matching the scorer's
+  // if (!want) null-short-circuit semantics.
+  //
+  // ethos_pref values MUST match school_facts.ethos_label enum (today:
+  // church_of_england, christian_general, secular, roman_catholic,
+  // mixed_faith, methodist, quaker) — dimensions.js scores
+  // f.ethos_label === want as +5 exact match.
+  {
+    field: 'ethos_pref',
+    short: 'Ethos',
+    question: 'Any school ethos preference?',
+    level: 'family',
+    options: [
+      { value: 'church_of_england', label: 'Church of England' },
+      { value: 'roman_catholic',    label: 'Roman Catholic' },
+      { value: 'christian_general', label: 'Other Christian (non-denominational)' },
+      { value: 'secular',           label: 'Secular / non-religious' },
+      { value: 'mixed_faith',       label: 'Mixed / multi-faith environment' },
+      { value: 'no-preference',     label: 'No strong preference' },
+    ],
+  },
+  // intl_pref scorer is binary: 'low' rewards low-intl schools, anything
+  // else rewards high-intl. Three UI options with the middle ('balanced')
+  // mapping to null in the ctx builder so scorer short-circuits and
+  // ranking stays neutral — avoids the UX lie of 'balanced' and 'global'
+  // both rewarding high-intl identically.
+  {
+    field: 'intl_pref',
+    short: 'Intl mix',
+    question: 'How important is the international mix at school?',
+    level: 'family',
+    options: [
+      { value: 'low',           label: 'Mostly British — minimal international cohort' },
+      { value: 'high',          label: 'International / global community' },
+      { value: 'no-preference', label: 'No preference — show me both' },
+    ],
+  },
+  // phone_pref scorer is binary: 'flexible' inverts the score (rewards
+  // open-phone schools); anything else rewards stricter policies.
+  {
+    field: 'phone_pref',
+    short: 'Phones',
+    question: "What's your view on phones at school?",
+    level: 'family',
+    options: [
+      { value: 'strict',        label: 'Strict — phones banned or heavily restricted' },
+      { value: 'flexible',      label: 'Flexible — supervised use is fine' },
+      { value: 'no-preference', label: 'No strong view' },
+    ],
+  },
 ]
 
 // Slice 3.3 polish (2026-05-05): all 9 fields are now per-child. The

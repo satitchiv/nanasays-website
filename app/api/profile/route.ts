@@ -21,9 +21,15 @@ export async function PATCH(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // Hardcoded rather than derived from ONBOARDING_FIELD_NAMES because this
+  // list also includes onboarding_complete (a flow flag, not a question).
+  // Add new onboarding fields here AND to scripts/migrations/ as a column
+  // on parent_profiles (the seed-select in /api/children would otherwise
+  // 500). T4.16 Gap B (2026-05-09) added the 3 *_pref keys.
   const allowed = [
     'child_year', 'boarding_pref', 'budget_range', 'top_priority', 'home_region',
     'child_gender', 'curriculum_pref', 'class_size_pref', 'sen_need',
+    'ethos_pref', 'intl_pref', 'phone_pref',
     'onboarding_complete',
   ]
   const body = await req.json()

@@ -28,8 +28,11 @@ type Props = {
 }
 
 const BASICS_FIELDS     = ['child_year', 'child_gender'] as const
-const SCHOOL_FIELDS     = ['home_region', 'boarding_pref', 'budget_range', 'curriculum_pref'] as const
-const PRIORITY_FIELDS   = ['top_priority', 'class_size_pref', 'sen_need'] as const
+// T4.16 Gap B (2026-05-09): ethos_pref + intl_pref slotted into School
+// (they're about what kind of school the family wants); phone_pref into
+// Priorities (it's a parental philosophy alongside class size + SEN).
+const SCHOOL_FIELDS     = ['home_region', 'boarding_pref', 'budget_range', 'curriculum_pref', 'ethos_pref', 'intl_pref'] as const
+const PRIORITY_FIELDS   = ['top_priority', 'class_size_pref', 'sen_need', 'phone_pref'] as const
 
 // Slice 3.4 polish: rich free-text cards. Slice 3 captures (write side);
 // slice 4's fit-score lens reads them. JSONB keys are stable so the slice 4
