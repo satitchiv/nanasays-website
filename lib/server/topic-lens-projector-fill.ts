@@ -17,8 +17,8 @@
 // Codex-blessed design 2026-05-08 (transcript: /tmp/codex-t418-design-result.txt).
 
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { loadDimensionEvidencePack, type DimensionEvidencePack } from './dimension-evidence-pack'
-import { formatProjectionCell } from './topic-lens-cell-formatters'
+import { loadDimensionEvidencePack, type DimensionEvidencePack } from './dimension-evidence-pack.ts'
+import { formatProjectionCell } from './topic-lens-cell-formatters.ts'
 
 type Cell = { value: string | number | null; source?: string; note?: string }
 type EmbeddedRow = {
@@ -41,8 +41,11 @@ type ProposedActions = Record<string, any>
 /**
  * Map topic_name to the dimension key used by KNOWN_PROJECTION_VERSIONS.
  * Today: only 'rugby' is supported. Returns null if no mapping.
+ *
+ * Exported so T4.19 (post-confirm-fill) shares the same vocabulary —
+ * Codex r1 (T4.19): preventing drift between T4.18 and T4.19.
  */
-function topicToDimension(topicName: string): string | null {
+export function topicToDimension(topicName: string): string | null {
   const t = String(topicName || '').toLowerCase().trim()
   if (!t) return null
   // Rugby aliases — Nana sometimes generates "Rugby" / "rugby union" / "rugby football"

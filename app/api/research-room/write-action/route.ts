@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies, headers } from 'next/headers'
 import { isResearchRoomEnabled } from '@/lib/feature-flags'
 import { getUnlockedUser } from '@/lib/paid-status'
@@ -18,6 +19,17 @@ import { getUnlockedUser } from '@/lib/paid-status'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+
+// T4.19 misconfig warning at module load — surface ONCE if the topic-lens
+// fill flag is on but the service key required for projection reads is
+// missing. The route gracefully skips post-fill in this case (helper would
+// also no-op), but a missing key is silent otherwise.
+if (process.env.NANA_TOPIC_LENS_FACTS === 'on' && !process.env.SUPABASE_SERVICE_KEY) {
+  console.warn(
+    '[write-action] NANA_TOPIC_LENS_FACTS=on but SUPABASE_SERVICE_KEY is unset — ' +
+    'T4.19 post-confirm projector-fill will be skipped on every confirm.',
+  )
+}
 
 type AddRowBody          = { action: 'add_row';            message_id: string; proposal_id: string }
 type UndoRowBody         = { action: 'undo_add_row';       row_id: string }
@@ -358,11 +370,79 @@ export async function POST(req: NextRequest) {
 
     const { lens_id, status, lens_data } = result as { lens_id: string | null; status: string; lens_data: unknown }
 
+    // T4.19 — post-confirm projector-fill for OLD topic-lens rows.
+    // Fires on fresh / merged / deduped (all idempotent). Reads back the
+    // lens's topic rows + the user's current shortlist, fills cells
+    // missing/null for slugs that have school_fact_projections data.
+    // Behind NANA_TOPIC_LENS_FACTS=on (also gates T4.18). Failures don't
+    // block the response — telemetry returned for dev observability.
+    //
+    // Codex r3: short-circuit BEFORE the 3 DB lookups + service client
+    // construction when the flag is off OR the service key is missing.
+    // The helper itself also flag-gates, but doing it here too makes the
+    // contract explicit and avoids 3 round-trips of wasted reads.
+    let post_fill: unknown = null
+    const t419_flag_on = process.env.NANA_TOPIC_LENS_FACTS === 'on'
+    const t419_service_key = process.env.SUPABASE_SERVICE_KEY
+    if (lens_id && t419_flag_on && t419_service_key &&
+        (status === 'fresh' || status === 'merged' || status === 'deduped')) {
+      try {
+        const { data: msg } = await supabase
+          .from('research_session_messages')
+          .select('session_id, parsed_answer')
+          .eq('id', body.message_id)
+          .maybeSingle()
+        const proposal = (msg?.parsed_answer as { proposed_actions?: Record<string, { topic_name?: unknown }> } | null)
+          ?.proposed_actions?.[body.proposal_id]
+        const topicName = typeof proposal?.topic_name === 'string' ? proposal.topic_name : null
+        if (topicName && msg?.session_id) {
+          const { data: ses } = await supabase
+            .from('research_sessions')
+            .select('child_id')
+            .eq('id', msg.session_id)
+            .maybeSingle()
+          if (ses?.child_id) {
+            const { data: short } = await supabase
+              .from('shortlisted_schools')
+              .select('school_slug')
+              .eq('user_id', user.id)
+              .eq('child_id', ses.child_id)
+            const slugs = (short ?? []).map((s) => s.school_slug as string)
+            if (slugs.length > 0) {
+              const { applyPostConfirmTopicLensFill } = await import('@/lib/server/topic-lens-post-confirm-fill')
+              // T4.19 needs a service-role client for the school_fact_projections
+              // SELECT — that table has RLS enabled with no user-scoped policy.
+              // Auth client stays on comparison_rows reads/updates (RLS allows owner).
+              // (Service key existence already guarded above.)
+              const supabaseService = createClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                t419_service_key,
+              )
+              post_fill = await applyPostConfirmTopicLensFill(supabase, supabaseService, user.id, lens_id, topicName, slugs)
+              if (post_fill) {
+                const t = post_fill as Record<string, number>
+                console.log(
+                  `[write-action] T4.19 post-confirm fill — lens=${lens_id} status=${status} ` +
+                  `rows=${t.rows_examined} missing=${t.cells_missing} filled=${t.cells_filled} ` +
+                  `unfilled=${t.cells_unfilled} preserved=${t.cells_preserved} oversized=${t.rows_oversized_skipped} ` +
+                  `updated=${t.rows_updated} update_failed=${t.rows_update_failed} ` +
+                  `schools_with_pack=${t.schools_with_pack} schools_without_pack=${t.schools_without_pack}`,
+                )
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // Never block the user-facing response on a fill failure.
+        console.error('[write-action] T4.19 post-confirm fill threw:', e)
+      }
+    }
+
     if (status === 'fresh') {
-      return NextResponse.json({ ok: true, status, lens_id, lens: lens_data }, { status: 201 })
+      return NextResponse.json({ ok: true, status, lens_id, lens: lens_data, post_fill }, { status: 201 })
     }
     if (status === 'deduped') {
-      return NextResponse.json({ ok: true, status, lens_id, lens: lens_data }, { status: 200 })
+      return NextResponse.json({ ok: true, status, lens_id, lens: lens_data, post_fill }, { status: 200 })
     }
     // Slice 6.6 Tier 2: same lens_name in same session + lens has topic
     // rows → RPC merged the new schools' cells into existing topic rows
@@ -374,7 +454,7 @@ export async function POST(req: NextRequest) {
         lens_data && typeof lens_data === 'object' && '_merge_summary' in (lens_data as Record<string, unknown>)
           ? (lens_data as Record<string, unknown>)._merge_summary
           : null
-      return NextResponse.json({ ok: true, status, lens_id, lens: lens_data, merge_summary }, { status: 200 })
+      return NextResponse.json({ ok: true, status, lens_id, lens: lens_data, merge_summary, post_fill }, { status: 200 })
     }
     if (status === 'duplicate_name') {
       return NextResponse.json({
