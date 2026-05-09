@@ -236,6 +236,7 @@ function SchoolAddPopup({
           .from('schools')
           .select('slug, name, region, country')
           .ilike('name', `%${q}%`)
+          .eq('country', 'United Kingdom')
         if (safeExclude.length > 0) {
           q1 = q1.not('slug', 'in', `(${safeExclude.join(',')})`)
         }
@@ -366,7 +367,7 @@ function SchoolAddPopup({
         value={query}
         onChange={e => { setQuery(e.target.value); onDismissError() }}
         onKeyDown={handleKey}
-        placeholder="Search schools by name…"
+        placeholder="Search UK schools by name…"
         className="rr-cmp-add-input"
         autoComplete="off"
         spellCheck={false}
@@ -385,7 +386,7 @@ function SchoolAddPopup({
           <div className="rr-cmp-add-hint">Searching…</div>
         )}
         {query.trim().length >= 2 && !loading && flat.length === 0 && (
-          <div className="rr-cmp-add-hint">No matches. (Already-shortlisted schools are filtered out.)</div>
+          <div className="rr-cmp-add-hint">No matches in the UK directory. (Already-shortlisted schools are filtered out.)</div>
         )}
         {flat.map((entry, i) => {
           const { hit, group, isPrimary } = entry
