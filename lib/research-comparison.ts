@@ -84,7 +84,7 @@ export async function loadComparisonData(
   // together; chat rows whose row_name collides with a base-lens row are
   // de-duped (base wins) so the user sees one row, not two.
   const baseLens = lens  // 'general' | 'child_fit'
-  const tableRows = await loadLensRows(supabase, sessionId, schools, baseLens)
+  const tableRows = await loadLensRows(supabase, sessionId, schools, baseLens, activeLensId)
   return { schools, rows: tableRows }
 }
 
