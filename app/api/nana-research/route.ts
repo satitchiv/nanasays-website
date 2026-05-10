@@ -331,14 +331,38 @@ export async function POST(req: NextRequest) {
 
     const { data: rows } = await supabase
       .from('comparison_rows')
-      .select('row_name, sort_order')
+      .select('row_name, sort_order, lens_kind, created_at')
       .eq('session_id', sessionId)
-      .eq('lens_kind', baseLensKind)
+      .in('lens_kind', [baseLensKind, 'chat'])
       .is('undone_at', null)
-      .order('sort_order', { ascending: true })
       .limit(100)
-    activeRowNames = (rows ?? [])
-      .map((r: { row_name: string }) => r.row_name)
+
+    type ActiveComparisonRow = {
+      row_name: string
+      sort_order: number | null
+      lens_kind: 'general' | 'child_fit' | 'chat'
+      created_at: string
+    }
+    const normRowName = (s: string) => s.trim().toLowerCase()
+    const allRows = ((rows ?? []) as ActiveComparisonRow[])
+      .filter(r => typeof r.row_name === 'string' && r.row_name.length > 0)
+    const baseNames = new Set(
+      allRows
+        .filter(r => r.lens_kind === baseLensKind)
+        .map(r => normRowName(r.row_name)),
+    )
+    activeRowNames = allRows
+      .filter(r => r.lens_kind !== 'chat' || !baseNames.has(normRowName(r.row_name)))
+      .sort((a, b) => {
+        const aIsChat = a.lens_kind === 'chat'
+        const bIsChat = b.lens_kind === 'chat'
+        if (aIsChat !== bIsChat) return aIsChat ? 1 : -1
+        const aSort = a.sort_order ?? 0
+        const bSort = b.sort_order ?? 0
+        if (aSort !== bSort) return aSort - bSort
+        return a.created_at.localeCompare(b.created_at)
+      })
+      .map(r => r.row_name)
       .filter((s): s is string => typeof s === 'string' && s.length > 0)
   } catch (e) {
     // Loader failure is non-fatal — Pass 2 silently skips C/D when

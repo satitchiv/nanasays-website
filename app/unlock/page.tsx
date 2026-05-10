@@ -8,12 +8,15 @@ import './unlock.css'
 export const dynamic = 'force-dynamic'
 
 type Props = {
-  searchParams?: Promise<{ from?: string }>
+  searchParams?: Promise<{ from?: string; next?: string }>
 }
 
 export default async function UnlockPage({ searchParams }: Props) {
   const sp = (await searchParams) ?? {}
-  const from = sp.from && sp.from.startsWith('/') && !sp.from.includes('//') ? sp.from : '/my-reports'
+  const requestedFrom = sp.from ?? sp.next
+  const from = requestedFrom && requestedFrom.startsWith('/') && !requestedFrom.includes('//')
+    ? requestedFrom
+    : '/my-reports'
 
   // Already paid? Bounce straight through
   if (await isUnlocked()) {

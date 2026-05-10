@@ -78,6 +78,7 @@ function ChatBody({
   chat,
   onConfirmAddRow,
   onApplyReRank,
+  onAddToLetter,
   canSaveAsLens,
   onSaveAsLens,
   actionError,
@@ -88,6 +89,7 @@ function ChatBody({
   chat:                 ReturnType<typeof useNanaChat>
   onConfirmAddRow:      (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
   onApplyReRank?:       (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
+  onAddToLetter:        (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
   canSaveAsLens?:       boolean
   onSaveAsLens?:        (lensName: string) => Promise<{ ok: boolean; code?: string; existingLensId?: string }>
   actionError:          string | null
@@ -152,7 +154,12 @@ function ChatBody({
         {messages.map(msg => (
           <div key={msg.id}>
             <div className="rr-bubble-user">{msg.question}</div>
-            <NanaMsgBubble msg={msg} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} />
+            <NanaMsgBubble
+              msg={msg}
+              onConfirmAddRow={onConfirmAddRow}
+              onApplyReRank={onApplyReRank}
+              onAddToLetter={onAddToLetter}
+            />
           </div>
         ))}
 
@@ -336,6 +343,29 @@ export default function ResearchRoomChat({
     }
   }
 
+  async function onAddToLetter(messageId: string, proposalId: string): Promise<{ ok: boolean; code?: string }> {
+    try {
+      const res = await fetch('/api/research-room/write-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add_to_letter', message_id: messageId, proposal_id: proposalId }),
+      })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        const code = typeof j?.code === 'string' ? j.code : 'request_failed'
+        setActionError(`Could not add that note to the partner brief (${code}).`)
+        return { ok: false, code }
+      }
+      setActionError(null)
+      router.refresh()
+      return { ok: true }
+    } catch (e) {
+      console.error('[research-room add-to-letter]', e)
+      setActionError('Network error while adding that note to the partner brief.')
+      return { ok: false, code: 'network' }
+    }
+  }
+
 
   const sheetRef = useRef<HTMLDivElement | null>(null)
   const sheetCloseRef = useRef<HTMLButtonElement | null>(null)
@@ -497,7 +527,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         )}
       </aside>
@@ -568,7 +598,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         </>
       )}
@@ -672,4 +702,3 @@ function ChatActionsRail({
     </div>
   )
 }
-

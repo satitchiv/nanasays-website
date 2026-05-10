@@ -146,6 +146,10 @@ export interface NanaMsgBubbleProps {
   // no fetch — the consumer applies the view_spec as a sort/filter
   // overlay on the comparison table. Save-as-lens UX is commit 8.
   onApplyReRank?: (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
+  // Slice 7: render "Add to partner brief" affordances for
+  // propose_add_to_letter entries. Like add-row, confirmation is
+  // pointer-only; the server re-reads the proposal from the message.
+  onAddToLetter?: (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
 }
 
 export function NanaMsgBubble({
@@ -155,6 +159,7 @@ export function NanaMsgBubble({
   streamFormat,
   onConfirmAddRow,
   onApplyReRank,
+  onAddToLetter,
 }: NanaMsgBubbleProps) {
   const parsed = msg?.parsed as any
   const s = parsed?.sections ?? {}
@@ -209,13 +214,15 @@ export function NanaMsgBubble({
               })}
           </div>
         )}
-        {!isStreaming && msg?.id && (onConfirmAddRow || onApplyReRank) && parsed?.proposed_actions && (
+        {!isStreaming && msg?.id && (onConfirmAddRow || onApplyReRank || onAddToLetter) && parsed?.proposed_actions && (
           <ProposedActionsList
             messageId={msg.id}
             actions={parsed.proposed_actions}
             activeProposalIds={msg.activeProposalIds}
+            activeLetterProposalIds={msg.activeLetterProposalIds}
             onConfirm={onConfirmAddRow}
             onApplyReRank={onApplyReRank}
+            onAddToLetter={onAddToLetter}
           />
         )}
         {!isStreaming && msg?.shareToken && (
@@ -338,13 +345,15 @@ export function NanaMsgBubble({
         </div>
       )}
 
-      {!isStreaming && msg?.id && (onConfirmAddRow || onApplyReRank) && parsed?.proposed_actions && (
+      {!isStreaming && msg?.id && (onConfirmAddRow || onApplyReRank || onAddToLetter) && parsed?.proposed_actions && (
         <ProposedActionsList
           messageId={msg.id}
           actions={parsed.proposed_actions}
           activeProposalIds={msg.activeProposalIds}
+          activeLetterProposalIds={msg.activeLetterProposalIds}
           onConfirm={onConfirmAddRow}
           onApplyReRank={onApplyReRank}
+          onAddToLetter={onAddToLetter}
         />
       )}
       {!isStreaming && msg?.shareToken && (
@@ -368,14 +377,18 @@ function ProposedActionsList({
   messageId,
   actions,
   activeProposalIds,
+  activeLetterProposalIds,
   onConfirm,
   onApplyReRank,
+  onAddToLetter,
 }: {
   messageId:          string
   actions:            Record<string, ProposedAction>
   activeProposalIds?: string[]
+  activeLetterProposalIds?: string[]
   onConfirm?:         (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
   onApplyReRank?:     (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
+  onAddToLetter?:     (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
 }) {
   // Slice 6: kind-aware dispatch. add_row keeps the existing pill/flow;
   // re_rank gets a new ↻ pill that triggers a pure client-state apply.
@@ -393,14 +406,27 @@ function ProposedActionsList({
           e[1] && e[1].kind === 'propose_re_rank',
       )
     : []
-  if (addRowEntries.length === 0 && reRankEntries.length === 0) return null
+  const addToLetterEntries = onAddToLetter
+    ? allEntries.filter(
+        (e): e is [string, ProposedAction & { kind: 'propose_add_to_letter' }] =>
+          e[1] && e[1].kind === 'propose_add_to_letter',
+      )
+    : []
+  if (addRowEntries.length === 0 && reRankEntries.length === 0 && addToLetterEntries.length === 0) return null
 
-  const activeSet = new Set(activeProposalIds ?? [])
-  const eyebrow = addRowEntries.length > 0 && reRankEntries.length > 0
-    ? 'Try one of these on your comparison?'
+  const activeSet       = new Set(activeProposalIds ?? [])
+  const activeLetterSet = new Set(activeLetterProposalIds ?? [])
+  const kindsShown =
+    (addRowEntries.length > 0 ? 1 : 0) +
+    (reRankEntries.length > 0 ? 1 : 0) +
+    (addToLetterEntries.length > 0 ? 1 : 0)
+  const eyebrow = kindsShown > 1
+    ? 'Try one of these?'
     : addRowEntries.length > 0
       ? 'Add to your comparison?'
-      : 'Try a different ranking?'
+      : reRankEntries.length > 0
+        ? 'Try a different ranking?'
+        : 'Add to your partner brief?'
 
   return (
     <div className="rr-proposed-actions">
@@ -421,6 +447,15 @@ function ProposedActionsList({
             label={action.label}
             rationale={action.rationale}
             onClick={() => onApplyReRank!(messageId, proposalId, action.view_spec, action.label)}
+          />
+        ))}
+        {addToLetterEntries.map(([proposalId, action]) => (
+          <AddToLetterButton
+            key={proposalId}
+            label={action.label}
+            section={action.section}
+            isActiveInBrief={activeLetterSet.has(proposalId)}
+            onClick={() => onAddToLetter!(messageId, proposalId)}
           />
         ))}
       </div>
@@ -455,7 +490,69 @@ function ReRankButton({
   )
 }
 
+function letterSectionLabel(section: string): string {
+  switch (section) {
+    case 'opening':        return 'Opening'
+    case 'why_it_matters': return 'Why it matters'
+    case 'tradeoffs':      return 'Tradeoffs'
+    case 'questions':      return 'Questions'
+    case 'next_step':      return 'Next step'
+    default:               return 'Partner brief'
+  }
+}
+
 type LocalOverride = 'pending' | 'optimistic-added' | 'error' | null
+
+function AddToLetterButton({
+  label,
+  section,
+  isActiveInBrief,
+  onClick,
+}: {
+  label:           string
+  section:         string
+  isActiveInBrief: boolean
+  onClick:         () => Promise<{ ok: boolean; code?: string }>
+}) {
+  const [override, setOverride] = useState<LocalOverride>(null)
+
+  async function handle() {
+    if (override === 'pending') return
+    if (override === 'optimistic-added' || isActiveInBrief) return
+    setOverride('pending')
+    const result = await onClick()
+    setOverride(result.ok ? 'optimistic-added' : 'error')
+  }
+
+  useEffect(() => {
+    if (override === 'optimistic-added' && isActiveInBrief) {
+      setOverride(null)
+    }
+  }, [override, isActiveInBrief])
+
+  const isPending = override === 'pending'
+  const isError   = override === 'error'
+  const isAdded   = !isPending && !isError && (override === 'optimistic-added' || isActiveInBrief)
+  const group     = letterSectionLabel(section)
+
+  return (
+    <button
+      type="button"
+      className={`rr-proposed-btn rr-proposed-btn--letter${isAdded ? ' is-added' : ''}${isError ? ' is-error' : ''}${isPending ? ' is-pending' : ''}`}
+      onClick={handle}
+      disabled={isPending || isAdded}
+      title={isAdded ? `${group} — already in your partner brief` : `${group} · ${label}`}
+    >
+      <span className="rr-proposed-btn-icon" aria-hidden="true">
+        {isAdded ? '✓' : isPending ? '…' : isError ? '!' : '+'}
+      </span>
+      <span className="rr-proposed-btn-label">
+        {isAdded ? 'Added to brief' : isPending ? 'Adding…' : isError ? 'Try again' : label}
+      </span>
+      <span className="rr-proposed-btn-group">{group}</span>
+    </button>
+  )
+}
 
 function ProposedActionButton({
   label,

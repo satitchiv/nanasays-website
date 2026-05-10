@@ -18,10 +18,16 @@ type ComparisonRowDb = {
   row_name:     string
   group_name:   string
   weight:       number
-  cell_data:    Record<string, { value?: string | number | null; source?: string | null; note?: string }> | null
+  cell_data:    Record<string, RowCellData> | null
   sort_order:   number
   lens_kind:    'general' | 'child_fit' | 'chat'
   created_at:   string
+}
+
+type RowCellData = {
+  value?: string | number | null
+  source?: string | null
+  note?: string | null
 }
 
 type SchoolMeta = {
@@ -57,7 +63,46 @@ export async function loadComparisonData(
 ): Promise<ComparisonData> {
   assertUserId(userId, 'loadComparisonData')
 
-  // 1. Shortlist — same scoping as before. Per-child when childId is set,
+  const schools = await loadSchoolColumns(supabase, userId, childId, 'loadComparisonData')
+
+  if (schools.length === 0 || sessionId == null) {
+    return { schools, rows: [] }
+  }
+
+  // 3. Lens-scoped row read. The active tab's rows + chat rows show
+  // together; chat rows whose row_name collides with a base-lens row are
+  // de-duped (base wins) so the user sees one row, not two.
+  const baseLens = lens  // 'general' | 'child_fit'
+  const tableRows = await loadLensRows(supabase, sessionId, schools, baseLens)
+  return { schools, rows: tableRows }
+}
+
+/**
+ * Load the full evidence pool used by the Verdict tab. This deliberately
+ * differs from loadComparisonData(): the visible comparison stays lens-scoped,
+ * while verdict generation reads all current rows for the session.
+ */
+export async function loadVerdictEvidenceData(
+  supabase:  SupabaseClient,
+  userId:    string,
+  childId:   string | null,
+  sessionId: string | null,
+): Promise<ComparisonData> {
+  assertUserId(userId, 'loadVerdictEvidenceData')
+  const schools = await loadSchoolColumns(supabase, userId, childId, 'loadVerdictEvidenceData')
+  if (schools.length === 0 || sessionId == null) {
+    return { schools, rows: [] }
+  }
+  return { schools, rows: await loadVerdictRows(supabase, sessionId, schools) }
+}
+
+async function loadSchoolColumns(
+  supabase: SupabaseClient,
+  userId: string,
+  childId: string | null,
+  caller: string,
+): Promise<SchoolColumn[]> {
+  // Shortlist — same scoping as before. Per-child when childId is set,
   // parent-wide otherwise (legacy behavior for users still on the old
   // pre-multi-child flow).
   let shortlistQuery = supabase
@@ -71,20 +116,20 @@ export async function loadComparisonData(
   const { data: rows, error: shortlistError } = await shortlistQuery
 
   if (shortlistError) {
-    throw new Error(`loadComparisonData: shortlist read failed: ${shortlistError.message}`)
+    throw new Error(`${caller}: shortlist read failed: ${shortlistError.message}`)
   }
 
   const slugs = (rows ?? []).map((r: { school_slug: string }) => r.school_slug)
-  if (slugs.length === 0) return { schools: [], rows: [] }
+  if (slugs.length === 0) return []
 
-  // 2. School column headers. We only need light metadata — the seeder is
+  // School column headers. We only need light metadata — the seeder is
   // responsible for any structured-data joins that turn into cell content.
   const { data: schoolsRaw, error: schoolsError } = await supabase
     .from('schools')
     .select('slug, name, city, region, boarding, gender_split')
     .in('slug', slugs)
 
-  if (schoolsError) throw new Error(`loadComparisonData: schools read failed: ${schoolsError.message}`)
+  if (schoolsError) throw new Error(`${caller}: schools read failed: ${schoolsError.message}`)
 
   const schoolMap = new Map<string, SchoolMeta>(
     (schoolsRaw ?? []).map((s: SchoolMeta) => [s.slug, s])
@@ -101,17 +146,7 @@ export async function loadComparisonData(
       meta: metaParts.join(' · ') || '—',
     })
   }
-
-  if (schools.length === 0 || sessionId == null) {
-    return { schools, rows: [] }
-  }
-
-  // 3. Lens-scoped row read. The active tab's rows + chat rows show
-  // together; chat rows whose row_name collides with a base-lens row are
-  // de-duped (base wins) so the user sees one row, not two.
-  const baseLens = lens  // 'general' | 'child_fit'
-  const tableRows = await loadLensRows(supabase, sessionId, schools, baseLens)
-  return { schools, rows: tableRows }
+  return schools
 }
 
 // ─── Lens-aware row loader ──────────────────────────────────────────────────
@@ -159,13 +194,7 @@ async function loadLensRows(
   })
 
   return filtered.map(r => {
-    const cells: RowCell[] = schools.map(col => {
-      const c = r.cell_data?.[col.slug]
-      if (!c || c.value == null || c.value === '') return { kind: 'empty' }
-      const primary = typeof c.value === 'number' ? String(c.value) : c.value
-      const sub = typeof c.note === 'string' && c.note ? c.note : undefined
-      return { kind: 'value', primary, sub }
-    })
+    const cells: RowCell[] = schools.map(col => cellFromRaw(r.cell_data?.[col.slug], false))
     // group_name lives on the row in the DB but isn't shown next to every
     // label — repeating "Pastoral" / "Academics" alongside each row is
     // visual noise. Section-header rendering can use group_name later.
@@ -180,6 +209,94 @@ async function loadLensRows(
   })
 }
 
+async function loadVerdictRows(
+  supabase: SupabaseClient,
+  sessionId: string,
+  schools: SchoolColumn[],
+): Promise<ComparisonRow[]> {
+  const { data: rowsRaw, error: rowsError } = await supabase
+    .from('comparison_rows')
+    .select('id, row_name, group_name, weight, cell_data, sort_order, lens_kind, created_at')
+    .eq('session_id', sessionId)
+    .in('lens_kind', ['general', 'child_fit', 'chat'])
+    .is('undone_at', null)
+
+  if (rowsError) throw new Error(`verdict comparison_rows read failed: ${rowsError.message}`)
+
+  const lensPriority: Record<ComparisonRowDb['lens_kind'], number> = {
+    child_fit: 0,
+    general:  1,
+    chat:     2,
+  }
+  const sorted = ((rowsRaw ?? []) as ComparisonRowDb[]).slice().sort((a, b) => {
+    const lp = lensPriority[a.lens_kind] - lensPriority[b.lens_kind]
+    if (lp !== 0) return lp
+    if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order
+    return a.created_at.localeCompare(b.created_at)
+  })
+
+  type MergedRow = {
+    label: string
+    ids: string[]
+    cells: RowCell[]
+    firstOrder: number
+  }
+
+  const merged = new Map<string, MergedRow>()
+  sorted.forEach((row, idx) => {
+    const key = normalizeRowName(row.row_name)
+    const incomingCells = schools.map(col => cellFromRaw(row.cell_data?.[col.slug], true))
+    const current = merged.get(key)
+    if (!current) {
+      merged.set(key, {
+        label: row.row_name,
+        ids: [row.id],
+        cells: incomingCells,
+        firstOrder: idx,
+      })
+      return
+    }
+
+    current.ids.push(row.id)
+    current.cells = current.cells.map((existing, i) => betterEvidenceCell(existing, incomingCells[i]))
+  })
+
+  return Array.from(merged.values())
+    .sort((a, b) => a.firstOrder - b.firstOrder)
+    .map(row => ({
+      id: `cmp-${row.ids.join('|')}`,
+      label: row.label,
+      cells: row.cells,
+      removable: false,
+    }))
+}
+
+function cellFromRaw(c: RowCellData | undefined, includeSource: boolean): RowCell {
+  if (!c || c.value == null || c.value === '') return { kind: 'empty' }
+  const primary = typeof c.value === 'number' ? String(c.value) : c.value
+  const subParts = [
+    typeof c.note === 'string' && c.note.trim() ? c.note.trim() : null,
+    includeSource && typeof c.source === 'string' && c.source.trim() ? c.source.trim() : null,
+  ].filter((p): p is string => Boolean(p))
+  const sub = subParts.length > 0 ? subParts.join(' · ') : undefined
+  return { kind: 'value', primary, sub }
+}
+
+function evidenceCellScore(cell: RowCell): number {
+  if (cell.kind === 'empty') return 0
+  if (cell.kind === 'lights') return 5 + cell.lights.length
+  let score = 10
+  if (cell.sub && /https?:\/\//.test(cell.sub)) score += 4
+  if (cell.sub) score += 1
+  if (cell.primary.length > 40) score += 1
+  return score
+}
+
+function betterEvidenceCell(existing: RowCell, incoming: RowCell): RowCell {
+  if (evidenceCellScore(incoming) > evidenceCellScore(existing)) return incoming
+  return existing
+}
+
 function normalizeRowName(name: string): string {
-  return name.trim().toLowerCase()
+  return name.trim().toLowerCase().replace(/\s+/g, ' ')
 }

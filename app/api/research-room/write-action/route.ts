@@ -8,8 +8,8 @@ import { getUnlockedUser } from '@/lib/paid-status'
 //
 // The single entry point for every chat-driven mutation in the Research
 // Room. Takes pointers only — never row content — and delegates to one of
-// three SECURITY DEFINER Postgres functions added in
-// scripts/migrations/2026-05-06-research-room-write-actions.sql.
+// the SECURITY DEFINER Postgres functions added in the Research Room
+// migrations.
 //
 // The functions reconstruct the proposal from research_session_messages.
 // parsed_answer, so neither this route NOR a direct PostgREST caller can
@@ -22,12 +22,13 @@ export const dynamic = 'force-dynamic'
 type AddRowBody         = { action: 'add_row';            message_id: string; proposal_id: string }
 type UndoRowBody        = { action: 'undo_add_row';       row_id: string }
 type RestoreRowBody     = { action: 'restore_row';        row_id: string }
+type AddToLetterBody    = { action: 'add_to_letter';      message_id: string; proposal_id: string }
 // Slice 6: lens write actions. Both call confirm_lens_from_proposal
 // under the hood; the lens_name_override lever is the only thing that
 // differs at the route layer.
 type CreateLensBody     = { action: 'create_lens';        message_id: string; proposal_id: string }
 type SaveViewAsLensBody = { action: 'save_view_as_lens';  message_id: string; proposal_id: string; lens_name: string }
-type Body = AddRowBody | UndoRowBody | RestoreRowBody | CreateLensBody | SaveViewAsLensBody
+type Body = AddRowBody | UndoRowBody | RestoreRowBody | AddToLetterBody | CreateLensBody | SaveViewAsLensBody
 
 const UUID_RX        = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
 const PROPOSAL_ID_RX = /^[a-zA-Z0-9_-]{1,40}$/
@@ -48,6 +49,14 @@ function parseBody(raw: unknown): { body: Body | null; error?: string } {
     return { body: { action, row_id: o.row_id } as Body }
   }
 
+  // Slice 7 — add_to_letter: pointer-only append into partner_briefs.
+  // The RPC reconstructs the actual markdown from the persisted proposal.
+  if (action === 'add_to_letter') {
+    if (typeof o.message_id !== 'string' || !UUID_RX.test(o.message_id))                return { body: null, error: 'message_id must be a UUID' }
+    if (typeof o.proposal_id !== 'string' || !PROPOSAL_ID_RX.test(o.proposal_id as string)) return { body: null, error: 'proposal_id must match ^[a-zA-Z0-9_-]{1,40}$' }
+    return { body: { action, message_id: o.message_id, proposal_id: o.proposal_id } }
+  }
+
   // Slice 6 — create_lens: proposal carries lens_name; override forbidden.
   if (action === 'create_lens') {
     if (typeof o.message_id !== 'string' || !UUID_RX.test(o.message_id))                return { body: null, error: 'message_id must be a UUID' }
@@ -66,7 +75,7 @@ function parseBody(raw: unknown): { body: Body | null; error?: string } {
     return { body: { action, message_id: o.message_id, proposal_id: o.proposal_id, lens_name: trimmed } }
   }
 
-  return { body: null, error: 'action must be add_row | undo_add_row | restore_row | create_lens | save_view_as_lens' }
+  return { body: null, error: 'action must be add_row | undo_add_row | restore_row | add_to_letter | create_lens | save_view_as_lens' }
 }
 
 async function getAuthClient() {
@@ -281,6 +290,26 @@ export async function POST(req: NextRequest) {
       suggest: ['view_existing', 'cancel'],
     }, { status: 409 })
     console.error('[write-action] unexpected restore_row status:', status)
+    return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
+  }
+
+  if (body.action === 'add_to_letter') {
+    const { data, error: rpcErr } = await supabase
+      .rpc('confirm_add_to_letter', { p_message_id: body.message_id, p_proposal_id: body.proposal_id })
+    if (rpcErr) return rpcErrorToResponse(rpcErr, 'confirm_add_to_letter')
+
+    const result = Array.isArray(data) ? data[0] : data
+    if (!result) return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
+
+    const { brief_id, status, brief_data } = result as { brief_id: string; status: string; brief_data: unknown }
+
+    if (status === 'created_brief') {
+      return NextResponse.json({ ok: true, status, brief_id, brief: brief_data }, { status: 201 })
+    }
+    if (status === 'fresh' || status === 'deduped') {
+      return NextResponse.json({ ok: true, status, brief_id, brief: brief_data }, { status: 200 })
+    }
+    console.error('[write-action] unexpected confirm_add_to_letter status:', status)
     return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
   }
 

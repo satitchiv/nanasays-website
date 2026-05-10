@@ -131,25 +131,36 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
   onUiIntentRef.current   = opts.onUiIntent
   endpointRef.current     = opts.endpoint ?? '/api/nana-research'
 
-  // Slice 5-FU2: sync activeProposalIds from server (router.refresh()
-  // re-runs the page server component). The hook owns its own messages
-  // state after mount, so we'd otherwise miss × removals / re-adds that
-  // change which proposals are currently materialised as table rows.
+  // Slice 5-FU2 / Slice 7: sync server-derived proposal state after
+  // router.refresh() re-runs the page server component. The hook owns its
+  // own messages state after mount, so without this it would miss × row
+  // removals/re-adds and add-to-letter confirmations.
   // Stable signature dep avoids per-render churn — only fires when the
   // (msg_id, active_proposals) tuple actually changes.
   const activeProposalsSig = opts.initialMessages
-    .map(m => `${m.id}:${(m.activeProposalIds ?? []).slice().sort().join(',')}`)
+    .map(m => `${m.id}:${(m.activeProposalIds ?? []).slice().sort().join(',')}:${(m.activeLetterProposalIds ?? []).slice().sort().join(',')}`)
     .join('|')
   useEffect(() => {
     const byId = new Map<string, string[]>(
       opts.initialMessages.map(m => [m.id, m.activeProposalIds ?? []])
     )
+    const lettersById = new Map<string, string[]>(
+      opts.initialMessages.map(m => [m.id, m.activeLetterProposalIds ?? []])
+    )
     setMessages(prev => prev.map(m => {
       const next = byId.get(m.id)
-      if (!next) return m
+      const nextLetters = lettersById.get(m.id)
+      if (!next && !nextLetters) return m
       const cur = m.activeProposalIds ?? []
-      if (cur.length === next.length && cur.every((v, i) => v === next[i])) return m
-      return { ...m, activeProposalIds: next }
+      const curLetters = m.activeLetterProposalIds ?? []
+      const rowsSame = !next || (cur.length === next.length && cur.every((v, i) => v === next[i]))
+      const lettersSame = !nextLetters || (curLetters.length === nextLetters.length && curLetters.every((v, i) => v === nextLetters[i]))
+      if (rowsSame && lettersSame) return m
+      return {
+        ...m,
+        ...(next ? { activeProposalIds: next } : {}),
+        ...(nextLetters ? { activeLetterProposalIds: nextLetters } : {}),
+      }
     }))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeProposalsSig])

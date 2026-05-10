@@ -5,8 +5,13 @@ import { cookies } from 'next/headers'
 import { isResearchRoomEnabled } from '@/lib/feature-flags'
 import { getUnlockedUser } from '@/lib/paid-status'
 import { supabaseService } from '@/lib/supabase-admin'
-import { loadComparisonData, type LensKind } from '@/lib/research-comparison'
+import { loadComparisonData, loadVerdictEvidenceData, type LensKind } from '@/lib/research-comparison'
 import { loadShortlistContext, seedResearchSession } from '@/lib/research-room/seed-rows'
+import {
+  buildResearchVerdictDraft,
+  loadCachedResearchVerdict,
+  type ResearchVerdictRecord,
+} from '@/lib/server/research-room/verdict-generator'
 import { loadActiveChildren } from '@/lib/children'
 import { ONBOARDING_FIELDS } from '@/lib/onboarding-fields'
 import ResearchRoom from '@/components/nana/ResearchRoom'
@@ -21,6 +26,20 @@ export const metadata: Metadata = {
 // Next 14.2.x: searchParams is synchronous. The Promise-shape is
 // Next 15+; using it here would silently leave the value un-resolved.
 type SearchParams = { lens?: string }
+
+function collectSavedLensWeights(savedLenses: Array<{ weights: Record<string, number>; visible_rows: string[] | null }>): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const lens of savedLenses) {
+    for (const [rowId, raw] of Object.entries(lens.weights ?? {})) {
+      if (typeof raw !== 'number' || !Number.isFinite(raw)) continue
+      out[rowId] = Math.max(out[rowId] ?? 0, raw)
+    }
+    for (const rowId of lens.visible_rows ?? []) {
+      out[rowId] = Math.max(out[rowId] ?? 0, 1)
+    }
+  }
+  return out
+}
 
 export default async function ResearchRoomPage({
   searchParams,
@@ -104,6 +123,9 @@ export default async function ResearchRoomPage({
   let initialSession: import('@/lib/nana/types').Session | null = null
   let initialMessages: import('@/lib/nana/types').ResearchMessage[] = []
   let activeLensId: string | null = null
+  let partnerBrief: import('@/components/nana/PartnerBriefTab').PartnerBrief | null = null
+  let researchVerdict: ResearchVerdictRecord | null = null
+  let effectiveLensForVerdict: LensKind = lens
   // Slice 6 close — saved lenses available to the lens picker dropdown.
   // weights are UUID-keyed (resolved by confirm_lens_from_proposal at
   // save time); visible_rows is a UUID array. ResearchRoom maps both
@@ -191,6 +213,21 @@ export default async function ResearchRoomPage({
       }))
     }
 
+    const { data: briefRow } = await svc
+      .from('partner_briefs')
+      .select('id, tone, body_markdown, generated_at, share_token')
+      .eq('child_id', activeChildId)
+      .maybeSingle()
+    if (briefRow) {
+      partnerBrief = {
+        id:            briefRow.id,
+        tone:          briefRow.tone,
+        body_markdown: briefRow.body_markdown,
+        generated_at:  briefRow.generated_at,
+        share_token:   briefRow.share_token,
+      }
+    }
+
     // If a saved lens is active, the comparison rows we load must
     // belong to that lens's base_lens_kind — its weights/visible_rows
     // are UUID-keyed against rows in that base. URL-driven lens stays
@@ -199,6 +236,7 @@ export default async function ResearchRoomPage({
       ? savedLenses.find(l => l.id === activeLensId) ?? null
       : null
     const effectiveLens: LensKind = activeLens ? activeLens.base_lens_kind : lens
+    effectiveLensForVerdict = effectiveLens
 
     // Lens-aware comparison load. With no session, the loader returns
     // schools but no rows (the seeder hasn't run yet). On error, keep
@@ -215,6 +253,35 @@ export default async function ResearchRoomPage({
     } catch (e) {
       console.error('[research-room loadComparisonData]', e)
       comparisonError = 'Could not load your comparison. Refresh the page; if the problem persists, contact support.'
+    }
+
+    if (initialSession) {
+      const activeChild = children.find(c => c.id === activeChildId) ?? null
+      try {
+        const verdictData = await loadVerdictEvidenceData(svc, user.id, activeChildId, initialSession.id)
+        if (verdictData.schools.length > 0 && verdictData.rows.length > 0) {
+          const draft = buildResearchVerdictDraft({
+            comparisonData: verdictData,
+            childName: activeChild?.name ?? null,
+            childProfile: activeChild?.child_profile ?? null,
+            sessionId: initialSession.id,
+            childId: activeChildId,
+            baseLensKind: effectiveLensForVerdict,
+            activeLensId,
+            lensWeightsByRowId: collectSavedLensWeights(savedLenses),
+          })
+          researchVerdict = await loadCachedResearchVerdict(svc, {
+            sessionId: initialSession.id,
+            childId: activeChildId,
+            lensId: activeLensId,
+            baseLensKind: effectiveLensForVerdict,
+            inputHash: draft.inputHash,
+          })
+        }
+      } catch (e) {
+        // Missing migration / stale cache should not block the Research Room.
+        console.error('[research-room loadCachedResearchVerdict]', e)
+      }
     }
 
     if (initialSession) {
@@ -275,7 +342,9 @@ export default async function ResearchRoomPage({
       initialMessages = (msgs ?? []).map(m => {
         const stamps = (m.actions ?? []) as StampedAction[]
         const activeProposalIds: string[] = []
+        const activeLetterProposalIds: string[] = []
         const seen = new Set<string>()
+        const seenLetters = new Set<string>()
 
         // (a) chat row exists active and visible.
         for (const a of stamps) {
@@ -285,6 +354,14 @@ export default async function ResearchRoomPage({
           if (seen.has(a.proposal_id)) continue
           seen.add(a.proposal_id)
           activeProposalIds.push(a.proposal_id)
+        }
+
+        for (const a of stamps) {
+          if (a.kind !== 'add_to_letter') continue
+          if (!a.proposal_id) continue
+          if (seenLetters.has(a.proposal_id)) continue
+          seenLetters.add(a.proposal_id)
+          activeLetterProposalIds.push(a.proposal_id)
         }
 
         // (b) any active row covers the proposal's row_name.
@@ -306,6 +383,7 @@ export default async function ResearchRoomPage({
           shareToken:         m.share_token ?? undefined,
           createdAt:          m.created_at,
           activeProposalIds,
+          activeLetterProposalIds,
         }
       })
     }
@@ -332,6 +410,8 @@ export default async function ResearchRoomPage({
       initialMessages={initialMessages}
       savedLenses={savedLenses}
       activeLensId={activeLensId}
+      partnerBrief={partnerBrief}
+      researchVerdict={researchVerdict}
     />
   )
 }

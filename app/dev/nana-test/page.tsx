@@ -75,7 +75,7 @@ type ErrorEvent = { type: 'error'; error: string; code: string }
 
 type StreamEvent = RetrievalEvent | TokenEvent | FinalEvent | ErrorEvent
 
-const SLUG = 'reeds-school-uk'
+const SLUG = 'tonbridge-school'
 
 const SAMPLE_QUESTIONS = [
   "How is Reed's doing financially?",

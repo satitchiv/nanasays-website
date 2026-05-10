@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import ChildSelector, { type ChildOption } from './ChildSelector'
 import ChildBriefTab, { type ChildSummary, type FamilyPreferences } from './ChildBriefTab'
+import PartnerBriefTab, { type PartnerBrief } from './PartnerBriefTab'
+import VerdictTab, { type ResearchVerdictForUi } from './VerdictTab'
 import ResearchRoomChat, { type ChatState } from './ResearchRoomChat'
 import ComparisonView from './ComparisonView'
 import type { ComparisonData } from './comparison-placeholder'
@@ -42,6 +44,8 @@ type Props = {
   initialMessages?: ResearchMessage[]
   savedLenses?: SavedLens[]
   activeLensId?: string | null
+  partnerBrief?: PartnerBrief | null
+  researchVerdict?: ResearchVerdictForUi | null
 }
 
 const TAB_ORDER: Tab[] = ['brief', 'compare', 'verdict', 'partner']
@@ -82,6 +86,8 @@ export default function ResearchRoom({
   initialMessages  = [],
   savedLenses      = [],
   activeLensId     = null,
+  partnerBrief     = null,
+  researchVerdict  = null,
 }: Props) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<Tab>('compare')
@@ -584,28 +590,21 @@ export default function ResearchRoom({
                       familyPreferences={familyPreferences}
                       onActiveChildChange={handleActiveChildChange}
                     />
-                  ) : (
-                    <>
-                      <div className="rr-view-head">
-                        <div>
-                          <div className="rr-view-eyebrow">{TAB_LABELS[t]}</div>
-                          <h1 className="rr-view-title">
-                            {TAB_LABELS[t]} · <em>placeholder.</em>
-                          </h1>
-                          <p className="rr-view-meta">{PLACEHOLDER_COPY[t].sub}</p>
-                        </div>
-                      </div>
-
-                      <div className="rr-placeholder-card" role="status">
-                        <div className="rr-placeholder-eyebrow">Slice 1 · shell only</div>
-                        <div className="rr-placeholder-body">
-                          The four tabs and the chat states work. Swipe left/right on
-                          mobile to flip between tabs. Real content appears in later
-                          slices.
-                        </div>
-                      </div>
-                    </>
-                  )}
+                  ) : t === 'verdict' ? (
+                    <VerdictTab
+                      verdict={researchVerdict}
+                      sessionId={initialSession?.id ?? null}
+                      baseLensKind={activeLens?.base_lens_kind ?? lens}
+                      childName={activeChild?.name ?? null}
+                    />
+                  ) : t === 'partner' ? (
+                    <PartnerBriefTab
+                      brief={partnerBrief}
+                      childId={activeChildId}
+                      sessionId={initialSession?.id ?? null}
+                      childName={activeChild?.name ?? null}
+                    />
+                  ) : null}
                 </div>
               </section>
             ))}

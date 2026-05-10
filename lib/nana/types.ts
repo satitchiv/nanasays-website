@@ -70,7 +70,18 @@ export interface ProposeCreateLens {
   view_spec:      ProposeViewSpec
 }
 
-export type ProposedAction = ProposedAddRow | ProposeReRank | ProposeCreateLens
+// Slice 7: bounded text Nana can propose for the parent-facing partner
+// brief. Confirmation is still pointer-only: the server re-reads this
+// proposal from the persisted chat message before appending it.
+export interface ProposeAddToLetter {
+  kind:          'propose_add_to_letter'
+  label:         string
+  section:       'opening' | 'why_it_matters' | 'tradeoffs' | 'questions' | 'next_step'
+  body_markdown: string
+  rationale?:    string
+}
+
+export type ProposedAction = ProposedAddRow | ProposeReRank | ProposeCreateLens | ProposeAddToLetter
 // Keyed by short proposal_id (^[a-zA-Z0-9_-]{1,40}$). Function reads
 // parsed_answer.proposed_actions[proposal_id] when confirming.
 export type ProposedActions = Record<string, ProposedAction>
@@ -101,6 +112,9 @@ export interface ResearchMessage {
   // table truth instead of local click history. Empty for non-rehydrated
   // messages (streaming chat in this session) — they fall back to local state.
   activeProposalIds?: string[]
+  // Slice 7: add-to-letter proposal_ids already appended to partner_briefs.
+  // Derived from research_session_messages.actions on page load.
+  activeLetterProposalIds?: string[]
 }
 
 export interface ToolStep {
