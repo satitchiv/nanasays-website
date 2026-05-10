@@ -9,6 +9,7 @@ import PartnerBriefTab, { type PartnerBrief } from './PartnerBriefTab'
 import VerdictTab, { type ResearchVerdictForUi } from './VerdictTab'
 import ResearchRoomChat, { type ChatState } from './ResearchRoomChat'
 import ComparisonView from './ComparisonView'
+import SchoolAdder from './SchoolAdder'
 import type { ComparisonData } from './comparison-placeholder'
 import type { Session, ResearchMessage } from '@/lib/nana/types'
 import './research-room.css'
@@ -30,6 +31,12 @@ export type SavedLens = {
   weights:        Record<string, number>
   visible_rows:   string[] | null
   created_at:     string
+  // Slice 6.6 Tier 3: true iff this lens has at least one active topic
+  // row (created_by_lens_id = lens.id, undone_at IS NULL). Drives the
+  // ↻ Refresh lens affordance — saved/re-rank lenses (is_topic_lens =
+  // false) don't get it because refresh-with-shortlist isn't meaningful
+  // for a view-of-base-rows lens.
+  is_topic_lens?: boolean
 }
 
 type Props = {
@@ -104,6 +111,21 @@ export default function ResearchRoom({
   useEffect(() => {
     setOptimisticActiveLensId(activeLensId)
   }, [activeLensId])
+
+  // Slice 6.6 Tier 3 — bridge between ComparisonView's ↻ Refresh button
+  // and ResearchRoomChat's chat hook. ComparisonView fires
+  // onRefreshTopicLens(name); we set pendingRefreshTopicLens, which
+  // ResearchRoomChat watches via useEffect to call chat.ask(). The
+  // nonce ensures repeated clicks fire fresh effects (same name twice
+  // ≠ same payload). ResearchRoomChat clears the pending state once
+  // it's submitted, but we don't actually need to clear it — the next
+  // click bumps the nonce and re-triggers regardless.
+  const [pendingRefreshTopicLens, setPendingRefreshTopicLens] =
+    useState<{ topicName: string; nonce: number } | null>(null)
+  const handleRefreshTopicLens = (topicName: string) => {
+    setChatState((s) => (s === 'closed' ? 'default' : s))
+    setPendingRefreshTopicLens({ topicName, nonce: Date.now() })
+  }
 
   // Slice 6 commits 7+8 — ephemeral view. Pure client state; no DB
   // write. The single source of truth is `rowOrder` (an explicit list
@@ -558,21 +580,29 @@ export default function ResearchRoom({
                           <h1 className="rr-view-title">
                             Side by side, <em>through your child&rsquo;s eyes.</em>
                           </h1>
-                          <p className="rr-view-meta">
-                            Two lenses: <strong>General comparison</strong> (universally-relevant rows every parent sees) and{' '}
-                            <strong>{activeChild ? `${activeChild.name} fit` : 'Child fit'}</strong> (tailored to your child&rsquo;s profile).
-                            Chat with Nana to add custom rows; rows added from chat can be removed with ×.
-                          </p>
+                          {/* Slice 6.6 Tier 3.5: sub-text paragraph removed
+                              to reclaim ~60px of vertical space for the
+                              comparison table. The lens tabs + active-lens
+                              chip below already convey the same information
+                              functionally. */}
                         </div>
                       </div>
                       {activeChild && (
-                        <div className="rr-cmp-showing-for" role="status">
-                          Showing <strong>{activeChild.name}&rsquo;s</strong> matches
+                        <div className="rr-cmp-showing-row">
+                          <div className="rr-cmp-showing-for" role="status">
+                            Showing <strong>{activeChild.name}&rsquo;s</strong> matches
+                          </div>
+                          <SchoolAdder
+                            childId={activeChildId}
+                            excludeSlugs={(comparisonData?.schools ?? []).map(s => s.slug)}
+                            variant="compact"
+                          />
                         </div>
                       )}
                       <ComparisonView
                         data={comparisonData}
                         activeChildName={activeChild?.name ?? null}
+                        activeChildId={activeChildId}
                         lens={lens}
                         loadError={comparisonError}
                         viewOverlay={effectiveOverlay}
@@ -581,6 +611,7 @@ export default function ResearchRoom({
                         savedLenses={savedLenses}
                         activeLensId={optimisticActiveLensId}
                         onSwitchActiveLens={handleSwitchActiveLens}
+                        onRefreshTopicLens={handleRefreshTopicLens}
                       />
                     </>
                   ) : t === 'brief' ? (
@@ -625,6 +656,7 @@ export default function ResearchRoom({
           onApplyReRank={handleApplyReRank}
           canSaveAsLens={canSaveAsLens}
           onSaveAsLens={handleSaveAsLens}
+          pendingRefreshTopicLens={pendingRefreshTopicLens}
         />
       </div>
     </div>

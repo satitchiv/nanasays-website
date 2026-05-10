@@ -28,6 +28,7 @@ import {
   type RowCell,
   type SchoolColumn,
 } from './comparison-placeholder'
+import SchoolAdder from './SchoolAdder'
 
 type Lens = 'general' | 'child_fit'
 
@@ -38,6 +39,11 @@ type LensListItem = {
   id:             string
   lens_name:      string
   base_lens_kind: Lens
+  // Slice 6.6 Tier 3: drives the ↻ Refresh lens button on the active-
+  // lens chip. True for topic lenses (created via create_topic_lens RPC
+  // — have rows with created_by_lens_id = this.id). False/undefined for
+  // saved/re-rank lenses created via confirm_lens_from_proposal.
+  is_topic_lens?: boolean
 }
 
 type Props = {
@@ -77,6 +83,19 @@ type Props = {
   savedLenses?: LensListItem[]
   activeLensId?: string | null
   onSwitchActiveLens?: (lensId: string | null) => Promise<void> | void
+  // Slice 6.6 — in-room shortlist mutations. activeChildId scopes the
+  // add/remove RPCs (each child has its own shortlist). When null, the
+  // + Add school + × column controls are hidden — there's no shortlist
+  // to mutate without a child context.
+  activeChildId?: string | null
+  // Slice 6.6 Tier 3 — fired when the user clicks the ↻ Refresh lens
+  // affordance on a topic lens. Parent (ResearchRoom) bridges to the
+  // chat hook by submitting "Create a lens for <topicName>" so Nana
+  // re-emits a propose_create_topic_lens proposal that — on confirm —
+  // hits the create_topic_lens RPC's MERGE branch (slice 6.6 Tier 2)
+  // and refreshes the lens with the current shortlist. Only rendered
+  // when an active lens is a topic lens.
+  onRefreshTopicLens?: (topicName: string) => void
 }
 
 // Slice 5.5: ALL rows live in comparison_rows now (no more hardcoded
@@ -100,6 +119,8 @@ export default function ComparisonView({
   savedLenses = [],
   activeLensId = null,
   onSwitchActiveLens,
+  activeChildId = null,
+  onRefreshTopicLens,
 }: Props) {
   const router = useRouter()
   const pathname = usePathname()
@@ -108,7 +129,131 @@ export default function ComparisonView({
   const [removeError, setRemoveError] = useState<string | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const pickerRef = useRef<HTMLDivElement | null>(null)
-  const { schools, rows: rawRows } = data
+  // Slice 6.6 t12 T1.1 + Codex P1#2 — optimistic column remove. The
+  // slug goes into this set the moment the user clicks ×; the column
+  // disappears immediately. The POST + router.refresh continue in
+  // background; on success the server prop drops the slug too and the
+  // sync useEffect clears the optimistic entry. On error we drop the
+  // slug back so the column reappears with the error banner.
+  const [optimisticallyRemoved, setOptimisticallyRemoved] = useState<Set<string>>(new Set())
+  const [shortlistError, setShortlistError] = useState<string | null>(null)
+
+  // Slice 6.6 Tier 3.5 — zoom state for the comparison table. Three
+  // discrete steps (small / normal / large) give predictable layout vs
+  // a continuous slider. Persisted to localStorage so the parent's
+  // preference sticks across reloads. SSR-safe init: read on mount in
+  // useEffect, not in useState's initialiser.
+  const ZOOM_STEPS = [0.85, 1.0, 1.15] as const
+  type ZoomStep = typeof ZOOM_STEPS[number]
+  const [zoom, setZoom] = useState<ZoomStep>(1.0)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const raw = window.localStorage.getItem('rr-cmp-zoom')
+    if (!raw) return
+    const n = parseFloat(raw)
+    const match = ZOOM_STEPS.find(s => Math.abs(s - n) < 0.001)
+    if (match) setZoom(match)
+    // ZOOM_STEPS is a frozen const; safe to omit from deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  function adjustZoom(delta: -1 | 1) {
+    const idx = ZOOM_STEPS.indexOf(zoom)
+    const next = ZOOM_STEPS[Math.max(0, Math.min(ZOOM_STEPS.length - 1, idx + delta))]
+    if (next === zoom) return
+    setZoom(next)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('rr-cmp-zoom', String(next))
+    }
+  }
+
+  async function handleRemoveSchool(slug: string) {
+    if (!activeChildId) return
+    if (optimisticallyRemoved.has(slug)) return  // already in-flight
+    setShortlistError(null)
+    setOptimisticallyRemoved(prev => {
+      const next = new Set(prev)
+      next.add(slug)
+      return next
+    })
+    try {
+      const res = await fetch('/api/research-room/shortlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'remove', child_id: activeChildId, school_slug: slug }),
+      })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        const code = typeof j?.code === 'string' ? j.code : 'request_failed'
+        setShortlistError(`Could not remove the school (${code}).`)
+        // Drop the slug back so the column reappears.
+        setOptimisticallyRemoved(prev => {
+          const next = new Set(prev)
+          next.delete(slug)
+          return next
+        })
+        return
+      }
+      router.refresh()
+      // Optimistic entry stays set until the server prop reflects the
+      // remove (sync useEffect below). This avoids a flash where the
+      // column briefly reappears between the fetch resolving and the
+      // re-rendered server data landing.
+    } catch (e) {
+      console.error('[ComparisonView remove school]', e)
+      setShortlistError('Network error removing the school.')
+      setOptimisticallyRemoved(prev => {
+        const next = new Set(prev)
+        next.delete(slug)
+        return next
+      })
+    }
+  }
+
+  // Sync effect: drop optimistic entries once the server data no
+  // longer contains them (router.refresh has landed). Codex P1#2:
+  // ensures the optimistic set doesn't grow stale across multiple
+  // remove cycles.
+  useEffect(() => {
+    if (optimisticallyRemoved.size === 0) return
+    const liveSlugs = new Set(data.schools.map(s => s.slug))
+    let needsUpdate = false
+    const next = new Set<string>()
+    optimisticallyRemoved.forEach(slug => {
+      if (liveSlugs.has(slug)) {
+        next.add(slug)  // server still has it — keep optimistic
+      } else {
+        needsUpdate = true  // server dropped it → drop optimistic
+      }
+    })
+    if (needsUpdate) setOptimisticallyRemoved(next)
+  }, [data.schools, optimisticallyRemoved])
+
+  // Codex t13 follow-up: the optimistic set is keyed by slug only.
+  // If the user switches active child (Maya → Otis) while a remove is
+  // in flight, the slug could leak into the new child's view (each
+  // child has their own shortlist). Clear the set on activeChildId
+  // change so cross-child removes don't bleed.
+  useEffect(() => {
+    setOptimisticallyRemoved(new Set())
+    setShortlistError(null)
+  }, [activeChildId])
+  // Codex P1#2: optimistic filter must apply to BOTH schools AND each
+  // row's cells in lockstep. row.cells[] is indexed by school position,
+  // so dropping a school from `schools` without dropping the matching
+  // index from each row's cells would offset every cell to the wrong
+  // column. visibleSchoolIndices is computed once and used for both.
+  const rawSchools = data.schools
+  const visibleSchoolIndices: number[] = []
+  for (let i = 0; i < rawSchools.length; i++) {
+    if (!optimisticallyRemoved.has(rawSchools[i].slug)) {
+      visibleSchoolIndices.push(i)
+    }
+  }
+  const schools = visibleSchoolIndices.map(i => rawSchools[i])
+  const rawRows = data.rows.map(r => ({
+    ...r,
+    cells: visibleSchoolIndices.map(i => r.cells[i] ?? { kind: 'empty' as const }),
+  }))
   const childLensLabel = activeChildName ? `${activeChildName} fit` : 'Child fit'
   const activeLens = activeLensId
     ? savedLenses.find(l => l.id === activeLensId) ?? null
@@ -239,8 +384,17 @@ export default function ComparisonView({
         <p className="rr-cmp-empty-body">
           The comparison table fills in automatically once you've saved a few.
         </p>
+        {/* Slice 6.6 (Codex r1 P2): the in-room add affordance also
+            renders in the empty state. Without it the user's only path
+            forward was "Browse schools →" (an external page), defeating
+            the in-room workspace promise. */}
+        {activeChildId && (
+          <div className="rr-cmp-empty-add">
+            <SchoolAdder childId={activeChildId} excludeSlugs={[]} />
+          </div>
+        )}
         <Link href="/schools" className="rr-cmp-empty-cta">
-          Browse schools →
+          {activeChildId ? 'Or browse schools →' : 'Browse schools →'}
         </Link>
       </div>
     )
@@ -315,12 +469,65 @@ export default function ComparisonView({
             </div>
           )}
         </div>
+        {/* Slice 6.6 Tier 3.5: stats row is now a single inline strip
+            holding rows/schools count, the active-lens label, the ↻
+            Refresh affordance (topic lenses only), and the zoom −/+
+            controls. Two-line layout was wasting vertical space the
+            user wanted for the table. */}
         <div className="rr-cmp-stats">
-          {rows.length} rows · {schools.length} schools
-          <br />
-          <strong>{activeLens ? activeLens.lens_name : (lens === 'general' ? 'General' : childLensLabel)}</strong> active
+          <span className="rr-cmp-stats-counts">{rows.length} rows · {schools.length} schools</span>
+          <span className="rr-cmp-stats-divider" aria-hidden="true">·</span>
+          <span className="rr-cmp-stats-active">
+            <strong>{activeLens ? activeLens.lens_name : (lens === 'general' ? 'General' : childLensLabel)}</strong> active
+          </span>
+          {activeLens && activeLens.is_topic_lens && onRefreshTopicLens && (
+            <button
+              type="button"
+              className="rr-cmp-stats-refresh"
+              onClick={() => onRefreshTopicLens(activeLens.lens_name)}
+              title={`Ask Nana to fill ${activeLens.lens_name} data for any newly-shortlisted schools.`}
+              aria-label={`Refresh ${activeLens.lens_name} lens with current shortlist`}
+            >
+              <span aria-hidden="true">↻</span> Refresh
+            </button>
+          )}
+          <span className="rr-cmp-stats-zoom" role="group" aria-label="Table zoom">
+            <span className="rr-cmp-stats-zoom-icon" aria-hidden="true">🔍</span>
+            <button
+              type="button"
+              className="rr-cmp-stats-zoom-btn"
+              onClick={() => adjustZoom(-1)}
+              disabled={zoom === ZOOM_STEPS[0]}
+              aria-label="Zoom out"
+              title="Zoom out"
+            >
+              <span aria-hidden="true">−</span>
+            </button>
+            <button
+              type="button"
+              className="rr-cmp-stats-zoom-btn"
+              onClick={() => adjustZoom(1)}
+              disabled={zoom === ZOOM_STEPS[ZOOM_STEPS.length - 1]}
+              aria-label="Zoom in"
+              title="Zoom in"
+            >
+              <span aria-hidden="true">+</span>
+            </button>
+          </span>
         </div>
+        {/* Slice 6.6 — the + Add school control moved to the
+            ResearchRoom header (next to the active-child pill) so the
+            comparison-controls row stays compact. Empty-state path
+            below renders its own SchoolAdder so the user always has an
+            in-room recovery affordance. */}
       </div>
+
+      {shortlistError && (
+        <div className="rr-cmp-error" role="alert">
+          {shortlistError}
+          <button type="button" className="rr-chat-error-dismiss" onClick={() => setShortlistError(null)}>×</button>
+        </div>
+      )}
 
       {/* Slice 6 commit 7 — ephemeral re-rank chip. Shows the active
           view label with × to clear. Saved-lens overlays skip the
@@ -347,7 +554,11 @@ export default function ComparisonView({
         </div>
       )}
 
-      <div className="rr-cmp-table-wrap">
+
+      <div
+        className="rr-cmp-table-wrap"
+        style={{ zoom }}
+      >
         <div className="rr-cmp-table">
           {/* Header row */}
           <div className="rr-cmp-table-row rr-cmp-table-row--head" style={{ gridTemplateColumns }}>
@@ -363,12 +574,26 @@ export default function ComparisonView({
               </div>
             </div>
             {schools.map((s, i) => (
+              // Slice 6.6 t12 T1.1: column disappears optimistically,
+              // so no per-column "removing…" indicator needed — the
+              // column is already gone the moment the user clicks ×.
               <div key={s.slug} className="rr-cmp-head">
                 <div className="rr-cmp-head-rank">
                   No. <strong>{String(i + 1).padStart(2, '0')}</strong>
                 </div>
                 <div className="rr-cmp-head-name">{s.name}</div>
                 <div className="rr-cmp-head-meta">{s.meta}</div>
+                {activeChildId && (
+                  <button
+                    type="button"
+                    className="rr-cmp-head-remove"
+                    aria-label={`Remove ${s.name} from comparison`}
+                    title="Remove this school"
+                    onClick={() => handleRemoveSchool(s.slug)}
+                  >
+                    ×
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -551,6 +776,7 @@ function SortableRow({
     </div>
   )
 }
+
 
 function CellBody({ cell }: { cell: RowCell }) {
   if (cell.kind === 'empty') {

@@ -81,7 +81,29 @@ export interface ProposeAddToLetter {
   rationale?:    string
 }
 
-export type ProposedAction = ProposedAddRow | ProposeReRank | ProposeCreateLens | ProposeAddToLetter
+// Slice 6.5 — topic lens proposal. Inserts new comparable rows about a
+// SPECIFIC TOPIC (rugby, music, drama) and switches the comparison view
+// to a focused mini-table containing those rows + a curated subset of
+// base rows. Topic rows are hidden from General + Child-fit views; only
+// visible when the topic lens is the active lens.
+export interface ProposeEmbeddedRow {
+  row_name:   string
+  group_name: string
+  weight?:    number
+  cell_data:  Record<string, { value: string | number | null; source?: string | null; note?: string }>
+}
+
+export interface ProposeCreateTopicLens {
+  kind:               'propose_create_topic_lens'
+  topic_name:         string
+  lens_name:          string
+  base_lens_kind:     'general' | 'child_fit'
+  lens_question?:     string
+  embedded_rows:      ProposeEmbeddedRow[]
+  visible_base_rows?: string[]
+}
+
+export type ProposedAction = ProposedAddRow | ProposeReRank | ProposeCreateLens | ProposeAddToLetter | ProposeCreateTopicLens
 // Keyed by short proposal_id (^[a-zA-Z0-9_-]{1,40}$). Function reads
 // parsed_answer.proposed_actions[proposal_id] when confirming.
 export type ProposedActions = Record<string, ProposedAction>

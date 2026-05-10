@@ -329,12 +329,20 @@ export async function POST(req: NextRequest) {
       baseLensKind = lensBase
     }
 
+    // Slice 6.5 (Codex final-pass P2 #1): scope to base/seed/chat rows
+    // only. Topic rows have lens_kind = baseLensKind too, so without the
+    // created_by_lens_id IS NULL filter they leak into the Pass-2
+    // canonical-label map. Downstream the C/D validators would
+    // canonicalise a model-emitted "Coach" to a topic row's id even
+    // when the user is on the base view, breaking lens save/create.
     const { data: rows } = await supabase
       .from('comparison_rows')
       .select('row_name, sort_order, lens_kind, created_at')
       .eq('session_id', sessionId)
       .in('lens_kind', [baseLensKind, 'chat'])
       .is('undone_at', null)
+      .is('created_by_lens_id', null)
+      .order('sort_order', { ascending: true })
       .limit(100)
 
     type ActiveComparisonRow = {

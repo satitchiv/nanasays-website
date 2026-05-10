@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
+import { createClient } from '@supabase/supabase-js'
 import { cookies, headers } from 'next/headers'
 import { isResearchRoomEnabled } from '@/lib/feature-flags'
 import { getUnlockedUser } from '@/lib/paid-status'
@@ -19,16 +20,31 @@ import { getUnlockedUser } from '@/lib/paid-status'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-type AddRowBody         = { action: 'add_row';            message_id: string; proposal_id: string }
-type UndoRowBody        = { action: 'undo_add_row';       row_id: string }
-type RestoreRowBody     = { action: 'restore_row';        row_id: string }
-type AddToLetterBody    = { action: 'add_to_letter';      message_id: string; proposal_id: string }
+// T4.19 misconfig warning at module load — surface ONCE if the topic-lens
+// fill flag is on but the service key required for projection reads is
+// missing. The route gracefully skips post-fill in this case (helper would
+// also no-op), but a missing key is silent otherwise.
+if (process.env.NANA_TOPIC_LENS_FACTS === 'on' && !process.env.SUPABASE_SERVICE_KEY) {
+  console.warn(
+    '[write-action] NANA_TOPIC_LENS_FACTS=on but SUPABASE_SERVICE_KEY is unset — ' +
+    'T4.19 post-confirm projector-fill will be skipped on every confirm.',
+  )
+}
+
+type AddRowBody          = { action: 'add_row';            message_id: string; proposal_id: string }
+type UndoRowBody         = { action: 'undo_add_row';       row_id: string }
+type RestoreRowBody      = { action: 'restore_row';        row_id: string }
+type AddToLetterBody     = { action: 'add_to_letter';      message_id: string; proposal_id: string }
 // Slice 6: lens write actions. Both call confirm_lens_from_proposal
 // under the hood; the lens_name_override lever is the only thing that
 // differs at the route layer.
-type CreateLensBody     = { action: 'create_lens';        message_id: string; proposal_id: string }
-type SaveViewAsLensBody = { action: 'save_view_as_lens';  message_id: string; proposal_id: string; lens_name: string }
-type Body = AddRowBody | UndoRowBody | RestoreRowBody | AddToLetterBody | CreateLensBody | SaveViewAsLensBody
+type CreateLensBody      = { action: 'create_lens';        message_id: string; proposal_id: string }
+type SaveViewAsLensBody  = { action: 'save_view_as_lens';  message_id: string; proposal_id: string; lens_name: string }
+// Slice 6.5: topic lens. Calls create_topic_lens which atomically
+// inserts a comparison_lenses row + N comparison_rows with
+// created_by_lens_id set + flips active_lens_id.
+type CreateTopicLensBody = { action: 'create_topic_lens';  message_id: string; proposal_id: string }
+type Body = AddRowBody | UndoRowBody | RestoreRowBody | AddToLetterBody | CreateLensBody | SaveViewAsLensBody | CreateTopicLensBody
 
 const UUID_RX        = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
 const PROPOSAL_ID_RX = /^[a-zA-Z0-9_-]{1,40}$/
@@ -75,7 +91,15 @@ function parseBody(raw: unknown): { body: Body | null; error?: string } {
     return { body: { action, message_id: o.message_id, proposal_id: o.proposal_id, lens_name: trimmed } }
   }
 
-  return { body: null, error: 'action must be add_row | undo_add_row | restore_row | add_to_letter | create_lens | save_view_as_lens' }
+  // Slice 6.5 — create_topic_lens: same shape as create_lens (no override).
+  // The RPC reads embedded_rows + base_lens_kind from the proposal.
+  if (action === 'create_topic_lens') {
+    if (typeof o.message_id !== 'string' || !UUID_RX.test(o.message_id))                return { body: null, error: 'message_id must be a UUID' }
+    if (typeof o.proposal_id !== 'string' || !PROPOSAL_ID_RX.test(o.proposal_id as string)) return { body: null, error: 'proposal_id must match ^[a-zA-Z0-9_-]{1,40}$' }
+    return { body: { action, message_id: o.message_id, proposal_id: o.proposal_id } }
+  }
+
+  return { body: null, error: 'action must be add_row | undo_add_row | restore_row | add_to_letter | create_lens | save_view_as_lens | create_topic_lens' }
 }
 
 async function getAuthClient() {
@@ -357,6 +381,127 @@ export async function POST(req: NextRequest) {
       }, { status: 409 })
     }
     console.error('[write-action] unexpected confirm_lens_from_proposal status:', status)
+    return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
+  }
+
+  // Slice 6.5 — create_topic_lens: atomic bundled write. Inserts
+  // comparison_lenses + N comparison_rows + flips active_lens_id.
+  if (body.action === 'create_topic_lens') {
+    const { data, error: rpcErr } = await supabase
+      .rpc('create_topic_lens', {
+        p_message_id:  body.message_id,
+        p_proposal_id: body.proposal_id,
+      })
+    if (rpcErr) return rpcErrorToResponse(rpcErr, 'create_topic_lens')
+
+    const result = Array.isArray(data) ? data[0] : data
+    if (!result) return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
+
+    const { lens_id, status, lens_data } = result as { lens_id: string | null; status: string; lens_data: unknown }
+
+    // T4.19 — post-confirm projector-fill for OLD topic-lens rows.
+    // Fires on fresh / merged / deduped (all idempotent). Reads back the
+    // lens's topic rows + the user's current shortlist, fills cells
+    // missing/null for slugs that have school_fact_projections data.
+    // Behind NANA_TOPIC_LENS_FACTS=on (also gates T4.18). Failures don't
+    // block the response — telemetry returned for dev observability.
+    //
+    // Codex r3: short-circuit BEFORE the 3 DB lookups + service client
+    // construction when the flag is off OR the service key is missing.
+    // The helper itself also flag-gates, but doing it here too makes the
+    // contract explicit and avoids 3 round-trips of wasted reads.
+    let post_fill: unknown = null
+    const t419_flag_on = process.env.NANA_TOPIC_LENS_FACTS === 'on'
+    const t419_service_key = process.env.SUPABASE_SERVICE_KEY
+    if (lens_id && t419_flag_on && t419_service_key &&
+        (status === 'fresh' || status === 'merged' || status === 'deduped')) {
+      try {
+        const { data: msg } = await supabase
+          .from('research_session_messages')
+          .select('session_id, parsed_answer')
+          .eq('id', body.message_id)
+          .maybeSingle()
+        const proposal = (msg?.parsed_answer as { proposed_actions?: Record<string, { topic_name?: unknown }> } | null)
+          ?.proposed_actions?.[body.proposal_id]
+        const topicName = typeof proposal?.topic_name === 'string' ? proposal.topic_name : null
+        if (topicName && msg?.session_id) {
+          const { data: ses } = await supabase
+            .from('research_sessions')
+            .select('child_id')
+            .eq('id', msg.session_id)
+            .maybeSingle()
+          if (ses?.child_id) {
+            const { data: short } = await supabase
+              .from('shortlisted_schools')
+              .select('school_slug')
+              .eq('user_id', user.id)
+              .eq('child_id', ses.child_id)
+            const slugs = (short ?? []).map((s) => s.school_slug as string)
+            if (slugs.length > 0) {
+              const { applyPostConfirmTopicLensFill } = await import('@/lib/server/topic-lens-post-confirm-fill')
+              // T4.19 needs a service-role client for the school_fact_projections
+              // SELECT — that table has RLS enabled with no user-scoped policy.
+              // Auth client stays on comparison_rows reads/updates (RLS allows owner).
+              // (Service key existence already guarded above.)
+              const supabaseService = createClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL!,
+                t419_service_key,
+              )
+              post_fill = await applyPostConfirmTopicLensFill(supabase, supabaseService, user.id, lens_id, topicName, slugs)
+              if (post_fill) {
+                const t = post_fill as Record<string, number>
+                console.log(
+                  `[write-action] T4.19 post-confirm fill — lens=${lens_id} status=${status} ` +
+                  `rows=${t.rows_examined} missing=${t.cells_missing} filled=${t.cells_filled} ` +
+                  `unfilled=${t.cells_unfilled} preserved=${t.cells_preserved} oversized=${t.rows_oversized_skipped} ` +
+                  `updated=${t.rows_updated} update_failed=${t.rows_update_failed} ` +
+                  `schools_with_pack=${t.schools_with_pack} schools_without_pack=${t.schools_without_pack}`,
+                )
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // Never block the user-facing response on a fill failure.
+        console.error('[write-action] T4.19 post-confirm fill threw:', e)
+      }
+    }
+
+    if (status === 'fresh') {
+      return NextResponse.json({ ok: true, status, lens_id, lens: lens_data, post_fill }, { status: 201 })
+    }
+    if (status === 'deduped') {
+      return NextResponse.json({ ok: true, status, lens_id, lens: lens_data, post_fill }, { status: 200 })
+    }
+    // Slice 6.6 Tier 2: same lens_name in same session + lens has topic
+    // rows → RPC merged the new schools' cells into existing topic rows
+    // (and INSERTed any rows whose names were new). lens_data carries a
+    // _merge_summary computed field with {rows_inserted, rows_updated}
+    // so the UI can render "Tennis lens refreshed: 4 updated, 1 added."
+    if (status === 'merged') {
+      const merge_summary =
+        lens_data && typeof lens_data === 'object' && '_merge_summary' in (lens_data as Record<string, unknown>)
+          ? (lens_data as Record<string, unknown>)._merge_summary
+          : null
+      return NextResponse.json({ ok: true, status, lens_id, lens: lens_data, merge_summary, post_fill }, { status: 200 })
+    }
+    if (status === 'duplicate_name') {
+      return NextResponse.json({
+        ok: false,
+        code: 'duplicate_name',
+        existing: lens_data,
+        existing_lens_id: lens_id,
+        suggest: ['rename', 'cancel'],
+      }, { status: 409 })
+    }
+    if (status === 'empty_after_resolution') {
+      return NextResponse.json({
+        ok: false,
+        code: 'empty_after_resolution',
+        detail: 'The topic-lens proposal has no rows to insert.',
+      }, { status: 409 })
+    }
+    console.error('[write-action] unexpected create_topic_lens status:', status)
     return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
   }
 

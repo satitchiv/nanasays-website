@@ -62,6 +62,14 @@ type Props = {
   // becomes active via loadActiveLens.
   canSaveAsLens?:      boolean
   onSaveAsLens?:       (lensName: string) => Promise<{ ok: boolean; code?: string; existingLensId?: string }>
+  // Slice 6.6 Tier 3 — bridge from ComparisonView's ↻ Refresh lens
+  // button. ResearchRoom updates this prop with a new nonce on each
+  // click; the chat reacts in a useEffect by submitting "Create a lens
+  // for <topicName>" through the regular ask() flow. Same pipeline as
+  // typing it manually — Nana emits a propose_create_topic_lens
+  // proposal, the user clicks confirm, the create_topic_lens RPC's
+  // MERGE branch (Tier 2) fills cells for any newly-shortlisted schools.
+  pendingRefreshTopicLens?: { topicName: string; nonce: number } | null
 }
 
 const DRAG_TAP_THRESHOLD = 5
@@ -79,6 +87,7 @@ function ChatBody({
   onConfirmAddRow,
   onApplyReRank,
   onAddToLetter,
+  onConfirmTopicLens,
   canSaveAsLens,
   onSaveAsLens,
   actionError,
@@ -90,6 +99,7 @@ function ChatBody({
   onConfirmAddRow:      (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
   onApplyReRank?:       (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
   onAddToLetter:        (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
+  onConfirmTopicLens?:  (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string; merged?: { rows_inserted: number; rows_updated: number } }>
   canSaveAsLens?:       boolean
   onSaveAsLens?:        (lensName: string) => Promise<{ ok: boolean; code?: string; existingLensId?: string }>
   actionError:          string | null
@@ -159,6 +169,7 @@ function ChatBody({
               onConfirmAddRow={onConfirmAddRow}
               onApplyReRank={onApplyReRank}
               onAddToLetter={onAddToLetter}
+              onConfirmTopicLens={onConfirmTopicLens}
             />
           </div>
         ))}
@@ -291,6 +302,7 @@ export default function ResearchRoomChat({
   onApplyReRank,
   canSaveAsLens    = false,
   onSaveAsLens,
+  pendingRefreshTopicLens = null,
 }: Props) {
   // One chat hook instance — but only ONE ChatBody (desktop OR mobile)
   // is mounted at a time so the hook's inputRef/chatEndRef attach to the
@@ -310,6 +322,96 @@ export default function ResearchRoomChat({
 
   const isMobile = useIsMobile()
   const router   = useRouter()
+
+  // Slice 6.6 Tier 3 — react to ComparisonView's ↻ Refresh lens click.
+  // Parent passes a {topicName, nonce} payload; the nonce changes on
+  // every click so back-to-back refreshes (same name) still re-fire.
+  // We synthesise "Create a lens for <topic>" through ask() and let
+  // the regular chat pipeline take over.
+  //
+  // Slice 6.6 Tier 3.5 — auto-confirm. After firing the ask, we mark
+  // the topic name as "awaiting auto-confirm". A second effect watches
+  // chat.messages; when a new message lands whose parsed answer carries
+  // a propose_create_topic_lens proposal matching the awaited topic,
+  // we fire onConfirmTopicLens(messageId, proposalId) ourselves so the
+  // user goes from one click (↻ Refresh) to merged-table without
+  // having to click the resulting pill. The post-merge page refresh
+  // populates msg.activeProposalIds and the bubble renders as ✓ via
+  // the server-truth path.
+  const lastRefreshNonceRef = useRef<number | null>(null)
+  // Slice 6.6 Tier 3.5 (Codex r1 P1/P2 #2 fix) — message-count watermark
+  // captured at submit-time. The auto-confirm watcher only inspects
+  // messages with index >= this watermark, so a stale matching proposal
+  // from an earlier refresh can't accidentally re-fire (or worse, silently
+  // disarm via the alreadyActive check). React 18 auto-batches the
+  // setIsStreaming(false) + setMessages append at use-nana-chat.ts:332-343
+  // into one render, but explicit watermark > implicit batching ordering.
+  const refreshMsgCountRef = useRef<number | null>(null)
+  const [pendingAutoConfirmTopic, setPendingAutoConfirmTopic] = useState<string | null>(null)
+  useEffect(() => {
+    if (!pendingRefreshTopicLens) return
+    if (lastRefreshNonceRef.current === pendingRefreshTopicLens.nonce) return
+    // Codex r1 P1 #1 fix: gate streaming BEFORE consuming the nonce so a
+    // refresh click during an in-flight stream isn't dropped permanently.
+    // Effect re-runs when chat.isStreaming flips false (chat object identity
+    // changes) and we'll fire then.
+    if (chat.isStreaming) return
+    lastRefreshNonceRef.current = pendingRefreshTopicLens.nonce
+    refreshMsgCountRef.current = chat.messages.length
+    setPendingAutoConfirmTopic(pendingRefreshTopicLens.topicName.trim().toLowerCase())
+    void chat.ask(`Create a lens for ${pendingRefreshTopicLens.topicName}`)
+  }, [pendingRefreshTopicLens, chat])
+
+  // Auto-confirm watcher. Stays disarmed until a refresh fires. Once
+  // armed, scans the latest messages for a propose_create_topic_lens
+  // proposal whose lens_name (lowercase, trimmed) matches the awaited
+  // topic. Fires onConfirmTopicLens once and disarms. Defensive against
+  // refreshes that fail mid-stream — Nana's response might not contain
+  // a matching proposal at all, in which case we just leave the pending
+  // state set; the next manual refresh will overwrite it.
+  useEffect(() => {
+    if (!pendingAutoConfirmTopic) return
+    if (chat.isStreaming) return
+    const messages = chat.messages
+    // Codex r1 P1/P2 #2 fix: only inspect messages that landed AFTER the
+    // refresh fired (watermark = messages.length captured at submit time).
+    // Without this, a stale matching proposal from an earlier refresh
+    // could disarm via the alreadyActive check before the new message
+    // appended.
+    const watermark = refreshMsgCountRef.current ?? 0
+    if (messages.length <= watermark) return
+    // Walk newest → oldest, stopping at the watermark. The relevant
+    // proposal is in the LATEST assistant turn that landed post-refresh.
+    type ProposalShape = { kind?: unknown; lens_name?: unknown }
+    for (let i = messages.length - 1; i >= watermark; i--) {
+      const m = messages[i]
+      const proposals = (((m.parsed as { proposed_actions?: Record<string, ProposalShape> } | null)?.proposed_actions) ?? {})
+      const alreadyActive = new Set(m.activeProposalIds ?? [])
+      let hit: { messageId: string; proposalId: string } | null = null
+      for (const [pid, prop] of Object.entries(proposals)) {
+        if (prop?.kind !== 'propose_create_topic_lens') continue
+        if (typeof prop.lens_name !== 'string') continue
+        if (prop.lens_name.trim().toLowerCase() !== pendingAutoConfirmTopic) continue
+        if (alreadyActive.has(pid)) {
+          // Our own confirm call landed and router.refresh re-rendered
+          // with the action stamped. Disarm without re-firing.
+          setPendingAutoConfirmTopic(null)
+          return
+        }
+        hit = { messageId: m.id, proposalId: pid }
+        break
+      }
+      if (hit) {
+        // Disarm BEFORE firing so the post-refresh re-render doesn't
+        // re-trigger us (router.refresh updates messages → effect runs
+        // again → activeProposalIds path catches it as already-active).
+        setPendingAutoConfirmTopic(null)
+        void onConfirmTopicLens(hit.messageId, hit.proposalId)
+        return
+      }
+      break  // Only inspect the most-recent post-watermark turn.
+    }
+  }, [pendingAutoConfirmTopic, chat.messages, chat.isStreaming])
 
   // Slice 5: confirm a "+ Add as row" proposal. Posts to write-action; on
   // success refreshes the page so loadComparisonData re-reads
@@ -362,6 +464,52 @@ export default function ResearchRoomChat({
     } catch (e) {
       console.error('[research-room add-to-letter]', e)
       setActionError('Network error while adding that note to the partner brief.')
+      return { ok: false, code: 'network' }
+    }
+  }
+
+  // Slice 6.5: confirm a "Create [topic] lens with N new rows" proposal.
+  // Same shape as onConfirmAddRow but routed at action='create_topic_lens'.
+  // The RPC inserts the lens + N rows + flips active_lens_id atomically;
+  // router.refresh() re-runs the page server fragment and the loader picks
+  // up the topic rows on the active lens.
+  //
+  // Slice 6.6 Tier 2: when the lens already exists with the same name and
+  // is a TOPIC lens, the RPC merges new schools' cells into existing rows
+  // instead of returning duplicate_name. Server returns status='merged'
+  // with merge_summary { rows_inserted, rows_updated }; we surface that to
+  // the button so the pill renders "<Lens> refreshed: N updated, M added".
+  async function onConfirmTopicLens(messageId: string, proposalId: string): Promise<{ ok: boolean; code?: string; merged?: { rows_inserted: number; rows_updated: number } }> {
+    try {
+      const res = await fetch('/api/research-room/write-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'create_topic_lens', message_id: messageId, proposal_id: proposalId }),
+      })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        const code = typeof j?.code === 'string' ? j.code : 'request_failed'
+        if (code === 'duplicate_name') {
+          setActionError('A lens with that name already exists in this session.')
+        } else if (code === 'empty_after_resolution') {
+          setActionError('This topic-lens proposal has no rows to insert.')
+        } else {
+          setActionError(`Could not create the topic lens (${code}).`)
+        }
+        return { ok: false, code }
+      }
+      const j = await res.json().catch(() => ({}))
+      setActionError(null)
+      router.refresh()
+      if (j?.status === 'merged' && j?.merge_summary &&
+          typeof j.merge_summary.rows_inserted === 'number' &&
+          typeof j.merge_summary.rows_updated === 'number') {
+        return { ok: true, merged: { rows_inserted: j.merge_summary.rows_inserted, rows_updated: j.merge_summary.rows_updated } }
+      }
+      return { ok: true }
+    } catch (e) {
+      console.error('[research-room write-action] create_topic_lens', e)
+      setActionError('Network error while creating the topic lens.')
       return { ok: false, code: 'network' }
     }
   }
@@ -527,7 +675,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         )}
       </aside>
@@ -598,7 +746,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         </>
       )}
@@ -607,15 +755,17 @@ export default function ResearchRoomChat({
 }
 
 // Slice 6 — chip rail above the chat input. Discoverable commands
-// surface three moves the parent can make on the comparison table:
-// add a row, re-rank, save the current view. The first two chips
-// PRE-FILL the input with phrasing the classifier already understands;
-// the parent finishes the sentence and hits send. The 'Save view' chip
-// is contextual — only enabled when an ephemeral pill-derived view is
-// active — and short-circuits the chat entirely: click → inline name
-// input → write-action POST → router.refresh. (The "Create a lens…"
-// chip was dropped at slice 6 close; Re-rank + Save view covers the
-// same flow without a separate proposal kind.)
+// surface FOUR moves the parent can make on the comparison table:
+// add a row, re-rank, create a topic lens, save the current view. The
+// first three chips PRE-FILL the input with phrasing the classifier
+// already understands; the parent finishes the sentence and hits send.
+// The 'Save view' chip is contextual — only enabled when an ephemeral
+// pill-derived view is active — and short-circuits the chat entirely:
+// click → inline name input → write-action POST → router.refresh.
+//
+// Slice 6.5 added the "Create lens for…" chip. Re-rank + Save view
+// alone don't cover the topic-lens flow (which surfaces NEW rows about
+// a specific topic, not a re-weighting of existing dimensions).
 function ChatActionsRail({
   disabled,
   canSaveAsLens,
@@ -663,6 +813,11 @@ function ChatActionsRail({
       <button type="button" className="rr-chat-rail-chip" disabled={disabled}
               onClick={() => onChipFill('Rank these by ')}>
         <span aria-hidden>↻</span> Re-rank by…
+      </button>
+      <button type="button" className="rr-chat-rail-chip rr-chat-rail-chip--topic-lens" disabled={disabled}
+              onClick={() => onChipFill('Create a lens for ')}
+              title="Build a focused mini-table around a specific topic (e.g. rugby, music, drama)">
+        <span aria-hidden>✦</span> Create lens for…
       </button>
       <button
         type="button"

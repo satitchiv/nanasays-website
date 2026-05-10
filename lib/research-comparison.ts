@@ -14,14 +14,18 @@ import { assertUserId } from './school-name-overrides'
 export type LensKind = 'general' | 'child_fit'
 
 type ComparisonRowDb = {
-  id:           string
-  row_name:     string
-  group_name:   string
-  weight:       number
-  cell_data:    Record<string, RowCellData> | null
-  sort_order:   number
-  lens_kind:    'general' | 'child_fit' | 'chat'
-  created_at:   string
+  id:                  string
+  row_name:            string
+  group_name:          string
+  weight:              number
+  cell_data:           Record<string, { value?: string | number | null; source?: string | null; note?: string }> | null
+  sort_order:          number
+  lens_kind:           'general' | 'child_fit' | 'chat'
+  // Slice 6.5: NULL for base/seed/chat rows; UUID of the parent topic
+  // lens for rows born inside `create_topic_lens`. The loader filters
+  // these out unless that lens IS the session's active lens.
+  created_by_lens_id:  string | null
+  created_at:          string
 }
 
 type RowCellData = {
@@ -53,13 +57,20 @@ type SchoolMeta = {
  * Empty shortlist → empty payload (schools=[], rows=[]).
  * Missing session → schools rendered, but no rows (the seeder runs on
  * the first chat — until then, comparison is read-only empty).
+ *
+ * Slice 6.5: `activeLensId` is the session's `active_lens_id` (or null).
+ * When non-null, rows belonging to that lens (`created_by_lens_id =
+ * activeLensId`) are included alongside base/seed/chat rows. When null
+ * (or when the active lens is a saved/re-rank lens that has no topic
+ * rows attached), all `created_by_lens_id IS NOT NULL` rows are hidden.
  */
 export async function loadComparisonData(
-  supabase:  SupabaseClient,
-  userId:    string,
-  childId:   string | null,
-  lens:      LensKind,
-  sessionId: string | null,
+  supabase:     SupabaseClient,
+  userId:       string,
+  childId:      string | null,
+  lens:         LensKind,
+  sessionId:    string | null,
+  activeLensId: string | null = null,
 ): Promise<ComparisonData> {
   assertUserId(userId, 'loadComparisonData')
 
@@ -151,20 +162,47 @@ async function loadSchoolColumns(
 
 // ─── Lens-aware row loader ──────────────────────────────────────────────────
 
+// Defensive UUID guard before string-interpolating into a PostgREST .or()
+// filter. activeLensId is read from the database in the caller, but the
+// regex check costs nothing and protects against future call sites that
+// might pass user-derived input.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 async function loadLensRows(
   supabase: SupabaseClient,
   sessionId: string,
   schools: SchoolColumn[],
   baseLens: LensKind,
+  activeLensId: string | null,
 ): Promise<ComparisonRow[]> {
-  // Read both the base lens AND chat rows in one query. The lens-scoped
-  // index idx_comparison_rows_session_lens_active backs this.
-  const { data: rowsRaw, error: rowsError } = await supabase
+  // Read base lens + chat rows in one query. The lens-scoped index
+  // idx_comparison_rows_session_lens_active backs this.
+  //
+  // Slice 6.5 visibility filter:
+  //   - No active lens (activeLensId NULL): hide all topic rows
+  //     (created_by_lens_id IS NULL only).
+  //   - Active lens set: include base/seed/chat (created_by_lens_id IS
+  //     NULL) AND any topic rows that belong to that specific lens
+  //     (created_by_lens_id = activeLensId). Saved/re-rank lenses have
+  //     zero topic rows attached, so the OR-clause is a no-op for them
+  //     and only base rows surface — same as pre-6.5.
+  let query = supabase
     .from('comparison_rows')
-    .select('id, row_name, group_name, weight, cell_data, sort_order, lens_kind, created_at')
+    .select('id, row_name, group_name, weight, cell_data, sort_order, lens_kind, created_by_lens_id, created_at')
     .eq('session_id', sessionId)
     .in('lens_kind', [baseLens, 'chat'])
     .is('undone_at', null)
+
+  if (activeLensId) {
+    if (!UUID_RE.test(activeLensId)) {
+      throw new Error(`loadLensRows: activeLensId is not a valid UUID`)
+    }
+    query = query.or(`created_by_lens_id.is.null,created_by_lens_id.eq.${activeLensId}`)
+  } else {
+    query = query.is('created_by_lens_id', null)
+  }
+
+  const { data: rowsRaw, error: rowsError } = await query
 
   if (rowsError) throw new Error(`comparison_rows read failed: ${rowsError.message}`)
 
