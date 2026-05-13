@@ -12,6 +12,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { supabaseService, verifyAdmin } from '@/lib/supabase-admin'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await verifyAdmin(req)
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })

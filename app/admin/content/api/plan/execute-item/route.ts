@@ -17,6 +17,8 @@ import path from 'path'
 import { tmpdir } from 'os'
 import { verifyAdmin, supabaseService } from '@/lib/supabase-admin'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 export const maxDuration = 30
 
 const ALBUM_CONCURRENCY = Math.max(parseInt(process.env.ALBUM_CONCURRENCY || '1', 10) || 1, 1)

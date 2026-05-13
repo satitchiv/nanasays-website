@@ -6,6 +6,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyAdmin, supabaseService } from '@/lib/supabase-admin'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 export async function GET(req: NextRequest) {
   const auth = await verifyAdmin(req)
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status })
