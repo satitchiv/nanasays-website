@@ -27,9 +27,11 @@ import { cookies, headers } from 'next/headers'
 import { z } from 'zod'
 import { isResearchRoomEnabled } from '@/lib/feature-flags'
 import { getUnlockedUser } from '@/lib/paid-status'
+import { checkRateLimit } from '@/lib/rateLimit'
 import { supabaseService } from '@/lib/supabase-admin'
 import { runInterviewTurn, type BuildModeMessage } from '@/lib/server/research-room/build-mode-interview'
 import {
+  BuildModeExtractionHTTPSchema,
   BuildModeProgressSchema,
   emptyProgress,
   type BuildModeExtractionHTTP,
@@ -74,43 +76,36 @@ function jsonError(status: number, code: string) {
 }
 
 // Pull only the writable fields out of the raw `children.child_profile`
-// JSONB so the interview engine sees what's known about the child but
-// nothing else (defence-in-depth — the JSONB may carry unrelated keys
-// from earlier slices).
+// JSONB and run them through the HTTP schema so caps + types are
+// enforced (Codex r5 P1.2 — defence-in-depth against a poisoned
+// child_profile that could inject very large strings/arrays into the
+// prompt context).
+//
+// Two-step:
+//   1. Key allowlist (drops every key not on FIELD_KEYS).
+//   2. Schema parse (rejects oversize strings, oversize arrays, wrong
+//      types, bad enum values).
+// Failure on either step yields an empty profile — the interview just
+// starts the parent at zero state.
+const WRITABLE_PROFILE_KEYS = [
+  'personality_notes',
+  'anchors_notes',
+  'academic_notes',
+  'goals_notes',
+  'child_wants',
+  'nonnegotiables',
+  'goal_orientation',
+  'interests_sports',
+  'interests_arts',
+] as const
+
 function extractWritableProfile(profile: Record<string, unknown>): Partial<BuildModeExtractionHTTP> {
-  const out: Partial<BuildModeExtractionHTTP> = {}
-  if (typeof profile.personality_notes === 'string') out.personality_notes = profile.personality_notes
-  if (typeof profile.anchors_notes     === 'string') out.anchors_notes     = profile.anchors_notes
-  if (typeof profile.academic_notes    === 'string') out.academic_notes    = profile.academic_notes
-  if (typeof profile.goals_notes       === 'string') out.goals_notes       = profile.goals_notes
-  if (typeof profile.child_wants       === 'string') out.child_wants       = profile.child_wants
-  if (Array.isArray(profile.nonnegotiables)) {
-    const arr = profile.nonnegotiables.filter((s): s is string => typeof s === 'string')
-    if (arr.length > 0) out.nonnegotiables = arr
+  const filtered: Record<string, unknown> = {}
+  for (const k of WRITABLE_PROFILE_KEYS) {
+    if (k in profile && profile[k] != null) filtered[k] = profile[k]
   }
-  const go = profile.goal_orientation
-  if (go === 'university_track' || go === 'discovery' || go === 'sport_career') {
-    out.goal_orientation = go
-  }
-  if (Array.isArray(profile.interests_sports)) {
-    const arr = profile.interests_sports.filter(
-      (e: unknown): e is { sport: string; level: string } =>
-        !!e && typeof e === 'object' &&
-        typeof (e as Record<string, unknown>).sport === 'string' &&
-        typeof (e as Record<string, unknown>).level === 'string',
-    )
-    if (arr.length > 0) out.interests_sports = arr
-  }
-  if (Array.isArray(profile.interests_arts)) {
-    const arr = profile.interests_arts.filter(
-      (e: unknown): e is { art: string; level: string } =>
-        !!e && typeof e === 'object' &&
-        typeof (e as Record<string, unknown>).art   === 'string' &&
-        typeof (e as Record<string, unknown>).level === 'string',
-    )
-    if (arr.length > 0) out.interests_arts = arr
-  }
-  return out
+  const parsed = BuildModeExtractionHTTPSchema.safeParse(filtered)
+  return parsed.success ? parsed.data : {}
 }
 
 export async function POST(req: NextRequest) {
@@ -123,6 +118,10 @@ export async function POST(req: NextRequest) {
 
   const { isPaid } = await getUnlockedUser()
   if (!isPaid) return jsonError(402, 'payment_required')
+
+  // Codex r5 P1.1: reuse the 'chat' bucket (20 req / 10 min / IP) so
+  // Build Mode shares quota with regular Nana chat. Same per-IP scope.
+  if (!checkRateLimit(req, 'chat')) return jsonError(429, 'rate_limited')
 
   let body: z.infer<typeof RequestSchema>
   try {
@@ -230,9 +229,14 @@ export async function POST(req: NextRequest) {
           diff:        merge.diff,
         })
 
+        // Codex r5 P1.3: do NOT emit a fabricated shareToken. Build Mode
+        // turns are not persisted yet, so a synthesised token would point
+        // at a non-existent research_session_messages row — clicking the
+        // "Share" affordance in the chat bubble would 404. Session 3
+        // wires real persistence + a real DB-issued shareToken.
         send({
-          type:       'final',
-          shareToken: crypto.randomUUID(),
+          type:      'final',
+          shareToken: null,
           payload: {
             parsed:     null,
             raw:        proseAccum,
