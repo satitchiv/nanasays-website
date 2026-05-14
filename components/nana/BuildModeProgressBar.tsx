@@ -169,12 +169,12 @@ export default function BuildModeProgressBar({ state, onBuildTableNow }: Props) 
         })}
       </div>
       {learnedFields.length > 0 && (
-        <div className="rr-build-progress-learned">
+        <div className="rr-build-progress-learned" aria-live="polite">
           Nana learned: <strong>{learnedFields.join(', ')}</strong>
         </div>
       )}
       {learnedFields.length === 0 && lastDiff && lastDiff.refused.length > 0 && (
-        <div className="rr-build-progress-learned">
+        <div className="rr-build-progress-learned" aria-live="polite">
           Nana noted you’d rather skip those questions — moving on.
         </div>
       )}
