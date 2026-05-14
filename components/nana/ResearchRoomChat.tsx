@@ -304,12 +304,23 @@ export default function ResearchRoomChat({
   onSaveAsLens,
   pendingRefreshTopicLens = null,
 }: Props) {
+  // Slice 8 Build 3 session 2: when Build Mode is active, route to the
+  // dedicated /api/research-room/build-mode/turn endpoint instead of
+  // the regular /api/nana-research. The build-mode route is fully
+  // isolated from nana-brain.js (Codex r1 #12: avoid Anthropic fallback).
+  // The endpoint switches live on each render — useNanaChat reads it
+  // via ref so the same ask() closure picks up the change next call.
+  const chatEndpoint = buildMode
+    ? '/api/research-room/build-mode/turn'
+    : '/api/nana-research'
+
   // One chat hook instance — but only ONE ChatBody (desktop OR mobile)
   // is mounted at a time so the hook's inputRef/chatEndRef attach to the
   // visible surface. See useIsMobile + the gated branches below.
   const chat = useNanaChat({
     initialSession,
     initialMessages,
+    endpoint: chatEndpoint,
     getServerParams: () => ({
       activeTab:        'compare',
       activeSchoolSlug: null,
