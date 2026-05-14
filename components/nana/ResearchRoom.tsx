@@ -643,6 +643,7 @@ export default function ResearchRoom({
         </main>
 
         <ResearchRoomChat
+          key={`${activeChildId ?? 'none'}:${initialSession?.id ?? 'none'}`}
           state={chatState}
           buildMode={buildMode}
           onCollapse={handleCollapseChat}
