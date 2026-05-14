@@ -225,11 +225,18 @@ export async function POST(req: NextRequest) {
   // turn's prose lives under `sections.short_answer` so the existing
   // chat bubble renders it without special-casing (see page.tsx:474 —
   // `parsed_answer` is mapped directly to ParsedAnswer for rendering).
+  // Codex r6 P1 — finalize messages also carry `build_mode` (with
+  // `finalize: true`); excluding them keeps the interview LLM from
+  // seeing its own table-proposal turn as another Q/A pair on the
+  // next interview turn.
   const recentBuildModeMsgs = (recentMsgs ?? [])
     .filter(m => {
       if (!m || typeof m !== 'object') return false
       const pa = (m as { parsed_answer?: unknown }).parsed_answer
-      return !!pa && typeof pa === 'object' && (pa as Record<string, unknown>).build_mode != null
+      if (!pa || typeof pa !== 'object') return false
+      const bm = (pa as Record<string, unknown>).build_mode
+      if (bm == null || typeof bm !== 'object') return false
+      return (bm as Record<string, unknown>).finalize !== true
     })
     .reverse()   // oldest → newest for prompt order
 

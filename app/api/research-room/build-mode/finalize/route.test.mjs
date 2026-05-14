@@ -21,6 +21,10 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 
 const src = readFileSync(new URL('./route.ts', import.meta.url), 'utf8')
+const schemasSrc = readFileSync(
+  new URL('../../../../../lib/server/research-room/build-mode-schemas.ts', import.meta.url),
+  'utf8',
+)
 
 // ── Auth + gates ─────────────────────────────────────────────────────
 
@@ -129,6 +133,33 @@ test('finalize: cell_data array → Record<slug,…> conversion before persist',
   // record keyed by slug. Conversion happens server-side before insert.
   assert.match(src, /cell_data: Record<string,/)
   assert.match(src, /for \(const item of p\.cell_data\)/)
+})
+
+// ── Codex r6 P1 — hallucination defence-in-depth ────────────────────
+
+test('finalize r6: rejects any response carrying an off-shortlist slug', () => {
+  // Filter alone silently drops off-list slugs but a hallucinated slug
+  // is evidence the response can't be trusted; reject the whole thing.
+  assert.match(src, /offListSlugs/)
+  assert.match(src, /offListSlugs\.length > 0/)
+  assert.match(src, /off-shortlist slug/)
+})
+
+test('finalize r6: re-checks MIN_PROPOSALS after the shortlist filter', () => {
+  // The pre-filter check catches under-count from the LLM; the post-
+  // filter check covers the case where all of a proposal's cell_data
+  // was off-list and got dropped, silently reducing persisted count.
+  assert.match(src, /Object\.keys\(proposed_actions\)\.length < MIN_PROPOSALS/)
+  assert.match(src, /after filtering/)
+})
+
+test('finalize r6: cell_data value/source/note schema is z.literal(null)', () => {
+  // Prompt instructs the LLM that verdict rows MUST NOT invent per-school
+  // facts; schema enforces it so a hallucinated string fails extraction
+  // up-front rather than persisting silently into the comparison view.
+  assert.match(schemasSrc, /value:\s*z\.literal\(null\)/)
+  assert.match(schemasSrc, /source:\s*z\.literal\(null\)/)
+  assert.match(schemasSrc, /note:\s*z\.literal\(null\)/)
 })
 
 // ── Persistence + render shape ───────────────────────────────────────

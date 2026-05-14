@@ -231,11 +231,18 @@ export type BuildModeProgress = z.infer<typeof BuildModeProgressSchema>
 // structured output doesn't support z.record's `additionalProperties`
 // pattern; the route converts the array → record before persisting).
 
+// Codex r6 P1 — the finalize prompt instructs the LLM that every cell
+// value/source/note MUST be null (verdict prose calls out shortlist
+// schools but never invents per-school facts). Enforcing that in the
+// schema with z.literal(null) makes a hallucinated string value fail
+// extraction up-front rather than silently persisting as a "fact" on
+// the comparison row. The route copies these straight into the persisted
+// proposed_actions, so any non-null path here is a regression vector.
 const FinalizeCellDataItemSchema = z.object({
   slug:   z.string().min(1).max(120),
-  value:  z.union([z.string().max(400), z.number()]).nullable(),
-  source: z.string().max(400).nullable(),
-  note:   z.string().max(400).nullable(),
+  value:  z.literal(null),
+  source: z.literal(null),
+  note:   z.literal(null),
 }).strict()
 
 export const BuildModeFinalizeProposalSchema = z.object({

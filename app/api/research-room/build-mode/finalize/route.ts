@@ -309,13 +309,18 @@ export async function POST(req: NextRequest) {
           weight?:    number
           cell_data:  Record<string, { value: string | number | null; source?: string | null; note?: string }>
         }> = {}
+        // Codex r6 P1 — track off-list cell_data slugs. The defence-in-
+        // depth filter below silently drops them, but a hallucinated slug
+        // is evidence the response can't be trusted; reject the whole
+        // response rather than persist a degraded subset.
+        const offListSlugs: string[] = []
         for (const p of proposalsRaw) {
           const cell_data: Record<string, { value: string | number | null; source?: string | null; note?: string }> = {}
           for (const item of p.cell_data) {
-            // Drop any slug the LLM emitted that isn't actually in the
-            // shortlist — defence in depth against prompt-injection
-            // attempting to insert rows for off-list schools.
-            if (!shortlistSlugs.includes(item.slug)) continue
+            if (!shortlistSlugs.includes(item.slug)) {
+              offListSlugs.push(item.slug)
+              continue
+            }
             cell_data[item.slug] = {
               value:  item.value,
               source: item.source,
@@ -330,6 +335,20 @@ export async function POST(req: NextRequest) {
             ...(p.weight != null ? { weight: p.weight } : {}),
             cell_data,
           }
+        }
+
+        // Codex r6 P1 — reject hallucinated off-list slugs entirely.
+        if (offListSlugs.length > 0) {
+          send({ type: 'error', error: `Finalize emitted ${offListSlugs.length} off-shortlist slug(s); rejecting response.` })
+          return
+        }
+        // Codex r6 P1 — post-filter proposal count guard. The pre-filter
+        // check above catches under-count from the LLM directly; this
+        // covers the case where all of a proposal's cell_data was off-
+        // list and got dropped, silently reducing the persisted count.
+        if (Object.keys(proposed_actions).length < MIN_PROPOSALS) {
+          send({ type: 'error', error: `Finalize retained ${Object.keys(proposed_actions).length} proposals after filtering; expected ≥ ${MIN_PROPOSALS}` })
+          return
         }
 
         // Persist + log. Parallel with the turn route's pattern.

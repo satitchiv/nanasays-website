@@ -166,8 +166,18 @@ test('route: final event omits fake shareToken on insert failure (Codex r5 P1.3)
 test('route: history filters to messages with build_mode marker only', () => {
   // Filter excludes regular-chat messages so the LLM's history slot
   // stays on-topic. Renames in either direction would be a regression
-  // worth flagging.
-  assert.match(src, /\.build_mode != null/)
+  // worth flagging. Codex r6 P1: filter now also drops finalize
+  // messages (build_mode.finalize === true) so the interview LLM
+  // doesn't see its own table-proposal turn replayed as Q/A.
+  assert.match(src, /\.build_mode\b/)
+  assert.match(src, /\.finalize !== true/)
+})
+
+test('route r6: excludes finalize messages from interview history', () => {
+  // The finalize endpoint writes parsed_answer.build_mode = { finalize: true, … }.
+  // Without this guard, the next interview turn would replay the table-
+  // proposal text as another Q/A pair and try to "extract" from it.
+  assert.match(src, /finalize !== true/)
 })
 
 test('route: history HISTORY_LIMIT cap is in scope (prompt-size guard)', () => {

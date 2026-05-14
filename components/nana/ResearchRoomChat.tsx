@@ -298,7 +298,12 @@ function ChatBody({
         className="rr-chat-input"
         onSubmit={e => { e.preventDefault(); ask() }}
       >
-        {(messages.length > 0 || isStreaming) && (
+        {(messages.length > 0 || isStreaming) && !buildMode && (
+          // Codex r6 P1 — startNewConversation() clears the chat
+          // hook's session, but the Build Mode turn route requires
+          // sessionId to be a UUID. Hiding the affordance in Build
+          // Mode prevents the parent from getting wedged mid-
+          // interview; the Skip button is the right exit instead.
           <button
             type="button"
             className="rr-chat-new-btn"
