@@ -2,6 +2,7 @@ import 'server-only'
 import crypto from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ComparisonData, ComparisonRow, RowCell } from '@/components/nana/comparison-placeholder'
+import { rowTopic, type RowTopic } from './row-topic'
 
 export type ResearchVerdictRankedSchool = {
   slug: string
@@ -561,41 +562,105 @@ function scoreSchools(data: ComparisonData, rubric: Rubric, lensWeightsByRowId?:
     school.evidenceThin = school.totalCells > 0 && school.evidenceCells / school.totalCells < 0.4
   }
 
+  // Slice 8 Build 4 (2026-05-14): group clustered rows by rowTopic() so
+  // a topic with N rows contributes ONE strongest positive + ONE
+  // strongest negative delta per school — not N independent deltas.
+  // Kills the row-count bias (19 rugby rows used to dominate 3 chess
+  // rows even at equal per-row weight). Verified on Theo's verdict:
+  // rugby strength mentions cut 4 → 2; top-4 ranking preserved.
+  //
+  // Implementation notes:
+  // - Category for the topic is taken from the first row in the topic.
+  //   By construction `rowCategory()` collapses rugby/tennis/cricket
+  //   all to 'sport', so every row in `rowTopic='rugby'` shares
+  //   `rowCategory='sport'`. Same for academics-* → 'academics', etc.
+  // - Missing-evidence penalties also funnel through "strongest negative"
+  //   per topic. A school missing 5 rugby rows previously got 5× the
+  //   penalty; now it gets one composite missing signal per topic. The
+  //   `evidenceThin` flag (set in the coverage pre-pass above) still
+  //   catches poor-coverage schools globally and triggers downstream
+  //   reservation copy via applyEvidenceThinAnnotation.
+  // - `applyDelta()` preserves the existing category-level cap, so a
+  //   sport-priority parent's sport category still tops out at 11.
+  //
+  // Deferred to follow-up (Build 4.5 / Build 5 narrative):
+  // - Revealed-preference multiplier (proportion of rows per topic).
+  // - "Stated vs revealed divergence" callout in verdict prose.
+  type Candidate = { delta: number; signalText: string; rawValue: string }
+  const rowsByTopic = new Map<RowTopic, ComparisonRow[]>()
   for (const row of clustered) {
-    const category = rowCategory(row.label)
-    const direction = rowDirection(row.label)
-    const weight = rowWeight(row, category, rubric, lensWeightForRow(row, lensWeightsByRowId))
-    const rowValues = row.cells.map(cellText)
-    const numericValues = rowValues.map(value => value ? numericSignal(value, row.label) : null)
-    const finiteNumbers = numericValues.filter((n): n is number => n != null && Number.isFinite(n))
-    const min = finiteNumbers.length ? Math.min(...finiteNumbers) : null
-    const max = finiteNumbers.length ? Math.max(...finiteNumbers) : null
+    const topic = rowTopic(row.label)
+    const list = rowsByTopic.get(topic) ?? []
+    list.push(row)
+    rowsByTopic.set(topic, list)
+  }
 
-    rowValues.forEach((value, idx) => {
-      const school = scored[idx]
-      if (!school) return
+  // Array.from() to avoid TS2802 (Map iteration needs downlevelIteration
+  // or es2015+ target — tsconfig.json isn't ours to bump in this commit).
+  for (const [, topicRows] of Array.from(rowsByTopic.entries())) {
+    const category = rowCategory(topicRows[0].label)
+    const perSchoolPos: (Candidate | null)[] = scored.map(() => null)
+    const perSchoolNeg: (Candidate | null)[] = scored.map(() => null)
 
-      if (!value) {
-        // Soften the per-row missing-evidence penalty for schools with
-        // already-thin coverage so they aren't double-punished.
-        const baseMissing = weight >= 2 ? -0.22 : -0.08
-        const missing = school.evidenceThin ? baseMissing * 0.4 : baseMissing
-        applyDelta(school, category, missing * weight, `${row.label}: evidence missing`, '', rubric)
-        return
-      }
+    for (const row of topicRows) {
+      const direction = rowDirection(row.label)
+      const weight = rowWeight(row, category, rubric, lensWeightForRow(row, lensWeightsByRowId))
+      const rowValues = row.cells.map(cellText)
+      const numericValues = rowValues.map(value => value ? numericSignal(value, row.label) : null)
+      const finiteNumbers = numericValues.filter((n): n is number => n != null && Number.isFinite(n))
+      const min = finiteNumbers.length ? Math.min(...finiteNumbers) : null
+      const max = finiteNumbers.length ? Math.max(...finiteNumbers) : null
 
-      let delta = qualitativeScore(value, row.label, category, rubric) * weight
-      const n = numericValues[idx]
-      if (direction !== 'text' && n != null && min != null && max != null && max !== min) {
-        const normalised = (n - min) / (max - min)
-        const numericDelta = direction === 'lower'
-          ? (0.5 - normalised) * 2
-          : (normalised - 0.5) * 2
-        delta += numericDelta * weight
-      }
-      delta += budgetAdjustment(value, row.label, rubric) * weight
+      rowValues.forEach((value, idx) => {
+        const school = scored[idx]
+        if (!school) return
 
-      applyDelta(school, category, delta, summarizeSignal(row.label, value), value, rubric)
+        let candidate: Candidate
+        if (!value) {
+          // Soften the missing-evidence penalty for schools with already-thin
+          // coverage so they aren't double-punished (carried over from per-row).
+          const baseMissing = weight >= 2 ? -0.22 : -0.08
+          const missing = school.evidenceThin ? baseMissing * 0.4 : baseMissing
+          candidate = {
+            delta: missing * weight,
+            signalText: `${row.label}: evidence missing`,
+            rawValue: '',
+          }
+        } else {
+          let delta = qualitativeScore(value, row.label, category, rubric) * weight
+          const n = numericValues[idx]
+          if (direction !== 'text' && n != null && min != null && max != null && max !== min) {
+            const normalised = (n - min) / (max - min)
+            const numericDelta = direction === 'lower'
+              ? (0.5 - normalised) * 2
+              : (normalised - 0.5) * 2
+            delta += numericDelta * weight
+          }
+          delta += budgetAdjustment(value, row.label, rubric) * weight
+          candidate = {
+            delta,
+            signalText: summarizeSignal(row.label, value),
+            rawValue: value,
+          }
+        }
+
+        if (candidate.delta > 0) {
+          if (!perSchoolPos[idx] || candidate.delta > perSchoolPos[idx]!.delta) {
+            perSchoolPos[idx] = candidate
+          }
+        } else if (candidate.delta < 0) {
+          if (!perSchoolNeg[idx] || candidate.delta < perSchoolNeg[idx]!.delta) {
+            perSchoolNeg[idx] = candidate
+          }
+        }
+      })
+    }
+
+    scored.forEach((school, idx) => {
+      const pos = perSchoolPos[idx]
+      const neg = perSchoolNeg[idx]
+      if (pos) applyDelta(school, category, pos.delta, pos.signalText, pos.rawValue, rubric)
+      if (neg) applyDelta(school, category, neg.delta, neg.signalText, neg.rawValue, rubric)
     })
   }
 
@@ -855,7 +920,10 @@ export function buildResearchVerdictDraft(args: BuildArgs): { inputHash: string;
   }
 
   const hashPayload = {
-    version: 2,
+    // version 3: Slice 8 Build 4 — topic-grouped scoring (strongest +
+    // and strongest - per (topic, school)). Bumped from 2 so cached
+    // verdicts re-generate against the new algorithm.
+    version: 3,
     sessionId: args.sessionId,
     childId: args.childId,
     activeLensId: args.activeLensId ?? null,
