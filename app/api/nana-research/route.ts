@@ -67,6 +67,24 @@ function answerPreview(parsed: any, max = 200): string {
   return parsed.sections?.short_answer ?? ''
 }
 
+// Slice 8 Step 0.5 v5: grapheme-safe truncation. Used for first-message
+// title backfill so emoji/combining marks don't get split mid-character.
+function truncateGrapheme(s: string, max: number): string {
+  if (s.length <= max) return s
+  try {
+    const seg = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+    const segments = Array.from(seg.segment(s), ({ segment }) => segment)
+    let out = ''
+    for (const segment of segments) {
+      if (out.length + segment.length > max) break
+      out += segment
+    }
+    return out
+  } catch {
+    return s.slice(0, max)
+  }
+}
+
 function buildParentContext(profile: Record<string, string | boolean | null>): string | null {
   const parts: string[] = []
   if (profile.child_year)    parts.push(`child entering ${profile.child_year}`)
@@ -174,13 +192,35 @@ export async function POST(req: NextRequest) {
     // this child").
     const { data: sess } = await supabase
       .from('research_sessions')
-      .select('id, child_id')
+      .select('id, title, child_id')
       .eq('id', incomingSessionId)
       .eq('user_id', user.id)
-      .maybeSingle<{ id: string; child_id: string | null }>()
+      .maybeSingle<{ id: string; title: string | null; child_id: string | null }>()
 
     if (sess && sess.child_id === activeChildId) {
       sessionId = sess.id
+      // Slice 8 Step 0.5 v5: backfill title on first message for sessions
+      // created by ensure_research_session_for_child (which leaves title NULL).
+      // Grapheme-safe truncation handles emoji + combining marks.
+      // r4 P2 #3: await the update inside try/catch — `void supabase.update()`
+      // is a no-op because the query builder is thenable and never starts.
+      if (sess.title === null && question) {
+        const titleCandidate = truncateGrapheme(question.trim(), 80)
+        if (titleCandidate.length > 0) {
+          try {
+            const { error: titleErr } = await supabase
+              .from('research_sessions')
+              .update({ title: titleCandidate })
+              .eq('id', sess.id)
+              .eq('user_id', user.id)
+            if (titleErr) {
+              console.error('[nana-research] title backfill failed', titleErr)
+            }
+          } catch (e) {
+            console.error('[nana-research] title backfill threw', e)
+          }
+        }
+      }
     } else {
       if (!activeChildId) {
         return jsonError(400, 'Add or select a child before starting a research session.')

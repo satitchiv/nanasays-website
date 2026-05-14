@@ -2615,6 +2615,21 @@
   /* gridTemplateColumns set inline */
 }
 
+/* Slice 8 Step 0.6: section header rendered between groups of rows whose
+   group_name changes. Suppressed for the 'general' default group. Spans
+   the full grid via inline gridColumn: '1 / -1' on the element. */
+.rr-section-header {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--rr-muted);
+  padding: 18px 20px 8px;
+  border-bottom: 1px solid var(--rr-border);
+  background: var(--rr-white);
+}
+
 .rr-cmp-corner {
   padding: 18px 20px;
   border-right: 1px solid var(--rr-border);

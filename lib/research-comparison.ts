@@ -233,16 +233,17 @@ async function loadLensRows(
 
   return filtered.map(r => {
     const cells: RowCell[] = schools.map(col => cellFromRaw(r.cell_data?.[col.slug], false))
-    // group_name lives on the row in the DB but isn't shown next to every
-    // label — repeating "Pastoral" / "Academics" alongside each row is
-    // visual noise. Section-header rendering can use group_name later.
-    // emphasis stays available for finer per-row qualifiers (e.g. "annual",
-    // "A-level") set by chat proposals; seeded specs leave it unset.
+    // group_name lives on the row in the DB. Slice 8 Step 0.6: surface it to
+    // the client so ComparisonView can render section headers between
+    // groups. emphasis stays available for finer per-row qualifiers
+    // (e.g. "annual", "A-level") set by chat proposals; seeded specs leave
+    // it unset.
     return {
-      id:        `cmp-${r.id}`,
-      label:     r.row_name,
+      id:         `cmp-${r.id}`,
+      label:      r.row_name,
       cells,
-      removable: r.lens_kind === 'chat',
+      removable:  r.lens_kind === 'chat',
+      group_name: r.group_name ?? null,
     }
   })
 }
@@ -278,6 +279,7 @@ async function loadVerdictRows(
     ids: string[]
     cells: RowCell[]
     firstOrder: number
+    group_name: string | null
   }
 
   const merged = new Map<string, MergedRow>()
@@ -291,6 +293,9 @@ async function loadVerdictRows(
         ids: [row.id],
         cells: incomingCells,
         firstOrder: idx,
+        // Slice 8 Step 0.6: first-seen row wins (sorted by lens priority +
+        // sort_order, so the highest-priority group_name surfaces).
+        group_name: row.group_name ?? null,
       })
       return
     }
@@ -302,10 +307,11 @@ async function loadVerdictRows(
   return Array.from(merged.values())
     .sort((a, b) => a.firstOrder - b.firstOrder)
     .map(row => ({
-      id: `cmp-${row.ids.join('|')}`,
-      label: row.label,
-      cells: row.cells,
-      removable: false,
+      id:         `cmp-${row.ids.join('|')}`,
+      label:      row.label,
+      cells:      row.cells,
+      removable:  false,
+      group_name: row.group_name,
     }))
 }
 

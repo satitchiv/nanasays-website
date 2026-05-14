@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
@@ -106,6 +106,14 @@ type Props = {
 // affordance.
 function customRowDbId(rowId: string): string {
   return rowId.replace(/^cmp-/, '')
+}
+
+// Slice 8 Step 0.6: human-readable label for a comparison_rows.group_name.
+// 'general' is suppressed at the call site so it never reaches this helper.
+function prettyGroupName(g: string): string {
+  if (g === 'child-specific')   return 'For your child'
+  if (g.startsWith('seeded-'))  return `Topic: ${g.slice(7)}`
+  return g.replace(/-/g, ' ')
 }
 
 export default function ComparisonView({
@@ -670,17 +678,39 @@ function SortableTableBody({
       modifiers={[restrictToVerticalAxis, restrictToParentElement]}
     >
       <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
-        {rows.map(row => (
-          <SortableRow
-            key={row.id}
-            row={row}
-            schools={schools}
-            gridTemplateColumns={gridTemplateColumns}
-            onRemove={row.removable ? onRemove : null}
-            removing={pendingRemoveId === row.id}
-            isDragEnabled={Boolean(onReorderRows)}
-          />
-        ))}
+        {rows.map((row, idx) => {
+          // Slice 8 Step 0.6: section header when group_name changes between
+          // adjacent rows. 'general' is suppressed because it's the default
+          // unscoped group and a header would just be visual noise. The
+          // header is a sibling of SortableRow inside a Fragment — it is
+          // NOT a member of SortableContext's items array, so dnd-kit will
+          // not attempt to drag it.
+          const prevGroup  = idx > 0 ? rows[idx - 1].group_name ?? null : null
+          const showHeader = Boolean(row.group_name)
+                          && row.group_name !== prevGroup
+                          && row.group_name !== 'general'
+          return (
+            <Fragment key={row.id}>
+              {showHeader && (
+                <div
+                  role="presentation"
+                  className="rr-section-header"
+                  style={{ gridColumn: '1 / -1' }}
+                >
+                  {prettyGroupName(row.group_name!)}
+                </div>
+              )}
+              <SortableRow
+                row={row}
+                schools={schools}
+                gridTemplateColumns={gridTemplateColumns}
+                onRemove={row.removable ? onRemove : null}
+                removing={pendingRemoveId === row.id}
+                isDragEnabled={Boolean(onReorderRows)}
+              />
+            </Fragment>
+          )
+        })}
       </SortableContext>
     </DndContext>
   )

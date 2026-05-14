@@ -24,6 +24,9 @@ export type ComparisonRow = {
   // affordance — slice 5.5f-bis — would be needed before making them
   // user-removable). Defaults to false.
   removable?: boolean
+  // Slice 8 Step 0.6: optional group_name lets ComparisonView render
+  // section headers (e.g. "For your child") between groups of rows.
+  group_name?: string | null
 }
 
 export type ComparisonData = {

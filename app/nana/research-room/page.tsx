@@ -143,6 +143,17 @@ export default async function ResearchRoomPage({
 
   if (user && activeChildId) {
     const svc = supabaseService()
+
+    // Slice 8 Step 0.5 v5: hoist context load before session lookup so
+    // the ensure-gate and the seed block share one read (r4 NIT #6).
+    let shortlistCtx: Awaited<ReturnType<typeof loadShortlistContext>> | null = null
+    try {
+      shortlistCtx = await loadShortlistContext(svc, user.id, activeChildId)
+    } catch (e) {
+      console.error('[research-room loadShortlistContext]', e)
+      // Non-fatal — fall through; page renders without seeded rows.
+    }
+
     const { data: sessions } = await svc
       .from('research_sessions')
       .select('id, title, summary, created_at, last_active_at, active_lens_id')
@@ -160,23 +171,41 @@ export default async function ResearchRoomPage({
         last_active_at: sessions[0].last_active_at,
       }
       activeLensId = (sessions[0].active_lens_id as string | null) ?? null
-    }
-
-    // Load shortlist context once. Both the seeder and (in future) the
-    // child-fit cell-builder consume it.
-    let ctx: Awaited<ReturnType<typeof loadShortlistContext>> | null = null
-    try {
-      ctx = await loadShortlistContext(svc, user.id, activeChildId)
-    } catch (e) {
-      console.error('[research-room loadShortlistContext]', e)
+    } else if (shortlistCtx && shortlistCtx.slugs.length > 0) {
+      // Slice 8 Step 0.5: parent has a shortlist but no session yet — ensure
+      // one exists via the service-role RPC so the page renders seeded rows
+      // on first arrival instead of waiting for the first chat message.
+      const { data: ensuredId, error: ensureErr } = await svc.rpc('ensure_research_session_for_child', {
+        p_user_id:  user.id,
+        p_child_id: activeChildId,
+      })
+      if (ensureErr) {
+        console.error('[research-room ensure_research_session_for_child]', ensureErr)
+      } else if (ensuredId) {
+        const { data: ensured } = await svc
+          .from('research_sessions')
+          .select('id, title, summary, created_at, last_active_at, active_lens_id')
+          .eq('id', ensuredId as string)
+          .maybeSingle()
+        if (ensured) {
+          initialSession = {
+            id:             ensured.id,
+            title:          ensured.title,
+            summary:        ensured.summary as import('@/lib/nana/types').DecisionSummary | null,
+            created_at:     ensured.created_at,
+            last_active_at: ensured.last_active_at,
+          }
+          activeLensId = (ensured.active_lens_id as string | null) ?? null
+        }
+      }
     }
 
     // Seed only when there's an active session AND a non-empty shortlist.
     // Brand-new users without a session yet get an empty comparison until
     // their first chat lazily creates the session.
-    if (initialSession && ctx && ctx.slugs.length > 0) {
+    if (initialSession && shortlistCtx && shortlistCtx.slugs.length > 0) {
       try {
-        await seedResearchSession(svc, user.id, initialSession.id, ctx)
+        await seedResearchSession(svc, user.id, initialSession.id, shortlistCtx)
       } catch (e) {
         console.error('[research-room seedResearchSession]', e)
       }
