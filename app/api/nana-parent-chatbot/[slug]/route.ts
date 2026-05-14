@@ -216,6 +216,12 @@ export async function POST(
           signal: ac.signal,
           devilsAdvocate,
           parentContext,
+          // P1 eval integrity (Codex 2026-05-15): when the dev-bypass header
+          // is honoured, force decoding temperature to 0 so the grader's
+          // baseline is reproducible. Real users never trigger this branch
+          // (NODE_ENV !== 'development' OR missing env vars OR no header),
+          // so production sampling is unchanged.
+          ...(isDevBypass ? { temperature: 0 } : {}),
         })) {
           if (ac.signal.aborted) break
 
