@@ -11,6 +11,13 @@ import {
 // failure) leaves last-cycle's interpretation paired with this-cycle's
 // notes for one refresh.
 import { notesHash, type NotesInput } from './interpret-child-notes'
+// Slice 8 Build 2 r1: write match_reasons alongside the initial shortlist
+// rows so the "Added because: …" column header has data from day one.
+// Codex r1 P1 #3: this is the actual onboarding-to-shortlist path; without
+// wiring here, the JSONB column stays null on the very rows that matter
+// most.
+import { loadMatchReasonsBatch, type MatchReasonsRecord } from './research-room/match-reasons'
+import type { BriefProfile } from './research-room/brief-predicates'
 
 // Auto-recommend shortlist after onboarding completes.
 //
@@ -30,52 +37,12 @@ const GBP_TO_USD = 1.27
 
 // schools.region values are very granular (90+ UK locations + London
 // neighborhoods). Bucket them into the 7 onboarding regions. 'England' is
-// included in every UK bucket because some schools are coarsely tagged at
-// country level — we'd rather over-include than drop them.
-const REGION_BUCKETS: Record<string, string[]> = {
-  'london': [
-    'London', 'Greater London',
-    'Hammersmith', 'Brook Green', 'South Kensington',
-    'Royal Borough of Kensington and Chelsea',
-    'Notting Hill, Royal Borough of Kensington and Chelsea',
-    'Marylebone, Central London',
-    'North West London, Camden',
-    'Wimbledon', 'Wandsworth', 'Battersea',
-    'Richmond', 'Barnes and Kew', 'Bromley', 'Kentish Town', 'E10',
-  ],
-  'south-east': [
-    'Berkshire', 'West Berkshire', 'Buckinghamshire',
-    'Hampshire', 'Hertfordshire',
-    'Kent', 'Kent/Sussex borders', 'Dartford',
-    'Surrey', 'East Sussex', 'West Sussex',
-    'Oxfordshire', 'South Oxfordshire',
-    'Bedfordshire', 'Middlesex', 'Essex', 'Isle of Wight',
-  ],
-  'south-west': [
-    'Bristol', 'Cornwall', 'Devon', 'Dorset',
-    'Gloucestershire', 'Somerset', 'North Somerset', 'Wiltshire',
-  ],
-  'midlands': [
-    'Derbyshire', 'Herefordshire', 'Leicestershire', 'Lincolnshire',
-    'Northamptonshire', 'Nottinghamshire', 'Rutland',
-    'Shropshire', 'Staffordshire', 'South Staffordshire',
-    'Warwickshire', 'West Midlands', 'Worcestershire',
-  ],
-  'north': [
-    'Cheshire', 'Cumbria', 'County Durham', 'Greater Manchester',
-    'Lancashire', 'Merseyside', 'Northumberland',
-    'East Yorkshire', 'North Yorkshire', 'West Yorkshire', 'Yorkshire',
-  ],
-  'scotland-wales': [
-    'Scotland', 'Wales', 'Northern Ireland',
-    'Angus', 'Argyll and Bute', 'Clackmannanshire', 'East Lothian',
-    'Fife', 'Moray', 'Perthshire', 'Stirling',
-    'Carmarthenshire', 'Conwy', 'Denbighshire', 'Monmouthshire',
-    'Powys', 'South Wales', 'Vale of Glamorgan',
-    'Co Down', 'County Tyrone',
-  ],
-  'overseas': [],
-}
+// Region buckets — canonical source moved to lib/uk-regions.ts in Build 2 r2
+// so the recommender's filter and the match-reasons gate share one map.
+// REGION_BUCKETS is re-exported here as a mutable string[][] to preserve
+// the historical signature used inside this file (e.g. .concat() patterns).
+import { REGION_BUCKETS as SHARED_REGION_BUCKETS } from './uk-regions'
+const REGION_BUCKETS: Record<string, readonly string[]> = SHARED_REGION_BUCKETS
 
 const BUDGET_CEILING_USD: Record<string, number | null> = {
   'under-30k': Math.round(30000 * GBP_TO_USD),
@@ -635,13 +602,23 @@ export async function recommendShortlist(
     return { added: [], reason: mapped }
   }
 
+  // Slice 8 Build 2 r1: compute match_reasons in batch using the same brief
+  // profile pickTopSchoolSlugs just used. Best-effort — failure here logs
+  // and proceeds to upsert without reasons.
+  const reasonsBySlug = await loadReasonsForBriefScope(supabase, userId, childId, pick.slugs)
+
   // Upsert with ignoreDuplicates — the (user_id, child_id, school_slug)
   // UNIQUE NULLS NOT DISTINCT constraint backstops any race window.
-  const rows = pick.slugs.map(slug => ({
-    user_id: userId,
-    school_slug: slug,
-    child_id: childId,
-  }))
+  const rows = pick.slugs.map(slug => {
+    const row: { user_id: string; school_slug: string; child_id: string | null; match_reasons?: unknown } = {
+      user_id: userId,
+      school_slug: slug,
+      child_id: childId,
+    }
+    const reasons = reasonsBySlug.get(slug)
+    if (reasons) row.match_reasons = reasons
+    return row
+  })
   const { error: insertError } = await supabase
     .from('shortlisted_schools')
     .upsert(rows, { onConflict: 'user_id,child_id,school_slug', ignoreDuplicates: true })
@@ -651,4 +628,43 @@ export async function recommendShortlist(
     return { added: [], reason: 'insert_failed' }
   }
   return { added: pick.slugs, reason: 'inserted' }
+}
+
+// ── Internal helper: load brief + delegate to shared match-reasons batch.
+//   childId-aware: when childId is set we read children.child_profile;
+//   otherwise we read parent_profiles. Mirrors pickTopSchoolSlugs' read
+//   shape so the same fields are available.
+async function loadReasonsForBriefScope(
+  supabase: SupabaseClient,
+  userId:   string,
+  childId:  string | null,
+  slugs:    string[],
+): Promise<Map<string, MatchReasonsRecord>> {
+  if (slugs.length === 0) return new Map()
+
+  let profile: BriefProfile | null = null
+  try {
+    if (childId) {
+      const { data } = await supabase
+        .from('children')
+        .select('child_profile')
+        .eq('id', childId)
+        .eq('user_id', userId)
+        .maybeSingle<{ child_profile: BriefProfile | null }>()
+      profile = data?.child_profile ?? null
+    } else {
+      const { data } = await supabase
+        .from('parent_profiles')
+        .select('home_region, boarding_pref, budget_range, curriculum_pref, top_priority, class_size_pref, sen_need, ethos_pref, lgbtq_pref, pastoral_pref')
+        .eq('id', userId)
+        .maybeSingle<BriefProfile>()
+      profile = data ?? null
+    }
+  } catch (e) {
+    console.warn('[recommendShortlist] profile load for reasons failed:', e)
+    return new Map()
+  }
+
+  if (!profile) return new Map()
+  return loadMatchReasonsBatch(supabase, profile, slugs)
 }

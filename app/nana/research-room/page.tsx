@@ -205,7 +205,15 @@ export default async function ResearchRoomPage({
     // their first chat lazily creates the session.
     if (initialSession && shortlistCtx && shortlistCtx.slugs.length > 0) {
       try {
-        await seedResearchSession(svc, user.id, initialSession.id, shortlistCtx)
+        // Slice 8 Build 2: pass the active child's brief so the seeder can
+        // emit child-specific rows (sport-strength, IB, pastoral, etc.) in
+        // addition to the 18 general rows. Profile is `null` when the user
+        // has no children records — seeder falls back to general-only.
+        const seedingChild = children.find(c => c.id === activeChildId) ?? null
+        const briefProfile = (seedingChild?.child_profile ?? null) as
+          | import('@/lib/research-room/brief-predicates').BriefProfile
+          | null
+        await seedResearchSession(svc, user.id, initialSession.id, shortlistCtx, briefProfile)
       } catch (e) {
         console.error('[research-room seedResearchSession]', e)
       }

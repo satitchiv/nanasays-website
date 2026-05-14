@@ -11,6 +11,11 @@ import {
   type NotesInput,
   type ProfileContext,
 } from '@/lib/interpret-child-notes'
+import {
+  loadMatchReasonsBatch,
+  type MatchReasonsRecord,
+} from '@/lib/research-room/match-reasons'
+import type { BriefProfile } from '@/lib/research-room/brief-predicates'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -160,20 +165,62 @@ export async function POST(
     })
   }
 
+  // Slice 8 Build 2 r1: compute match_reasons per (child, school) pair via
+  // the shared batch helper. Best-effort — failure logs and proceeds with
+  // a reason-less upsert.
+  let reasonsBySlug: Map<string, MatchReasonsRecord> = new Map()
+  try {
+    reasonsBySlug = await loadMatchReasonsBatch(svc, profile as BriefProfile, pick.slugs)
+  } catch (e) {
+    console.warn('[refresh-recommendations] match_reasons compute failed:', e)
+  }
+
   // Upsert new rows first (idempotent thanks to NULLS NOT DISTINCT
   // unique constraint), THEN delete stale rows not in the new set. The
   // user's shortlist always has rows during the swap.
-  const upsertRows = pick.slugs.map(slug => ({
-    user_id: user.id,
-    school_slug: slug,
-    child_id: id,
-  }))
+  const upsertRows = pick.slugs.map(slug => {
+    const row: { user_id: string; school_slug: string; child_id: string; match_reasons?: unknown } = {
+      user_id: user.id,
+      school_slug: slug,
+      child_id: id,
+    }
+    const reasons = reasonsBySlug.get(slug)
+    if (reasons) row.match_reasons = reasons
+    return row
+  })
   const { error: upsertErr } = await svc
     .from('shortlisted_schools')
     .upsert(upsertRows, { onConflict: 'user_id,child_id,school_slug', ignoreDuplicates: true })
   if (upsertErr) {
     console.error('[POST refresh-recommendations] upsert failed:', upsertErr.message)
     return NextResponse.json({ error: 'insert_failed' }, { status: 500 })
+  }
+
+  // Build 2 r1 (Codex P1 #2): null-only backfill UPDATE.
+  //
+  // `ignoreDuplicates: true` above means existing (user_id, child_id,
+  // school_slug) rows are SKIPPED entirely — their match_reasons column
+  // stays null even when we just computed a fresh value. Without this
+  // pass, every shortlist row added before Build 2 shipped never gets
+  // reasons populated.
+  //
+  // Per-slug UPDATE with `.is('match_reasons', null)` so we don't
+  // overwrite reasons a parent might already have (preserves "richer
+  // reason set" if any). N is at most 6 (top recommendations cap), so
+  // sequential awaits are fine here.
+  for (const slug of pick.slugs) {
+    const reasons = reasonsBySlug.get(slug)
+    if (!reasons) continue
+    const { error: backfillErr } = await svc
+      .from('shortlisted_schools')
+      .update({ match_reasons: reasons })
+      .eq('user_id', user.id)
+      .eq('child_id', id)
+      .eq('school_slug', slug)
+      .is('match_reasons', null)
+    if (backfillErr) {
+      console.warn('[POST refresh-recommendations] match_reasons backfill failed:', slug, backfillErr.message)
+    }
   }
 
   // Delete stale rows: same (user, child) but NOT in the new slug set.
@@ -195,3 +242,4 @@ export async function POST(
     interpretation: interpretationStatus,
   })
 }
+

@@ -1,16 +1,30 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { KNOWN_FULL_BOARDING_NAMES, normalizeSchoolName } from '@/lib/school-name-overrides'
+import {
+  type BriefProfile,
+  isIbCurriculum,
+  isSportPriority,
+} from './brief-predicates'
+import { canonicalJson } from './canonical-json'
 
-// Slice 5.5d — General-lens row seeder.
+// Slice 5.5d / Slice 8 Build 2 — General-lens row seeder.
 //
 // On first load of a Research Room session, populate ~18 universally-relevant
 // rows so the comparison table never starts empty. Re-runs are idempotent
 // because every spec carries a stable seed key (seed:v1:general:<slug>) and
 // the database-level partial unique on (session_id, idempotency_key) skips
-// duplicate inserts. Soft-deleted rows stay deleted across re-seeds — the
-// idempotency match short-circuits the INSERT before the lens-scoped
-// active-name unique index gets a vote.
+// duplicate inserts.
+//
+// Slice 8 Build 2 added brief-aware specs (`seed:v1:general:brief_<slug>`)
+// gated on the parent's child_profile, plus reconcileSeededRows() which
+// runs BEFORE the RPC to (a) soft-delete brief rows whose gate is no
+// longer satisfied, (b) refresh cell_data on existing rows so they
+// reflect the latest shortlist (the RPC's ON CONFLICT DO NOTHING would
+// otherwise leave them stale), and (c) reactivate previously-soft-deleted
+// brief rows when the brief re-gates them. Manual user-soft-deletes can
+// therefore be reactivated by a brief change — see the Codex r2 Q1 note
+// in reconcileSeededRows.
 //
 // Trust model: this module is `server-only` and the RPC it calls
 // (seed_research_session_rows) is GRANTed only to service_role. Cell content
@@ -315,6 +329,62 @@ function buildSchoolView(_: SeedContext): CellValue | null {
   return null  // not extracted yet
 }
 
+// ─── Brief-aware cell builders (Slice 8 Build 2) ────────────────────────────
+//
+// These cells fire only when the parent's brief gates them on. They surface
+// data from sports_profile.<sport>.competitive_tier / strength_signals and
+// from school_facts when the topic-score columns are populated. Cells return
+// null when their underlying field is empty — the row still seeds (so the
+// topic appears in Build 4's weighting) but renders '—' for that school.
+
+function sportTierCell(
+  struct: StructuredRow | null,
+  sportKey: 'rugby' | 'tennis' | 'cricket' | 'hockey' | 'football' | 'netball',
+): CellValue | null {
+  const sport = (struct?.sports_profile as Record<string, unknown> | null | undefined)?.[sportKey]
+  if (!sport || typeof sport !== 'object') return null
+  const obj = sport as Record<string, unknown>
+  const tier = obj.competitive_tier
+  if (typeof tier !== 'string' || !tier.trim()) return null
+  // Most cells benefit from a fixture-count hint when present (e.g. tennis
+  // shows team counts via SOCS discovery). Keep the cell compact: tier label
+  // as the primary value, optional fixture count in note.
+  const teams = obj.team_count ?? obj.teams ?? obj.fixtures_count
+  const note = typeof teams === 'number' && teams > 0 ? `${teams} teams` : undefined
+  return { value: tier.charAt(0).toUpperCase() + tier.slice(1), note, source: `sports_profile.${sportKey}` }
+}
+
+function buildRugbyStrength({ struct }: SeedContext): CellValue | null {
+  return sportTierCell(struct, 'rugby')
+}
+function buildTennisStrength({ struct }: SeedContext): CellValue | null {
+  return sportTierCell(struct, 'tennis')
+}
+function buildCricketStrength({ struct }: SeedContext): CellValue | null {
+  return sportTierCell(struct, 'cricket')
+}
+function buildHockeyStrength({ struct }: SeedContext): CellValue | null {
+  return sportTierCell(struct, 'hockey')
+}
+function buildFootballStrength({ struct }: SeedContext): CellValue | null {
+  return sportTierCell(struct, 'football')
+}
+
+function buildIbOffered({ struct }: SeedContext): CellValue | null {
+  // Schools that offer the IB will have either an exam_results.ib block
+  // populated or an admissions_format.curriculum hint. Keep it boolean
+  // until Slice 8 follow-up wires the avg-points cell.
+  const ib = (struct?.exam_results as Record<string, unknown> | null | undefined)?.ib
+  if (ib && typeof ib === 'object') {
+    const points = (ib as Record<string, unknown>).avg_points
+    if (typeof points === 'number' && points > 0) {
+      return { value: `${points} avg`, note: 'IB diploma', source: 'exam_results.ib' }
+    }
+    return { value: 'Offered', source: 'exam_results.ib' }
+  }
+  return null
+}
+
 // ─── Spec list ──────────────────────────────────────────────────────────────
 // sort_order uses 100, 200, 300, ... so future specs can slot between
 // existing values without renumbering the whole list.
@@ -342,6 +412,54 @@ const GENERAL_SPECS: SeedRowSpec[] = [
   { slug: 'school_view',           row_name: 'School view',                 group_name: 'Media',      sort_order: 1800, build: buildSchoolView },
 ]
 
+// ─── Brief-aware specs (Slice 8 Build 2) ────────────────────────────────────
+//
+// Each spec has a gate(profile) predicate. Specs fire only when their gate
+// returns true for the parent's brief. Group name is 'child-specific' so the
+// loader renders them in the "For your child" section (header wired in
+// Slice 8 Step 5, commit 7e9b934). sort_order starts at 50 — brief rows
+// appear ABOVE the general rows so the parent sees personalised data first.
+//
+// Idempotency: rows carry `seed:v1:general:brief_<slug>` keys. The
+// `seed:v1:general:` prefix is required by the RPC validator (the
+// lens_kind segment must match the spec's `lens_kind`, which is 'general'
+// here because brief rows share the general lens). Brief origin is
+// encoded as `brief_` inside the slug portion. The slug-collision
+// reservation is enforced by `seed-rows-keys.test.mjs` (no GENERAL_SPECS
+// slug starts with `brief_`).
+
+type BriefSeedRowSpec = SeedRowSpec & {
+  gate: (profile: BriefProfile) => boolean
+}
+
+// Build 2 r1 (Codex Q8): drop topic-only specs that have no cell builders
+// wired today (pastoral_depth, sen_support, inclusive_culture, weekend_programme,
+// music_programme, drama_programme). They previously seeded rows full of '—'
+// and added UX noise without surfacing comparable data. When the loader
+// learns to read school_facts.pastoral_care_score / inclusive_culture_score
+// AND `extracurricular`-style fields, re-introduce them with real builders.
+const BRIEF_SPECS: BriefSeedRowSpec[] = [
+  // Sport priority — 5 sport-strength rows so the parent sees which schools
+  // shine where. Cell builders read sports_profile.<sport>.competitive_tier.
+  { slug: 'rugby_strength',    row_name: 'Rugby strength',    group_name: 'child-specific', sort_order:  50, gate: isSportPriority, build: buildRugbyStrength },
+  { slug: 'tennis_strength',   row_name: 'Tennis strength',   group_name: 'child-specific', sort_order:  60, gate: isSportPriority, build: buildTennisStrength },
+  { slug: 'cricket_strength',  row_name: 'Cricket strength',  group_name: 'child-specific', sort_order:  70, gate: isSportPriority, build: buildCricketStrength },
+  { slug: 'hockey_strength',   row_name: 'Hockey strength',   group_name: 'child-specific', sort_order:  80, gate: isSportPriority, build: buildHockeyStrength },
+  { slug: 'football_strength', row_name: 'Football strength', group_name: 'child-specific', sort_order:  90, gate: isSportPriority, build: buildFootballStrength },
+
+  // Curriculum — IB diploma offered / avg points.
+  { slug: 'ib_offered',        row_name: 'IB diploma',        group_name: 'child-specific', sort_order: 100, gate: isIbCurriculum, build: buildIbOffered },
+]
+
+/**
+ * Filter BRIEF_SPECS to the ones that fire for this profile. Exported as a
+ * pure function so unit tests can assert spec selection without a DB.
+ */
+export function briefSpecsForProfile(profile: BriefProfile | null): BriefSeedRowSpec[] {
+  if (!profile) return []
+  return BRIEF_SPECS.filter(spec => spec.gate(profile))
+}
+
 // ─── Public entrypoint ──────────────────────────────────────────────────────
 
 type ShortlistContext = {
@@ -362,10 +480,12 @@ export async function seedResearchSession(
   userId:   string,
   sessionId: string,
   ctx: ShortlistContext,
+  profile: BriefProfile | null = null,
 ): Promise<{ inserted: number } | null> {
   if (ctx.slugs.length === 0) return { inserted: 0 }
 
-  const specs = GENERAL_SPECS.map(spec => {
+  // Build per-school cell_data for a single spec.
+  const buildCells = (spec: SeedRowSpec): CellData => {
     const cell_data: CellData = {}
     for (const slug of ctx.slugs) {
       const meta = ctx.schoolMap.get(slug)
@@ -375,16 +495,72 @@ export async function seedResearchSession(
       if (cell == null || cell.value == null || cell.value === '') continue
       cell_data[slug] = cell
     }
-    return {
-      idempotency_key: `seed:v1:general:${spec.slug}`,
-      lens_kind:       'general',
-      row_name:        spec.row_name,
-      group_name:      spec.group_name,
-      weight:          spec.weight ?? 1.0,
-      sort_order:      spec.sort_order,
-      cell_data,
-    }
-  })
+    return cell_data
+  }
+
+  const generalSpecs = GENERAL_SPECS.map(spec => ({
+    idempotency_key: `seed:v1:general:${spec.slug}`,
+    lens_kind:       'general',
+    row_name:        spec.row_name,
+    group_name:      spec.group_name,
+    weight:          spec.weight ?? 1.0,
+    sort_order:      spec.sort_order,
+    cell_data:       buildCells(spec),
+  }))
+
+  // Brief-aware specs fire only when the parent's profile gates them on.
+  // Profile is null for legacy/anonymous flows — no brief rows in that case.
+  //
+  // Key prefix stays `seed:v1:general:` so the existing seed_research_session_rows
+  // RPC validator (which requires the lens_kind segment to match the spec's
+  // `lens_kind`) accepts them. Brief origin is encoded in the slug as `brief_`.
+  // Slug format: brief_<slug> stays within the [a-zA-Z0-9_-]{1,40} cap.
+  const briefSpecs = briefSpecsForProfile(profile).map(spec => ({
+    idempotency_key: `seed:v1:general:brief_${spec.slug}`,
+    lens_kind:       'general',
+    row_name:        spec.row_name,
+    group_name:      spec.group_name,
+    weight:          spec.weight ?? 1.0,
+    sort_order:      spec.sort_order,
+    cell_data:       buildCells(spec),
+  }))
+
+  const specs = [...briefSpecs, ...generalSpecs]
+
+  // Build 2 r1/r2/r3: seeded-row reconcile.
+  //
+  // Three categories of existing seeded rows on every seed pass:
+  //   1. SOFT-DELETE — row exists, key NOT in current spec set, currently
+  //      active → set undone_at = now. (Brief-only in practice; general
+  //      specs don't churn.)
+  //   2. REFRESH — row exists, key IN current spec set, currently active →
+  //      rewrite cell_data + row_name + group/sort/weight from fresh spec
+  //      so cells reflect the latest shortlist + struct data. Without this,
+  //      ON CONFLICT DO NOTHING in the RPC means existing rows keep stale
+  //      cells when the shortlist grows.
+  //   3. REACTIVATE — row exists, key IN current spec set, currently
+  //      undone → clear undone_at AND rewrite cell_data.
+  //
+  // r3 P1: reconcile applies to BOTH brief and general seeded rows. A
+  // pre-existing bug affected general rows: when the shortlist grew,
+  // existing Location/Fees/GCSE rows didn't get cells for the new column
+  // because the RPC's ON CONFLICT DO NOTHING short-circuited the insert.
+  // Sharing the reconcile path for both row classes is the cleanest fix.
+  //
+  // user_id filter on the reads (r2 Q6 defense-in-depth — service-role
+  // already bypasses RLS but adds a clean ownership predicate).
+  //
+  // Caveat (brief-only): today we cannot distinguish "system soft-delete
+  // (brief changed)" from "user soft-delete (parent dismissed the row from
+  // the UI)". The reactivate path can therefore bring a parent-dismissed
+  // row back when their brief later re-gates the spec. Tracked as a
+  // Build 2 v1 known limitation; the fix is a new `undone_reason` column
+  // (deferred to a Build 3 follow-up). See Codex r2 Q1.
+  try {
+    await reconcileSeededRows(supabase, userId, sessionId, specs)
+  } catch (e) {
+    console.error('[seedResearchSession reconcile]', e)
+  }
 
   const { data, error } = await supabase.rpc('seed_research_session_rows', {
     p_user_id:    userId,
@@ -401,6 +577,132 @@ export async function seedResearchSession(
 
   const row = Array.isArray(data) ? data[0] : data
   return { inserted: typeof row?.inserted_count === 'number' ? row.inserted_count : 0 }
+}
+
+/**
+ * Reconcile seeded rows (general + brief) with the parent's CURRENT brief
+ * and shortlist.
+ *
+ * specs: the freshly-built spec payloads (cell_data already computed
+ *   against the current shortlist + struct data). Pass general + brief
+ *   together — the reconcile loop treats them uniformly.
+ *
+ * For each existing seeded row on this session/user (identified by the
+ * `seed:v1:general:` idempotency-key prefix):
+ *   - key NOT in spec set + active → soft-delete
+ *   - key IN  spec set + active    → refresh cell_data/metadata
+ *   - key IN  spec set + undone    → reactivate AND refresh cell_data
+ *
+ * Best-effort: any single update failure logs and proceeds.
+ *
+ * r3 P1: previously this only handled brief rows. Extended to general
+ * rows so the "shortlist grew, existing rows have empty cells for the
+ * new column" bug also gets fixed.
+ */
+type SeededSpecPayload = {
+  idempotency_key: string
+  row_name:        string
+  group_name:      string
+  weight:          number
+  sort_order:      number
+  cell_data:       CellData
+}
+
+async function reconcileSeededRows(
+  supabase: SupabaseClient,
+  userId:   string,
+  sessionId: string,
+  specs:    SeededSpecPayload[],
+): Promise<void> {
+  // LIKE pattern matches all `seed:v1:general:*` rows (both brief and
+  // general — brief rows are `seed:v1:general:brief_<slug>` per the
+  // RPC-validator-compatible namespacing).
+  //
+  // r3 Q2: select cell_data + metadata too so the loop can skip no-op
+  // UPDATEs (most page loads find nothing changed). Avoids ~23 write
+  // round-trips per render when the shortlist + brief are stable.
+  const { data, error } = await supabase
+    .from('comparison_rows')
+    .select('id, idempotency_key, undone_at, row_name, group_name, weight, sort_order, cell_data')
+    .eq('session_id', sessionId)
+    .eq('user_id', userId)
+    .like('idempotency_key', 'seed:v1:general:%')
+
+  if (error || !data) return
+
+  const specByKey = new Map(specs.map(s => [s.idempotency_key, s]))
+  type Row = {
+    id: string
+    idempotency_key: string
+    undone_at: string | null
+    row_name: string
+    group_name: string
+    weight: number
+    sort_order: number
+    cell_data: CellData
+  }
+  const rows = data as Row[]
+
+  const toSoftDelete: string[] = []
+  const toRefresh:    Array<{ id: string; spec: SeededSpecPayload; reactivate: boolean }> = []
+
+  for (const row of rows) {
+    const spec = specByKey.get(row.idempotency_key)
+    if (!spec) {
+      // Row whose key is no longer in the active spec set — soft-delete
+      // (only fires for brief rows in practice; general specs don't
+      // churn between page loads).
+      if (row.undone_at == null) toSoftDelete.push(row.id)
+      continue
+    }
+    // Skip no-op refreshes. If the row is active AND every refreshable
+    // field already matches the spec's value, there's nothing to write.
+    // Reactivation (undone → active) ALWAYS triggers a write so cells
+    // are guaranteed fresh after the parent re-engages.
+    const reactivate = row.undone_at != null
+    const unchanged =
+      !reactivate &&
+      row.row_name   === spec.row_name &&
+      row.group_name === spec.group_name &&
+      Number(row.weight)     === spec.weight &&
+      row.sort_order === spec.sort_order &&
+      // r4 P3 fix: Postgres jsonb does NOT preserve object key order on
+      // round-trips. Comparing with plain JSON.stringify would flag
+      // semantically-equal rows as "changed" whenever Postgres serialized
+      // keys in a different order than our build loop. Use canonicalJson
+      // (recursive key-sort) to get a stable byte-level representation.
+      canonicalJson(row.cell_data) === canonicalJson(spec.cell_data)
+    if (unchanged) continue
+    toRefresh.push({ id: row.id, spec, reactivate })
+  }
+
+  if (toSoftDelete.length > 0) {
+    const { error: delErr } = await supabase
+      .from('comparison_rows')
+      .update({ undone_at: new Date().toISOString() })
+      .in('id', toSoftDelete)
+    if (delErr) console.warn('[reconcileSeededRows soft-delete]', delErr.message)
+  }
+
+  // Sequential per-row UPDATEs — N is at most |GENERAL_SPECS| + |BRIEF_SPECS|
+  // (~23 today). Most page loads find every row unchanged via the
+  // canonicalJson diff above, so N tends toward 0 in practice. When the
+  // shortlist or brief actually changes, N = number of affected rows.
+  for (const { id, spec, reactivate } of toRefresh) {
+    const patch: Record<string, unknown> = {
+      row_name:   spec.row_name,
+      group_name: spec.group_name,
+      weight:     spec.weight,
+      sort_order: spec.sort_order,
+      cell_data:  spec.cell_data,
+    }
+    if (reactivate) patch.undone_at = null
+    const { error: updErr } = await supabase
+      .from('comparison_rows')
+      .update(patch)
+      .eq('id', id)
+    if (updErr) console.warn('[reconcileSeededRows refresh]', spec.idempotency_key, updErr.message)
+  }
 }
 
 /**

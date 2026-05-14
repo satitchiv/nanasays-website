@@ -3,6 +3,9 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies, headers } from 'next/headers'
 import { isResearchRoomEnabled } from '@/lib/feature-flags'
 import { getUnlockedUser } from '@/lib/paid-status'
+import { supabaseService } from '@/lib/supabase-admin'
+import { loadMatchReasonsBatch } from '@/lib/research-room/match-reasons'
+import type { BriefProfile } from '@/lib/research-room/brief-predicates'
 
 // POST /api/research-room/shortlist
 //
@@ -121,6 +124,17 @@ export async function POST(req: NextRequest) {
     // school_slug name colliding with the table column).
     const { out_slug, out_status } = result as { out_slug: string; out_status: string }
     if (out_status === 'added' || out_status === 'already_present') {
+      // Build 2 r1 (Codex P2 #6) + r2 Q5: compute match_reasons and write
+      // via a null-only UPDATE. Runs on BOTH 'added' (fresh row) AND
+      // 'already_present' — the UPDATE's `.is('match_reasons', null)`
+      // clause means prior non-null reasons are preserved, so it's safe
+      // to re-fire on already_present to backfill null rows. Best-effort:
+      // failure logs and doesn't affect the user-facing response.
+      try {
+        await writeMatchReasonsForInRoomAdd(user.id, body.child_id, out_slug)
+      } catch (e) {
+        console.warn('[research-room/shortlist] match_reasons write failed:', e)
+      }
       return NextResponse.json({ ok: true, status: out_status, school_slug: out_slug }, { status: out_status === 'added' ? 201 : 200 })
     }
     console.error('[research-room/shortlist] unexpected add status:', out_status)
@@ -144,4 +158,38 @@ export async function POST(req: NextRequest) {
   }
   console.error('[research-room/shortlist] unexpected remove status:', out_status)
   return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
+}
+
+// ── Slice 8 Build 2 r1: read child_profile, compute match_reasons for the
+// one slug just added, write via null-only UPDATE so a parent's prior
+// reasons (if any) aren't clobbered. Uses service-role for the read+write
+// because the RPC owns the row insert and we just want a post-write
+// annotation.
+async function writeMatchReasonsForInRoomAdd(
+  userId:  string,
+  childId: string,
+  slug:    string,
+): Promise<void> {
+  const svc = supabaseService()
+  const { data: childRow } = await svc
+    .from('children')
+    .select('child_profile')
+    .eq('id', childId)
+    .eq('user_id', userId)
+    .maybeSingle<{ child_profile: BriefProfile | null }>()
+  const profile = childRow?.child_profile ?? null
+  if (!profile) return
+
+  const reasonsBySlug = await loadMatchReasonsBatch(svc, profile, [slug])
+  const reasons = reasonsBySlug.get(slug)
+  if (!reasons) return
+
+  const { error } = await svc
+    .from('shortlisted_schools')
+    .update({ match_reasons: reasons })
+    .eq('user_id', userId)
+    .eq('child_id', childId)
+    .eq('school_slug', slug)
+    .is('match_reasons', null)
+  if (error) console.warn('[research-room/shortlist] match_reasons UPDATE:', error.message)
 }
