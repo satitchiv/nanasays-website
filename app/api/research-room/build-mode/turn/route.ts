@@ -169,15 +169,38 @@ export async function POST(req: NextRequest) {
     ? parsedProgress.data
     : emptyProgress('minimal')
 
-  // ── Reconstruct conversation history from research_session_messages ─
-  // The interview engine treats each turn as user/assistant. parsed_answer
-  // is JSONB. For build-mode turns we'll persist `{prose: <text>}` in
-  // session 3; until then, non-build messages mostly carry the regular
-  // chat parsed shape which we'd flatten poorly. So for session 2 we
-  // intentionally pass only the freshest USER question — the LLM does not
-  // see prior turns yet. Session 3 wires the real history once
-  // build_mode persistence lands.
-  const history: BuildModeMessage[] = [{ role: 'user', content: body.question }]
+  // ── Reconstruct conversation history from research_session_messages ──
+  // Session 3: load the last HISTORY_LIMIT/2 build-mode Q/A pairs and
+  // flatten into BuildModeMessage[]. We filter on
+  // `parsed_answer.kind === 'build_mode'` so the LLM doesn't see
+  // unrelated regular-chat history mixed in (the same session id can
+  // carry both, e.g. parent toggled in/out).
+  const { data: recentMsgs } = await svc
+    .from('research_session_messages')
+    .select('question, parsed_answer, created_at')
+    .eq('session_id', body.sessionId)
+    .order('created_at', { ascending: false })
+    .limit(HISTORY_LIMIT)
+
+  const recentBuildModeMsgs = (recentMsgs ?? [])
+    .filter(m => {
+      if (!m || typeof m !== 'object') return false
+      const pa = (m as { parsed_answer?: unknown }).parsed_answer
+      return !!pa && typeof pa === 'object' && (pa as Record<string, unknown>).kind === 'build_mode'
+    })
+    .reverse()   // oldest → newest for prompt order
+
+  const history: BuildModeMessage[] = []
+  for (const m of recentBuildModeMsgs) {
+    if (typeof m.question === 'string' && m.question.length > 0) {
+      history.push({ role: 'user', content: m.question })
+    }
+    const pa = m.parsed_answer as { prose?: unknown } | null
+    if (pa && typeof pa.prose === 'string' && pa.prose.length > 0) {
+      history.push({ role: 'assistant', content: pa.prose })
+    }
+  }
+  history.push({ role: 'user', content: body.question })
 
   // ── Abort plumbing — client disconnect cancels the LLM stream ──────
   const ac = new AbortController()
@@ -229,14 +252,72 @@ export async function POST(req: NextRequest) {
           diff:        merge.diff,
         })
 
-        // Codex r5 P1.3: do NOT emit a fabricated shareToken. Build Mode
-        // turns are not persisted yet, so a synthesised token would point
-        // at a non-existent research_session_messages row — clicking the
-        // "Share" affordance in the chat bubble would 404. Session 3
-        // wires real persistence + a real DB-issued shareToken.
+        // ── Persist this turn (session 3) ────────────────────────────
+        //
+        // Two writes:
+        //   (a) Apply the merged profile + progress via the v5 RPC.
+        //   (b) Insert a research_session_messages row carrying the
+        //       prose + the merge summary so the next turn can
+        //       reconstruct history.
+        //
+        // Failures here are LOGGED but don't tear down the stream —
+        // the prose was already delivered to the parent. Next turn
+        // simply starts cold for this turn's signal, which is a
+        // graceful degradation rather than a crash.
+
+        // Build the RPC-shaped progress payload. The migration's
+        // weight-enforce check requires exactly the canonical TARGET_WEIGHTS,
+        // so we always reconstruct the targets map from the merge result
+        // and emit every key (the schema-empty case writes a zeroed
+        // progress, which is the same shape).
+        const rpcTargets: Record<string, { state: string; weight: number }> = {}
+        for (const key of Object.keys(merge.nextProgress.targets)) {
+          const t = merge.nextProgress.targets[key as keyof typeof merge.nextProgress.targets]
+          if (t) rpcTargets[key] = { state: t.state, weight: t.weight }
+        }
+
+        const { error: rpcError } = await svc.rpc('build_mode_apply_extraction', {
+          p_user_id:       user.id,
+          p_child_id:      sess.child_id,
+          p_session_id:    body.sessionId,
+          p_fields:        merge.nextProfile,
+          p_targets_state: rpcTargets,
+          p_pending:       merge.nextProgress.pending_confirmations,
+          p_mode:          merge.nextProgress.mode,
+        })
+        if (rpcError) {
+          console.error('[build-mode/turn] RPC apply failed', rpcError)
+          send({ type: 'persistence_warning', code: 'apply_failed' })
+        }
+
+        // Insert the chat message. The parsed_answer stores `kind:
+        // 'build_mode'` + the prose so history reconstruction can
+        // filter and replay this turn cleanly next time.
+        const shareToken = crypto.randomUUID()
+        const { data: insertedRow, error: insertError } = await svc
+          .from('research_session_messages')
+          .insert({
+            session_id:    body.sessionId,
+            question:      body.question.slice(0, 2000),
+            parsed_answer: {
+              kind:  'build_mode',
+              prose: proseAccum,
+              focus: turn.focus,
+            },
+            share_token:   shareToken,
+          })
+          .select('id')
+          .single<{ id: string }>()
+        if (insertError) {
+          console.error('[build-mode/turn] message insert failed', insertError)
+          send({ type: 'persistence_warning', code: 'insert_failed' })
+        }
+        const messageId = insertedRow?.id ?? null
+
         send({
-          type:      'final',
-          shareToken: null,
+          type:       'final',
+          shareToken: insertError ? null : shareToken,
+          messageId,
           payload: {
             parsed:     null,
             raw:        proseAccum,

@@ -16,7 +16,13 @@ import { z } from 'zod'
 import { isResearchRoomEnabled } from '@/lib/feature-flags'
 import { getUnlockedUser } from '@/lib/paid-status'
 import { supabaseService } from '@/lib/supabase-admin'
-import { BuildModeExtractionHTTPSchema } from '@/lib/server/research-room/build-mode-schemas'
+import {
+  BuildModeExtractionHTTPSchema,
+  PendingConfirmationSchema,
+  ProgressStateEnum,
+  TARGET_KEYS,
+  TARGET_WEIGHTS,
+} from '@/lib/server/research-room/build-mode-schemas'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -29,15 +35,24 @@ export const dynamic = 'force-dynamic'
 // imports that referenced this constant.
 export const BuildModeExtractionSchema_HTTP = BuildModeExtractionHTTPSchema
 
-const ProgressTargetsSchema = z.record(z.string(), z.number().min(0).max(1))
+// Session 3 (v5 apply 2026-05-14): the RPC moved from Record<string,number>
+// targets to Record<string,{state,weight}>. Body schema mirrors the
+// new shape and adds pending_confirmations passthrough.
+const ProgressTargetStateSchema = z.object({
+  state:  ProgressStateEnum,
+  weight: z.number().min(0).max(1),
+}).strict()
+
+const ProgressTargetsStateSchema = z.record(z.enum(TARGET_KEYS), ProgressTargetStateSchema)
 
 const RequestSchema = z.object({
   child_id:   z.string().uuid(),
   session_id: z.string().uuid(),
   fields:     BuildModeExtractionSchema_HTTP,
   progress:   z.object({
-    targets: ProgressTargetsSchema,
-    mode:    z.enum(['detailed', 'minimal']).optional(),
+    targets:               ProgressTargetsStateSchema,
+    pending_confirmations: z.array(PendingConfirmationSchema).max(20).optional(),
+    mode:                  z.enum(['detailed', 'minimal']).optional(),
   }).optional(),
 })
 
@@ -123,12 +138,13 @@ export async function POST(req: NextRequest) {
 
   const svc = supabaseService()
   const { data, error } = await svc.rpc('build_mode_apply_extraction', {
-    p_user_id:    user.id,
-    p_child_id:   body.child_id,
-    p_session_id: body.session_id,
-    p_fields:     body.fields,
-    p_targets:    body.progress?.targets ?? null,
-    p_mode:       body.progress?.mode    ?? null,
+    p_user_id:        user.id,
+    p_child_id:       body.child_id,
+    p_session_id:     body.session_id,
+    p_fields:         body.fields,
+    p_targets_state:  body.progress?.targets               ?? null,
+    p_pending:        body.progress?.pending_confirmations ?? null,
+    p_mode:           body.progress?.mode                  ?? null,
   })
 
   if (error) {
@@ -139,14 +155,16 @@ export async function POST(req: NextRequest) {
     ok: boolean
     written_field_count: number
     progress_total: number | null
-    progress_targets: Record<string, number> | null
+    progress_usable_total: number | null
+    progress_targets: Record<string, { state: string; weight: number }> | null
   }
   const result = (data ?? {}) as RpcResult
 
   return NextResponse.json({
-    ok:                  true,
-    written_field_count: result.written_field_count ?? 0,
-    progress_total:      result.progress_total      ?? null,
-    progress_targets:    result.progress_targets    ?? null,
+    ok:                    true,
+    written_field_count:   result.written_field_count   ?? 0,
+    progress_total:        result.progress_total        ?? null,
+    progress_usable_total: result.progress_usable_total ?? null,
+    progress_targets:      result.progress_targets      ?? null,
   })
 }
