@@ -101,21 +101,44 @@ export async function POST(
     return NextResponse.json({ error: 'Chat is not available.' }, { status: 410 })
   }
 
-  // Auth: get the authenticated user via cookie-based client
-  const cookieStore = await cookies()
-  const authClient = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return cookieStore.getAll() },
-        setAll() {},
-      },
-    }
-  )
-  const { data: { user } } = await authClient.auth.getUser()
+  // Resolve user_id. In dev-only smoke-harness mode the bypass header replaces
+  // the cookie auth step; in every other case we validate the Supabase session.
+  // All three guards below must hold for the bypass to activate:
+  //   1) NODE_ENV === 'development'
+  //   2) NANA_DEV_BYPASS_TOKEN env var is set (non-empty)
+  //   3) request 'x-nana-dev-token' header matches the env token exactly
+  // In production (NODE_ENV !== 'development') or with the env vars unset, this
+  // branch is unreachable — the cookie-auth path runs exactly as before.
+  let userId: string | null = null
+  let isDevBypass = false
 
-  if (!user) {
+  const devBypassToken = process.env.NANA_DEV_BYPASS_TOKEN
+  const devBypassUserId = process.env.NANA_DEV_BYPASS_USER_ID
+  if (
+    process.env.NODE_ENV === 'development' &&
+    devBypassToken &&
+    devBypassUserId &&
+    req.headers.get('x-nana-dev-token') === devBypassToken
+  ) {
+    userId = devBypassUserId
+    isDevBypass = true
+  } else {
+    const cookieStore = await cookies()
+    const authClient = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() { return cookieStore.getAll() },
+          setAll() {},
+        },
+      }
+    )
+    const { data: { user } } = await authClient.auth.getUser()
+    userId = user?.id ?? null
+  }
+
+  if (!userId) {
     return jsonError(401, 'Login required.')
   }
 
@@ -123,15 +146,16 @@ export async function POST(
   const { data: subCheck } = await supabase
     .from('parent_profiles')
     .select('subscription_status')
-    .eq('id', user.id)
+    .eq('id', userId)
     .maybeSingle()
 
   if (subCheck?.subscription_status !== 'active') {
     return jsonError(402, 'This feature requires Deep Research access.')
   }
 
-  // Rate limit
-  if (!checkRateLimit(req, 'chat')) {
+  // Rate limit — skipped for dev-harness bypass calls so batch smoke runs
+  // aren't capped at 20/10min by the chat:unknown key (Codex finding #3).
+  if (!isDevBypass && !checkRateLimit(req, 'chat')) {
     return jsonError(429, 'Too many requests. Please slow down.')
   }
 
@@ -159,7 +183,7 @@ export async function POST(
   const { data: profile } = await supabase
     .from('parent_profiles')
     .select('child_year, boarding_pref, budget_range, top_priority, home_region')
-    .eq('id', user.id)
+    .eq('id', userId)
     .maybeSingle()
 
   const parentContext = profile ? buildParentContext(profile) : null
@@ -211,9 +235,11 @@ export async function POST(
         try { controller.close() } catch {}
       }
 
-      // Fire-and-forget DB log — never blocks the response stream.
-      if (finalPayload && !ac.signal.aborted) {
-        logChat(slug, question, finalPayload, shareToken, user.id).catch(() => {})
+      // Fire-and-forget DB log — never blocks the response stream. Skipped
+      // for dev-harness bypass calls so smoke-test rows don't pollute the
+      // user's real nana_chat_logs history (Codex finding #4).
+      if (finalPayload && !ac.signal.aborted && !isDevBypass) {
+        logChat(slug, question, finalPayload, shareToken, userId).catch(() => {})
       }
     },
     cancel() {
