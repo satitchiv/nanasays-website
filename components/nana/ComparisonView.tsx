@@ -678,39 +678,46 @@ function SortableTableBody({
       modifiers={[restrictToVerticalAxis, restrictToParentElement]}
     >
       <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
-        {rows.map((row, idx) => {
-          // Slice 8 Step 0.6: section header when group_name changes between
-          // adjacent rows. 'general' is suppressed because it's the default
-          // unscoped group and a header would just be visual noise. The
-          // header is a sibling of SortableRow inside a Fragment — it is
-          // NOT a member of SortableContext's items array, so dnd-kit will
-          // not attempt to drag it.
-          const prevGroup  = idx > 0 ? rows[idx - 1].group_name ?? null : null
-          const showHeader = Boolean(row.group_name)
-                          && row.group_name !== prevGroup
-                          && row.group_name !== 'general'
-          return (
-            <Fragment key={row.id}>
-              {showHeader && (
-                <div
-                  role="presentation"
-                  className="rr-section-header"
-                  style={{ gridColumn: '1 / -1' }}
-                >
-                  {prettyGroupName(row.group_name!)}
-                </div>
-              )}
-              <SortableRow
-                row={row}
-                schools={schools}
-                gridTemplateColumns={gridTemplateColumns}
-                onRemove={row.removable ? onRemove : null}
-                removing={pendingRemoveId === row.id}
-                isDragEnabled={Boolean(onReorderRows)}
-              />
-            </Fragment>
-          )
-        })}
+        {(() => {
+          // Slice 8 Step 0.6: section header on FIRST appearance of each
+          // group_name. 'general' is suppressed because it's the default
+          // unscoped group. Chat-added rows often land at the bottom
+          // regardless of group, so a strict prev-row comparison
+          // re-renders the same header twice; tracking seen groups
+          // collapses each header to a single render at its first row.
+          // Header is a sibling of SortableRow inside a Fragment — it
+          // is NOT a member of SortableContext's items array, so dnd-kit
+          // will not attempt to drag it.
+          const seenGroups = new Set<string>()
+          return rows.map((row) => {
+            const group = row.group_name ?? null
+            const showHeader = Boolean(group)
+                            && group !== 'general'
+                            && !seenGroups.has(group as string)
+            if (showHeader) seenGroups.add(group as string)
+            return (
+              <Fragment key={row.id}>
+                {showHeader && (
+                  <div
+                    role="presentation"
+                    className="rr-section-header"
+                    style={{ gridColumn: '1 / -1' }}
+                  >
+                    {prettyGroupName(row.group_name!)}
+                  </div>
+                )}
+                <SortableRow
+                  row={row}
+                  schools={schools}
+                  gridTemplateColumns={gridTemplateColumns}
+                  onRemove={row.removable ? onRemove : null}
+                  removing={pendingRemoveId === row.id}
+                  isDragEnabled={Boolean(onReorderRows)}
+                />
+              </Fragment>
+            )
+          })
+        })()}
       </SortableContext>
     </DndContext>
   )
