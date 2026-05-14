@@ -31,8 +31,11 @@ const BASICS_FIELDS     = ['child_year', 'child_gender'] as const
 // T4.16 Gap B (2026-05-09): ethos_pref + intl_pref slotted into School
 // (they're about what kind of school the family wants); phone_pref into
 // Priorities (it's a parental philosophy alongside class size + SEN).
+// Slice 8 Build 1 (2026-05-14): lgbtq_pref + pastoral_pref added to
+// Priorities — they're parental-philosophy fields too, and the onboarding
+// form no longer collects them so this is now their only editable surface.
 const SCHOOL_FIELDS     = ['home_region', 'boarding_pref', 'budget_range', 'curriculum_pref', 'ethos_pref', 'intl_pref'] as const
-const PRIORITY_FIELDS   = ['top_priority', 'class_size_pref', 'sen_need', 'phone_pref'] as const
+const PRIORITY_FIELDS   = ['top_priority', 'class_size_pref', 'sen_need', 'phone_pref', 'lgbtq_pref', 'pastoral_pref'] as const
 
 // Slice 3.4 polish: rich free-text cards. Slice 3 captures (write side);
 // slice 4's fit-score lens reads them. JSONB keys are stable so the slice 4
@@ -116,7 +119,7 @@ export default function ChildBriefTab({
       <header className="rr-brief-tab-head">
         <div className="rr-brief-eyebrow">Child brief · the lens for everything</div>
         <p className="rr-brief-tab-meta">
-          Each child has their own answers to the 9 questions. Edit any field — the recommender re-runs for that child.
+          Each child has their own answers. Edit any field — the recommender re-runs for that child.
         </p>
       </header>
 

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ONBOARDING_FIELDS } from '@/lib/onboarding-fields'
+import { FORM_FIELDS } from '@/lib/onboarding-fields'
 
 type Props = {
   // Pre-fill values from parent_profiles when the parent revisits
@@ -10,9 +10,11 @@ type Props = {
   initialAnswers?: Record<string, string>
 }
 
-const STEPS = ONBOARDING_FIELDS.map((f, i) => ({
+// Slice 8 Build 1 (2026-05-14): wizard renders the 5-question structural
+// floor only. The remaining 9 fields stay editable in ChildBriefTab.
+const STEPS = FORM_FIELDS.map((f, i) => ({
   field: f.field,
-  label: `Step ${i + 1} of ${ONBOARDING_FIELDS.length}`,
+  label: `Step ${i + 1} of ${FORM_FIELDS.length}`,
   question: f.question,
   options: f.options,
 }))
