@@ -127,12 +127,46 @@ const TargetKeyEnum = z.enum(TARGET_KEYS)
 export const ConfidenceStateEnum = z.enum(['vague', 'inferred', 'confirmed'])
 export type ConfidenceState = z.infer<typeof ConfidenceStateEnum>
 
+// Codex r3 P0: OpenAI strict structured outputs requires ALL keys
+// present. `.partial().strict()` produces `additionalProperties: false`
+// but ALSO marks every property optional, which `zodResponseFormat()`
+// rejects with "uses `.optional()` without `.nullable()` which is not
+// supported by the API". Spell every field key explicitly with a
+// `.nullable()` value; null = "no signal this turn".
+//
+// The schema-compile smoke test in build-mode-interview.test.mjs runs
+// `zodResponseFormat()` against the wrapper schema so this kind of
+// regression can't ship undetected.
+
+const ConfidenceFieldSchema = ConfidenceStateEnum.nullable()
+
 // `corrections` is per-field, not a single boolean (Codex r2 R5). The LLM
 // sets `corrections.goal_orientation = true` when the parent's wording
-// indicates an explicit correction of an earlier statement. Default false.
-const CorrectionsSchema = z.object(
-  Object.fromEntries(BUILD_MODE_FIELD_KEYS.map(k => [k, z.boolean()])),
-).partial().strict()
+// indicates an explicit correction of an earlier statement. Default false
+// (the LLM must emit `false` for every key — the prompt requires it).
+const CorrectionsSchema = z.object({
+  personality_notes: z.boolean(),
+  anchors_notes:     z.boolean(),
+  academic_notes:    z.boolean(),
+  goals_notes:       z.boolean(),
+  child_wants:       z.boolean(),
+  nonnegotiables:    z.boolean(),
+  goal_orientation:  z.boolean(),
+  interests_sports:  z.boolean(),
+  interests_arts:    z.boolean(),
+}).strict()
+
+const ConfidenceMapSchema = z.object({
+  personality_notes: ConfidenceFieldSchema,
+  anchors_notes:     ConfidenceFieldSchema,
+  academic_notes:    ConfidenceFieldSchema,
+  goals_notes:       ConfidenceFieldSchema,
+  child_wants:       ConfidenceFieldSchema,
+  nonnegotiables:    ConfidenceFieldSchema,
+  goal_orientation:  ConfidenceFieldSchema,
+  interests_sports:  ConfidenceFieldSchema,
+  interests_arts:    ConfidenceFieldSchema,
+}).strict()
 
 // Top-level LLM payload. Step 0.1's helper wraps this as
 // `{ prose, extraction: <this> }`, so the full server-side type is
@@ -140,9 +174,7 @@ const CorrectionsSchema = z.object(
 export const BuildModeTurnPayloadSchema = z.object({
   fields:      BuildModeExtractionLLMSchema,
   refused:     z.array(TargetKeyEnum).max(TARGET_KEYS.length),
-  confidence:  z.object(
-    Object.fromEntries(BUILD_MODE_FIELD_KEYS.map(k => [k, ConfidenceStateEnum])),
-  ).partial().strict(),
+  confidence:  ConfidenceMapSchema,
   corrections: CorrectionsSchema,
 }).strict()
 

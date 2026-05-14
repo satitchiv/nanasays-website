@@ -65,7 +65,13 @@ const CONFIDENCE_RANK: Readonly<Record<ProgressState, number>> = {
 }
 
 function advanceState(current: ProgressState, incoming: ProgressState): ProgressState {
-  if (incoming === 'refused')   return 'refused'
+  if (incoming === 'refused') {
+    // Codex r3 P2 (Q6/Q7): refusal must not erase existing confirmed
+    // evidence. Treat refusal as "stop asking" — accept it only when
+    // the parent had not yet given usable signal (missing/vague).
+    if (current === 'missing' || current === 'vague') return 'refused'
+    return current
+  }
   if (current  === 'refused')   {
     // Parent changed their mind — allow forward movement to inferred/confirmed
     // (but not back to vague/missing).
@@ -86,6 +92,12 @@ function canonicalNonneg(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
+// Codex r3 P3 (Q3): normalise whitespace before substring check so
+// reflowed/wrapped versions of the same observation still dedupe.
+function normaliseWhitespace(s: string): string {
+  return s.replace(/\s+/g, ' ').trim()
+}
+
 // Idempotent paragraph-append. Returns the merged text and whether
 // anything changed. Caller decides whether to surface a "changed" event.
 export function mergeVisibleNote(prior: string | null | undefined, incoming: string | null | undefined): { value: string; changed: boolean } {
@@ -95,7 +107,12 @@ export function mergeVisibleNote(prior: string | null | undefined, incoming: str
   if (base.length === 0)    return { value: trimmed.slice(0, VISIBLE_NOTES_CAP), changed: true }
   // Codex r2 R4: substring idempotency check so re-extracting an
   // already-recorded observation doesn't append a duplicate paragraph.
+  // Codex r3 P3: also try the whitespace-normalised form so reflowed
+  // text doesn't sneak through.
   if (base.includes(trimmed)) return { value: base, changed: false }
+  if (normaliseWhitespace(base).includes(normaliseWhitespace(trimmed))) {
+    return { value: base, changed: false }
+  }
   const merged = `${base}\n\n${trimmed}`
   // Hard cap. Truncate FROM THE FRONT so the most recent observation
   // stays intact even if older paragraphs get clipped.
@@ -267,7 +284,10 @@ export function mergeBuildModeTurn(opts: MergeBuildModeTurnOpts): MergeResult {
   }
 
   // ── goal_orientation (enum, contradiction-tracked) ────────────────
+  // Codex r3 Q15b: track when the parent confirms the prior value so
+  // pending_confirmations for that field can be cleared deterministically.
   let pendingForGoal: PendingConfirmation | null = null
+  const reaffirmedFields = new Set<string>()
   if (fields.goal_orientation != null) {
     const prior    = opts.priorProfile.goal_orientation ?? null
     const incoming = fields.goal_orientation
@@ -275,7 +295,11 @@ export function mergeBuildModeTurn(opts: MergeBuildModeTurnOpts): MergeResult {
       nextProfile.goal_orientation = incoming
       diff.set.push({ field: 'goal_orientation', value: incoming })
     } else if (prior === incoming) {
-      // No-op; confidence may still advance via mergeProgress below.
+      // Parent re-stated the same value. Codex r3 Q5: this should
+      // still advance progress (re-confirmation strengthens evidence).
+      // Codex r3 Q15b: also clears any pending confirmation for this
+      // field, because the parent has just chosen the prior side.
+      reaffirmedFields.add('goal_orientation')
     } else if (corrections.goal_orientation === true) {
       // Parent explicitly corrected.
       nextProfile.goal_orientation = incoming
@@ -294,11 +318,13 @@ export function mergeBuildModeTurn(opts: MergeBuildModeTurnOpts): MergeResult {
 
   // ── Progress merge ────────────────────────────────────────────────
   const nextProgress = mergeProgress({
-    prior:    opts.priorProgress,
-    payload:  opts.payload,
+    prior:            opts.priorProgress,
+    payload:          opts.payload,
     diff,
-    pending:  pendingForGoal,
-    turnAt:   opts.turnAt,
+    pending:          pendingForGoal,
+    reaffirmedFields,
+    currentFocus:     opts.currentFocus,
+    turnAt:           opts.turnAt,
   })
 
   return { nextProfile, nextProgress, diff }
@@ -308,13 +334,15 @@ export function mergeBuildModeTurn(opts: MergeBuildModeTurnOpts): MergeResult {
 // the confidence the LLM assigned to each. Forward-only by construction
 // via advanceState().
 function mergeProgress(args: {
-  prior:   BuildModeProgress
-  payload: BuildModeTurnPayload
-  diff:    ProfileDiff
-  pending: PendingConfirmation | null
-  turnAt:  string
+  prior:            BuildModeProgress
+  payload:          BuildModeTurnPayload
+  diff:             ProfileDiff
+  pending:          PendingConfirmation | null
+  reaffirmedFields: Set<string>
+  currentFocus:     TargetKey | 'confirm_contradiction' | 'free'
+  turnAt:           string
 }): BuildModeProgress {
-  const { prior, payload, diff, pending, turnAt } = args
+  const { prior, payload, diff, pending, reaffirmedFields, currentFocus, turnAt } = args
 
   const targets = { ...prior.targets }
   for (const key of TARGET_KEYS) {
@@ -329,23 +357,41 @@ function mergeProgress(args: {
   }
 
   // Per-target: collect confidence from contributing fields that
-  // ACTUALLY changed (per diff). A field that was null this turn or
-  // didn't survive idempotency doesn't count toward progress.
-  const changedFields = new Set<string>([
-    ...diff.set.map(s => String(s.field)),
-    ...diff.appended.map(a => String(a.field)),
-  ])
+  // ACTUALLY changed (per diff) OR were re-affirmed (LLM confirmed the
+  // existing value). Codex r3 Q5 + Q9: re-confirmations advance
+  // progress; currentFocus advances drill_down/other when their
+  // catch-all bucket has nothing else to latch onto.
+  const changedFields = new Set<string>()
+  for (const s of diff.set)      changedFields.add(String(s.field))
+  for (const a of diff.appended) changedFields.add(String(a.field))
+  const signalFields = new Set<string>()
+  changedFields.forEach(f => signalFields.add(f))
+  reaffirmedFields.forEach(f => signalFields.add(f))
 
   for (const target of TARGET_KEYS) {
     if (payload.refused.includes(target)) continue   // already handled above
     const contributing = TARGET_TO_FIELDS[target]
     let bestConfidence: 'vague' | 'inferred' | 'confirmed' | null = null
     for (const field of contributing) {
-      if (!changedFields.has(String(field))) continue
+      if (!signalFields.has(String(field))) continue
       const c = payload.confidence?.[field]
       if (c == null) continue
       if (bestConfidence == null || CONFIDENCE_RANK[c] > CONFIDENCE_RANK[bestConfidence]) {
         bestConfidence = c
+      }
+    }
+    // Codex r3 Q9: drill_down + other have no unique contributing
+    // fields. When THIS target is the active focus, accept confidence
+    // from ANY field touched this turn so the catch-all targets can
+    // advance.
+    if (bestConfidence == null && contributing.length === 0 && currentFocus === target) {
+      for (const field of Object.keys(payload.fields) as Array<keyof BuildModeTurnPayload['fields']>) {
+        if (!signalFields.has(String(field))) continue
+        const c = payload.confidence?.[field]
+        if (c == null) continue
+        if (bestConfidence == null || CONFIDENCE_RANK[c] > CONFIDENCE_RANK[bestConfidence]) {
+          bestConfidence = c
+        }
       }
     }
     if (bestConfidence == null) continue
@@ -356,14 +402,16 @@ function mergeProgress(args: {
   const { total, usable_total } = computeTotals(targets as Record<TargetKey, { state: ProgressState; weight: number }>)
 
   // Merge pending_confirmations: keep prior entries unless one of them
-  // is being resolved THIS turn (incoming corrections.goal_orientation === true
-  // resolves any pending for that field). Add new pending entries on
-  // detected contradictions.
+  // is being resolved THIS turn. Three resolution signals:
+  //   1. corrections.<field> === true (parent explicitly corrected)
+  //   2. parent re-stated prior value (reaffirmedFields)
+  //   3. (handled by adding new pending below) implicit conflict
   const resolvedFields = new Set<string>()
-  for (const c of payload.corrections ? Object.entries(payload.corrections) : []) {
-    const [k, v] = c
+  for (const [k, v] of Object.entries(payload.corrections)) {
     if (v === true) resolvedFields.add(k)
   }
+  reaffirmedFields.forEach(field => resolvedFields.add(field))
+
   const pendingNext: PendingConfirmation[] = prior.pending_confirmations.filter(
     pc => !resolvedFields.has(pc.field),
   )

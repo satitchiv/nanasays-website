@@ -18,8 +18,10 @@
 // The Step 0.1 helper enforces this via zodResponseFormat.
 
 import 'server-only'
-import type { BuildModeProgress, TargetKey } from './build-mode-schemas.ts'
+import type { BuildModeExtractionHTTP, BuildModeProgress, TargetKey } from './build-mode-schemas.ts'
 import { TARGET_KEYS } from './build-mode-schemas.ts'
+
+const PRIOR_NOTE_CAP = 600   // chars per visible-note field when rendered into prompt
 
 const SYSTEM_BASE = `
 You are Nana, an experienced UK independent-schools advisor. You are
@@ -108,7 +110,23 @@ const FOCUS_HINTS: Readonly<Record<TargetKey, string>> = {
   other:          'temperament or family context not yet captured',
 }
 
-function renderPriorFacts(progress: BuildModeProgress, brief: Record<string, unknown>): string {
+// Truncate a free-form note for prompt injection. Keeps the most
+// recent paragraph if the field has grown long.
+function clipNote(note: string | null | undefined): string | null {
+  if (!note) return null
+  const trimmed = note.trim()
+  if (trimmed.length === 0) return null
+  if (trimmed.length <= PRIOR_NOTE_CAP) return trimmed
+  // Take the tail. Most-recent paragraph is more useful to the next
+  // turn than the oldest one.
+  return '…' + trimmed.slice(trimmed.length - PRIOR_NOTE_CAP)
+}
+
+function renderPriorFacts(
+  progress: BuildModeProgress,
+  brief:    Record<string, unknown>,
+  profile:  Partial<BuildModeExtractionHTTP>,
+): string {
   const lines: string[] = []
 
   // The 5-question form (BriefProfile) is always known by this point.
@@ -127,6 +145,39 @@ function renderPriorFacts(progress: BuildModeProgress, brief: Record<string, unk
     .map(([k, v]) => `${k}: ${String(v)}`)
     .join(' · ')
   if (briefLine) lines.push(`Brief: ${briefLine}`)
+
+  // Codex r3 Q15a: the ACTUAL prior facts the parent has shared so far.
+  // Without this the LLM cannot detect explicit corrections of earlier
+  // statements ("scratch that — he's more about discovery") and the
+  // resume experience after a refresh feels amnesiac.
+  if (profile.goal_orientation) {
+    lines.push(`Goal orientation: ${profile.goal_orientation}`)
+  }
+  if (profile.interests_sports?.length) {
+    lines.push(
+      'Interests (sports): ' +
+        profile.interests_sports.map(i => `${i.sport} (${i.level})`).join(', '),
+    )
+  }
+  if (profile.interests_arts?.length) {
+    lines.push(
+      'Interests (arts): ' +
+        profile.interests_arts.map(i => `${i.art} (${i.level})`).join(', '),
+    )
+  }
+  if (profile.nonnegotiables?.length) {
+    lines.push('Non-negotiables: ' + profile.nonnegotiables.join('; '))
+  }
+  const childWants = clipNote(profile.child_wants)
+  if (childWants) lines.push(`Child wants: ${childWants}`)
+  const personalityNotes = clipNote(profile.personality_notes)
+  if (personalityNotes) lines.push(`Personality notes: ${personalityNotes}`)
+  const academicNotes = clipNote(profile.academic_notes)
+  if (academicNotes) lines.push(`Academic notes: ${academicNotes}`)
+  const anchorsNotes = clipNote(profile.anchors_notes)
+  if (anchorsNotes) lines.push(`Anchors / interests notes: ${anchorsNotes}`)
+  const goalsNotes = clipNote(profile.goals_notes)
+  if (goalsNotes) lines.push(`Goals notes: ${goalsNotes}`)
 
   // Per-target state — only mention targets that have moved past
   // missing/refused. Refused stays in the prompt so Nana doesn't ask
@@ -158,11 +209,13 @@ export type BuildSystemPromptOpts = {
   childName:        string
   progress:         BuildModeProgress
   brief:            Record<string, unknown>
+  /** Codex r3 Q15a: the parent's already-known facts about this child. */
+  priorProfile:     Partial<BuildModeExtractionHTTP>
   currentFocus:     TargetKey | 'confirm_contradiction' | 'free'
 }
 
 export function buildSystemPrompt(opts: BuildSystemPromptOpts): string {
-  const { childName, progress, brief, currentFocus } = opts
+  const { childName, progress, brief, priorProfile, currentFocus } = opts
 
   const focusLine = (() => {
     if (currentFocus === 'confirm_contradiction') {
@@ -178,7 +231,7 @@ export function buildSystemPrompt(opts: BuildSystemPromptOpts): string {
     SYSTEM_BASE,
     '',
     '# Prior facts about this child',
-    renderPriorFacts(progress, brief),
+    renderPriorFacts(progress, brief, priorProfile),
     '',
     '# Child name',
     childName ? childName : '(unknown — use a neutral placeholder like "your child")',

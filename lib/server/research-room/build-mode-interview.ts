@@ -104,6 +104,7 @@ export function runInterviewTurn(opts: RunInterviewTurnOpts): RunInterviewTurnRe
     childName:    opts.childName,
     progress:     opts.priorProgress,
     brief:        opts.childBrief,
+    priorProfile: opts.priorProfile,
     currentFocus: focus,
   })
 
