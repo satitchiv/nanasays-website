@@ -221,6 +221,36 @@ export const BuildModeProgressSchema = z.object({
 }).strict()
 export type BuildModeProgress = z.infer<typeof BuildModeProgressSchema>
 
+// ── Finalize ("Build my comparison table now") schemas ────────────────
+//
+// Slice 8 Build 3 session 4 — when the parent clicks the ≥80% CTA, the
+// finalize route asks the LLM for 3-5 row proposals derived from the
+// captured child_profile. Each proposal is the same shape as
+// `ProposedAddRow` in lib/nana/types.ts, but with cell_data emitted as
+// an array of {slug, value, source?, note?} entries (OpenAI strict
+// structured output doesn't support z.record's `additionalProperties`
+// pattern; the route converts the array → record before persisting).
+
+const FinalizeCellDataItemSchema = z.object({
+  slug:   z.string().min(1).max(120),
+  value:  z.union([z.string().max(400), z.number()]).nullable(),
+  source: z.string().max(400).nullable(),
+  note:   z.string().max(400).nullable(),
+}).strict()
+
+export const BuildModeFinalizeProposalSchema = z.object({
+  row_name:   z.string().min(1).max(60),
+  // v1 forces 'child-specific' so proposals can't pollute base groups.
+  group_name: z.literal('child-specific'),
+  weight:     z.number().min(0).max(1).nullable(),
+  rationale:  z.string().min(1).max(280),
+  cell_data:  z.array(FinalizeCellDataItemSchema).min(1).max(20),
+}).strict()
+
+export const BuildModeFinalizeProposalsSchema = z.array(BuildModeFinalizeProposalSchema).max(8)
+
+export type BuildModeFinalizeProposal = z.infer<typeof BuildModeFinalizeProposalSchema>
+
 // State → multiplier on the target's weight, used in totalling.
 // `total`        — UX progress (refused counts as "covered")
 // `usable_total` — proposal-readiness (refused gives zero evidence)

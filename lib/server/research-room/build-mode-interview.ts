@@ -58,6 +58,18 @@ export type RunInterviewTurnResult = {
   proseStream:   AsyncIterable<string>
   payload:       Promise<BuildModeTurnPayload>
   mergeResult:   Promise<MergeResult>
+  // Session 4 — forwarded from the LLM helper so the route can log
+  // tokens + model + timing into nana_chat_logs (the spend-tracking
+  // table that Mission Control's Nana Chats + Costs tabs read from).
+  // Promise resolves alongside `payload`; both reject together if the
+  // stream errors. The test-mock streamFn may not provide this; the
+  // route treats absence as "skip nana_chat_logs insert".
+  meta?:         Promise<{
+    model:    string
+    usage:    { input_tokens: number; output_tokens: number }
+    ttft_ms:  number
+    total_ms: number
+  }>
 }
 
 // ── Focus picker (deterministic) ──────────────────────────────────────
@@ -132,11 +144,17 @@ export function runInterviewTurn(opts: RunInterviewTurnOpts): RunInterviewTurnRe
     }),
   )
 
+  // `meta` is only present on the production stream helper (build-mode-llm).
+  // Test mocks satisfy `BuildModeStreamResult` via duck typing and may
+  // omit it; the route checks for undefined before logging.
+  const streamMeta = (stream as { meta?: BuildModeStreamResult<typeof BuildModeTurnPayloadSchema>['meta'] }).meta
+
   return {
     focus,
     proseStream:  stream.prose,
     payload:      stream.extraction as Promise<BuildModeTurnPayload>,
     mergeResult,
+    meta:         streamMeta,
   }
 }
 

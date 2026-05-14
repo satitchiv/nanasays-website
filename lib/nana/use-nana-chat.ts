@@ -10,6 +10,7 @@ import type {
   StreamFormat,
   AskError,
   NanaUiIntent,
+  BuildModeStreamState,
 } from './types'
 
 // Slice 3d phase 3: chat state machine extracted from DecisionHub.tsx so
@@ -78,6 +79,11 @@ export interface UseNanaChatReturn {
   toolProgress:      ToolStep[]
   agentStatus:       string | null
   shortlistLocked:   boolean
+  // Slice 8 Build 3 session 4: latest Build Mode progress event. Persists
+  // across turns until startNewConversation() clears it. `lastDiff` is the
+  // one-turn delta and resets on each ask() submit. Null whenever Build
+  // Mode hasn't emitted a turn yet (regular chat or fresh session).
+  buildModeState:    BuildModeStreamState | null
   // Refs
   abortRef:          React.RefObject<AbortController | null>
   chatEndRef:        React.RefObject<HTMLDivElement>
@@ -88,7 +94,13 @@ export interface UseNanaChatReturn {
   // synthesises "Create a lens for <topic>" without the user typing.
   // When omitted (existing call sites: Enter key + Send button + chip
   // pre-fill flow) the hook reads `question` state as before.
-  ask:               (overrideQuestion?: string) => Promise<void>
+  //
+  // Slice 8 Build 3 session 4 — optional endpointOverride routes this
+  // single ask through a different endpoint (e.g. /build-mode/finalize)
+  // without touching endpointRef, so subsequent asks return to the
+  // default. Used by the ≥80% "Build my table" CTA which needs the
+  // dedicated finalize route regardless of buildMode toggle state.
+  ask:               (overrideQuestion?: string, opts?: { endpointOverride?: string }) => Promise<void>
   stopStream:        () => void
   startNewConversation: () => void
 }
@@ -113,6 +125,11 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
   // During streaming the bubble renders streamBuf as plain markdown
   // (rather than running extractStreamingField against partial JSON).
   const [streamFormat,       setStreamFormat]       = useState<StreamFormat>('structured')
+  // Slice 8 Build 3 session 4 — latest Build Mode progress payload. Reset
+  // to a null lastDiff on each ask() so the "Nana learned: …" microcopy
+  // only ever reflects the most recent turn; progress + focus stay sticky
+  // until startNewConversation() clears them.
+  const [buildModeState,     setBuildModeState]     = useState<BuildModeStreamState | null>(null)
 
   const abortRef   = useRef<AbortController | null>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
@@ -177,13 +194,18 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
     }
   }, [messages, streamBuf, isStreaming])
 
-  const ask = useCallback(async (overrideQuestion?: string) => {
+  const ask = useCallback(async (overrideQuestion?: string, opts?: { endpointOverride?: string }) => {
     // Slice 6.6 Tier 3: synthetic refresh-lens calls bypass `question`
     // state (the textarea may have unrelated draft text). Otherwise the
     // hook reads from state as it always has.
     const raw = typeof overrideQuestion === 'string' ? overrideQuestion : question
     const q = raw.trim()
     if (!q || isStreaming) return
+    // Slice 8 Build 3 session 4 — one-shot endpoint override for the
+    // "Build my table" CTA. Defaults to the hook's configured endpoint
+    // (endpointRef.current). The override doesn't mutate the ref, so
+    // subsequent asks return to the default endpoint.
+    const submitEndpoint = opts?.endpointOverride ?? endpointRef.current
 
     abortRef.current?.abort()
     const ac = new AbortController()
@@ -200,6 +222,11 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
     setCandidates([])
     setToolProgress([])
     setShortlistLocked(false)
+    // Clear the per-turn diff so the progress bar's microcopy doesn't keep
+    // showing the prior turn's "Nana learned: …" line through this turn's
+    // streaming gap. Sticky progress + focus stay until the next
+    // build_mode_progress event lands or startNewConversation() resets.
+    setBuildModeState(prev => prev ? { ...prev, lastDiff: null } : prev)
     // Optimistic status copy — fills the silent ~3-5s gap between submit and
     // the first server-emitted agent_status / tool_call event so parents see
     // immediate feedback. Server events overwrite this once they arrive.
@@ -231,7 +258,7 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
     const sp = serverParamsRef.current()
 
     try {
-      const res = await fetch(endpointRef.current, {
+      const res = await fetch(submitEndpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -398,6 +425,43 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
               void reader.cancel().catch(() => {})
               break
 
+            case 'build_mode_progress': {
+              // Slice 8 Build 3 session 4 — Build Mode interview progress.
+              // The route emits this once per turn (between the last token
+              // and `final`). We stash progress + focus + a one-turn diff
+              // so the BuildModeProgressBar can render a filled bar +
+              // "Nana learned: …" microcopy without subscribing to SSE
+              // separately.
+              //
+              // Defensive parsing: the route validates the BuildModeProgress
+              // shape against the zod schema before emitting, but the
+              // browser doesn't re-validate — bad payloads just skip the
+              // setState so the bar stays on its prior value rather than
+              // crashing the chat panel.
+              const progress = evt.progress
+              if (!progress || typeof progress !== 'object') break
+              const focus = typeof evt.focus === 'string' ? evt.focus : 'free'
+              const diff  = evt.diff && typeof evt.diff === 'object' ? evt.diff : null
+              const lastDiff = diff
+                ? {
+                    set:          Array.isArray(diff.set)          ? diff.set.map((s: any) => String(s?.field ?? '')).filter(Boolean) : [],
+                    appended:     Array.isArray(diff.appended)     ? diff.appended.map((a: any) => String(a?.field ?? '')).filter(Boolean) : [],
+                    contradicted: Array.isArray(diff.contradicted) ? diff.contradicted.map((c: any) => String(c?.field ?? '')).filter(Boolean) : [],
+                    refused:      Array.isArray(diff.refused)      ? diff.refused.map((r: any) => String(r ?? '')).filter(Boolean) : [],
+                  }
+                : null
+              setBuildModeState({ progress, focus, lastDiff })
+              break
+            }
+
+            case 'persistence_warning':
+              // Slice 8 Build 3 session 3 — surfaced from the build-mode
+              // turn route when the v5 RPC or message insert fails. Prose
+              // already streamed to the parent; we just log so the
+              // surface doesn't pretend the turn fully persisted.
+              console.warn('[build-mode] persistence warning', evt.code)
+              break
+
             case 'tool_call': {
               // Agentic-mode progress event. Don't touch sawFinal/serverError —
               // these are pure progress bookkeeping. Append on 'started',
@@ -473,6 +537,10 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
     setCandidates([])
     setAskError(null)
     setQuestion('')
+    // Slice 8 Build 3 session 4 — also clear Build Mode progress so a
+    // "+ New" tap inside Build Mode starts the bar back at empty rather
+    // than carrying stale fill from the prior conversation.
+    setBuildModeState(null)
     inputRef.current?.focus()
   }
 
@@ -487,6 +555,7 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
     askError, setAskError,
     toolProgress, agentStatus,
     shortlistLocked,
+    buildModeState,
     abortRef, chatEndRef, inputRef,
     ask, stopStream, startNewConversation,
   }

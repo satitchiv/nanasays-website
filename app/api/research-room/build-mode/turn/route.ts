@@ -45,6 +45,44 @@ export const maxDuration = 60
 const MAX_Q          = 2000
 const HISTORY_LIMIT  = 12   // 6 Q/A pairs max — keeps prompt cache friendly
 
+// Slice 8 Build 3 session 4 — DETAILED vs MINIMAL detection. Brief
+// Decision 6: parents who open with a paragraph dump get DETAILED mode
+// (longer interview with more drill-downs); short answerers get MINIMAL.
+// We only fire detection on the FIRST build-mode turn — once mode is set
+// on a session it propagates through the merge layer (`mode: prior.mode`).
+const DETAILED_WORD_THRESHOLD = 100
+
+function countWords(s: string): number {
+  return s.trim().split(/\s+/).filter(Boolean).length
+}
+
+// Slice 8 Build 3 session 4 — pricing for Build Mode log writes. Mirrored
+// from PRICING_PER_MTOK['gpt-5-4-mini'] in lib/server/nana-brain.js. We
+// duplicate the constants here rather than importing from nana-brain so
+// the route's "no nana-brain.js import" source-grep test (Codex r1 #12)
+// stays satisfied. A test below pins the values; if pricing drifts in
+// nana-brain.js without updating this file, dashboards would mis-cost
+// Build Mode spend, so the assertion is load-bearing.
+const GPT_5_4_MINI_PRICING_PER_MTOK = {
+  input:        0.75,
+  cache_create: 0,
+  cache_read:   0.075,
+  output:       4.50,
+} as const
+
+function buildModeCostUSD(usage: { input_tokens: number; output_tokens: number }) {
+  const p = GPT_5_4_MINI_PRICING_PER_MTOK
+  const inTok  = usage.input_tokens  ?? 0
+  const outTok = usage.output_tokens ?? 0
+  const cost_input  = (inTok  * p.input)  / 1e6
+  const cost_output = (outTok * p.output) / 1e6
+  return {
+    cost_input,
+    cost_output,
+    total_usd: cost_input + cost_output,
+  }
+}
+
 // Non-strict because useNanaChat sends extra fields (devilsAdvocate,
 // deepMode, lensView, activeTab, shortlistSlugs, …) that the regular
 // /api/nana-research route consumes. Build Mode ignores them.
@@ -165,7 +203,7 @@ export async function POST(req: NextRequest) {
   // session before the v5 migration applies). The interview just
   // starts the parent from a fresh progress state in that case.
   const parsedProgress = BuildModeProgressSchema.safeParse(sess.build_mode_progress)
-  const progress: BuildModeProgress = parsedProgress.success
+  let progress: BuildModeProgress = parsedProgress.success
     ? parsedProgress.data
     : emptyProgress('minimal')
 
@@ -194,6 +232,20 @@ export async function POST(req: NextRequest) {
       return !!pa && typeof pa === 'object' && (pa as Record<string, unknown>).build_mode != null
     })
     .reverse()   // oldest → newest for prompt order
+
+  // Slice 8 Build 3 session 4 — DETAILED detection on turn 1 only. If
+  // there's no prior build-mode history AND progress is fresh (no usable
+  // signal captured yet) AND the parent typed a paragraph (>=100 words),
+  // upgrade to DETAILED so the interview drills down rather than racing
+  // through short questions. Mode then propagates via the merge layer.
+  if (
+    progress.mode === 'minimal' &&
+    progress.usable_total === 0 &&
+    recentBuildModeMsgs.length === 0 &&
+    countWords(body.question) >= DETAILED_WORD_THRESHOLD
+  ) {
+    progress = { ...progress, mode: 'detailed' }
+  }
 
   const history: BuildModeMessage[] = []
   for (const m of recentBuildModeMsgs) {
@@ -338,6 +390,48 @@ export async function POST(req: NextRequest) {
           send({ type: 'persistence_warning', code: 'insert_failed' })
         }
         const messageId = insertedRow?.id ?? null
+
+        // Slice 8 Build 3 session 4 — log to nana_chat_logs so Build Mode
+        // turns surface in Mission Control's 💬 Nana Chats + 💰 Costs
+        // tabs alongside regular Nana chat spend. Without this insert,
+        // every Build Mode turn was invisible to the dashboard even
+        // though the prose + extraction + RPC writes were happening.
+        //
+        // Fire-and-forget: log failure mustn't tear down the stream.
+        // turn.meta is only populated by the production stream helper;
+        // test mocks satisfy BuildModeStreamResult via duck-typing and
+        // may omit it (the runInterviewTurn return type marks it optional).
+        if (turn.meta) {
+          turn.meta.then(meta => {
+            const cost = buildModeCostUSD(meta.usage)
+            return svc.from('nana_chat_logs').insert({
+              school_slug:          null,
+              question:             body.question.slice(0, 2000),
+              answer_preview:       proseAccum.slice(0, 500),
+              tokens_in:            meta.usage.input_tokens,
+              tokens_cache_write:   null,
+              tokens_cache_read:    null,
+              tokens_out:           meta.usage.output_tokens,
+              cost_input_usd:       cost.cost_input,
+              cost_cache_write_usd: null,
+              cost_cache_read_usd:  null,
+              cost_output_usd:      cost.cost_output,
+              cost_total_usd:       cost.total_usd,
+              cache_hit_pct:        null,
+              chunk_count:          null,
+              sensitive_count:      null,
+              backend:              'build-mode',
+              model:                meta.model,
+              confidence:           'high',
+              claude_ms:            null,
+              total_ms:             meta.total_ms,
+            })
+          }).then(result => {
+            if (result?.error) console.error('[build-mode/turn] nana_chat_logs insert failed', result.error)
+          }).catch(err => {
+            console.error('[build-mode/turn] meta/log error', err)
+          })
+        }
 
         // Final event: surface the SAME render-compatible parsed shape
         // we wrote to DB so the live bubble renders identically to a

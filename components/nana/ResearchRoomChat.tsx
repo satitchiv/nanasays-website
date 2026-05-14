@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useNanaChat } from '@/lib/nana/use-nana-chat'
 import { NanaMsgBubble, prettyToolName } from './NanaBubble'
+import BuildModeProgressBar from './BuildModeProgressBar'
 import type { Session, ResearchMessage } from '@/lib/nana/types'
 
 // Codex P2 #2 fix: gate desktop vs mobile ChatBody rendering by viewport
@@ -83,6 +84,8 @@ const DRAG_SNAP_THRESHOLD = 70
 function ChatBody({
   buildMode,
   onToggleBuildMode,
+  onSkipBuildMode,
+  onBuildTableNow,
   chat,
   onConfirmAddRow,
   onApplyReRank,
@@ -95,6 +98,11 @@ function ChatBody({
 }: {
   buildMode:            boolean
   onToggleBuildMode:    () => void
+  // Slice 8 Build 3 session 4 — Build Mode session-exit affordances.
+  // Both are pure callbacks; ResearchRoomChat owns the state transitions
+  // (toggle flip + post-toggle ask for the "build table" path).
+  onSkipBuildMode?:     () => void
+  onBuildTableNow?:     () => void
   chat:                 ReturnType<typeof useNanaChat>
   onConfirmAddRow:      (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
   onApplyReRank?:       (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
@@ -114,6 +122,7 @@ function ChatBody({
     askError,
     ask,             stopStream, startNewConversation,
     chatEndRef,      inputRef,
+    buildModeState,
   } = chat
 
   function handleKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -146,6 +155,27 @@ function ChatBody({
         <span className="rr-bt-state">{buildMode ? 'ON' : 'OFF'}</span>
       </button>
 
+      {buildMode && buildModeState && (
+        <BuildModeProgressBar
+          state={buildModeState}
+          onBuildTableNow={onBuildTableNow}
+        />
+      )}
+
+      {buildMode && !isStreaming && onSkipBuildMode && (
+        // Slice 8 Build 3 session 4 — escape hatch from Build Mode.
+        // Always available while the toggle is on; client-only — progress
+        // survives via the DB (research_sessions.build_mode_progress) so
+        // re-entering picks up where the parent left off.
+        <button
+          type="button"
+          className="rr-build-skip"
+          onClick={onSkipBuildMode}
+        >
+          ↩ Skip Build Mode for now — your progress is saved
+        </button>
+      )}
+
       <div className="rr-thread">
         {messages.length === 0 && !isStreaming && (
           <div className="rr-bubble-nana">
@@ -155,9 +185,32 @@ function ChatBody({
               </svg>
               <div className="rr-bubble-name">Nana</div>
             </div>
-            <div className="rr-bubble-lead">
-              Ask me anything about the schools in your comparison — fees, results, pastoral care, how they stack up against each other.
-            </div>
+            {buildMode ? (
+              // Slice 8 Build 3 session 4 — Build Mode opener.
+              // Client-side synthetic message: no LLM call, no DB row.
+              // Re-renders fresh every time the parent enters Build Mode
+              // with an empty thread; once they send the first reply,
+              // messages.length > 0 and this branch hides naturally.
+              <>
+                <div className="rr-bubble-lead">
+                  <strong>Welcome to Build Mode.</strong>{' '}
+                  The comparison table on the right is generic right now — every parent sees the same rows.
+                  In Build Mode, I’ll ask you a few questions about what matters most to your family,
+                  then we’ll build rows tailored to <em>your</em> priorities, not generic ones.
+                </div>
+                <div className="rr-bubble-lead">
+                  You can skip anything you’d rather not answer, pause with the “Skip for now” button at any time,
+                  and I’ll remember where we left off.
+                </div>
+                <div className="rr-bubble-lead">
+                  To start — <strong>what’s the one thing that matters most to you when you picture the right school for your child?</strong>
+                </div>
+              </>
+            ) : (
+              <div className="rr-bubble-lead">
+                Ask me anything about the schools in your comparison — fees, results, pastoral care, how they stack up against each other.
+              </div>
+            )}
           </div>
         )}
 
@@ -424,6 +477,29 @@ export default function ResearchRoomChat({
     }
   }, [pendingAutoConfirmTopic, chat.messages, chat.isStreaming])
 
+  // Slice 8 Build 3 session 4 — "Build my table" CTA. Posts to the
+  // dedicated /api/research-room/build-mode/finalize route (NOT through
+  // the regular Nana brain — the C-option fix replaced the earlier
+  // synthetic-prompt flow that hallucinated schools and ignored
+  // captured priorities). The finalize route reads child_profile +
+  // shortlist server-side and emits 3-5 propose_add_row proposals in
+  // the standard parsed_answer shape so the existing "+ Add as row"
+  // pills render unchanged.
+  //
+  // We toggle Build Mode off in the same handler so the chat panel
+  // returns to the regular-answering shell — the bar disappears, the
+  // header switches from "BUILD MODE · CO-BUILDER" to "ANSWERING".
+  // Order matters: endpointOverride is consumed at ask() submit time
+  // (not from the ref), so we can call both synchronously without
+  // racing the re-render.
+  const handleSkipBuildMode  = () => { onToggleBuildMode() }
+  const handleBuildTableNow  = () => {
+    onToggleBuildMode()
+    void chat.ask('Build my comparison table now', {
+      endpointOverride: '/api/research-room/build-mode/finalize',
+    })
+  }
+
   // Slice 5: confirm a "+ Add as row" proposal. Posts to write-action; on
   // success refreshes the page so loadComparisonData re-reads
   // comparison_rows. Errors get surfaced via askError-style alert below
@@ -686,7 +762,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={handleSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         )}
       </aside>
@@ -757,7 +833,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={handleSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         </>
       )}

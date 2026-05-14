@@ -191,3 +191,59 @@ test('route: AbortController wired to req.signal', () => {
 test('route: stream cancel() aborts the LLM call', () => {
   assert.match(src, /cancel\(\)\s*\{[\s\S]*?ac\.abort\(\)/)
 })
+
+// ── DETAILED / MINIMAL detection (session 4) ─────────────────────────
+
+test('route: DETAILED_WORD_THRESHOLD constant defined for first-turn mode detection', () => {
+  // Brief Decision 6 — parents who open with a paragraph dump get
+  // DETAILED mode; the threshold lives in the route so it doesn't
+  // accidentally drift between detection (route) and engine pacing.
+  assert.match(src, /DETAILED_WORD_THRESHOLD\s*=\s*100/)
+  assert.match(src, /function countWords\(/)
+})
+
+test('route: DETAILED detection only fires on truly first turn + fresh progress', () => {
+  // All four guards must be present so the mode upgrade can't fire on
+  // turn 2+ (history reset between sessions) or against a session that
+  // already started DETAILED.
+  assert.match(src, /progress\.mode === 'minimal'/)
+  assert.match(src, /progress\.usable_total === 0/)
+  assert.match(src, /recentBuildModeMsgs\.length === 0/)
+  assert.match(src, /countWords\(body\.question\) >= DETAILED_WORD_THRESHOLD/)
+})
+
+test('route: DETAILED upgrade mutates progress.mode immutably (new object, not in-place)', () => {
+  // Use spread, not direct assignment, so a future TS refactor doesn't
+  // accidentally mutate the `parsed_data` object Supabase returned.
+  assert.match(src, /progress = \{ \.\.\.progress, mode: 'detailed' \}/)
+})
+
+// ── nana_chat_logs spend tracking (session 4) ────────────────────────
+
+test('route: writes to nana_chat_logs so MC dashboard tracks Build Mode spend', () => {
+  // Before session 4, Build Mode turns were invisible to Mission
+  // Control's 💬 Nana Chats + 💰 Costs tabs because only message
+  // history (research_session_messages) was being written. The insert
+  // must use backend='build-mode' so dashboards can break it out from
+  // regular Nana research chats.
+  assert.match(src, /\.from\('nana_chat_logs'\)\.insert\(/)
+  assert.match(src, /backend:\s+'build-mode'/)
+})
+
+test('route: nana_chat_logs insert is gated on turn.meta presence (test-mock safe)', () => {
+  // runInterviewTurn's `meta` field is optional so test mocks satisfying
+  // BuildModeStreamResult don't have to provide it. The route must skip
+  // the log insert when meta is undefined rather than calling .then on
+  // undefined.
+  assert.match(src, /if \(turn\.meta\)/)
+})
+
+test('route: gpt-5.4-mini pricing matches nana-brain PRICING_PER_MTOK', () => {
+  // Pricing constants are duplicated here (rather than imported from
+  // nana-brain.js, which would violate the no-nana-brain-import test
+  // above). If nana-brain.js's PRICING_PER_MTOK['gpt-5-4-mini'] changes,
+  // this test surfaces the drift so dashboards stay honest.
+  assert.match(src, /input:\s+0\.75/)
+  assert.match(src, /cache_read:\s+0\.075/)
+  assert.match(src, /output:\s+4\.50/)
+})

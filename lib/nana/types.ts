@@ -179,3 +179,26 @@ export interface AskError {
   status?: number
   message: string
 }
+
+// Slice 8 Build 3 session 4 — Build Mode stream state surfaced by
+// useNanaChat. Re-exports the canonical server type so client + server
+// can't drift; `lastDiff` is one-turn-only and cleared on the next ask().
+// The server emits the matching SSE event from
+// /api/research-room/build-mode/turn/route.ts.
+export type { BuildModeProgress } from '@/lib/server/research-room/build-mode-schemas'
+
+export interface BuildModeStreamState {
+  progress: import('@/lib/server/research-room/build-mode-schemas').BuildModeProgress
+  // One of the TargetKey values, or 'confirm_contradiction' / 'free'.
+  // Typed loosely so client doesn't need to import the server enum.
+  focus:    string
+  // Names of writable child_profile fields touched this turn. Cleared on
+  // the next ask() so the progress bar's microcopy only ever shows the
+  // latest delta.
+  lastDiff: {
+    set:          string[]
+    appended:     string[]
+    contradicted: string[]
+    refused:      string[]
+  } | null
+}

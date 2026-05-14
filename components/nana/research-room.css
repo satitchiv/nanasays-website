@@ -1060,6 +1060,183 @@
   color: var(--rr-moss);
 }
 
+/* Build mode progress bar (slice 8 build 3 session 4) */
+.rr-build-progress {
+  margin: 10px 16px 0;
+  padding: 10px 12px 12px;
+  background: var(--rr-white);
+  border: 1px solid var(--rr-border);
+  border-radius: var(--rr-r-md);
+  width: calc(100% - 32px);
+  box-shadow: 0 1px 3px var(--rr-shadow);
+}
+.rr-build-progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-family: var(--rr-sans);
+}
+.rr-build-progress-focus {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--rr-navy);
+  letter-spacing: -.1px;
+}
+.rr-build-progress-pct {
+  font-family: var(--rr-mono);
+  font-size: 10.5px;
+  color: var(--rr-muted);
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+.rr-build-progress-bar {
+  display: flex;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--rr-off-2);
+  overflow: visible;     /* let the focus ::after indicator render below */
+  gap: 2px;
+  position: relative;
+  margin-bottom: 6px;    /* breathing room for the focus indicator */
+}
+.rr-build-progress-seg {
+  position: relative;
+  background: var(--rr-off);
+  transition: background .2s;
+  min-width: 2px;
+}
+.rr-build-progress-seg.is-empty {
+  background: var(--rr-off-2);
+}
+.rr-build-progress-seg-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--rr-teal);
+  transition: width .3s ease;
+}
+.rr-build-progress-seg.is-focus .rr-build-progress-seg-fill {
+  background: var(--rr-teal-dk);
+}
+.rr-build-progress-seg.is-focus::after {
+  /* Subtle indicator below the focus segment instead of a detached outline.
+     Earlier outline+offset version produced a visible "floating box" at
+     small segment widths (e.g. 5% "other" target). */
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -3px;
+  height: 2px;
+  background: var(--rr-teal-dk);
+  border-radius: 1px;
+}
+.rr-build-progress-learned {
+  margin-top: 8px;
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  color: var(--rr-muted);
+  line-height: 1.4;
+}
+.rr-build-progress-learned strong {
+  color: var(--rr-teal-dk);
+  font-weight: 800;
+}
+
+/* ≥80% CTA inside the progress bar */
+.rr-build-progress-cta {
+  margin-top: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--rr-teal);
+  background: var(--rr-teal-bg);
+  border-radius: var(--rr-r-md);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  transition: all .15s;
+}
+.rr-build-progress-cta:hover {
+  border-color: var(--rr-teal-dk);
+  background: var(--rr-white);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--rr-shadow);
+}
+.rr-build-progress-cta:focus-visible {
+  outline: 2px solid var(--rr-teal);
+  outline-offset: 2px;
+}
+.rr-build-progress-cta-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--rr-white);
+  color: var(--rr-teal-dk);
+  display: grid;
+  place-items: center;
+  font-family: var(--rr-display);
+  font-size: 14px;
+  font-weight: 900;
+}
+.rr-build-progress-cta-body { display: block; }
+.rr-build-progress-cta-title {
+  display: block;
+  font-family: var(--rr-sans);
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--rr-navy);
+  letter-spacing: -.1px;
+}
+.rr-build-progress-cta-sub {
+  display: block;
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  color: rgba(27,50,82,.7);
+  font-weight: 600;
+  margin-top: 2px;
+}
+.rr-build-progress-cta-arrow {
+  color: var(--rr-teal-dk);
+  font-size: 16px;
+  font-weight: 900;
+}
+
+/* Skip-for-now link below the bar (or below the toggle when no
+   progress streamed yet) */
+.rr-build-skip {
+  margin: 8px 16px 0;
+  width: calc(100% - 32px);
+  background: transparent;
+  border: 0;
+  padding: 6px 4px;
+  cursor: pointer;
+  font: inherit;
+  color: var(--rr-muted);
+  font-family: var(--rr-sans);
+  font-size: 11.5px;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--rr-bmd);
+  transition: color .15s;
+}
+.rr-build-skip:hover {
+  color: var(--rr-navy);
+  text-decoration-color: var(--rr-navy);
+}
+.rr-build-skip:focus-visible {
+  outline: 2px solid var(--rr-teal);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
 /* Thread + bubble */
 .rr-thread {
   flex: 1;
