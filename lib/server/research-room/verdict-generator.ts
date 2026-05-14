@@ -597,12 +597,26 @@ function scoreSchools(data: ComparisonData, rubric: Rubric, lensWeightsByRowId?:
 
   // Array.from() to avoid TS2802 (Map iteration needs downlevelIteration
   // or es2015+ target — tsconfig.json isn't ours to bump in this commit).
-  for (const [, topicRows] of Array.from(rowsByTopic.entries())) {
-    const category = rowCategory(topicRows[0].label)
-    const perSchoolPos: (Candidate | null)[] = scored.map(() => null)
-    const perSchoolNeg: (Candidate | null)[] = scored.map(() => null)
+  //
+  // Codex r1 follow-up (post-Build-4): rows that fall to `rowTopic='other'`
+  // are heterogeneous by construction (the regex chain returns 'other' as
+  // a fallback). Collapsing strongest+/- across unrelated 'other' rows
+  // would reintroduce the row-count bias Build 4 was meant to kill — e.g.
+  // a chat-added "Director of rugby" + "Coach" + "Facilities" trio (all
+  // labelled with `group_name='Rugby'` but row-name-only categorisation
+  // returns 'other') would score as one composite signal. Treat each
+  // 'other' row as its own one-row group so the topic-grouping is a no-op.
+  for (const [topic, topicRows] of Array.from(rowsByTopic.entries())) {
+    const groups: ComparisonRow[][] = topic === 'other'
+      ? topicRows.map(r => [r])
+      : [topicRows]
 
-    for (const row of topicRows) {
+    for (const groupRows of groups) {
+      const category = rowCategory(groupRows[0].label)
+      const perSchoolPos: (Candidate | null)[] = scored.map(() => null)
+      const perSchoolNeg: (Candidate | null)[] = scored.map(() => null)
+
+      for (const row of groupRows) {
       const direction = rowDirection(row.label)
       const weight = rowWeight(row, category, rubric, lensWeightForRow(row, lensWeightsByRowId))
       const rowValues = row.cells.map(cellText)
@@ -656,12 +670,13 @@ function scoreSchools(data: ComparisonData, rubric: Rubric, lensWeightsByRowId?:
       })
     }
 
-    scored.forEach((school, idx) => {
-      const pos = perSchoolPos[idx]
-      const neg = perSchoolNeg[idx]
-      if (pos) applyDelta(school, category, pos.delta, pos.signalText, pos.rawValue, rubric)
-      if (neg) applyDelta(school, category, neg.delta, neg.signalText, neg.rawValue, rubric)
-    })
+      scored.forEach((school, idx) => {
+        const pos = perSchoolPos[idx]
+        const neg = perSchoolNeg[idx]
+        if (pos) applyDelta(school, category, pos.delta, pos.signalText, pos.rawValue, rubric)
+        if (neg) applyDelta(school, category, neg.delta, neg.signalText, neg.rawValue, rubric)
+      })
+    }
   }
 
   addSchoolStageAdjustments(scored, rubric)
