@@ -153,13 +153,17 @@ test('finalize r6: re-checks MIN_PROPOSALS after the shortlist filter', () => {
   assert.match(src, /after filtering/)
 })
 
-test('finalize r6: cell_data value/source/note schema is z.literal(null)', () => {
+test('finalize r6+r7: cell_data value/source/note schema is z.null()', () => {
   // Prompt instructs the LLM that verdict rows MUST NOT invent per-school
-  // facts; schema enforces it so a hallucinated string fails extraction
-  // up-front rather than persisting silently into the comparison view.
-  assert.match(schemasSrc, /value:\s*z\.literal\(null\)/)
-  assert.match(schemasSrc, /source:\s*z\.literal\(null\)/)
-  assert.match(schemasSrc, /note:\s*z\.literal\(null\)/)
+  // facts; schema enforces it at BOTH layers. r6 first tried
+  // z.literal(null) but openai@6.35's zod-to-json-schema serializes that
+  // as `{ "type": "object" }`, which would have constrained the model
+  // toward objects while the Zod parser still expected null — Codex r7
+  // P1. z.null() serializes as `{ "type": "null" }` AND rejects
+  // omission/"null" string, so it's correct at both layers.
+  assert.match(schemasSrc, /value:\s*z\.null\(\)/)
+  assert.match(schemasSrc, /source:\s*z\.null\(\)/)
+  assert.match(schemasSrc, /note:\s*z\.null\(\)/)
 })
 
 // ── Persistence + render shape ───────────────────────────────────────

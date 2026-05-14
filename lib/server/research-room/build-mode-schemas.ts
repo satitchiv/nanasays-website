@@ -231,18 +231,22 @@ export type BuildModeProgress = z.infer<typeof BuildModeProgressSchema>
 // structured output doesn't support z.record's `additionalProperties`
 // pattern; the route converts the array → record before persisting).
 
-// Codex r6 P1 — the finalize prompt instructs the LLM that every cell
-// value/source/note MUST be null (verdict prose calls out shortlist
-// schools but never invents per-school facts). Enforcing that in the
-// schema with z.literal(null) makes a hallucinated string value fail
-// extraction up-front rather than silently persisting as a "fact" on
-// the comparison row. The route copies these straight into the persisted
-// proposed_actions, so any non-null path here is a regression vector.
+// Codex r6 P1 + r7 P1 — the finalize prompt instructs the LLM that every
+// cell value/source/note MUST be null (verdict prose calls out shortlist
+// schools but never invents per-school facts). z.null() enforces that at
+// both layers: OpenAI's zodResponseFormat() serializes it as JSON Schema
+// `{ "type": "null" }` so the model is constrained AT GENERATION, and the
+// final Zod parse rejects any non-null fallback. (r6 first tried
+// z.literal(null), but openai@6.35's zod-to-json-schema serializes that
+// as `{ "type": "object" }` — see node_modules/openai/_vendor/zod-to-json
+// -schema/parsers/literal.js — so the model was being pushed toward
+// objects while the parser expected null, which would have made the CTA
+// silently fail extraction.)
 const FinalizeCellDataItemSchema = z.object({
   slug:   z.string().min(1).max(120),
-  value:  z.literal(null),
-  source: z.literal(null),
-  note:   z.literal(null),
+  value:  z.null(),
+  source: z.null(),
+  note:   z.null(),
 }).strict()
 
 export const BuildModeFinalizeProposalSchema = z.object({
