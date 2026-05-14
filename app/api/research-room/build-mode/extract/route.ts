@@ -16,30 +16,18 @@ import { z } from 'zod'
 import { isResearchRoomEnabled } from '@/lib/feature-flags'
 import { getUnlockedUser } from '@/lib/paid-status'
 import { supabaseService } from '@/lib/supabase-admin'
+import { BuildModeExtractionHTTPSchema } from '@/lib/server/research-room/build-mode-schemas'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-// HTTP-side allowlist (`.optional()` for PATCH semantics). Keep field
-// name + type parity with the LLM-side schema in build-mode-llm.ts
-// (which uses `.nullable()` because zodResponseFormat rejects optional).
-export const BuildModeExtractionSchema_HTTP = z.object({
-  personality_notes: z.string().optional(),
-  anchors_notes:     z.string().optional(),
-  academic_notes:    z.string().optional(),
-  goals_notes:       z.string().optional(),
-  nonnegotiables:    z.array(z.string()).optional(),
-  child_wants:       z.string().optional(),
-  goal_orientation:  z.enum(['university_track', 'discovery', 'sport_career']).optional(),
-  interests_sports:  z.array(z.object({
-    sport: z.string(),
-    level: z.string(),
-  })).optional(),
-  interests_arts:    z.array(z.object({
-    art:   z.string(),
-    level: z.string(),
-  })).optional(),
-}).strict()
+// Slice 8 Build 3 r1: schema imported from the single-source-of-truth
+// module so the route + the LLM-side stay in lock-step. Tests in
+// `build-mode-interview.test.mjs` assert key + base-type parity.
+//
+// Re-exported under the original local name to preserve any in-repo
+// imports that referenced this constant.
+export const BuildModeExtractionSchema_HTTP = BuildModeExtractionHTTPSchema
 
 const ProgressTargetsSchema = z.record(z.string(), z.number().min(0).max(1))
 

@@ -1,0 +1,235 @@
+// Slice 8 Build 3 — single source of truth for Build Mode schemas.
+//
+// Two surfaces consume the extraction shape:
+//   1. The LLM helper (`build-mode-llm.ts`) requires `.nullable()` because
+//      OpenAI strict structured outputs rejects `.optional()` fields.
+//   2. The HTTP route (`/api/research-room/build-mode/extract`) wants
+//      `.optional()` PATCH semantics so partial writes don't need to send
+//      every field on every turn.
+//
+// Codex r1 finding 8 + r2 P1: keep ONE field-defs object and derive both
+// schemas from it so they can't drift. A `node --test` walks both schemas
+// and asserts identical key sets + identical base types.
+//
+// Codex r2 finding 6: ProgressTarget shape is `{state, weight}`, not a raw
+// number. `state` is enum-ish so the progress bar reflects extraction
+// QUALITY, not just "did the field transition null→set". The live RPC
+// (scripts/migrations/2026-05-14-build-mode-rpcs.sql:166) computes total
+// as AVG of numbers — a migration in session 3 swaps that for the
+// weighted-sum function below.
+//
+// Codex r2 finding 9: the LLM payload's inner extracted-data field is
+// named `fields` (not `extraction`) to avoid the nested
+// `turn.extraction.extraction.goal_orientation` chain when the Step 0.1
+// helper wraps this as `{ prose, extraction }`.
+
+import { z } from 'zod'
+
+// ── Field definitions (single source) ────────────────────────────────
+
+// Each entry is the BASE zod type for a writable child_profile field.
+// Schemas below add .nullable() (LLM) or .optional() (HTTP) per surface.
+// Caps mirror Slice 5's `propose_add_row` validator caps + the route's
+// per-field 8KB guard against runaway LLM output.
+const FIELD_DEFS = {
+  personality_notes: z.string().max(8000),
+  anchors_notes:     z.string().max(8000),
+  academic_notes:    z.string().max(8000),
+  goals_notes:       z.string().max(8000),
+  child_wants:       z.string().max(8000),
+  nonnegotiables:    z.array(z.string().max(500)).max(20),
+  goal_orientation:  z.enum(['university_track', 'discovery', 'sport_career']),
+  interests_sports:  z.array(
+    z.object({
+      sport: z.string().min(1).max(64),
+      level: z.string().min(1).max(64),
+    }).strict(),
+  ).max(20),
+  interests_arts:    z.array(
+    z.object({
+      art:   z.string().min(1).max(64),
+      level: z.string().min(1).max(64),
+    }).strict(),
+  ).max(20),
+} as const
+
+export const BUILD_MODE_FIELD_KEYS = Object.keys(FIELD_DEFS) as readonly (keyof typeof FIELD_DEFS)[]
+
+// ── LLM-side schema (.nullable()) ────────────────────────────────────
+
+// OpenAI strict structured outputs REQUIRES `.nullable()`, NOT `.optional()`.
+// Tests/parity-check walk this against the HTTP variant below.
+export const BuildModeExtractionLLMSchema = z.object({
+  personality_notes: FIELD_DEFS.personality_notes.nullable(),
+  anchors_notes:     FIELD_DEFS.anchors_notes.nullable(),
+  academic_notes:    FIELD_DEFS.academic_notes.nullable(),
+  goals_notes:       FIELD_DEFS.goals_notes.nullable(),
+  child_wants:       FIELD_DEFS.child_wants.nullable(),
+  nonnegotiables:    FIELD_DEFS.nonnegotiables.nullable(),
+  goal_orientation:  FIELD_DEFS.goal_orientation.nullable(),
+  interests_sports:  FIELD_DEFS.interests_sports.nullable(),
+  interests_arts:    FIELD_DEFS.interests_arts.nullable(),
+}).strict()
+
+// ── HTTP-side schema (.optional()) ───────────────────────────────────
+
+// Route receives the MERGED desired state from the server-side caller
+// (per Codex r2 R1: merge happens in the route layer, not the browser).
+// Each field is `.optional()` because the merge may have nothing to write
+// for fields the LLM didn't touch this turn.
+export const BuildModeExtractionHTTPSchema = z.object({
+  personality_notes: FIELD_DEFS.personality_notes.optional(),
+  anchors_notes:     FIELD_DEFS.anchors_notes.optional(),
+  academic_notes:    FIELD_DEFS.academic_notes.optional(),
+  goals_notes:       FIELD_DEFS.goals_notes.optional(),
+  child_wants:       FIELD_DEFS.child_wants.optional(),
+  nonnegotiables:    FIELD_DEFS.nonnegotiables.optional(),
+  goal_orientation:  FIELD_DEFS.goal_orientation.optional(),
+  interests_sports:  FIELD_DEFS.interests_sports.optional(),
+  interests_arts:    FIELD_DEFS.interests_arts.optional(),
+}).strict()
+
+export type BuildModeExtractionLLM  = z.infer<typeof BuildModeExtractionLLMSchema>
+export type BuildModeExtractionHTTP = z.infer<typeof BuildModeExtractionHTTPSchema>
+
+// ── Interview-turn payload ───────────────────────────────────────────
+
+// The 7 interview targets the progress bar tracks. Weights MUST sum to
+// 1.0 (asserted in test) so `total` stays in [0,1]. Source: brief
+// Decision 6.
+export const TARGET_KEYS = [
+  'goals',
+  'interests',
+  'child_wants',
+  'went_wrong',
+  'nonnegotiables',
+  'drill_down',
+  'other',
+] as const
+export type TargetKey = typeof TARGET_KEYS[number]
+
+export const TARGET_WEIGHTS: Readonly<Record<TargetKey, number>> = {
+  goals:           0.25,
+  interests:       0.20,
+  child_wants:     0.15,
+  went_wrong:      0.15,
+  nonnegotiables:  0.10,
+  drill_down:      0.10,
+  other:           0.05,
+}
+
+const TargetKeyEnum = z.enum(TARGET_KEYS)
+
+// Confidence states for the per-field signal the LLM reports.
+// `vague`     — answer was indirect, drill-down recommended
+// `inferred`  — LLM read the answer with reasonable confidence
+// `confirmed` — parent said the thing directly, no ambiguity
+export const ConfidenceStateEnum = z.enum(['vague', 'inferred', 'confirmed'])
+export type ConfidenceState = z.infer<typeof ConfidenceStateEnum>
+
+// `corrections` is per-field, not a single boolean (Codex r2 R5). The LLM
+// sets `corrections.goal_orientation = true` when the parent's wording
+// indicates an explicit correction of an earlier statement. Default false.
+const CorrectionsSchema = z.object(
+  Object.fromEntries(BUILD_MODE_FIELD_KEYS.map(k => [k, z.boolean()])),
+).partial().strict()
+
+// Top-level LLM payload. Step 0.1's helper wraps this as
+// `{ prose, extraction: <this> }`, so the full server-side type is
+// effectively `{ prose: string; extraction: BuildModeTurnPayload }`.
+export const BuildModeTurnPayloadSchema = z.object({
+  fields:      BuildModeExtractionLLMSchema,
+  refused:     z.array(TargetKeyEnum).max(TARGET_KEYS.length),
+  confidence:  z.object(
+    Object.fromEntries(BUILD_MODE_FIELD_KEYS.map(k => [k, ConfidenceStateEnum])),
+  ).partial().strict(),
+  corrections: CorrectionsSchema,
+}).strict()
+
+export type BuildModeTurnPayload = z.infer<typeof BuildModeTurnPayloadSchema>
+
+// ── Progress shape ───────────────────────────────────────────────────
+
+// Per-target state. `refused` is treated as "covered" for interview
+// completion (so the bar fills) but as zero usable evidence for row
+// proposals — see ProgressStateMultipliers below.
+export const ProgressStateEnum = z.enum([
+  'missing',
+  'vague',
+  'inferred',
+  'confirmed',
+  'refused',
+])
+export type ProgressState = z.infer<typeof ProgressStateEnum>
+
+const ProgressTargetSchema = z.object({
+  state:  ProgressStateEnum,
+  weight: z.number().min(0).max(1),
+}).strict()
+export type ProgressTarget = z.infer<typeof ProgressTargetSchema>
+
+// Codex r2 R6: pending contradictions must survive a refresh between
+// turns, otherwise the confirmation prompt vanishes. Persisted under
+// build_mode_progress.pending_confirmations.
+export const PendingConfirmationSchema = z.object({
+  field:    z.string().min(1).max(64),
+  prior:    z.unknown(),
+  incoming: z.unknown(),
+  turn_at:  z.string().min(1).max(64),  // ISO-8601 from the producer
+}).strict()
+export type PendingConfirmation = z.infer<typeof PendingConfirmationSchema>
+
+export const BuildModeProgressSchema = z.object({
+  targets:               z.record(TargetKeyEnum, ProgressTargetSchema),
+  total:                 z.number().min(0).max(1),
+  usable_total:          z.number().min(0).max(1),
+  mode:                  z.enum(['detailed', 'minimal']),
+  pending_confirmations: z.array(PendingConfirmationSchema).max(20),
+  last_updated_at:       z.string().min(1).max(64),
+}).strict()
+export type BuildModeProgress = z.infer<typeof BuildModeProgressSchema>
+
+// State → multiplier on the target's weight, used in totalling.
+// `total`        — UX progress (refused counts as "covered")
+// `usable_total` — proposal-readiness (refused gives zero evidence)
+export const ProgressStateMultipliers: Readonly<Record<ProgressState, { total: number; usable: number }>> = {
+  missing:   { total: 0.0, usable: 0.0 },
+  vague:     { total: 0.3, usable: 0.2 },
+  inferred:  { total: 0.6, usable: 0.5 },
+  confirmed: { total: 1.0, usable: 1.0 },
+  refused:   { total: 1.0, usable: 0.0 },
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────
+
+export function emptyProgress(mode: 'detailed' | 'minimal' = 'minimal'): BuildModeProgress {
+  const targets = Object.fromEntries(
+    TARGET_KEYS.map(k => [k, { state: 'missing' as ProgressState, weight: TARGET_WEIGHTS[k] }]),
+  ) as Record<TargetKey, ProgressTarget>
+  return {
+    targets,
+    total:                 0,
+    usable_total:          0,
+    mode,
+    pending_confirmations: [],
+    last_updated_at:       new Date(0).toISOString(),
+  }
+}
+
+export function computeTotals(targets: Record<TargetKey, ProgressTarget>): { total: number; usable_total: number } {
+  let total = 0
+  let usable = 0
+  for (const key of TARGET_KEYS) {
+    const t = targets[key]
+    if (!t) continue
+    const mul = ProgressStateMultipliers[t.state]
+    total  += t.weight * mul.total
+    usable += t.weight * mul.usable
+  }
+  // Pin to [0,1] in case of floating-point drift; weights sum to 1.0 by
+  // construction but Number arithmetic can produce 1.0000000002 etc.
+  return {
+    total:        Math.min(1, Math.max(0, total)),
+    usable_total: Math.min(1, Math.max(0, usable)),
+  }
+}
