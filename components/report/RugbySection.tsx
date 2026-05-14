@@ -183,8 +183,10 @@ export default function RugbySection({ rugby, headless = false }: Props) {
   const currentSeason = dmt?.rank_history?.[0]
   const teamsVisible  = teamsCount(rugby)
 
-  // Split programmes by gender
-  const progs = rugby.programmes ?? []
+  // Split programmes by gender. Guard against DB JSONB drift where
+  // programmes occasionally arrives as a non-array object (seen on Harrow);
+  // .find() on a non-array throws and crashes the entire report page.
+  const progs = Array.isArray(rugby.programmes) ? rugby.programmes : []
   const boysProg  = progs.find(p => p.gender === 'boys')
   const girlsProg = progs.find(p => p.gender === 'girls')
 
