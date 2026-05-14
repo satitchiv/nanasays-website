@@ -142,9 +142,14 @@ test('route: persistence_warning emitted on RPC/insert failure', () => {
 
 // ── Persistence shape ────────────────────────────────────────────────
 
-test('route: inserts research_session_messages with kind=build_mode parsed_answer', () => {
+test('route: inserts research_session_messages with build_mode marker on parsed_answer', () => {
   assert.match(src, /\.from\('research_session_messages'\)/)
-  assert.match(src, /kind:\s+'build_mode'/)
+  // Build-mode messages carry a `build_mode` sibling key on parsed_answer
+  // so page.tsx's direct-map renderer treats them like regular ParsedAnswer
+  // (sections.short_answer holds the prose) while the marker lets the
+  // history-reconstruction filter pick them out.
+  assert.match(src, /sections:\s+\{\s+short_answer:\s+proseAccum/)
+  assert.match(src, /build_mode:\s+\{/)
 })
 
 test('route: final event carries DB-issued messageId (not null when insert succeeds)', () => {
@@ -158,8 +163,11 @@ test('route: final event omits fake shareToken on insert failure (Codex r5 P1.3)
 
 // ── History reconstruction ───────────────────────────────────────────
 
-test('route: history filters to kind=build_mode messages only', () => {
-  assert.match(src, /\.kind === 'build_mode'/)
+test('route: history filters to messages with build_mode marker only', () => {
+  // Filter excludes regular-chat messages so the LLM's history slot
+  // stays on-topic. Renames in either direction would be a regression
+  // worth flagging.
+  assert.match(src, /\.build_mode != null/)
 })
 
 test('route: history HISTORY_LIMIT cap is in scope (prompt-size guard)', () => {

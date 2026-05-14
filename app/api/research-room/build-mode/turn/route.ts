@@ -182,11 +182,16 @@ export async function POST(req: NextRequest) {
     .order('created_at', { ascending: false })
     .limit(HISTORY_LIMIT)
 
+  // Build-mode messages carry a `build_mode` marker key on parsed_answer
+  // so we can filter them out of regular-chat replays. The assistant
+  // turn's prose lives under `sections.short_answer` so the existing
+  // chat bubble renders it without special-casing (see page.tsx:474 —
+  // `parsed_answer` is mapped directly to ParsedAnswer for rendering).
   const recentBuildModeMsgs = (recentMsgs ?? [])
     .filter(m => {
       if (!m || typeof m !== 'object') return false
       const pa = (m as { parsed_answer?: unknown }).parsed_answer
-      return !!pa && typeof pa === 'object' && (pa as Record<string, unknown>).kind === 'build_mode'
+      return !!pa && typeof pa === 'object' && (pa as Record<string, unknown>).build_mode != null
     })
     .reverse()   // oldest → newest for prompt order
 
@@ -195,9 +200,13 @@ export async function POST(req: NextRequest) {
     if (typeof m.question === 'string' && m.question.length > 0) {
       history.push({ role: 'user', content: m.question })
     }
-    const pa = m.parsed_answer as { prose?: unknown } | null
-    if (pa && typeof pa.prose === 'string' && pa.prose.length > 0) {
-      history.push({ role: 'assistant', content: pa.prose })
+    const pa = m.parsed_answer as {
+      sections?: { short_answer?: unknown }
+      build_mode?: unknown
+    } | null
+    const prose = pa?.sections?.short_answer
+    if (typeof prose === 'string' && prose.length > 0) {
+      history.push({ role: 'assistant', content: prose })
     }
   }
   history.push({ role: 'user', content: body.question })
@@ -290,9 +299,17 @@ export async function POST(req: NextRequest) {
           send({ type: 'persistence_warning', code: 'apply_failed' })
         }
 
-        // Insert the chat message. The parsed_answer stores `kind:
-        // 'build_mode'` + the prose so history reconstruction can
-        // filter and replay this turn cleanly next time.
+        // Insert the chat message. The parsed_answer is shaped to be
+        // BOTH render-compatible with the existing chat bubble AND
+        // identifiable as a build-mode turn:
+        //   • `sections.short_answer` carries the prose so page.tsx's
+        //     direct-map to ParsedAnswer renders it on refresh.
+        //   • `confidence: 'high'` satisfies the renderer's expected
+        //     shape (Build Mode prose is parent-supplied, not LLM-
+        //     synthesised facts, so confidence is intrinsic).
+        //   • `build_mode` marker key with focus + diff/progress
+        //     metadata is read by history reconstruction (above) and
+        //     ignored by the regular renderer.
         const shareToken = crypto.randomUUID()
         const { data: insertedRow, error: insertError } = await svc
           .from('research_session_messages')
@@ -300,9 +317,17 @@ export async function POST(req: NextRequest) {
             session_id:    body.sessionId,
             question:      body.question.slice(0, 2000),
             parsed_answer: {
-              kind:  'build_mode',
-              prose: proseAccum,
-              focus: turn.focus,
+              sections:    { short_answer: proseAccum },
+              confidence:  'high',
+              build_mode: {
+                focus:                turn.focus,
+                total:                merge.nextProgress.total,
+                usable_total:         merge.nextProgress.usable_total,
+                refused_targets:      merge.diff.refused,
+                set_field_count:      merge.diff.set.length,
+                appended_field_count: merge.diff.appended.length,
+                contradicted_fields:  merge.diff.contradicted.map(c => String(c.field)),
+              },
             },
             share_token:   shareToken,
           })
@@ -314,12 +339,29 @@ export async function POST(req: NextRequest) {
         }
         const messageId = insertedRow?.id ?? null
 
+        // Final event: surface the SAME render-compatible parsed shape
+        // we wrote to DB so the live bubble renders identically to a
+        // post-refresh load. Without this, live messages render via
+        // useNanaChat's `rawText` fallback path which not every bubble
+        // surface honours.
         send({
           type:       'final',
           shareToken: insertError ? null : shareToken,
           messageId,
           payload: {
-            parsed:     null,
+            parsed: {
+              sections:    { short_answer: proseAccum },
+              confidence:  'high',
+              build_mode: {
+                focus:                turn.focus,
+                total:                merge.nextProgress.total,
+                usable_total:         merge.nextProgress.usable_total,
+                refused_targets:      merge.diff.refused,
+                set_field_count:      merge.diff.set.length,
+                appended_field_count: merge.diff.appended.length,
+                contradicted_fields:  merge.diff.contradicted.map(c => String(c.field)),
+              },
+            },
             raw:        proseAccum,
             parseError: undefined,
           },
