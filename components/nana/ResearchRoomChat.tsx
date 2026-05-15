@@ -188,35 +188,36 @@ function ChatBody({
         </button>
       )}
 
-      <div className="rr-thread">
-        {/* Session 4 follow-up v3 — welcome-back bubble for re-entry.
-            Two prior gates kept failing: v1 needed `messages.some(m =>
-            parsed.build_mode)` which fails when the thread is all
-            regular Nana chat; v2 added `chat.messages.length ===
-            initialMessagesCount` to hide on engagement, which never
-            triggered visibly during smoke. v3: simplest possible —
-            render whenever buildMode is on AND DB has prior Build
-            Mode progress, regardless of message history or count.
-            The bubble lives at the top of the chat thread; once the
-            parent sends a new turn it scrolls up out of view
-            naturally as new messages append. Browser smoke 2026-05-16
-            rev 3 verified visibility. */}
-        {buildMode && initialBuildModeState && !isStreaming && (
-          <div className="rr-bubble-nana">
-            <div className="rr-bubble-head">
-              <svg className="rr-bubble-avatar" aria-hidden="true">
-                <use href="#ic-nana" />
-              </svg>
-              <div className="rr-bubble-name">Nana</div>
-            </div>
-            <div className="rr-bubble-lead">
-              <strong>Welcome back.</strong>{' '}
-              You’re at <strong>{Math.round((initialBuildModeState.progress?.usable_total ?? 0) * 100)}%</strong> on Build Mode.
-              We can pick up right where we left off — just answer the next question below,
-              or hit <em>Skip Build Mode for now</em> to head back to the table.
-            </div>
+      {/* Session 4 follow-up v4 — welcome-back bubble OUTSIDE the
+          message thread.
+          v1/v2/v3 placed this inside `<div className="rr-thread">` and
+          all three failed browser smoke despite passing tests. The
+          actual bug: `rr-thread` has an auto-scroll-to-bottom effect
+          (use-nana-chat.ts) that fires on every render. With prior
+          messages present, the welcome-back bubble at the top got
+          scrolled off-screen instantly — rendered but invisible.
+          v4 lifts the bubble OUT of rr-thread and places it above,
+          alongside the progress bar + skip link. Always visible while
+          Build Mode is on. Same `.rr-bubble-nana` styling preserves
+          the "Nana says" voice. */}
+      {buildMode && initialBuildModeState && !isStreaming && (
+        <div className="rr-bubble-nana rr-bubble-nana--pinned">
+          <div className="rr-bubble-head">
+            <svg className="rr-bubble-avatar" aria-hidden="true">
+              <use href="#ic-nana" />
+            </svg>
+            <div className="rr-bubble-name">Nana</div>
           </div>
-        )}
+          <div className="rr-bubble-lead">
+            <strong>Welcome back.</strong>{' '}
+            You’re at <strong>{Math.round((initialBuildModeState.progress?.usable_total ?? 0) * 100)}%</strong> on Build Mode.
+            We can pick up right where we left off — just answer the next question below,
+            or hit <em>Skip Build Mode for now</em> to head back to the table.
+          </div>
+        </div>
+      )}
+
+      <div className="rr-thread">
         {messages.length === 0 && !isStreaming && (
           <div className="rr-bubble-nana">
             <div className="rr-bubble-head">

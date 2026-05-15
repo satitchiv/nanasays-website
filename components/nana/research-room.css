@@ -1114,6 +1114,24 @@
    in browser-smoke fix 2026-05-16. Left empty rather than deleted to
    avoid noise in the CSS diff; the rules are unused (no .rr-build-
    progress-seg* in the JSX). */
+
+/* Welcome-back bubble pinned ABOVE the message thread (v4 fix).
+   Sits between the progress bar / skip link and the rr-thread div so
+   it isn't subject to auto-scroll-to-bottom. */
+.rr-bubble-nana--pinned {
+  margin: 8px 16px 0;
+  width: calc(100% - 32px);
+  /* Slightly distinguish from in-thread Nana bubbles so it doesn't
+     read as "the first thing she said in this conversation" — the
+     gentle background tint + smaller padding give it a banner feel
+     while keeping the Nana avatar + voice. */
+  background: var(--rr-teal-bg);
+  border: 1px solid var(--rr-teal);
+  padding: 12px 14px;
+}
+.rr-bubble-nana--pinned .rr-bubble-lead {
+  font-size: 13px;
+}
 .rr-build-progress-learned {
   margin-top: 8px;
   font-family: var(--rr-sans);
