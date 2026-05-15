@@ -345,6 +345,22 @@ export async function POST(req: NextRequest) {
           diff:        merge.diff,
         })
 
+        // Slice 8 Build 7 Phase C — wrap-up gate.
+        // We emit a `build_mode_wrap_up` SSE event when the interview
+        // orchestrator has saturated all 7 targets (nextFocus === 'free').
+        // The client (ResearchRoomChat) renders an in-thread CTA bubble in
+        // response, giving the parent a deterministic "Build my table now"
+        // affordance that fires AFTER the natural wrap-up turn (vs. the
+        // progress bar's reactive ≥80% CTA, which can show mid-stream).
+        //
+        // Note: emission is moved BELOW the RPC apply block (defined later
+        // in this stream) so it can be gated on `!rpcError`. If profile
+        // persistence failed, the CTA would finalize from STALE data —
+        // suppress until the next successful turn. The actual emit lives
+        // right after the `if (rpcError) { ... }` block; this comment is
+        // here to document the placement choice at the natural reading
+        // point.
+
         // ── Persist this turn (session 3) ────────────────────────────
         //
         // Two writes:
@@ -381,6 +397,14 @@ export async function POST(req: NextRequest) {
         if (rpcError) {
           console.error('[build-mode/turn] RPC apply failed', rpcError)
           send({ type: 'persistence_warning', code: 'apply_failed' })
+        }
+
+        // Slice 8 Build 7 Phase C — wrap-up emission.
+        // See comment above the build_mode_progress send() block for the
+        // rationale: gate on !rpcError so the CTA doesn't fire against
+        // stale profile data.
+        if (!rpcError && nextFocus === 'free') {
+          send({ type: 'build_mode_wrap_up' })
         }
 
         // Insert the chat message. The parsed_answer is shaped to be

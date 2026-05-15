@@ -163,6 +163,135 @@ test('WelcomeBack Q2: dismiss tied to chat.submitSeq (not messages.length)', () 
 
 test('Build Mode toggle disabled while streaming (Codex Q8b)', () => {
   // Toggling mid-stream creates confusing entry/reset timing.
-  assert.match(src, /disabled=\{chat\.isStreaming\}/)
+  // Slice 8 Build 7 Phase C r1 P1 #1 — disabled expression also includes
+  // fullscreenBuildMode now, so match for chat.isStreaming somewhere in
+  // the disabled prop value rather than the exact prior shape.
+  assert.match(src, /disabled=\{[^}]*chat\.isStreaming[^}]*\}/)
+})
+
+// ── Slice 8 Build 7 Phase C — fullscreen mode regression tests ──
+//
+// Phase C wraps the chat in a fullscreen pinned-to-viewport variant when
+// the active child's funnel_state is 'interview'. Catches prop wiring,
+// toggle disable, wrap-up bubble gate, bar CTA suppression, mobile +
+// desktop chrome suppression, focus-effect shape, build-table-now exit.
+// Codex rounds 1-5 trail: YELLOW → YELLOW → YELLOW → YELLOW → GREEN.
+
+test('Phase C: accepts fullscreenBuildMode + onExitInterview props', () => {
+  assert.ok(/fullscreenBuildMode\?:\s*boolean/.test(src), 'expected fullscreenBuildMode?: boolean in Props')
+  assert.ok(/onExitInterview\?:\s*\(\s*\)\s*=>\s*void/.test(src), 'expected onExitInterview?: () => void in Props')
+})
+
+test('Phase C: ChatBody receives fullscreenBuildMode prop', () => {
+  const chatBodyParamMatch = src.match(/function ChatBody\(\{[\s\S]*?\}:\s*\{[\s\S]*?\}\)/m)
+  assert.ok(chatBodyParamMatch, 'expected to find ChatBody function with param destructure')
+  assert.ok(
+    /fullscreenBuildMode:\s*boolean/.test(chatBodyParamMatch[0]),
+    'ChatBody param type must include fullscreenBuildMode: boolean',
+  )
+})
+
+test('Phase C: Build Mode toggle is disabled when fullscreen', () => {
+  // r1 P1 #1: toggle stays clickable would foot-gun; disable in fullscreen.
+  assert.ok(
+    /disabled=\{[^}]*fullscreenBuildMode/.test(src),
+    'rr-build-toggle must include fullscreenBuildMode in disabled condition',
+  )
+})
+
+test('Phase C: handleBuildTableNow calls onExitInterview (not onToggleBuildMode)', () => {
+  assert.ok(
+    /handleBuildTableNow\s*=\s*\(\s*\)\s*=>\s*\{[\s\S]*?onExitInterview\?\.\(\s*\)/m.test(src),
+    'handleBuildTableNow must call onExitInterview?.()',
+  )
+  const handlerMatch = src.match(/const handleBuildTableNow\s*=\s*\(\s*\)\s*=>\s*\{[\s\S]*?\n  \}/m)
+  if (handlerMatch) {
+    assert.ok(
+      !/onToggleBuildMode\(/.test(handlerMatch[0]),
+      'handleBuildTableNow must NOT call onToggleBuildMode (r1 P1 #1)',
+    )
+  }
+})
+
+test('Phase C: bar CTA is suppressed when wrap-up bubble is active', () => {
+  // r1 P2 #6: BuildModeProgressBar.onBuildTableNow gated on !buildModeWrapUp.
+  assert.ok(
+    /onBuildTableNow=\{[^}]*buildModeWrapUp[^}]*\}/.test(src),
+    'BuildModeProgressBar.onBuildTableNow must reference buildModeWrapUp',
+  )
+})
+
+test('Phase C: rr-chat-head block contains a !fullscreenBuildMode guard', () => {
+  // r2 P2 #6: split-out check anchored at the chat-head block.
+  const headBlock = src.match(/<header className="rr-chat-head">[\s\S]*?<\/header>/m)
+  assert.ok(headBlock, 'expected to find <header className="rr-chat-head"> block')
+  assert.ok(
+    /!fullscreenBuildMode\s*&&/.test(headBlock[0]),
+    'rr-chat-head must contain !fullscreenBuildMode guard',
+  )
+})
+
+test('Phase C: chrome guard wraps both onToggleFocus + onCollapse buttons', () => {
+  const singleGuard = src.match(/!fullscreenBuildMode\s*&&\s*\(\s*<>([\s\S]*?)<\/>\s*\)/m)
+  if (singleGuard) {
+    assert.ok(/onToggleFocus/.test(singleGuard[1]), 'single guard region must contain onToggleFocus')
+    assert.ok(/onCollapse/.test(singleGuard[1]),    'single guard region must contain onCollapse')
+    return
+  }
+  const focusGuarded    = /!fullscreenBuildMode\s*&&[\s\S]{0,400}?onClick=\{\s*onToggleFocus/.test(src)
+  const collapseGuarded = /!fullscreenBuildMode\s*&&[\s\S]{0,400}?onClick=\{\s*onCollapse/.test(src)
+  assert.ok(focusGuarded,    'onToggleFocus button must sit under a !fullscreenBuildMode guard')
+  assert.ok(collapseGuarded, 'onCollapse button must sit under a !fullscreenBuildMode guard')
+})
+
+test('Phase C: mobile FAB hidden in fullscreen', () => {
+  assert.ok(
+    /state\s*===\s*['"]closed['"]\s*&&\s*!fullscreenBuildMode/.test(src),
+    'FAB render gate must include && !fullscreenBuildMode',
+  )
+})
+
+test('Phase C: mobile sheet renders when fullscreen even if state is closed', () => {
+  assert.ok(
+    /\(state\s*!==\s*['"]closed['"]\s*\|\|\s*fullscreenBuildMode\)/.test(src),
+    'mobile sheet render gate must be (state !== "closed" || fullscreenBuildMode)',
+  )
+})
+
+test('Phase C: mobile scrim suppressed in fullscreen', () => {
+  assert.ok(
+    /!fullscreenBuildMode\s*&&\s*\(\s*<button[\s\S]*?className="rr-scrim"/m.test(src),
+    'scrim must be wrapped in {!fullscreenBuildMode && (...)}',
+  )
+})
+
+test('Phase C: mobile drag handle suppressed in fullscreen', () => {
+  assert.ok(
+    /!fullscreenBuildMode\s*&&\s*\(\s*<button[\s\S]*?className="rr-sheet-handle"/m.test(src),
+    'drag handle must be wrapped in {!fullscreenBuildMode && (...)}',
+  )
+})
+
+test('Phase C: wrap-up CTA bubble gated on three conditions', () => {
+  assert.ok(
+    /fullscreenBuildMode\s*&&\s*chat\.buildModeWrapUp\s*&&\s*!chat\.isStreaming/.test(src),
+    'wrap-up bubble must be gated on fullscreenBuildMode && buildModeWrapUp && !isStreaming',
+  )
+})
+
+test('Phase C v4: universal focus effect depends on [fullscreenBuildMode, state] with state guard', () => {
+  // r3 P1: effect-only-on-[fullscreenBuildMode] stranded focus when state
+  // was 'closed' on first fire. v4 fix: include state in deps + guard.
+  assert.ok(
+    /useEffect\(\s*\(\s*\)\s*=>\s*\{[\s\S]*?fullscreenBuildMode[\s\S]*?state\s*===\s*['"]closed['"][\s\S]*?chat\.inputRef\.current\?\.focus[\s\S]*?\}\s*,\s*\[\s*fullscreenBuildMode\s*,\s*state\b/m.test(src),
+    'universal focus effect must include `state === "closed"` guard AND deps starting [fullscreenBuildMode, state, ...]',
+  )
+})
+
+test('Phase C: mobile focus effect retargets to chat.inputRef when fullscreen', () => {
+  assert.ok(
+    /useEffect\(\s*\(\s*\)\s*=>\s*\{[\s\S]*?matchMedia[\s\S]*?fullscreenBuildMode\s*\)\s*\{[\s\S]*?chat\.inputRef\.current\?\.focus/m.test(src),
+    'mobile focus effect must route fullscreen → chat.inputRef.current?.focus()',
+  )
 })
 

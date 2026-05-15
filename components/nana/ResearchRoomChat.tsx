@@ -45,6 +45,20 @@ type Props = {
   // can target the right child; the handler lives there. Optional
   // for back-compat — if absent, the skip button hides.
   onSkipBuildMode?:    () => void
+  // Slice 8 Build 7 Phase C — fullscreen Build Mode flag derived from
+  // the active child's funnel_state ('interview') in ResearchRoom. When
+  // true: chat takes the full viewport (via .rr-shell-fullscreen), the
+  // ⤢ + › chrome hides (nothing to collapse TO), the Build Mode toggle
+  // is disabled (the funnel forces it on), and the mobile bottom-sheet
+  // grows to 100dvh with scrim + drag handle + ✕ suppressed. Orthogonal
+  // to ChatState (per Codex r9) — focus/default/closed still mean the
+  // same thing, just visually pinned to full width.
+  fullscreenBuildMode?: boolean
+  // Slice 8 Build 7 Phase C — single-shot exit primitive. Sets user-
+  // buildMode to false AND dismisses fullscreen for the active child.
+  // Used by both Skip (via onSkipBuildMode → ResearchRoom's handler)
+  // AND the in-chat Build-my-table-now CTA (handleBuildTableNow below).
+  onExitInterview?:     () => void
   // Slice 3d phase 4 — slugs from the active child's comparison data.
   // Threaded into the chat hook's API call so Nana scopes answers to
   // the parent's current shortlist, mirroring DecisionHub's behaviour.
@@ -92,6 +106,7 @@ const DRAG_SNAP_THRESHOLD = 70
 // tab switching — those land in slice 5/6.
 function ChatBody({
   buildMode,
+  fullscreenBuildMode,
   onToggleBuildMode,
   onSkipBuildMode,
   onBuildTableNow,
@@ -109,6 +124,9 @@ function ChatBody({
   onDismissActionError,
 }: {
   buildMode:            boolean
+  // Slice 8 Build 7 Phase C — gates the build-toggle disabled state +
+  // the wrap-up CTA bubble render. See outer Props type for full docs.
+  fullscreenBuildMode:  boolean
   onToggleBuildMode:    () => void
   // Slice 8 Build 3 session 4 — Build Mode session-exit affordances.
   // Both are pure callbacks; ResearchRoomChat owns the state transitions
@@ -168,8 +186,14 @@ function ChatBody({
         // SSE turn writes to whichever route was selected at submit time
         // (turn vs finalize), but the UI may flicker buildMode state +
         // re-trigger the welcome-back reset effect.
-        disabled={chat.isStreaming}
+        // Slice 8 Build 7 Phase C (Codex r1 P1 #1) — also disable in
+        // fullscreen: the toggle has no meaningful action when the funnel
+        // forces Build Mode on; clicking would hide the bar + Skip while
+        // leaving the chrome hidden — confusing. Skip + Build-table-now
+        // are the canonical exits.
+        disabled={chat.isStreaming || fullscreenBuildMode}
         aria-pressed={buildMode}
+        title={fullscreenBuildMode ? 'Build Mode is on while you set up this child' : undefined}
       >
         <span className="rr-bt-ic" aria-hidden="true">⚒</span>
         <span className="rr-bt-body">
@@ -182,7 +206,11 @@ function ChatBody({
       {buildMode && buildModeState && (
         <BuildModeProgressBar
           state={buildModeState}
-          onBuildTableNow={onBuildTableNow}
+          // Slice 8 Build 7 Phase C (Codex r1 P2 #6) — suppress the bar's
+          // "Build table now" button once the wrap-up bubble takes over.
+          // The bar CTA exists as an early-exit at ≥80%; post-wrap-up the
+          // bubble is the single primary action.
+          onBuildTableNow={chat.buildModeWrapUp ? undefined : onBuildTableNow}
         />
       )}
 
@@ -232,6 +260,44 @@ function ChatBody({
             We can pick up right where we left off — just answer the next question below,
             or hit <em>Skip Build Mode for now</em> to head back to the table.
           </div>
+        </div>
+      )}
+
+      {/* Slice 8 Build 7 Phase C — WrapUp CTA bubble. Renders only in
+          fullscreen Build Mode after the route emits build_mode_wrap_up
+          (gated server-side on nextFocus==='free' + RPC apply success).
+          Pinned OUTSIDE rr-thread so auto-scroll doesn't hide it. The
+          "Build my table now" button fires handleBuildTableNow which
+          exits the interview locally (onExitInterview) and fires the
+          finalize route. Copy hand-tuned via Codex r1 NIT #10. */}
+      {fullscreenBuildMode && chat.buildModeWrapUp && !chat.isStreaming && (
+        <div
+          className="rr-bubble-nana rr-bubble-nana--pinned rr-bubble-wrap-up"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="rr-bubble-head">
+            <svg className="rr-bubble-avatar" aria-hidden="true">
+              <use href="#ic-nana" />
+            </svg>
+            <div className="rr-bubble-name">Nana</div>
+          </div>
+          <div className="rr-bubble-lead">
+            <strong>I&rsquo;ve got enough to start.</strong>{' '}
+            Want me to build your comparison table from what we&rsquo;ve covered?
+            We can keep adjusting it as we go.
+          </div>
+          {onBuildTableNow && (
+            <button
+              type="button"
+              className="rr-bubble-wrap-up-cta"
+              onClick={onBuildTableNow}
+            >
+              <span className="rr-bubble-wrap-up-icon" aria-hidden="true">✦</span>
+              <span>Build my table now</span>
+              <span className="rr-bubble-wrap-up-arrow" aria-hidden="true">→</span>
+            </button>
+          )}
         </div>
       )}
 
@@ -409,6 +475,8 @@ function ChatBody({
 export default function ResearchRoomChat({
   state,
   buildMode,
+  fullscreenBuildMode = false,
+  onExitInterview,
   onCollapse,
   onExpandDefault,
   onToggleFocus,
@@ -593,11 +661,40 @@ export default function ResearchRoomChat({
   // where activeChildId lives. onSkipBuildMode is now received as a
   // prop (above) and passed straight through to ChatBody.
   const handleBuildTableNow  = () => {
-    onToggleBuildMode()
+    // Slice 8 Build 7 Phase C (Codex r1 P1 #1): use onExitInterview
+    // instead of onToggleBuildMode. onExitInterview is an explicit
+    // setter (sets buildMode false + dismisses fullscreen for the active
+    // child) — never a toggle. Blind toggling could re-enable Build
+    // Mode in pathological flows where the toggle had been flipped off.
+    // Exit BEFORE firing finalize so the comparison panel re-appears
+    // while finalize's row proposals stream in.
+    onExitInterview?.()
     void chat.ask('Build my comparison table now', {
       endpointOverride: '/api/research-room/build-mode/finalize',
     })
+    // [FOLLOWUP] Phase C — Codex r2 P2 #5 deferred: surface finalize
+    // POST failure to the user with a small non-blocking retry affordance.
   }
+
+  // Slice 8 Build 7 Phase C (Codex r3 P1 / r4 P1): universal focus-on-
+  // fullscreen effect. When fullscreen flips on, move focus to the chat
+  // input so any focus that was inside .rr-main (now visibility:hidden)
+  // moves to a visible, interactable target.
+  //
+  // Deps include `state` because if fullscreen flips on while
+  // chatState==='closed' the chat-open effect (in ResearchRoom) promotes
+  // state→'default' on a subsequent render, and we want THIS effect to
+  // re-fire then so focus lands once ChatBody mounts. Guard short-circuits
+  // when state==='closed' so the inputRef-is-null case doesn't strand the
+  // call.
+  //
+  // Fires on BOTH desktop and mobile. The mobile-specific focus effect
+  // below complements (doesn't replace) this — that one handles sheet-
+  // open transitions when already in fullscreen-static mode.
+  useEffect(() => {
+    if (!fullscreenBuildMode || state === 'closed') return
+    chat.inputRef.current?.focus()
+  }, [fullscreenBuildMode, state, chat.inputRef])
 
   // Slice 5: confirm a "+ Add as row" proposal. Posts to write-action; on
   // success refreshes the page so loadComparisonData re-reads
@@ -812,13 +909,24 @@ export default function ResearchRoomChat({
   // When the mobile sheet opens, move focus to the close button so screen
   // readers and keyboard users land inside the dialog. Only fires on mobile —
   // desktop rail uses the rail's native focus order.
+  //
+  // Slice 8 Build 7 Phase C (Codex r2 P1 #2): in fullscreen the close ✕
+  // is hidden, so sheetCloseRef is null. Retarget to chat.inputRef so the
+  // parent can start typing immediately. Effect deps include
+  // fullscreenBuildMode so transitions IN and OUT of fullscreen rewire
+  // focus correctly. Gate updated to also keep the sheet behavior when
+  // state==='closed' but fullscreen is on (sheet renders anyway).
   useEffect(() => {
-    if (state === 'closed') return
+    if (state === 'closed' && !fullscreenBuildMode) return
     const isMobile =
       typeof window !== 'undefined' && window.matchMedia('(max-width: 880px)').matches
     if (!isMobile) return
-    sheetCloseRef.current?.focus()
-  }, [state])
+    if (fullscreenBuildMode) {
+      chat.inputRef.current?.focus()
+    } else {
+      sheetCloseRef.current?.focus()
+    }
+  }, [state, fullscreenBuildMode, chat.inputRef])
 
   return (
     <>
@@ -867,34 +975,43 @@ export default function ResearchRoomChat({
                 Nana
                 <span>{buildMode ? 'BUILD MODE · CO-BUILDER' : 'ANSWERING'}</span>
               </div>
-              <button
-                type="button"
-                className="rr-chat-state-btn"
-                onClick={onToggleFocus}
-                aria-label={state === 'focus' ? 'Shrink chat' : 'Expand chat'}
-                title={state === 'focus' ? 'Shrink' : 'Expand'}
-              >
-                ⤢
-              </button>
-              <button
-                type="button"
-                className="rr-chat-state-btn"
-                onClick={onCollapse}
-                aria-label="Collapse chat"
-                title="Collapse"
-              >
-                ›
-              </button>
+              {/* Slice 8 Build 7 Phase C — chrome (⤢ + ›) hides in
+                  fullscreen because there's nothing to collapse TO and
+                  the chat already owns the viewport. */}
+              {!fullscreenBuildMode && (
+                <>
+                  <button
+                    type="button"
+                    className="rr-chat-state-btn"
+                    onClick={onToggleFocus}
+                    aria-label={state === 'focus' ? 'Shrink chat' : 'Expand chat'}
+                    title={state === 'focus' ? 'Shrink' : 'Expand'}
+                  >
+                    ⤢
+                  </button>
+                  <button
+                    type="button"
+                    className="rr-chat-state-btn"
+                    onClick={onCollapse}
+                    aria-label="Collapse chat"
+                    title="Collapse"
+                  >
+                    ›
+                  </button>
+                </>
+              )}
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={onSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onConfirmAddSchool={onConfirmAddSchool} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} fullscreenBuildMode={fullscreenBuildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={onSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onConfirmAddSchool={onConfirmAddSchool} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         )}
       </aside>
       )}
 
-      {/* ─── Mobile FAB (rendered only when chat is closed AND on mobile) ─ */}
-      {isMobile && state === 'closed' && (
+      {/* ─── Mobile FAB (rendered only when chat is closed AND on mobile AND not fullscreen) ─ */}
+      {/* Slice 8 Build 7 Phase C — FAB hidden in fullscreen because the
+          sheet is always open (no closed state) in the forced funnel. */}
+      {isMobile && state === 'closed' && !fullscreenBuildMode && (
         <button
           type="button"
           className="rr-fab is-visible"
@@ -908,35 +1025,44 @@ export default function ResearchRoomChat({
         </button>
       )}
 
-      {/* ─── Mobile bottom sheet (only when chat is open AND on mobile) ── */}
-      {isMobile && state !== 'closed' && (
+      {/* ─── Mobile bottom sheet (open OR fullscreen) ─────────────────
+          Slice 8 Build 7 Phase C — render gate widened to include
+          fullscreen-when-closed (the funnel forces the sheet open even
+          if chatState says 'closed'). Scrim + drag handle + close ✕ are
+          suppressed in fullscreen since the parent's only exits are the
+          in-chat Skip + Build-my-table-now CTAs. */}
+      {isMobile && (state !== 'closed' || fullscreenBuildMode) && (
         <>
-          <button
-            type="button"
-            className="rr-scrim"
-            onClick={onCollapse}
-            aria-label="Close chat"
-            tabIndex={-1}
-          />
+          {!fullscreenBuildMode && (
+            <button
+              type="button"
+              className="rr-scrim"
+              onClick={onCollapse}
+              aria-label="Close chat"
+              tabIndex={-1}
+            />
+          )}
           <div
             ref={sheetRef}
-            className={`rr-sheet rr-sheet-${state}`}
+            className={`rr-sheet rr-sheet-${state}${fullscreenBuildMode ? ' rr-sheet-fullscreen' : ''}`}
             role="dialog"
             aria-modal="true"
             aria-label="Chat with Nana"
           >
-            <button
-              type="button"
-              className="rr-sheet-handle"
-              onPointerDown={handleDragStart}
-              onPointerMove={handleDragMove}
-              onPointerUp={handleDragEnd}
-              onPointerCancel={handleDragEnd}
-              onClick={handleHandleClick}
-              aria-label="Drag to resize chat. Tap to expand or shrink."
-            >
-              <span className="rr-sheet-grip" aria-hidden="true" />
-            </button>
+            {!fullscreenBuildMode && (
+              <button
+                type="button"
+                className="rr-sheet-handle"
+                onPointerDown={handleDragStart}
+                onPointerMove={handleDragMove}
+                onPointerUp={handleDragEnd}
+                onPointerCancel={handleDragEnd}
+                onClick={handleHandleClick}
+                aria-label="Drag to resize chat. Tap to expand or shrink."
+              >
+                <span className="rr-sheet-grip" aria-hidden="true" />
+              </button>
+            )}
 
             <header className="rr-sheet-head">
               <svg className="rr-chat-avatar" aria-hidden="true">
@@ -946,19 +1072,21 @@ export default function ResearchRoomChat({
                 Nana
                 <span>{buildMode ? 'BUILD MODE · CO-BUILDER' : 'ANSWERING'}</span>
               </div>
-              <button
-                ref={sheetCloseRef}
-                type="button"
-                className="rr-chat-state-btn"
-                onClick={onCollapse}
-                aria-label="Close chat"
-                title="Close"
-              >
-                ✕
-              </button>
+              {!fullscreenBuildMode && (
+                <button
+                  ref={sheetCloseRef}
+                  type="button"
+                  className="rr-chat-state-btn"
+                  onClick={onCollapse}
+                  aria-label="Close chat"
+                  title="Close"
+                >
+                  ✕
+                </button>
+              )}
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={onSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onConfirmAddSchool={onConfirmAddSchool} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} fullscreenBuildMode={fullscreenBuildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={onSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onConfirmAddSchool={onConfirmAddSchool} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         </>
       )}

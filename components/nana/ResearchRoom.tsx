@@ -107,6 +107,17 @@ export default function ResearchRoom({
   const [chatState, setChatState] = useState<ChatState>('default')
   const [buildMode, setBuildMode] = useState(false)
   const [activeChildId, setActiveChildId] = useState<string | null>(initialActiveChildId)
+  // Slice 8 Build 7 Phase C — per-child dismiss set for fullscreen Build
+  // Mode. Holds child ids whose fullscreen has been locally dismissed
+  // (Skip / Build-table-now exits). Keyed individually so dismissing
+  // child A doesn't bleed to B and vice-versa.
+  //
+  // Pure derivation gives us the gate (see currentChild + fullscreenBuildMode
+  // below); this Set is just the user-override layer. The pruning effect
+  // further down drops entries whose child's funnel_state has left
+  // 'interview' so the Set stays bounded.
+  const [dismissedFullscreenChildIds, setDismissedFullscreenChildIds] =
+    useState<ReadonlySet<string>>(() => new Set())
 
   // 6-FU5 — optimistic active-lens id. Declared up here (before any
   // closure that references it) because handleSwitchActiveLens flips
@@ -311,13 +322,92 @@ export default function ResearchRoom({
     setBuildMode(b => !b)
   }
 
+  // ── Slice 8 Build 7 Phase C — fullscreen Build Mode gate ───────────
+  //
+  // Phase B threaded `funnel_state` into childSummaries from the children
+  // table. Phase C derives a client-side gate from that prop, with a
+  // per-child dismiss set so the parent can locally exit fullscreen
+  // (Skip / Build-table-now) without waiting for the server-side
+  // funnel_state UPDATE to land via router.refresh.
+  //
+  // Why pure derivation (no useState mirror of the server prop): early
+  // sketch rounds tried a useState + useEffect resync pattern; Codex r2
+  // flagged it as brittle (stale prop on child switch). Derived values
+  // recompute every render — no resync window.
+
+  // Pruning: drop dismissed entries whose child's funnel_state has left
+  // 'interview' (post-skip / post-finalize router.refresh). Without
+  // pruning the Set grows monotonically and prevents future re-entry to
+  // fullscreen if SQL ever flips a child back to 'interview'. Cheap —
+  // childSummaries is tiny, set size capped by interactions.
+  useEffect(() => {
+    setDismissedFullscreenChildIds(prev => {
+      // forEach (rather than for…of) keeps this compatible with the
+      // current tsconfig target — ReadonlySet's iterator needs es2015
+      // or --downlevelIteration, neither set here.
+      let next: Set<string> | null = null
+      prev.forEach(id => {
+        const child = childSummaries.find(c => c.id === id) ?? null
+        if (!child || child.funnel_state !== 'interview') {
+          if (!next) next = new Set(prev)
+          next.delete(id)
+        }
+      })
+      return next ?? prev
+    })
+  }, [childSummaries])
+
+  const currentChild = activeChildId
+    ? childSummaries.find(c => c.id === activeChildId) ?? null
+    : null
+  const fullscreenBuildMode = !!(
+    currentChild?.funnel_state === 'interview' &&
+    !dismissedFullscreenChildIds.has(activeChildId ?? '')
+  )
+  // chatBuildMode = user-controlled buildMode OR fullscreen-forced. Passed
+  // to ResearchRoomChat as `buildMode`. The chat sees a single value that
+  // drives bar / header / endpoint switching; it reads fullscreenBuildMode
+  // separately (via its own prop) for things like disabling the toggle.
+  const chatBuildMode = buildMode || fullscreenBuildMode
+
+  // Chat-must-be-open invariant: when fullscreen is on AND state goes
+  // 'closed' (Escape listener in ResearchRoomChat, or any future close
+  // path), force back to 'default'. Codex r4 P1 — depending only on
+  // [fullscreenBuildMode] missed the state→closed transition while
+  // fullscreen was already on. Including chatState in deps self-heals.
+  useEffect(() => {
+    if (fullscreenBuildMode && chatState === 'closed') {
+      setChatState('default')
+    }
+  }, [fullscreenBuildMode, chatState])
+
+  // Shared exit primitive — sets user-buildMode to false AND dismisses
+  // fullscreen for the active child. Used by both Skip and the in-chat
+  // Build-my-table-now CTA (the chat invokes via onExitInterview prop).
+  // Codex r2 P1 #1 — using onToggleBuildMode in handleBuildTableNow was
+  // a foot-gun (could re-enable Build Mode in pathological flows); this
+  // explicit setter is the canonical exit.
+  const handleExitInterview = () => {
+    setBuildMode(false)
+    if (activeChildId) {
+      setDismissedFullscreenChildIds(prev => {
+        if (prev.has(activeChildId)) return prev
+        const next = new Set(prev)
+        next.add(activeChildId)
+        return next
+      })
+    }
+  }
+
   const handleSkipBuildMode = () => {
     // Slice 8 Build 7: optimistic UX — flip local Build Mode state
     // immediately so the parent isn't waiting on a network call.
-    // Fire the server persist (funnel_state → 'comparison') as
-    // fire-and-forget. If it fails, next page load's gate (Phase C)
-    // self-heals based on whatever state actually landed in the DB.
-    setBuildMode(false)
+    // Phase C: also dismiss fullscreen locally via handleExitInterview.
+    // Fire the server persist (funnel_state → 'comparison') as fire-and-
+    // forget. If it fails, the next page load's gate self-heals based on
+    // whatever state actually landed in the DB (and the pruning effect
+    // re-includes this child once funnel_state genuinely changes).
+    handleExitInterview()
     if (!activeChildId) return
     void fetch('/api/research-room/build-mode/skip', {
       method:  'POST',
@@ -546,6 +636,7 @@ export default function ResearchRoom({
     'rr-shell',
     chatState === 'closed' ? 'rr-shell-chat-closed' : '',
     chatState === 'focus' ? 'rr-shell-chat-focus' : '',
+    fullscreenBuildMode ? 'rr-shell-fullscreen' : '',
   ].filter(Boolean).join(' ')
 
   return (
@@ -591,7 +682,7 @@ export default function ResearchRoom({
       </header>
 
       <div className={shellClass}>
-        <main className="rr-main">
+        <main className="rr-main" aria-hidden={fullscreenBuildMode || undefined}>
           <div className="rr-view-pager" ref={pagerRef}>
             {TAB_ORDER.map((t) => (
               <section
@@ -674,7 +765,9 @@ export default function ResearchRoom({
         <ResearchRoomChat
           key={`${activeChildId ?? 'none'}:${initialSession?.id ?? 'none'}`}
           state={chatState}
-          buildMode={buildMode}
+          buildMode={chatBuildMode}
+          fullscreenBuildMode={fullscreenBuildMode}
+          onExitInterview={handleExitInterview}
           onCollapse={handleCollapseChat}
           onExpandDefault={handleExpandDefault}
           onToggleFocus={handleToggleFocus}

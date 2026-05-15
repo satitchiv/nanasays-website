@@ -203,6 +203,34 @@
 .rr-shell-chat-closed { --rr-chat-w: var(--rr-chat-w-closed); }
 .rr-shell-chat-focus  { --rr-chat-w: var(--rr-chat-w-focus); }
 
+/* Slice 8 Build 7 Phase C — fullscreen Build Mode shell.
+ * Collapses the LEFT column (main, where the comparison panel lives) and
+ * lets the chat take the full viewport. Grid is `1fr var(--rr-chat-w)`
+ * by default (main THEN chat per the column order at line 199), so
+ * column 1 = LEFT in LTR. Codex r9 corrected the original brief which
+ * said "collapse RIGHT".
+ *
+ * Specificity: this rule is defined AFTER .rr-shell-chat-focus and uses
+ * the same single-class selector, so it wins at equal specificity via
+ * document order — no !important needed.
+ *
+ * NOTE: on mobile (@media max-width: 880px below at line ~2410), the base
+ * .rr-shell rule uses `grid-template-columns: 1fr !important` which beats
+ * this rule. That's OK — mobile lays out the chat as a fixed-position
+ * sheet (.rr-sheet), not as a grid track; the meaningful mobile overrides
+ * are the display: rules in the @media block below. */
+.rr-shell-fullscreen {
+  grid-template-columns: 0 minmax(0, 1fr);
+}
+/* Visibility-hide (not display-none) so the hidden React tree stays
+ * mounted across the fullscreen transition. pointer-events: none prevents
+ * pointer interactions; aria-hidden (set on the element via JSX) keeps
+ * screen readers from announcing the hidden content. */
+.rr-shell-fullscreen .rr-main {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .rr-main {
   min-width: 0;
   overflow: hidden;
@@ -1137,6 +1165,41 @@
 .rr-bubble-nana--pinned .rr-bubble-lead {
   font-size: 13px;
 }
+
+/* Slice 8 Build 7 Phase C — WrapUp CTA bubble. Distinguished from the
+ * welcome-back bubble (which uses muted/info chrome) by an accent border
+ * and a prominent CTA button. The bubble appears post-wrap-up turn when
+ * the interview is saturated; the parent's primary action is the "Build
+ * my table now" button. */
+.rr-bubble-wrap-up {
+  border-left: 4px solid var(--rr-teal);
+  background: linear-gradient(180deg, var(--rr-teal-bg), var(--rr-white));
+}
+.rr-bubble-wrap-up-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px 18px;
+  background: var(--rr-teal);
+  color: var(--rr-white);
+  border: 0;
+  border-radius: var(--rr-r-md);
+  font-family: var(--rr-sans);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s, transform .08s;
+}
+.rr-bubble-wrap-up-cta:hover  { background: var(--rr-teal-dk); }
+.rr-bubble-wrap-up-cta:active { transform: scale(0.98); }
+.rr-bubble-wrap-up-cta:focus-visible {
+  outline: 2px solid var(--rr-teal-dk);
+  outline-offset: 2px;
+}
+.rr-bubble-wrap-up-icon  { font-size: 16px; line-height: 1; }
+.rr-bubble-wrap-up-arrow { margin-left: auto; font-size: 18px; line-height: 1; opacity: 0.85; }
+
 .rr-bubble-dismiss {
   background: transparent;
   border: 0;
@@ -2585,6 +2648,30 @@
   /* Reuse the rest of the chat body styles but ensure thread can scroll. */
   .rr-sheet .rr-thread { flex: 1; }
   .rr-sheet .rr-build-toggle { width: calc(100% - 32px); }
+
+  /* Slice 8 Build 7 Phase C — mobile fullscreen variant. The bottom sheet
+   * grows to fill the entire viewport; border-radius drops since there's
+   * no surface peeking out from underneath. The scrim + drag handle + ✕
+   * are suppressed in the JSX layer (see ResearchRoomChat.tsx), so the
+   * parent's only exits are Skip / Build-my-table-now inside the chat.
+   *
+   * Specificity: .rr-sheet.rr-sheet-fullscreen is 0,2,0 — same as
+   * .rr-sheet.rr-sheet-default which sets transform/height. Defined later
+   * in the file → wins via document order. No !important needed. */
+  .rr-sheet.rr-sheet-fullscreen {
+    height: 100dvh;
+    border-radius: 0;
+    transform: translateY(0);
+  }
+  .rr-sheet.rr-sheet-fullscreen .rr-sheet-head {
+    padding-top: calc(8px + env(safe-area-inset-top));
+  }
+  /* Hide main entirely on mobile (not just visibility) so the chat can
+   * claim the full viewport. Mobile already has display:none on .rr-chat
+   * via the base @media .rr-shell rule above; fullscreen reverses that
+   * for the chat. */
+  .rr-shell-fullscreen .rr-main { display: none; }
+  .rr-shell-fullscreen .rr-chat { display: block; }
 }
 
 /* ════════════════════════════════════════════════════════════════════════════

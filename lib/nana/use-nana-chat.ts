@@ -89,6 +89,13 @@ export interface UseNanaChatReturn {
   // one-turn delta and resets on each ask() submit. Null whenever Build
   // Mode hasn't emitted a turn yet (regular chat or fresh session).
   buildModeState:    BuildModeStreamState | null
+  // Slice 8 Build 7 Phase C — flips true when the build-mode/turn route
+  // emits `build_mode_wrap_up` (which fires when the interview's
+  // pickFocus() returns 'free' AND the RPC apply succeeded). Resets to
+  // false on the next ask() submit and on startNewConversation().
+  // Consumed by ResearchRoomChat to render the in-thread "Build my table
+  // now" CTA bubble post-wrap-up.
+  buildModeWrapUp:   boolean
   // Codex welcome-back design pass — monotonic counter incremented at
   // the START of each accepted ask() call (after validation, before
   // fetch). Lets consumers detect "user has engaged this session"
@@ -146,6 +153,12 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
   // parent re-entering a session with prior progress sees the bar on
   // first paint, not after their next turn.
   const [buildModeState,     setBuildModeState]     = useState<BuildModeStreamState | null>(opts.initialBuildModeState ?? null)
+  // Slice 8 Build 7 Phase C — wrap-up flag. See UseNanaChatReturn for
+  // docs. Default false (no event seen yet); not seeded from opts because
+  // wrap-up is a per-stream signal — a fresh page load with persisted
+  // wrap-up-ready progress should re-derive from the next turn, not from
+  // saved state.
+  const [buildModeWrapUp,    setBuildModeWrapUp]    = useState(false)
   // Codex welcome-back design pass Q2 — monotonic submit counter.
   // Increments at the start of every accepted ask() (post-validation,
   // pre-fetch). Survives failed/aborted turns since it doesn't depend
@@ -271,6 +284,10 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
     // streaming gap. Sticky progress + focus stay until the next
     // build_mode_progress event lands or startNewConversation() resets.
     setBuildModeState(prev => prev ? { ...prev, lastDiff: null } : prev)
+    // Slice 8 Build 7 Phase C — parent submitting another turn signals
+    // they're NOT done with the interview; clear the wrap-up flag so the
+    // CTA bubble disappears until the next wrap-up event lands.
+    setBuildModeWrapUp(false)
     // Optimistic status copy — fills the silent ~3-5s gap between submit and
     // the first server-emitted agent_status / tool_call event so parents see
     // immediate feedback. Server events overwrite this once they arrive.
@@ -469,6 +486,15 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
               void reader.cancel().catch(() => {})
               break
 
+            case 'build_mode_wrap_up': {
+              // Slice 8 Build 7 Phase C — interview-saturated signal from
+              // the build-mode/turn route (gated on nextFocus==='free' AND
+              // RPC apply succeeded). Sticky until the next ask() submit
+              // or startNewConversation() — see UseNanaChatReturn.buildModeWrapUp.
+              setBuildModeWrapUp(true)
+              break
+            }
+
             case 'build_mode_progress': {
               // Slice 8 Build 3 session 4 — Build Mode interview progress.
               // The route emits this once per turn (between the last token
@@ -585,6 +611,9 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
     // "+ New" tap inside Build Mode starts the bar back at empty rather
     // than carrying stale fill from the prior conversation.
     setBuildModeState(null)
+    // Slice 8 Build 7 Phase C — clear wrap-up so a fresh conversation
+    // doesn't carry the "Build my table now" CTA from a prior interview.
+    setBuildModeWrapUp(false)
     setSubmitSeq(0)
     inputRef.current?.focus()
   }
@@ -601,6 +630,7 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
     toolProgress, agentStatus,
     shortlistLocked,
     buildModeState,
+    buildModeWrapUp,
     submitSeq,
     abortRef, chatEndRef, inputRef,
     ask, stopStream, startNewConversation,

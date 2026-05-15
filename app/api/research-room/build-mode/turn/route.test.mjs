@@ -257,3 +257,38 @@ test('route: gpt-5.4-mini pricing matches nana-brain PRICING_PER_MTOK', () => {
   assert.match(src, /cache_read:\s+0\.075/)
   assert.match(src, /output:\s+4\.50/)
 })
+
+// ── Slice 8 Build 7 Phase C — wrap-up emission tests ──
+//
+// Wrap-up is the deterministic "interview is saturated" signal. Phase C
+// requires it to (a) fire when pickFocus()==='free', (b) emit AFTER the
+// RPC apply so we can gate on persist success, and (c) gate on !rpcError
+// so finalize doesn't run against stale profile data.
+
+test('Phase C: emits build_mode_wrap_up SSE event when !rpcError && nextFocus === free', () => {
+  const hasWrapUpEmission =
+    /if\s*\(\s*!\s*rpcError\s*&&\s*nextFocus\s*===\s*['"]free['"]\s*\)\s*\{[^}]*send\(\s*\{\s*type:\s*['"]build_mode_wrap_up['"]\s*\}\s*\)/s
+    .test(src)
+  assert.ok(
+    hasWrapUpEmission,
+    'Route should emit { type: "build_mode_wrap_up" } when !rpcError && nextFocus === "free".',
+  )
+})
+
+test('Phase C: wrap-up emission is placed AFTER the RPC apply', () => {
+  const wrapUpIdx = src.indexOf("'build_mode_wrap_up'")
+  const rpcIdx    = src.indexOf('build_mode_apply_extraction')
+  assert.ok(wrapUpIdx > 0, 'expected build_mode_wrap_up send to exist')
+  assert.ok(rpcIdx > 0,    'expected build_mode_apply_extraction RPC call to exist')
+  assert.ok(
+    wrapUpIdx > rpcIdx,
+    'build_mode_wrap_up must be emitted AFTER the RPC apply so the !rpcError gate works.',
+  )
+})
+
+test('Phase C: wrap-up emission references rpcError as suppression gate', () => {
+  assert.ok(
+    /!\s*rpcError\s*&&\s*nextFocus/.test(src),
+    'wrap-up emission must include !rpcError in the if-condition',
+  )
+})
