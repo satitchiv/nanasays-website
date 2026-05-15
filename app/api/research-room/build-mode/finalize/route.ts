@@ -601,6 +601,27 @@ export async function POST(req: NextRequest) {
           console.error('[build-mode/finalize] meta/log error', err)
         })
 
+        // Slice 8 Build 7: transition funnel_state to 'comparison' on
+        // successful finalize. Gated on (a) the research_session_messages
+        // INSERT succeeded — otherwise the proposals are stranded and we
+        // shouldn't advance state lying to the parent — and (b) the
+        // current state is 'interview' (idempotent — re-clicks of the
+        // finalize CTA in the Build 6 row-dedup case won't revert).
+        // Best-effort: a failure here does NOT fail the response.
+        if (!insertError && insertedRow?.id && sess?.child_id) {
+          const { error: funnelErr } = await svc
+            .from('children')
+            .update({
+              funnel_state: 'comparison',
+              updated_at:   new Date().toISOString(),
+            })
+            .eq('id', sess.child_id)
+            .eq('funnel_state', 'interview')
+          if (funnelErr) {
+            console.warn('[build-mode/finalize] funnel_state transition failed:', funnelErr.message)
+          }
+        }
+
         send({
           type:       'final',
           shareToken: insertError ? null : shareToken,

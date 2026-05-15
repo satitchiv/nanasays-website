@@ -539,6 +539,7 @@ export default async function ResearchRoomPage({
     date_of_birth: c.date_of_birth,
     child_profile: (c.child_profile ?? {}) as Record<string, string | null>,
     is_archived: c.is_archived,
+    funnel_state: c.funnel_state,
   }))
 
   // Session 4 follow-up — parse Build Mode progress from DB (if any) into

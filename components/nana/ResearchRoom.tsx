@@ -311,6 +311,25 @@ export default function ResearchRoom({
     setBuildMode(b => !b)
   }
 
+  const handleSkipBuildMode = () => {
+    // Slice 8 Build 7: optimistic UX — flip local Build Mode state
+    // immediately so the parent isn't waiting on a network call.
+    // Fire the server persist (funnel_state → 'comparison') as
+    // fire-and-forget. If it fails, next page load's gate (Phase C)
+    // self-heals based on whatever state actually landed in the DB.
+    setBuildMode(false)
+    if (!activeChildId) return
+    void fetch('/api/research-room/build-mode/skip', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ childId: activeChildId }),
+    })
+      .then(res => {
+        if (!res.ok) console.warn('[skip] non-2xx', res.status)
+      })
+      .catch(err => console.warn('[skip] network error', err))
+  }
+
   const handleCollapseChat = () => setChatState('closed')
   const handleExpandDefault = () => setChatState('default')
   const handleToggleFocus = () =>
@@ -660,6 +679,7 @@ export default function ResearchRoom({
           onExpandDefault={handleExpandDefault}
           onToggleFocus={handleToggleFocus}
           onToggleBuildMode={handleToggleBuildMode}
+          onSkipBuildMode={handleSkipBuildMode}
           shortlistSlugs={comparisonData?.schools.map(s => s.slug) ?? []}
           initialSession={initialSession}
           initialMessages={initialMessages}

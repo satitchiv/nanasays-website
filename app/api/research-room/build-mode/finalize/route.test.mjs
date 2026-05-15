@@ -239,3 +239,22 @@ test('finalize: AbortController wired to req.signal + cancel hook', () => {
   assert.match(src, /req\.signal\.addEventListener\(['"]abort['"]/)
   assert.match(src, /cancel\(\)\s*\{[\s\S]*?ac\.abort\(\)/)
 })
+
+// ── Slice 8 Build 7: funnel_state transition ─────────────────────────
+
+test('finalize: funnel_state transition to comparison on success', () => {
+  // Co-located but not adjacency-coupled. Both assertions must hold
+  // in the same file; prettier won't break either independently.
+  assert.match(src, /funnel_state:\s*['"]comparison['"]/)
+  assert.match(src, /updated_at:\s*new Date\(\)\.toISOString\(\)/)
+})
+
+test('finalize: funnel_state transition idempotent — guarded to interview', () => {
+  // Re-clicks of finalize CTA (Build 6 row-dedup case) won't revert.
+  assert.match(src, /\.eq\(\s*['"]funnel_state['"]\s*,\s*['"]interview['"]/)
+})
+
+test('finalize: funnel_state UPDATE gated on insert success', () => {
+  // Don't advance state if proposals didn't persist (Codex r2 P1).
+  assert.match(src, /if \(!insertError && insertedRow\?\.id/)
+})

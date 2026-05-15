@@ -7,6 +7,7 @@ import {
   getOptionLabel,
   getOptionShortLabel,
 } from '@/lib/onboarding-fields'
+import type { FunnelState } from '@/lib/children'
 
 export type ChildSummary = {
   id:            string
@@ -14,6 +15,7 @@ export type ChildSummary = {
   date_of_birth: string | null
   child_profile: Record<string, string | null>
   is_archived:   boolean
+  funnel_state:  FunnelState
 }
 
 // FamilyPreferences kept exported for backward-compat with the page

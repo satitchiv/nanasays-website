@@ -40,6 +40,11 @@ type Props = {
   onExpandDefault:     () => void
   onToggleFocus:       () => void
   onToggleBuildMode:   () => void
+  // Slice 8 Build 7: parent-owned skip handler. ResearchRoom holds
+  // activeChildId so the POST to /api/research-room/build-mode/skip
+  // can target the right child; the handler lives there. Optional
+  // for back-compat — if absent, the skip button hides.
+  onSkipBuildMode?:    () => void
   // Slice 3d phase 4 — slugs from the active child's comparison data.
   // Threaded into the chat hook's API call so Nana scopes answers to
   // the parent's current shortlist, mirroring DecisionHub's behaviour.
@@ -408,6 +413,7 @@ export default function ResearchRoomChat({
   onExpandDefault,
   onToggleFocus,
   onToggleBuildMode,
+  onSkipBuildMode,
   shortlistSlugs   = [],
   initialSession   = null,
   initialMessages  = [],
@@ -583,7 +589,9 @@ export default function ResearchRoomChat({
   // Order matters: endpointOverride is consumed at ask() submit time
   // (not from the ref), so we can call both synchronously without
   // racing the re-render.
-  const handleSkipBuildMode  = () => { onToggleBuildMode() }
+  // Slice 8 Build 7: handleSkipBuildMode moved UP to ResearchRoom.tsx
+  // where activeChildId lives. onSkipBuildMode is now received as a
+  // prop (above) and passed straight through to ChatBody.
   const handleBuildTableNow  = () => {
     onToggleBuildMode()
     void chat.ask('Build my comparison table now', {
@@ -879,7 +887,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={handleSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onConfirmAddSchool={onConfirmAddSchool} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={onSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onConfirmAddSchool={onConfirmAddSchool} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         )}
       </aside>
@@ -950,7 +958,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={handleSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onConfirmAddSchool={onConfirmAddSchool} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={onSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onConfirmAddSchool={onConfirmAddSchool} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         </>
       )}

@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
 
   let q = supabase
     .from('children')
-    .select('id, name, date_of_birth, child_profile, is_archived, created_at, updated_at')
+    .select('id, name, date_of_birth, child_profile, is_archived, funnel_state, created_at, updated_at')
     .eq('user_id', user.id)
     .order('created_at', { ascending: true })
 
@@ -99,8 +99,20 @@ export async function POST(req: NextRequest) {
 
   const { data: created, error } = await supabase
     .from('children')
-    .insert({ user_id: user.id, name, date_of_birth: dob, child_profile: childProfile })
-    .select('id, name, date_of_birth, child_profile, is_archived, created_at, updated_at')
+    .insert({
+      user_id:       user.id,
+      name,
+      date_of_birth: dob,
+      child_profile: childProfile,
+      // Slice 8 Build 7: new children skip the 'onboarding' funnel
+      // stage because by the time this POST fires the parent has
+      // already filled name+DOB AND inherited the 5 onboarding
+      // answers from parent_profiles. They're ready for the interview.
+      // DB default is 'onboarding' as a safety net for unspecified
+      // inserts.
+      funnel_state:  'interview',
+    })
+    .select('id, name, date_of_birth, child_profile, is_archived, funnel_state, created_at, updated_at')
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
