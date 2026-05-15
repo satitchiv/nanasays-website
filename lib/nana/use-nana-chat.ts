@@ -39,6 +39,11 @@ export interface NanaChatServerParams {
 export interface UseNanaChatOptions {
   initialSession:   Session | null
   initialMessages:  ResearchMessage[]
+  // Session 4 follow-up — DB-hydrated Build Mode progress for re-entry.
+  // When non-null, the progress bar renders immediately on mount with the
+  // saved state, instead of waiting for the next `build_mode_progress`
+  // SSE event. Browser smoke 2026-05-16 surfaced the gap.
+  initialBuildModeState?: BuildModeStreamState | null
   getServerParams:  () => NanaChatServerParams
   // Optional: parent decides whether to honour ui_intent. DecisionHub
   // switches tabs / focuses schools on show_verdict + show_compare;
@@ -129,7 +134,11 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
   // to a null lastDiff on each ask() so the "Nana learned: …" microcopy
   // only ever reflects the most recent turn; progress + focus stay sticky
   // until startNewConversation() clears them.
-  const [buildModeState,     setBuildModeState]     = useState<BuildModeStreamState | null>(null)
+  //
+  // Session 4 follow-up — seed from `opts.initialBuildModeState` so a
+  // parent re-entering a session with prior progress sees the bar on
+  // first paint, not after their next turn.
+  const [buildModeState,     setBuildModeState]     = useState<BuildModeStreamState | null>(opts.initialBuildModeState ?? null)
 
   const abortRef   = useRef<AbortController | null>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)

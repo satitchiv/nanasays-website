@@ -86,3 +86,41 @@ test('Finalize CTA wired to endpointOverride at /api/research-room/build-mode/fi
   // r9 Q5 for the synchronous-read rationale.
   assert.match(src, /endpointOverride:\s*'\/api\/research-room\/build-mode\/finalize'/)
 })
+
+// ── Bug 1 fix: hydrate Build Mode state from DB on re-entry ──────────
+
+test('Bug1: initialBuildModeState prop accepted + forwarded to useNanaChat', () => {
+  // Browser smoke 2026-05-16 step 6: progress bar didn't render on
+  // Build Mode toggle-on with prior progress in DB — because the
+  // bar requires buildModeState which only populated after a new
+  // SSE event. The fix threads `initialBuildModeState` from page.tsx
+  // through ResearchRoom → ResearchRoomChat → useNanaChat so the
+  // bar paints on mount with the saved state.
+  assert.match(src, /initialBuildModeState\?:.*BuildModeStreamState \| null/)
+  assert.match(src, /useNanaChat\(\{[\s\S]*?initialBuildModeState/)
+})
+
+// ── Bug 2 fix: welcome-back bubble for Build Mode re-entry ───────────
+
+test('Bug2: welcome-back bubble renders when buildMode + prior Build Mode messages', () => {
+  // The opener bubble only fires when messages.length === 0. For
+  // parents re-entering Build Mode WITH prior chat (the common
+  // case once you've done one interview), nothing rendered — felt
+  // broken. New bubble renders ABOVE existing messages when:
+  //   buildMode && messages.length > 0 && !isStreaming && a prior
+  //   message has `parsed.build_mode != null`.
+  assert.match(src, /buildMode && messages\.length > 0 && !isStreaming/)
+  assert.match(src, /messages\.some\(m =>[\s\S]*?\.build_mode != null/)
+})
+
+test('Bug2: welcome-back bubble references current Build Mode %', () => {
+  // The bubble's microcopy includes the parent's current usable_total
+  // so they know how far through the interview they are. Falls back
+  // to a generic "I've still got your earlier answers" when
+  // buildModeState is null (e.g. transient race between mount + state).
+  assert.match(src, /Welcome back\./)
+  // JSX ternary may have newlines between `buildModeState` and `?`, so
+  // [\s\S]*? bridges the gap rather than requiring them adjacent.
+  assert.match(src, /buildModeState[\s\S]*?usable_total/)
+})
+

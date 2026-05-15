@@ -80,6 +80,13 @@ export function streamBuildModeTurn<TExtract extends ZodTypeAny>(
     messages:               opts.messages,
     response_format:        zodResponseFormat(topSchema, 'build_mode_turn'),
     max_completion_tokens:  MAX_COMPLETION_TK,
+    // Session 4 follow-up — OpenAI's streaming API omits `usage` from the
+    // final chunk unless `include_usage: true` is set. Without this, every
+    // Build Mode turn logged to nana_chat_logs had tokens_in/out = 0 and
+    // cost_total_usd ≈ 0 (visible in MC as `<$0.001`). Surfaced during
+    // browser smoke 2026-05-16 morning — step 8 showed correct backend
+    // tag but null token data.
+    stream_options:         { include_usage: true },
   }, { signal: opts.signal })
 
   const proseQueue: string[] = []

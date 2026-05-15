@@ -122,6 +122,12 @@ export default async function ResearchRoomPage({
   //   5. Load messages + activeProposalIds for the chat panel.
   let initialSession: import('@/lib/nana/types').Session | null = null
   let initialMessages: import('@/lib/nana/types').ResearchMessage[] = []
+  // Session 4 follow-up — hydrate Build Mode progress from DB so the bar +
+  // welcome-back banner can render on first paint instead of waiting for
+  // the next SSE event. Browser smoke 2026-05-16 surfaced that toggling
+  // Build Mode ON with prior progress in the session showed no bar until
+  // the parent sent another turn — confusing for returning parents.
+  let initialBuildModeProgress: unknown = null
   let activeLensId: string | null = null
   let partnerBrief: import('@/components/nana/PartnerBriefTab').PartnerBrief | null = null
   let researchVerdict: ResearchVerdictRecord | null = null
@@ -156,7 +162,7 @@ export default async function ResearchRoomPage({
 
     const { data: sessions } = await svc
       .from('research_sessions')
-      .select('id, title, summary, created_at, last_active_at, active_lens_id')
+      .select('id, title, summary, created_at, last_active_at, active_lens_id, build_mode_progress')
       .eq('user_id', user.id)
       .eq('child_id', activeChildId)
       .order('last_active_at', { ascending: false })
@@ -171,6 +177,7 @@ export default async function ResearchRoomPage({
         last_active_at: sessions[0].last_active_at,
       }
       activeLensId = (sessions[0].active_lens_id as string | null) ?? null
+      initialBuildModeProgress = sessions[0].build_mode_progress as unknown
     } else if (shortlistCtx && shortlistCtx.slugs.length > 0) {
       // Slice 8 Step 0.5: parent has a shortlist but no session yet — ensure
       // one exists via the service-role RPC so the page renders seeded rows
@@ -184,7 +191,7 @@ export default async function ResearchRoomPage({
       } else if (ensuredId) {
         const { data: ensured } = await svc
           .from('research_sessions')
-          .select('id, title, summary, created_at, last_active_at, active_lens_id')
+          .select('id, title, summary, created_at, last_active_at, active_lens_id, build_mode_progress')
           .eq('id', ensuredId as string)
           .maybeSingle()
         if (ensured) {
@@ -196,6 +203,7 @@ export default async function ResearchRoomPage({
             last_active_at: ensured.last_active_at,
           }
           activeLensId = (ensured.active_lens_id as string | null) ?? null
+          initialBuildModeProgress = ensured.build_mode_progress as unknown
         }
       }
     }
@@ -489,6 +497,25 @@ export default async function ResearchRoomPage({
     is_archived: c.is_archived,
   }))
 
+  // Session 4 follow-up — parse Build Mode progress from DB (if any) into
+  // the BuildModeStreamState shape the chat hook expects. `focus` defaults
+  // to 'free' on hydration since we don't know the next pickFocus()
+  // outcome until a new turn fires; that maps to the "Nana is following
+  // your lead" heading, which reads correctly for resume context.
+  // `lastDiff` is null until the next turn lands.
+  let initialBuildModeState: import('@/lib/nana/types').BuildModeStreamState | null = null
+  if (initialBuildModeProgress) {
+    const { BuildModeProgressSchema } = await import('@/lib/server/research-room/build-mode-schemas')
+    const parsed = BuildModeProgressSchema.safeParse(initialBuildModeProgress)
+    if (parsed.success) {
+      initialBuildModeState = {
+        progress: parsed.data,
+        focus:    'free',
+        lastDiff: null,
+      }
+    }
+  }
+
   return (
     <ResearchRoom
       childOptions={childSummaries.map(c => ({ id: c.id, name: c.name }))}
@@ -500,6 +527,7 @@ export default async function ResearchRoomPage({
       lens={lens}
       initialSession={initialSession}
       initialMessages={initialMessages}
+      initialBuildModeState={initialBuildModeState}
       savedLenses={savedLenses}
       activeLensId={activeLensId}
       partnerBrief={partnerBrief}

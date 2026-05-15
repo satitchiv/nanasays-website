@@ -46,6 +46,10 @@ type Props = {
   shortlistSlugs?:     string[]
   initialSession?:     Session | null
   initialMessages?:    ResearchMessage[]
+  // Session 4 follow-up — DB-hydrated Build Mode progress so the bar +
+  // welcome-back bubble render on first paint when the parent re-enters
+  // a session with prior Build Mode history.
+  initialBuildModeState?: import('@/lib/nana/types').BuildModeStreamState | null
   // Slice 6: the page's active ?lens= selection. Threaded through
   // use-nana-chat → /api/nana-research as `lensView` so the route's
   // active-lens fallback resolves to the right base when the parent
@@ -177,6 +181,35 @@ function ChatBody({
       )}
 
       <div className="rr-thread">
+        {/* Session 4 follow-up — welcome-back bubble for re-entry.
+            Renders when buildMode is on AND the thread already has at least
+            one prior Build Mode message (parsed.build_mode marker present).
+            Sits at the top of the conversation, above existing messages.
+            Surfaced 2026-05-16 smoke: parents re-entering Build Mode with
+            history saw no acknowledgment from Nana — just a blank chat
+            until they sent another turn.
+            The opener bubble (empty-thread branch below) handles the
+            FIRST-ever Build Mode entry; this bubble handles every later
+            re-entry. They're mutually exclusive by construction. */}
+        {buildMode && messages.length > 0 && !isStreaming
+          && messages.some(m => (m.parsed as { build_mode?: unknown } | null)?.build_mode != null)
+          && (
+          <div className="rr-bubble-nana">
+            <div className="rr-bubble-head">
+              <svg className="rr-bubble-avatar" aria-hidden="true">
+                <use href="#ic-nana" />
+              </svg>
+              <div className="rr-bubble-name">Nana</div>
+            </div>
+            <div className="rr-bubble-lead">
+              <strong>Welcome back.</strong>{' '}
+              {buildModeState
+                ? <>You’re at <strong>{Math.round((buildModeState.progress?.usable_total ?? 0) * 100)}%</strong> on Build Mode. We can pick up right where we left off — just answer the next question below, or hit <em>Skip Build Mode for now</em> to head back to the table.</>
+                : <>I’ve still got your earlier answers from this Build Mode interview. Just keep going below, or hit <em>Skip Build Mode for now</em> if you’d rather come back later.</>
+              }
+            </div>
+          </div>
+        )}
         {messages.length === 0 && !isStreaming && (
           <div className="rr-bubble-nana">
             <div className="rr-bubble-head">
@@ -356,6 +389,7 @@ export default function ResearchRoomChat({
   shortlistSlugs   = [],
   initialSession   = null,
   initialMessages  = [],
+  initialBuildModeState = null,
   lensView         = 'general',
   onApplyReRank,
   canSaveAsLens    = false,
@@ -378,6 +412,7 @@ export default function ResearchRoomChat({
   const chat = useNanaChat({
     initialSession,
     initialMessages,
+    initialBuildModeState,
     endpoint: chatEndpoint,
     getServerParams: () => ({
       activeTab:        'compare',

@@ -49,6 +49,11 @@ type Props = {
   lens?: Lens
   initialSession?: Session | null
   initialMessages?: ResearchMessage[]
+  // Session 4 follow-up — hydrate the Build Mode progress bar + welcome-
+  // back bubble from DB so they appear on first paint, not after the
+  // next turn. Null = no prior Build Mode progress for this session
+  // (first-time toggle or session never used Build Mode).
+  initialBuildModeState?: import('@/lib/nana/types').BuildModeStreamState | null
   savedLenses?: SavedLens[]
   activeLensId?: string | null
   partnerBrief?: PartnerBrief | null
@@ -91,6 +96,7 @@ export default function ResearchRoom({
   lens             = 'general',
   initialSession   = null,
   initialMessages  = [],
+  initialBuildModeState = null,
   savedLenses      = [],
   activeLensId     = null,
   partnerBrief     = null,
@@ -653,6 +659,7 @@ export default function ResearchRoom({
           shortlistSlugs={comparisonData?.schools.map(s => s.slug) ?? []}
           initialSession={initialSession}
           initialMessages={initialMessages}
+          initialBuildModeState={initialBuildModeState}
           lensView={lens ?? 'general'}
           onApplyReRank={handleApplyReRank}
           canSaveAsLens={canSaveAsLens}
