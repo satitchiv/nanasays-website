@@ -277,6 +277,19 @@ export default function ResearchRoom({
     }
   }
 
+  // Slice 8 Build 7 Phase C followup: invoked by ChildBriefTab when a
+  // new child is added via the +Add child form. The server's /api/children
+  // POST already wrote parent_profiles.active_child_id to the new id, but
+  // router.refresh() doesn't reset useState(initialActiveChildId) — so we
+  // setActiveChildId optimistically here so Phase C's gate fires on the
+  // new child immediately. The refresh that follows re-loads
+  // childSummaries which will include the new child + its funnel_state.
+  // No POST to /api/active-child needed (server already persisted).
+  const handleChildAdded = (newChildId: string) => {
+    setActiveChildId(newChildId)
+    router.refresh()
+  }
+
   // Persist the active child to parent_profiles + refresh server data
   // so the comparison table re-fetches per the new child's shortlist.
   // Failures revert local state to keep UI consistent with DB truth.
@@ -740,6 +753,7 @@ export default function ResearchRoom({
                       activeChildId={activeChildId}
                       familyPreferences={familyPreferences}
                       onActiveChildChange={handleActiveChildChange}
+                      onChildAdded={handleChildAdded}
                     />
                   ) : t === 'verdict' ? (
                     <VerdictTab

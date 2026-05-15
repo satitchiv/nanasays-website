@@ -111,3 +111,21 @@ test('Phase C: passes chatBuildMode + fullscreenBuildMode + onExitInterview to c
   assert.ok(/fullscreenBuildMode=\{\s*fullscreenBuildMode\s*\}/.test(src), 'passes fullscreenBuildMode prop')
   assert.ok(/onExitInterview=\{\s*handleExitInterview\s*\}/.test(src), 'passes onExitInterview={handleExitInterview}')
 })
+
+// ── Phase C followup: auto-activate new children ──────────────────────
+// Browser-smoke caught that adding 2nd/3rd child didn't trigger the
+// funnel — server's POST /api/children persisted active_child_id but
+// router.refresh() doesn't reset useState(initialActiveChildId). Fix:
+// new handler `handleChildAdded` setActiveChildId + router.refresh.
+// ChildBriefTab is wired with onChildAdded={handleChildAdded}.
+
+test('Phase C followup: handleChildAdded setActiveChildId(newChildId) + router.refresh', () => {
+  assert.ok(
+    /handleChildAdded\s*=\s*\(\s*newChildId:\s*string\s*\)\s*=>\s*\{[\s\S]*?setActiveChildId\(\s*newChildId\s*\)[\s\S]*?router\.refresh\(\s*\)/m.test(src),
+    'handleChildAdded must setActiveChildId(newChildId) AND call router.refresh()',
+  )
+})
+
+test('Phase C followup: ChildBriefTab call wires onChildAdded={handleChildAdded}', () => {
+  assert.match(src, /onChildAdded=\{\s*handleChildAdded\s*\}/)
+})

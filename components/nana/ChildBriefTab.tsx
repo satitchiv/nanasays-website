@@ -27,6 +27,13 @@ type Props = {
   activeChildId: string | null
   familyPreferences?: FamilyPreferences
   onActiveChildChange?: (id: string) => void
+  // Slice 8 Build 7 Phase C followup: parent (ResearchRoom) owns the
+  // activeChildId useState. Server-side /api/children POST already wrote
+  // active_child_id, but router.refresh() doesn't reset useState — so
+  // we hand back the new id here and let ResearchRoom setActiveChildId
+  // + router.refresh together. Optional for back-compat; if absent we
+  // fall back to a plain router.refresh().
+  onChildAdded?: (childId: string) => void
 }
 
 const BASICS_FIELDS     = ['child_year', 'child_gender'] as const
@@ -76,6 +83,7 @@ export default function ChildBriefTab({
   children,
   activeChildId,
   onActiveChildChange,
+  onChildAdded,
 }: Props) {
   const [adding, setAdding] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -93,7 +101,16 @@ export default function ChildBriefTab({
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Failed to add child')
       setAdding(false)
-      router.refresh()
+      // Phase C followup: defer activation + refresh to the parent if
+      // it provided onChildAdded (it sets activeChildId optimistically
+      // so Phase C's fullscreen gate fires on the new child). Falls
+      // back to plain router.refresh() for back-compat.
+      const newId = typeof json?.child?.id === 'string' ? json.child.id : null
+      if (newId && onChildAdded) {
+        onChildAdded(newId)
+      } else {
+        router.refresh()
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error')
     } finally {

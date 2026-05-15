@@ -88,15 +88,6 @@ export async function POST(req: NextRequest) {
   // Mark as complete so the recommender's onboarding gate passes.
   childProfile.onboarding_complete = true
 
-  // Check whether this is the user's FIRST non-archived child — if so
-  // we'll auto-set them as active_child_id after insert.
-  const { count: existingCount } = await supabase
-    .from('children')
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .eq('is_archived', false)
-  const isFirstChild = (existingCount ?? 0) === 0
-
   const { data: created, error } = await supabase
     .from('children')
     .insert({
@@ -117,15 +108,15 @@ export async function POST(req: NextRequest) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
-  // Auto-set as active_child_id when this is the first child added.
-  // Subsequent children don't auto-promote — parent picks via dropdown.
-  if (isFirstChild) {
-    const { error: activeErr } = await supabase
-      .from('parent_profiles')
-      .update({ active_child_id: created.id })
-      .eq('id', user.id)
-    if (activeErr) console.warn('[POST /api/children] active_child_id update failed:', activeErr.message)
-  }
+  // Slice 8 Build 7 Phase C followup: always auto-set active_child_id to
+  // the new child so Phase C's fullscreen gate fires (gate reads the
+  // active child's funnel_state). Previously gated on isFirstChild —
+  // dropped because 2nd/3rd/Nth child adds never triggered the funnel.
+  const { error: activeErr } = await supabase
+    .from('parent_profiles')
+    .update({ active_child_id: created.id })
+    .eq('id', user.id)
+  if (activeErr) console.warn('[POST /api/children] active_child_id update failed:', activeErr.message)
 
   // Best-effort: run the recommender for this new child. Failures
   // never fail the create — the child still exists and the parent
