@@ -316,19 +316,33 @@ function ChatBody({
               // Re-renders fresh every time the parent enters Build Mode
               // with an empty thread; once they send the first reply,
               // messages.length > 0 and this branch hides naturally.
+              //
+              // Slice 8 Build 7 Phase D (2026-05-15) — blurb-first opener.
+              // Old framing led with "what's the one thing that matters
+              // most to you?" — a single-question prompt that closed off
+              // the wider conversation. New framing invites a holistic
+              // dump about the child, then promises targeted follow-ups.
+              // The LLM's existing dump-handling (acknowledge + extract
+              // + smallest follow-up rule in build-mode-prompt.ts) does
+              // the rest. No backend change needed for v1 (Codex r1 GREEN
+              // on minimal frontend-only scope; escalate to backend
+              // "intake" focus only if smoke shows turn-1 feels jarring).
               <>
                 <div className="rr-bubble-lead">
                   <strong>Welcome to Build Mode.</strong>{' '}
                   The comparison table on the right is generic right now — every parent sees the same rows.
-                  In Build Mode, I’ll ask you a few questions about what matters most to your family,
-                  then we’ll build rows tailored to <em>your</em> priorities, not generic ones.
+                  In Build Mode, I’ll learn about your child so we can build rows tailored to
+                  <em> what matters for them and your family</em>, not generic ones.
                 </div>
                 <div className="rr-bubble-lead">
                   You can skip anything you’d rather not answer, pause with the “Skip for now” button at any time,
                   and I’ll remember where we left off.
                 </div>
                 <div className="rr-bubble-lead">
-                  To start — <strong>what’s the one thing that matters most to you when you picture the right school for your child?</strong>
+                  <strong>Tell me about your child first.</strong>{' '}
+                  What are they like as a person, what do they love, and how does school feel for them right now?
+                  A few sentences is enough, but write as much as you like. Once I have that picture,
+                  I’ll ask small follow-up questions to fill in the rest.
                 </div>
               </>
             ) : (

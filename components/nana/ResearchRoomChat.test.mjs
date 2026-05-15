@@ -60,6 +60,19 @@ test('Skip Build Mode link gated on buildMode + onSkipBuildMode + !isStreaming',
   assert.match(src, /buildMode && !isStreaming && onSkipBuildMode && \(\s*\/\//)
 })
 
+test('Phase D: Build Mode opener leads with the blurb-first "tell me about your child" framing', () => {
+  // Phase D (2026-05-15) replaces the old "what's the one thing that
+  // matters most" single-question opener with a holistic-dump invitation.
+  // Catches accidental reverts to the old framing. Codex r1 GREEN on
+  // minimal frontend-only scope; backend "intake" focus mode deferred
+  // unless smoke shows turn-1 feels jarring.
+  assert.match(src, /Tell me about your child first/)
+  assert.ok(
+    !/what.s the one thing that matters most/i.test(src),
+    'old single-question opener must not regress',
+  )
+})
+
 test('Build Mode opener bubble branches on buildMode AND empty thread', () => {
   // The opener replaces the "Ask Nana anything…" fallback when
   // buildMode is on AND the parent hasn't sent any messages yet.
