@@ -100,27 +100,69 @@ test('Bug1: initialBuildModeState prop accepted + forwarded to useNanaChat', () 
   assert.match(src, /useNanaChat\(\{[\s\S]*?initialBuildModeState/)
 })
 
-// ── Bug 2 fix v2: welcome-back bubble for Build Mode re-entry ────────
+// ── Welcome-back design pass (Codex review iteration) ───────────────
 
-test('Bug2 v3: welcome-back gates ONLY on buildMode + initialBuildModeState', () => {
-  // v1 (5bf61aa) required `messages.some(m => parsed.build_mode)`.
-  // v2 (2fd88dc) added `chat.messages.length === initialMessagesCount`.
-  // Both gates kept failing in smoke (v1 missed regular-chat threads
-  // with DB progress; v2 didn't trigger visibly). v3 is the simplest
-  // form: bubble shows whenever buildMode is on AND DB has prior
-  // progress AND not streaming. Naturally scrolls out of view as new
-  // messages append.
-  assert.match(src, /buildMode && initialBuildModeState && !isStreaming/)
-  // Make sure we didn't accidentally keep the old messages-length gate.
-  assert.doesNotMatch(src, /chat\.messages\.length === initialMessagesCount/)
+test('WelcomeBack: reads LIVE state via chat.buildModeState (not stale initial)', () => {
+  // Browser smoke 2026-05-16 surfaced that the bubble was hardcoded to
+  // `initialBuildModeState.progress.usable_total` — frozen at page
+  // load. After parents answered turns the live `chat.buildModeState`
+  // updated but the bubble stayed at the SSR-captured %. Codex Q1
+  // confirmed chat.buildModeState is the right read (seeded from
+  // initial, updated via SSE).
+  assert.match(src, /chat\.buildModeState\.progress\?\.usable_total/)
+  // Ensure the old stale reference is gone — accidentally restoring it
+  // would silently re-introduce the smoke bug.
+  assert.doesNotMatch(src, /initialBuildModeState\.progress\?\.usable_total/)
 })
 
-test('Bug2 v2: welcome-back bubble references progress % from initial state', () => {
-  // The bubble's microcopy includes the parent's current usable_total.
-  // Reads from `initialBuildModeState.progress.usable_total` because
-  // that's the stable hydrated value at mount; chat.buildModeState
-  // can be the same in the steady state but is mutable via SSE.
-  assert.match(src, /Welcome back\./)
-  assert.match(src, /initialBuildModeState\.progress\?\.usable_total/)
+test('WelcomeBack: visibility gated on showWelcomeBack prop (lifted to parent)', () => {
+  // Codex Q8 — dismiss-state lives in ResearchRoomChat (not ChatBody)
+  // because ChatBody mounts separately for desktop vs mobile.
+  assert.match(src, /showWelcomeBack:\s+boolean/)
+  assert.match(src, /onDismissWelcomeBack:\s+\(\)\s*=>\s*void/)
+  assert.match(src, /\{showWelcomeBack && chat\.buildModeState && \(/)
+})
+
+test('WelcomeBack: dismiss button has aria-label + onClick to onDismissWelcomeBack', () => {
+  // Codex Q5 — accessibility.
+  assert.match(src, /aria-label="Dismiss welcome back message"/)
+  assert.match(src, /onClick=\{onDismissWelcomeBack\}/)
+})
+
+test('WelcomeBack: bubble has role=status + aria-live=polite', () => {
+  // Codex Q5 — SR announcement on appearance.
+  assert.match(src, /role="status"/)
+  assert.match(src, /aria-live="polite"/)
+})
+
+test('WelcomeBack: bubble lives OUTSIDE rr-thread (anti-scroll-off-screen)', () => {
+  // Codex Q6 — static descendant check. The v1–v3 bug was rendering
+  // INSIDE rr-thread where auto-scroll hid it. Pinned bubble must
+  // come BEFORE the rr-thread opening tag in source order.
+  const pinnedIdx = src.indexOf('rr-bubble-nana--pinned')
+  const threadIdx = src.indexOf('<div className="rr-thread">')
+  assert.ok(pinnedIdx > 0, 'pinned bubble must exist')
+  assert.ok(threadIdx > 0, 'rr-thread div must exist')
+  assert.ok(pinnedIdx < threadIdx, 'pinned bubble must render before rr-thread')
+})
+
+test('WelcomeBack: ResearchRoomChat owns dismiss-state lifecycle', () => {
+  // Codex Q8 — useState + useRef + useEffect for reset-on-toggle-on
+  // and auto-dismiss-on-submit must be in ResearchRoomChat outer
+  // scope, not inside ChatBody.
+  assert.match(src, /const \[welcomeBackDismissed, setWelcomeBackDismissed\] = useState\(false\)/)
+  assert.match(src, /submitSeqAtToggleRef = useRef/)
+})
+
+test('WelcomeBack Q2: dismiss tied to chat.submitSeq (not messages.length)', () => {
+  // Codex Q2 — using messages.length would let failed/aborted turns
+  // resurrect the bubble (messages only grows on `final`). submitSeq
+  // increments at the start of every accepted ask().
+  assert.match(src, /chat\.submitSeq > submitSeqAtToggleRef\.current/)
+})
+
+test('Build Mode toggle disabled while streaming (Codex Q8b)', () => {
+  // Toggling mid-stream creates confusing entry/reset timing.
+  assert.match(src, /disabled=\{chat\.isStreaming\}/)
 })
 

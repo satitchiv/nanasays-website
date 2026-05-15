@@ -1129,8 +1129,37 @@
   border: 1px solid var(--rr-teal);
   padding: 12px 14px;
 }
+/* Codex Q5 — pinned header needs 3 columns (avatar | name | dismiss).
+   In-thread Nana bubbles still use the base 2-column grid. */
+.rr-bubble-nana--pinned .rr-bubble-head {
+  grid-template-columns: auto 1fr auto;
+}
 .rr-bubble-nana--pinned .rr-bubble-lead {
   font-size: 13px;
+}
+.rr-bubble-dismiss {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--rr-sans);
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--rr-muted);
+  transition: background .15s, color .15s;
+}
+.rr-bubble-dismiss:hover {
+  background: rgba(27, 50, 82, .08);
+  color: var(--rr-navy);
+}
+.rr-bubble-dismiss:focus-visible {
+  outline: 2px solid var(--rr-teal);
+  outline-offset: 2px;
 }
 .rr-build-progress-learned {
   margin-top: 8px;

@@ -91,7 +91,8 @@ function ChatBody({
   onSkipBuildMode,
   onBuildTableNow,
   chat,
-  initialBuildModeState,
+  showWelcomeBack,
+  onDismissWelcomeBack,
   onConfirmAddRow,
   onApplyReRank,
   onAddToLetter,
@@ -109,13 +110,11 @@ function ChatBody({
   onSkipBuildMode?:     () => void
   onBuildTableNow?:     () => void
   chat:                 ReturnType<typeof useNanaChat>
-  // Session 4 follow-up — gates the welcome-back bubble on re-entry.
-  // Non-null means the parent has prior Build Mode progress in DB; the
-  // bubble greets them when buildMode is also on. (v3: dropped the
-  // messages-count gate after browser smoke 2026-05-16; bubble now
-  // shows as long as Build Mode is on with hydrated progress, and
-  // scrolls out of view naturally once new messages arrive.)
-  initialBuildModeState?: import('@/lib/nana/types').BuildModeStreamState | null
+  // Codex welcome-back design pass — bubble visibility owned by
+  // ResearchRoomChat (state lives there so it survives desktop↔mobile
+  // ChatBody re-mounts). ChatBody just renders + dispatches dismiss.
+  showWelcomeBack:      boolean
+  onDismissWelcomeBack: () => void
   onConfirmAddRow:      (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
   onApplyReRank?:       (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
   onAddToLetter:        (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
@@ -157,6 +156,12 @@ function ChatBody({
         type="button"
         className={`rr-build-toggle${buildMode ? ' is-active' : ''}`}
         onClick={onToggleBuildMode}
+        // Codex Q8 — disable toggle while a turn is streaming. Toggling
+        // mid-stream creates confusing entry/reset timing: the active
+        // SSE turn writes to whichever route was selected at submit time
+        // (turn vs finalize), but the UI may flicker buildMode state +
+        // re-trigger the welcome-back reset effect.
+        disabled={chat.isStreaming}
         aria-pressed={buildMode}
       >
         <span className="rr-bt-ic" aria-hidden="true">⚒</span>
@@ -188,29 +193,35 @@ function ChatBody({
         </button>
       )}
 
-      {/* Session 4 follow-up v4 — welcome-back bubble OUTSIDE the
-          message thread.
-          v1/v2/v3 placed this inside `<div className="rr-thread">` and
-          all three failed browser smoke despite passing tests. The
-          actual bug: `rr-thread` has an auto-scroll-to-bottom effect
-          (use-nana-chat.ts) that fires on every render. With prior
-          messages present, the welcome-back bubble at the top got
-          scrolled off-screen instantly — rendered but invisible.
-          v4 lifts the bubble OUT of rr-thread and places it above,
-          alongside the progress bar + skip link. Always visible while
-          Build Mode is on. Same `.rr-bubble-nana` styling preserves
-          the "Nana says" voice. */}
-      {buildMode && initialBuildModeState && !isStreaming && (
-        <div className="rr-bubble-nana rr-bubble-nana--pinned">
+      {/* Welcome-back bubble (Codex design pass). Owned by ResearchRoomChat
+          via `showWelcomeBack` so dismiss-state survives desktop↔mobile
+          re-mounts. Reads chat.buildModeState (LIVE, mutates as turns
+          fire) so the % is current. role="status" + aria-live="polite"
+          announce to screen readers; dismiss button is keyboard-
+          accessible. Placed OUTSIDE rr-thread to avoid the auto-scroll
+          (v4 fix). */}
+      {showWelcomeBack && chat.buildModeState && (
+        <div
+          className="rr-bubble-nana rr-bubble-nana--pinned"
+          role="status"
+          aria-live="polite"
+        >
           <div className="rr-bubble-head">
             <svg className="rr-bubble-avatar" aria-hidden="true">
               <use href="#ic-nana" />
             </svg>
             <div className="rr-bubble-name">Nana</div>
+            <button
+              type="button"
+              className="rr-bubble-dismiss"
+              onClick={onDismissWelcomeBack}
+              aria-label="Dismiss welcome back message"
+              title="Dismiss"
+            >×</button>
           </div>
           <div className="rr-bubble-lead">
             <strong>Welcome back.</strong>{' '}
-            You’re at <strong>{Math.round((initialBuildModeState.progress?.usable_total ?? 0) * 100)}%</strong> on Build Mode.
+            You’re at <strong>{Math.round((chat.buildModeState.progress?.usable_total ?? 0) * 100)}%</strong> on Build Mode.
             We can pick up right where we left off — just answer the next question below,
             or hit <em>Skip Build Mode for now</em> to head back to the table.
           </div>
@@ -434,6 +445,35 @@ export default function ResearchRoomChat({
 
   const isMobile = useIsMobile()
   const router   = useRouter()
+
+  // Codex welcome-back design pass — dismiss-state lifted here (NOT
+  // ChatBody) because ChatBody mounts separately for desktop vs
+  // mobile, so local state would reset on viewport-class change.
+  // Lifecycle:
+  //   • Mount with buildMode=true (rare): dismissed=false → bubble shows
+  //   • buildMode flips false→true: reset to false + snapshot submitSeq
+  //   • submitSeq advances past snapshot: dismissed=true (auto-dismiss
+  //     on user engagement)
+  //   • × click: dismissed=true (manual dismiss)
+  const [welcomeBackDismissed, setWelcomeBackDismissed] = useState(false)
+  const submitSeqAtToggleRef = useRef<number>(chat.submitSeq)
+  useEffect(() => {
+    if (buildMode) {
+      setWelcomeBackDismissed(false)
+      submitSeqAtToggleRef.current = chat.submitSeq
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buildMode])
+  useEffect(() => {
+    if (buildMode && chat.submitSeq > submitSeqAtToggleRef.current) {
+      setWelcomeBackDismissed(true)
+    }
+  }, [chat.submitSeq, buildMode])
+  const showWelcomeBack =
+       buildMode
+    && !!chat.buildModeState
+    && !chat.isStreaming
+    && !welcomeBackDismissed
 
   // Slice 6.6 Tier 3 — react to ComparisonView's ↻ Refresh lens click.
   // Parent passes a {topicName, nonce} payload; the nonce changes on
@@ -810,7 +850,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={handleSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} initialBuildModeState={initialBuildModeState} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={handleSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         )}
       </aside>
@@ -881,7 +921,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={handleSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} initialBuildModeState={initialBuildModeState} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={handleSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         </>
       )}

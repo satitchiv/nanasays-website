@@ -89,6 +89,13 @@ export interface UseNanaChatReturn {
   // one-turn delta and resets on each ask() submit. Null whenever Build
   // Mode hasn't emitted a turn yet (regular chat or fresh session).
   buildModeState:    BuildModeStreamState | null
+  // Codex welcome-back design pass — monotonic counter incremented at
+  // the START of each accepted ask() call (after validation, before
+  // fetch). Lets consumers detect "user has engaged this session"
+  // without waiting for `final` (failed/aborted turns count too).
+  // Used by the welcome-back bubble to auto-dismiss on first submit.
+  // Reset to 0 by startNewConversation().
+  submitSeq:         number
   // Refs
   abortRef:          React.RefObject<AbortController | null>
   chatEndRef:        React.RefObject<HTMLDivElement>
@@ -139,6 +146,12 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
   // parent re-entering a session with prior progress sees the bar on
   // first paint, not after their next turn.
   const [buildModeState,     setBuildModeState]     = useState<BuildModeStreamState | null>(opts.initialBuildModeState ?? null)
+  // Codex welcome-back design pass Q2 — monotonic submit counter.
+  // Increments at the start of every accepted ask() (post-validation,
+  // pre-fetch). Survives failed/aborted turns since it doesn't depend
+  // on the `final` event. The welcome-back bubble snapshots this on
+  // Build Mode toggle-on and dismisses when it advances.
+  const [submitSeq,          setSubmitSeq]          = useState(0)
 
   const abortRef   = useRef<AbortController | null>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
@@ -233,6 +246,10 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
 
     setAskError(null)
     setIsStreaming(true)
+    // Codex Q2 — increment AFTER validation passes but BEFORE fetch, so
+    // failed/aborted turns still count as "user has engaged" and the
+    // welcome-back bubble doesn't resurrect.
+    setSubmitSeq(n => n + 1)
     setStreamBuf('')
     setStreamFormat('structured')   // reset; prose intent fires answer_format event if applicable
     setActiveQuestion(q)
@@ -561,6 +578,7 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
     // "+ New" tap inside Build Mode starts the bar back at empty rather
     // than carrying stale fill from the prior conversation.
     setBuildModeState(null)
+    setSubmitSeq(0)
     inputRef.current?.focus()
   }
 
@@ -576,6 +594,7 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
     toolProgress, agentStatus,
     shortlistLocked,
     buildModeState,
+    submitSeq,
     abortRef, chatEndRef, inputRef,
     ask, stopStream, startNewConversation,
   }
