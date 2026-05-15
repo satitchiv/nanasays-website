@@ -178,21 +178,32 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
     const lettersById = new Map<string, string[]>(
       opts.initialMessages.map(m => [m.id, m.activeLetterProposalIds ?? []])
     )
-    setMessages(prev => prev.map(m => {
-      const next = byId.get(m.id)
-      const nextLetters = lettersById.get(m.id)
-      if (!next && !nextLetters) return m
-      const cur = m.activeProposalIds ?? []
-      const curLetters = m.activeLetterProposalIds ?? []
-      const rowsSame = !next || (cur.length === next.length && cur.every((v, i) => v === next[i]))
-      const lettersSame = !nextLetters || (curLetters.length === nextLetters.length && curLetters.every((v, i) => v === nextLetters[i]))
-      if (rowsSame && lettersSame) return m
-      return {
-        ...m,
-        ...(next ? { activeProposalIds: next } : {}),
-        ...(nextLetters ? { activeLetterProposalIds: nextLetters } : {}),
-      }
-    }))
+    // Browser smoke 2026-05-16: this effect fired a `setMessages` even
+    // when nothing actually changed (the `.map()` always returns a new
+    // array reference), triggering the auto-scroll effect downstream.
+    // On child-swap that produced TWO scroll-to-bottom animations in
+    // quick succession (one from initial mount, one from this sync).
+    // Bail out early when no message actually needs updating.
+    setMessages(prev => {
+      let changed = false
+      const next = prev.map(m => {
+        const nextRows = byId.get(m.id)
+        const nextLetters = lettersById.get(m.id)
+        if (!nextRows && !nextLetters) return m
+        const cur = m.activeProposalIds ?? []
+        const curLetters = m.activeLetterProposalIds ?? []
+        const rowsSame = !nextRows || (cur.length === nextRows.length && cur.every((v, i) => v === nextRows[i]))
+        const lettersSame = !nextLetters || (curLetters.length === nextLetters.length && curLetters.every((v, i) => v === nextLetters[i]))
+        if (rowsSame && lettersSame) return m
+        changed = true
+        return {
+          ...m,
+          ...(nextRows ? { activeProposalIds: nextRows } : {}),
+          ...(nextLetters ? { activeLetterProposalIds: nextLetters } : {}),
+        }
+      })
+      return changed ? next : prev
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeProposalsSig])
 

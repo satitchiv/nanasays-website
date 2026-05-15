@@ -102,17 +102,17 @@ test('Bug1: initialBuildModeState prop accepted + forwarded to useNanaChat', () 
 
 // ── Bug 2 fix v2: welcome-back bubble for Build Mode re-entry ────────
 
-test('Bug2 v2: welcome-back gates on initialBuildModeState + no new messages', () => {
-  // First version (commit 5bf61aa) gated off `messages.some(m =>
-  // parsed.build_mode)`. Browser smoke 2026-05-16 second pass caught
-  // that parents whose visible thread is regular chat (no Build Mode
-  // marker) never saw the bubble even with prior Build Mode progress
-  // saved in DB. New condition uses initialBuildModeState (hydrated
-  // from research_sessions.build_mode_progress) as the trigger.
-  assert.match(src, /buildMode && !isStreaming/)
-  assert.match(src, /&& initialBuildModeState/)
-  // Hide once the parent sends a new turn in this session.
-  assert.match(src, /chat\.messages\.length === initialMessagesCount/)
+test('Bug2 v3: welcome-back gates ONLY on buildMode + initialBuildModeState', () => {
+  // v1 (5bf61aa) required `messages.some(m => parsed.build_mode)`.
+  // v2 (2fd88dc) added `chat.messages.length === initialMessagesCount`.
+  // Both gates kept failing in smoke (v1 missed regular-chat threads
+  // with DB progress; v2 didn't trigger visibly). v3 is the simplest
+  // form: bubble shows whenever buildMode is on AND DB has prior
+  // progress AND not streaming. Naturally scrolls out of view as new
+  // messages append.
+  assert.match(src, /buildMode && initialBuildModeState && !isStreaming/)
+  // Make sure we didn't accidentally keep the old messages-length gate.
+  assert.doesNotMatch(src, /chat\.messages\.length === initialMessagesCount/)
 })
 
 test('Bug2 v2: welcome-back bubble references progress % from initial state', () => {

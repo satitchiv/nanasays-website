@@ -92,7 +92,6 @@ function ChatBody({
   onBuildTableNow,
   chat,
   initialBuildModeState,
-  initialMessagesCount,
   onConfirmAddRow,
   onApplyReRank,
   onAddToLetter,
@@ -110,13 +109,13 @@ function ChatBody({
   onSkipBuildMode?:     () => void
   onBuildTableNow?:     () => void
   chat:                 ReturnType<typeof useNanaChat>
-  // Session 4 follow-up — used to trigger the welcome-back bubble
-  // on re-entry. `initialBuildModeState != null` means the parent has
-  // prior Build Mode progress in DB; `chat.messages.length ===
-  // initialMessagesCount` means they haven't sent a new turn this
-  // session. Together they identify "just returned, hasn't engaged yet."
+  // Session 4 follow-up — gates the welcome-back bubble on re-entry.
+  // Non-null means the parent has prior Build Mode progress in DB; the
+  // bubble greets them when buildMode is also on. (v3: dropped the
+  // messages-count gate after browser smoke 2026-05-16; bubble now
+  // shows as long as Build Mode is on with hydrated progress, and
+  // scrolls out of view naturally once new messages arrive.)
   initialBuildModeState?: import('@/lib/nana/types').BuildModeStreamState | null
-  initialMessagesCount:   number
   onConfirmAddRow:      (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
   onApplyReRank?:       (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
   onAddToLetter:        (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
@@ -190,25 +189,19 @@ function ChatBody({
       )}
 
       <div className="rr-thread">
-        {/* Session 4 follow-up v2 — welcome-back bubble for re-entry.
-            First version triggered off `messages.some(m =>
-            parsed.build_mode)` but parents whose visible thread is
-            regular Nana chat (no Build Mode marker on those rows)
-            never saw the bubble — even when their DB-saved Build
-            Mode progress was non-zero. Browser smoke 2026-05-16 second
-            pass caught this: Theo has 4% saved progress but the
-            visible thread is all Reed's-rugby regular chat, so the
-            old condition was false.
-            New gate: render when buildMode is on AND we have hydrated
-            initial progress from DB AND the parent hasn't sent a new
-            turn in this session yet. `chat.messages.length ===
-            initialMessagesCount` checks for "no new turns since
-            mount" — the hook seeds messages from initialMessages on
-            mount, then only grows via ask(). */}
-        {buildMode && !isStreaming
-          && initialBuildModeState
-          && chat.messages.length === initialMessagesCount
-          && (
+        {/* Session 4 follow-up v3 — welcome-back bubble for re-entry.
+            Two prior gates kept failing: v1 needed `messages.some(m =>
+            parsed.build_mode)` which fails when the thread is all
+            regular Nana chat; v2 added `chat.messages.length ===
+            initialMessagesCount` to hide on engagement, which never
+            triggered visibly during smoke. v3: simplest possible —
+            render whenever buildMode is on AND DB has prior Build
+            Mode progress, regardless of message history or count.
+            The bubble lives at the top of the chat thread; once the
+            parent sends a new turn it scrolls up out of view
+            naturally as new messages append. Browser smoke 2026-05-16
+            rev 3 verified visibility. */}
+        {buildMode && initialBuildModeState && !isStreaming && (
           <div className="rr-bubble-nana">
             <div className="rr-bubble-head">
               <svg className="rr-bubble-avatar" aria-hidden="true">
@@ -816,7 +809,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={handleSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} initialBuildModeState={initialBuildModeState} initialMessagesCount={initialMessages.length} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={handleSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} initialBuildModeState={initialBuildModeState} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         )}
       </aside>
@@ -887,7 +880,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={handleSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} initialBuildModeState={initialBuildModeState} initialMessagesCount={initialMessages.length} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={handleSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} initialBuildModeState={initialBuildModeState} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         </>
       )}

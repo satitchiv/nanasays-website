@@ -302,9 +302,13 @@ export default function ResearchRoom({
   }, [activeTab])
 
   const handleToggleBuildMode = () => {
-    const next = !buildMode
-    setBuildMode(next)
-    setChatState(next ? 'focus' : 'default')
+    // Browser smoke 2026-05-16: previous version forced
+    // setChatState('focus' / 'default') on toggle which jolted the chat
+    // panel from 400px ↔ 620px every time the parent flipped the
+    // switch. Removed — chat width stays wherever the parent put it
+    // (closed / default / focus); they can manually widen via ⤢ if
+    // they want more room for the interview.
+    setBuildMode(b => !b)
   }
 
   const handleCollapseChat = () => setChatState('closed')
