@@ -7,6 +7,7 @@ import {
   normalizeSchoolName,
 } from '../school-name-overrides.ts'
 import { DIMENSIONS } from '../server/dimensions.js'
+import { loadDimFactsBundles } from '../server/tools.js'
 import type { BriefProfile } from './brief-predicates.ts'
 import type { BuildModeExtractionHTTP } from '../server/research-room/build-mode-schemas.ts'
 
@@ -145,7 +146,12 @@ type StructRow = {
 
 // ── UK evidence slugs (paginated; mirrors recommend-shortlist private helper) ──
 
-async function loadUkEvidenceSlugs(supabase: SupabaseClient): Promise<string[]> {
+async function loadUkEvidenceSlugs(supabase: SupabaseClient): Promise<{ slugs: string[]; error: boolean }> {
+  // Codex r8 Low/Medium #3 — distinguish a real fetch error from an
+  // empty result. Before: both returned []. After: the caller can map
+  // an error to `reason: 'fetch_failed'` instead of silently degrading
+  // to `no_candidates` (which the prompt turns into "schoolProposals:
+  // [] verbatim", masking the failure).
   const all: string[] = []
   const PAGE = 1000
   for (let offset = 0; ; offset += PAGE) {
@@ -155,11 +161,12 @@ async function loadUkEvidenceSlugs(supabase: SupabaseClient): Promise<string[]> 
       .eq('is_uk_evidence', true)
       .eq('has_substantial_chunks', true)
       .range(offset, offset + PAGE - 1)
-    if (error || !data || data.length === 0) break
+    if (error) return { slugs: all, error: true }
+    if (!data || data.length === 0) break
     all.push(...data.map((r: { school_slug: string }) => r.school_slug))
     if (data.length < PAGE) break
   }
-  return all
+  return { slugs: all, error: false }
 }
 
 // ── Build a synthetic parent ctx for dimension scorers ──────────────
@@ -493,9 +500,10 @@ export async function scoreForBuildMode(
   const exclude = new Set(excludeSlugs)
 
   // 1. UK evidence slug allowlist
-  const ukSlugs = await loadUkEvidenceSlugs(supabase)
-  if (ukSlugs.length === 0) return { candidates: [], reason: 'no_candidates' }
-  const candidateSlugs = ukSlugs.filter(s => !exclude.has(s))
+  const ukResult = await loadUkEvidenceSlugs(supabase)
+  if (ukResult.error) return { candidates: [], reason: 'fetch_failed' }
+  if (ukResult.slugs.length === 0) return { candidates: [], reason: 'no_candidates' }
+  const candidateSlugs = ukResult.slugs.filter(s => !exclude.has(s))
   if (candidateSlugs.length === 0) return { candidates: [], reason: 'no_candidates' }
 
   // 2. Candidate query — hard filters in SQL where possible
@@ -537,11 +545,30 @@ export async function scoreForBuildMode(
   const slugs = (rawCandidates as SchoolRow[]).map(s => s.slug)
   const { data: structRows, error: structErr } = await supabase
     .from('school_structured_data')
-    .select('school_slug, sports_profile, exam_results, university_destinations, student_community, isi_deep_facts')
+    .select('school_slug, sports_profile, exam_results, university_destinations, student_community')
     .in('school_slug', slugs)
   if (structErr) return { candidates: [], reason: 'fetch_failed' }
+
+  // Slice 8 Build 6 hotfix (2026-05-15) — `isi_deep_facts` is NOT a
+  // column on `school_structured_data`; it's a bundle assembled from
+  // `school_facts` rows of dimension='isi_deep'. The original Build 6
+  // landing selected it as if it were a column, which made Postgres
+  // reject the query → fetch_failed → 0 candidates → LLM emits empty
+  // schoolProposals → no school pills in finalize CTA.
+  //
+  // Production reads ISI deep via `loadDimFactsBundles` (lib/server/
+  // tools.js). Reuse it here so pastoral_care + inclusive_culture +
+  // diversity_culture dimension scorers can fire when the parent has
+  // pastoral_pref='high_priority' or lgbtq_pref='important'.
+  const factsBundles = await loadDimFactsBundles(supabase, slugs)
   const structBySlug = new Map<string, StructRow>(
-    (structRows ?? []).map((r: StructRow) => [r.school_slug, r]),
+    (structRows ?? []).map((r: Omit<StructRow, 'isi_deep_facts'>) => [
+      r.school_slug,
+      {
+        ...r,
+        isi_deep_facts: (factsBundles.get(r.school_slug)?.isi_deep_facts as Record<string, unknown> | undefined) ?? null,
+      },
+    ]),
   )
 
   // 4. Pure ranker

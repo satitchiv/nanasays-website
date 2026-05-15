@@ -290,6 +290,11 @@ export async function POST(req: NextRequest) {
   // fails, fall back to an empty list (LLM will return schoolProposals
   // = [] per the prompt's explicit handling).
   let candidates: ScoredCandidate[] = []
+  // Codex r8 Medium #1 — surface scorer reason so a future fetch_failed
+  // can't masquerade as "empty candidate set" again. Persisted into the
+  // final message metadata (build_mode block) and streamed as a
+  // persistence_warning when not 'ok' (Mission Control picks this up).
+  let scorerReason: 'ok' | 'no_candidates' | 'fetch_failed' = 'no_candidates'
   try {
     const scored = await scoreForBuildMode(
       svc,
@@ -302,9 +307,11 @@ export async function POST(req: NextRequest) {
       },
       SCORER_CANDIDATE_LIMIT,
     )
-    candidates = scored.candidates
+    candidates    = scored.candidates
+    scorerReason  = scored.reason
   } catch (e) {
     console.warn('[build-mode/finalize] scoreForBuildMode failed:', e)
+    scorerReason = 'fetch_failed'
   }
   const candidateAllowlist = new Set(candidates.map(c => c.slug))
 
@@ -349,6 +356,13 @@ export async function POST(req: NextRequest) {
       try {
         send({ type: 'session_ready', sessionId: body.sessionId })
         send({ type: 'answer_format', format: 'prose' })
+        // Codex r8 Medium #1 — surface scorer reason early so Mission
+        // Control sees a fetch failure even if the rest of the stream
+        // completes successfully (rows still get proposed; schools
+        // silently can't).
+        if (scorerReason === 'fetch_failed') {
+          send({ type: 'persistence_warning', code: 'school_scorer_fetch_failed' })
+        }
 
         let proseAccum = ''
         for await (const chunk of stream.prose) {
@@ -516,10 +530,15 @@ export async function POST(req: NextRequest) {
           confidence:       'high'   as const,
           proposed_actions,
           build_mode: {
-            finalize:            true,
-            proposal_count:      Object.keys(proposed_actions).length,
-            row_proposal_count:  rowCount,
+            finalize:              true,
+            proposal_count:        Object.keys(proposed_actions).length,
+            row_proposal_count:    rowCount,
             school_proposal_count: schoolCount,
+            // Codex r8 Medium #1 — persist scorer outcome so Mission
+            // Control can chart fetch_failed rate and so this exact
+            // class of bug is forensically obvious next time.
+            school_scorer_reason:  scorerReason,
+            candidate_count:       candidates.length,
           },
         }
         const shareToken = crypto.randomUUID()
