@@ -100,27 +100,27 @@ test('Bug1: initialBuildModeState prop accepted + forwarded to useNanaChat', () 
   assert.match(src, /useNanaChat\(\{[\s\S]*?initialBuildModeState/)
 })
 
-// ── Bug 2 fix: welcome-back bubble for Build Mode re-entry ───────────
+// ── Bug 2 fix v2: welcome-back bubble for Build Mode re-entry ────────
 
-test('Bug2: welcome-back bubble renders when buildMode + prior Build Mode messages', () => {
-  // The opener bubble only fires when messages.length === 0. For
-  // parents re-entering Build Mode WITH prior chat (the common
-  // case once you've done one interview), nothing rendered — felt
-  // broken. New bubble renders ABOVE existing messages when:
-  //   buildMode && messages.length > 0 && !isStreaming && a prior
-  //   message has `parsed.build_mode != null`.
-  assert.match(src, /buildMode && messages\.length > 0 && !isStreaming/)
-  assert.match(src, /messages\.some\(m =>[\s\S]*?\.build_mode != null/)
+test('Bug2 v2: welcome-back gates on initialBuildModeState + no new messages', () => {
+  // First version (commit 5bf61aa) gated off `messages.some(m =>
+  // parsed.build_mode)`. Browser smoke 2026-05-16 second pass caught
+  // that parents whose visible thread is regular chat (no Build Mode
+  // marker) never saw the bubble even with prior Build Mode progress
+  // saved in DB. New condition uses initialBuildModeState (hydrated
+  // from research_sessions.build_mode_progress) as the trigger.
+  assert.match(src, /buildMode && !isStreaming/)
+  assert.match(src, /&& initialBuildModeState/)
+  // Hide once the parent sends a new turn in this session.
+  assert.match(src, /chat\.messages\.length === initialMessagesCount/)
 })
 
-test('Bug2: welcome-back bubble references current Build Mode %', () => {
-  // The bubble's microcopy includes the parent's current usable_total
-  // so they know how far through the interview they are. Falls back
-  // to a generic "I've still got your earlier answers" when
-  // buildModeState is null (e.g. transient race between mount + state).
+test('Bug2 v2: welcome-back bubble references progress % from initial state', () => {
+  // The bubble's microcopy includes the parent's current usable_total.
+  // Reads from `initialBuildModeState.progress.usable_total` because
+  // that's the stable hydrated value at mount; chat.buildModeState
+  // can be the same in the steady state but is mutable via SSE.
   assert.match(src, /Welcome back\./)
-  // JSX ternary may have newlines between `buildModeState` and `?`, so
-  // [\s\S]*? bridges the gap rather than requiring them adjacent.
-  assert.match(src, /buildModeState[\s\S]*?usable_total/)
+  assert.match(src, /initialBuildModeState\.progress\?\.usable_total/)
 })
 

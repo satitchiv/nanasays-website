@@ -91,6 +91,8 @@ function ChatBody({
   onSkipBuildMode,
   onBuildTableNow,
   chat,
+  initialBuildModeState,
+  initialMessagesCount,
   onConfirmAddRow,
   onApplyReRank,
   onAddToLetter,
@@ -108,6 +110,13 @@ function ChatBody({
   onSkipBuildMode?:     () => void
   onBuildTableNow?:     () => void
   chat:                 ReturnType<typeof useNanaChat>
+  // Session 4 follow-up — used to trigger the welcome-back bubble
+  // on re-entry. `initialBuildModeState != null` means the parent has
+  // prior Build Mode progress in DB; `chat.messages.length ===
+  // initialMessagesCount` means they haven't sent a new turn this
+  // session. Together they identify "just returned, hasn't engaged yet."
+  initialBuildModeState?: import('@/lib/nana/types').BuildModeStreamState | null
+  initialMessagesCount:   number
   onConfirmAddRow:      (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
   onApplyReRank?:       (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
   onAddToLetter:        (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
@@ -181,18 +190,24 @@ function ChatBody({
       )}
 
       <div className="rr-thread">
-        {/* Session 4 follow-up — welcome-back bubble for re-entry.
-            Renders when buildMode is on AND the thread already has at least
-            one prior Build Mode message (parsed.build_mode marker present).
-            Sits at the top of the conversation, above existing messages.
-            Surfaced 2026-05-16 smoke: parents re-entering Build Mode with
-            history saw no acknowledgment from Nana — just a blank chat
-            until they sent another turn.
-            The opener bubble (empty-thread branch below) handles the
-            FIRST-ever Build Mode entry; this bubble handles every later
-            re-entry. They're mutually exclusive by construction. */}
-        {buildMode && messages.length > 0 && !isStreaming
-          && messages.some(m => (m.parsed as { build_mode?: unknown } | null)?.build_mode != null)
+        {/* Session 4 follow-up v2 — welcome-back bubble for re-entry.
+            First version triggered off `messages.some(m =>
+            parsed.build_mode)` but parents whose visible thread is
+            regular Nana chat (no Build Mode marker on those rows)
+            never saw the bubble — even when their DB-saved Build
+            Mode progress was non-zero. Browser smoke 2026-05-16 second
+            pass caught this: Theo has 4% saved progress but the
+            visible thread is all Reed's-rugby regular chat, so the
+            old condition was false.
+            New gate: render when buildMode is on AND we have hydrated
+            initial progress from DB AND the parent hasn't sent a new
+            turn in this session yet. `chat.messages.length ===
+            initialMessagesCount` checks for "no new turns since
+            mount" — the hook seeds messages from initialMessages on
+            mount, then only grows via ask(). */}
+        {buildMode && !isStreaming
+          && initialBuildModeState
+          && chat.messages.length === initialMessagesCount
           && (
           <div className="rr-bubble-nana">
             <div className="rr-bubble-head">
@@ -203,10 +218,9 @@ function ChatBody({
             </div>
             <div className="rr-bubble-lead">
               <strong>Welcome back.</strong>{' '}
-              {buildModeState
-                ? <>You’re at <strong>{Math.round((buildModeState.progress?.usable_total ?? 0) * 100)}%</strong> on Build Mode. We can pick up right where we left off — just answer the next question below, or hit <em>Skip Build Mode for now</em> to head back to the table.</>
-                : <>I’ve still got your earlier answers from this Build Mode interview. Just keep going below, or hit <em>Skip Build Mode for now</em> if you’d rather come back later.</>
-              }
+              You’re at <strong>{Math.round((initialBuildModeState.progress?.usable_total ?? 0) * 100)}%</strong> on Build Mode.
+              We can pick up right where we left off — just answer the next question below,
+              or hit <em>Skip Build Mode for now</em> to head back to the table.
             </div>
           </div>
         )}
@@ -802,7 +816,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={handleSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={handleSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} initialBuildModeState={initialBuildModeState} initialMessagesCount={initialMessages.length} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         )}
       </aside>
@@ -873,7 +887,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={handleSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={handleSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} initialBuildModeState={initialBuildModeState} initialMessagesCount={initialMessages.length} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         </>
       )}

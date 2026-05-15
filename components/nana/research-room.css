@@ -1092,46 +1092,28 @@
   letter-spacing: .04em;
 }
 .rr-build-progress-bar {
-  display: flex;
+  position: relative;
   height: 8px;
   border-radius: 4px;
   background: var(--rr-off-2);
-  overflow: visible;     /* let the focus ::after indicator render below */
-  gap: 2px;
-  position: relative;
-  margin-bottom: 6px;    /* breathing room for the focus indicator */
+  overflow: hidden;
+  margin-bottom: 0;
 }
-.rr-build-progress-seg {
-  position: relative;
-  background: var(--rr-off);
-  transition: background .2s;
-  min-width: 2px;
-}
-.rr-build-progress-seg.is-empty {
-  background: var(--rr-off-2);
-}
-.rr-build-progress-seg-fill {
+.rr-build-progress-fill {
+  /* Single left-anchored continuous fill — replaces the segmented
+     per-target bars (browser smoke 2026-05-16: low % was misreading
+     as "centered" because the only filled segment wasn't position 1). */
   position: absolute;
   inset: 0 auto 0 0;
   background: var(--rr-teal);
+  border-radius: 4px;
   transition: width .3s ease;
+  min-width: 2px;
 }
-.rr-build-progress-seg.is-focus .rr-build-progress-seg-fill {
-  background: var(--rr-teal-dk);
-}
-.rr-build-progress-seg.is-focus::after {
-  /* Subtle indicator below the focus segment instead of a detached outline.
-     Earlier outline+offset version produced a visible "floating box" at
-     small segment widths (e.g. 5% "other" target). */
-  content: '';
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -3px;
-  height: 2px;
-  background: var(--rr-teal-dk);
-  border-radius: 1px;
-}
+/* Dead — the segmented bar was replaced by a single continuous fill
+   in browser-smoke fix 2026-05-16. Left empty rather than deleted to
+   avoid noise in the CSS diff; the rules are unused (no .rr-build-
+   progress-seg* in the JSX). */
 .rr-build-progress-learned {
   margin-top: 8px;
   font-family: var(--rr-sans);

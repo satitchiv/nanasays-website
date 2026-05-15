@@ -134,39 +134,29 @@ export default function BuildModeProgressBar({ state, onBuildTableNow }: Props) 
         </span>
         <span className="rr-build-progress-pct" aria-live="polite">{pct}%</span>
       </div>
+      {/* Single continuous fill anchored to the LEFT, like a conventional
+          progress bar. Browser smoke 2026-05-16 caught the per-segment
+          fill model misreading as "fill in the middle" when only an
+          inner segment (e.g. interests at vague) had data: visually the
+          green sliver appeared mid-bar because the first segment was
+          empty. Conventional left-aligned fill matches parent intuition.
+          Per-target detail still flows through the "Nana learned:" line
+          below, so we don't lose granularity — just simplify the bar. */}
       <div
         className="rr-build-progress-bar"
         role="progressbar"
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={pct}
-      >
-        {TARGET_ORDER.map(key => {
+        title={TARGET_ORDER.map(key => {
           const t = progress.targets[key]
-          const state = t?.state ?? 'missing'
-          const usable = STATE_USABLE[state] ?? 0
-          const fillPct = Math.round(usable * 100)
-          const segWidth = (TARGET_WEIGHTS[key] ?? 0) * 100
-          // Suppress focus highlight at ≥80%: the heading switches to
-          // "Ready when you are" so there's no useful target to spotlight,
-          // and the indicator under a small segment was misreading as a
-          // detached UI element.
-          const isFocus = !ready && focus === key
-          const isEmpty = state === 'missing'
-          return (
-            <div
-              key={key}
-              className={`rr-build-progress-seg${isFocus ? ' is-focus' : ''}${isEmpty ? ' is-empty' : ''}`}
-              style={{ width: `${segWidth}%` }}
-              title={`${TARGET_LABEL[key]} — ${state}`}
-            >
-              <div
-                className="rr-build-progress-seg-fill"
-                style={{ width: `${fillPct}%` }}
-              />
-            </div>
-          )
-        })}
+          return `${TARGET_LABEL[key]}: ${t?.state ?? 'missing'}`
+        }).join(' · ')}
+      >
+        <div
+          className="rr-build-progress-fill"
+          style={{ width: `${pct}%` }}
+        />
       </div>
       {learnedFields.length > 0 && (
         <div className="rr-build-progress-learned" aria-live="polite">
