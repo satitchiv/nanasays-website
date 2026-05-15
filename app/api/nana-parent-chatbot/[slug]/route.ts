@@ -29,6 +29,8 @@ import { checkRateLimit } from '@/lib/rateLimit'
 import { isPaidModeOn } from '@/lib/paid-mode'
 // @ts-ignore — brain is plain JS, types not generated
 import { runOneQuestionStream } from '@/lib/server/nana-brain.js'
+// @ts-ignore — clarifier-check is plain JS
+import { needsClarification, buildClarifierFinalPayload } from '@/lib/server/clarifier-check.js'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -175,6 +177,49 @@ export async function POST(
   if (!question) return jsonError(400, 'question is required')
   if (question.length > MAX_QUESTION_CHARS) {
     return jsonError(400, `question must be ≤ ${MAX_QUESTION_CHARS} characters`)
+  }
+
+  // ── P0.2: junk-input clarifier (short-circuit BEFORE retrieval) ──
+  // Same module + behaviour as /api/nana-research. NanaPanel bypasses the
+  // intent router entirely and calls runOneQuestionStream directly —
+  // without this guard, a parent typing "asdfghjkl" still gets a
+  // confidently-fabricated school-fit answer. Both stages fail OPEN.
+  // Skipped for the dev-bypass header path so the parent-battery harness
+  // can submit deliberate edge-case prompts.
+  if (!isDevBypass) {
+    const clarifier = await needsClarification(question, {
+      hasUsableHistory: false, // NanaPanel is single-turn per page-load
+      signal: req.signal || null,
+    })
+    if (clarifier.needsClarification) {
+      const payload = buildClarifierFinalPayload(clarifier.message)
+      const encoder = new TextEncoder()
+      const stream  = new ReadableStream({
+        start(controller) {
+          const send = (event: unknown) => {
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`))
+          }
+          // shareToken intentionally omitted (matches client `string | undefined` type)
+          send({
+            type: 'final',
+            payload,
+            clarifier: { reason: clarifier.reason, stage: clarifier.stage },
+          })
+          controller.close()
+        },
+      })
+      console.log('[nana-parent-chatbot/%s] clarifier-short-circuit reason=%s stage=%s "%s"',
+        slug, clarifier.reason, clarifier.stage, question.slice(0, 50))
+      return new Response(stream, {
+        status: 200,
+        headers: {
+          'Content-Type':      'text/event-stream; charset=utf-8',
+          'Cache-Control':     'no-cache, no-transform',
+          'Connection':        'keep-alive',
+          'X-Accel-Buffering': 'no',
+        },
+      })
+    }
   }
 
   const devilsAdvocate = body?.devilsAdvocate === true

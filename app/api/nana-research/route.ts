@@ -40,6 +40,8 @@ import {
 // @ts-ignore
 import { routeIntent } from '@/lib/server/intent-router.js'
 // @ts-ignore
+import { needsClarification, buildClarifierFinalPayload } from '@/lib/server/clarifier-check.js'
+// @ts-ignore
 import { expandFamousShortNames } from '@/lib/server/famous-names.js'
 
 export const runtime   = 'nodejs'
@@ -126,6 +128,58 @@ export async function POST(req: NextRequest) {
   const question = typeof body?.question === 'string' ? body.question.trim() : ''
   if (!question) return jsonError(400, 'question is required')
   if (question.length > MAX_Q) return jsonError(400, `question must be ≤ ${MAX_Q} chars`)
+
+  // ── P0.2: junk-input clarifier (short-circuit BEFORE session setup) ──
+  // When NANA_CLARIFIER=on, deterministically catch obvious gibberish
+  // (keyboard mash, punctuation-only, repeated chars, no-letter input)
+  // BEFORE we touch the database, do retrieval, or call any LLM.
+  // Optional Stage 2 (LLM) is gated separately via NANA_CLARIFIER_LLM.
+  // Both stages fail OPEN — any error preserves today's behaviour.
+  //
+  // hasUsableHistory: hardcoded `false` for v1 ship. The proper signal is
+  // "session has prior message rows" — Research Room can pre-create empty
+  // sessions via ensure_research_session_for_child, so sessionId presence
+  // alone is too broad. When NANA_CLARIFIER_LLM is later flipped on, the
+  // client (useNanaChat) should send hasUsableHistory: messages.length > 0
+  // in the request body and this line becomes `body?.hasUsableHistory === true`.
+  //
+  // No session_ready emission for clarifier turns — useNanaChat treats every
+  // session_ready as the active session, so a fake id would orphan an
+  // in-flight research session. Just emit `final` and close.
+  const clarifier = await needsClarification(question, {
+    hasUsableHistory: false,
+    signal: req.signal || null,
+  })
+  if (clarifier.needsClarification) {
+    const payload = buildClarifierFinalPayload(clarifier.message)
+    const encoder = new TextEncoder()
+    const stream  = new ReadableStream({
+      start(controller) {
+        const send = (event: unknown) => {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`))
+        }
+        send({
+          type: 'final',
+          payload,
+          uiIntent: { action: 'none' },
+          messageId: null,
+          clarifier: { reason: clarifier.reason, stage: clarifier.stage },
+        })
+        controller.close()
+      },
+    })
+    console.log('[nana-research] clarifier-short-circuit reason=%s stage=%s "%s"',
+      clarifier.reason, clarifier.stage, question.slice(0, 50))
+    return new Response(stream, {
+      status: 200,
+      headers: {
+        'Content-Type':      'text/event-stream; charset=utf-8',
+        'Cache-Control':     'no-cache, no-transform',
+        'Connection':        'keep-alive',
+        'X-Accel-Buffering': 'no',
+      },
+    })
+  }
 
   const incomingSessionId: string | null = typeof body?.sessionId === 'string' ? body.sessionId : null
   const devilsAdvocate = body?.devilsAdvocate === true
