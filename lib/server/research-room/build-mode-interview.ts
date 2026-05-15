@@ -158,6 +158,59 @@ export function runInterviewTurn(opts: RunInterviewTurnOpts): RunInterviewTurnRe
   }
 }
 
+// ── Follow-up question safety net (Codex r7 Option D) ────────────────
+//
+// Browser smoke 2026-05-15 surfaced that gpt-5.4-mini emits prose
+// without a closing question on ~50% of turns, even with the explicit
+// "ALWAYS end with a question" prompt rule. The LLM also can't know
+// the next focus (focus is computed from priorProgress; merge runs
+// after the prose stream). The orchestrator has both pieces after
+// mergeResult resolves — so it's the right place to enforce the
+// guarantee.
+//
+// Strategy: if the LLM's prose has no terminal `?`, append a
+// deterministic per-focus question chosen from the POST-merge next
+// focus. The route streams this appendix to the UI as a token so it
+// feels continuous, then persists the concatenated text.
+
+/**
+ * True if `prose` ends with a `?` (allowing trailing whitespace and
+ * common close-quotes/brackets the LLM sometimes wraps with).
+ */
+export function hasTerminalQuestion(prose: string): boolean {
+  return /\?\s*["')\]]?\s*$/.test(prose)
+}
+
+const FOCUS_FOLLOW_UPS: Readonly<Record<TargetKey, (childName: string) => string>> = {
+  goals:          (n) => `What would success look like for ${n} in five years' time?`,
+  interests:      (n) => `What does ${n} love doing outside class — sports, arts, anything they light up about?`,
+  child_wants:    (n) => `What does ${n} say they want from a new school?`,
+  went_wrong:     (n) => `What's been hardest for ${n} at their current school?`,
+  nonnegotiables: (n) => `What would you walk away from a school over for ${n} — co-ed vs single-sex, distance, a minimum amount of sport, anything like that?`,
+  drill_down:     (n) => `Could you tell me a bit more about that — what level of detail matters most for ${n}?`,
+  other:          (n) => `Is there anything else about ${n} — temperament, family context, anxieties — that we should keep in mind?`,
+}
+
+const GENERIC_FALLBACK = (n: string) => `Anything else you'd like to tell me about ${n} before we move on?`
+
+/**
+ * Deterministic, natural-language follow-up question for the given
+ * post-merge focus. Used by the turn route when the LLM forgets to ask.
+ * `confirm_contradiction` and `free` are handled by the caller (the
+ * route only appends when focus is a real target).
+ */
+export function buildFollowUpQuestion(opts: {
+  childName: string
+  focus:     TargetKey | 'confirm_contradiction' | 'free'
+}): string {
+  const name = opts.childName?.trim() || 'your child'
+  if (opts.focus === 'confirm_contradiction' || opts.focus === 'free') {
+    return GENERIC_FALLBACK(name)
+  }
+  const fn = FOCUS_FOLLOW_UPS[opts.focus]
+  return fn ? fn(name) : GENERIC_FALLBACK(name)
+}
+
 // Re-export the LLM message shape so callers don't have to reach into
 // the helper module.
 export type { BuildModeMessage } from './build-mode-llm.ts'

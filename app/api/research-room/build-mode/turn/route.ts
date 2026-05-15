@@ -29,7 +29,13 @@ import { isResearchRoomEnabled } from '@/lib/feature-flags'
 import { getUnlockedUser } from '@/lib/paid-status'
 import { checkRateLimit } from '@/lib/rateLimit'
 import { supabaseService } from '@/lib/supabase-admin'
-import { runInterviewTurn, type BuildModeMessage } from '@/lib/server/research-room/build-mode-interview'
+import {
+  runInterviewTurn,
+  pickFocus,
+  hasTerminalQuestion,
+  buildFollowUpQuestion,
+  type BuildModeMessage,
+} from '@/lib/server/research-room/build-mode-interview'
 import {
   BuildModeExtractionHTTPSchema,
   BuildModeProgressSchema,
@@ -312,6 +318,25 @@ export async function POST(req: NextRequest) {
         }
 
         const merge = await turn.mergeResult
+
+        // ── Follow-up question safety net (Codex r7 Option D) ────────
+        // Browser smoke 2026-05-15 showed gpt-5.4-mini omits the closing
+        // question on ~50% of turns. The orchestrator has both pieces
+        // the LLM lacks: the actual prose it emitted AND the post-merge
+        // next focus. Append a deterministic question when the LLM
+        // forgot. Skip when next focus is `free` (all targets done) or
+        // `confirm_contradiction` (different conversational path).
+        const nextFocus = pickFocus(merge.nextProgress)
+        const llmAskedQuestion = hasTerminalQuestion(proseAccum)
+        let followUpSource: 'llm' | 'orchestrator' = 'llm'
+        if (!llmAskedQuestion && nextFocus !== 'free' && nextFocus !== 'confirm_contradiction') {
+          const question = buildFollowUpQuestion({ childName, focus: nextFocus })
+          const appendix = (proseAccum.trim() ? '\n\n' : '') + question
+          proseAccum += appendix
+          send({ type: 'token', text: appendix })
+          followUpSource = 'orchestrator'
+        }
+
         send({
           type:        'build_mode_progress',
           focus:       turn.focus,
@@ -379,13 +404,19 @@ export async function POST(req: NextRequest) {
               sections:    { short_answer: proseAccum },
               confidence:  'high',
               build_mode: {
-                focus:                turn.focus,
-                total:                merge.nextProgress.total,
-                usable_total:         merge.nextProgress.usable_total,
-                refused_targets:      merge.diff.refused,
-                set_field_count:      merge.diff.set.length,
-                appended_field_count: merge.diff.appended.length,
-                contradicted_fields:  merge.diff.contradicted.map(c => String(c.field)),
+                focus:                  turn.focus,
+                total:                  merge.nextProgress.total,
+                usable_total:           merge.nextProgress.usable_total,
+                refused_targets:        merge.diff.refused,
+                set_field_count:        merge.diff.set.length,
+                appended_field_count:   merge.diff.appended.length,
+                contradicted_fields:    merge.diff.contradicted.map(c => String(c.field)),
+                // Codex r7 — measure LLM compliance with the
+                // "always ask a question" prompt rule. orchestrator =
+                // we patched, llm = the LLM did it itself. Tracking
+                // both lets us see if a prompt tweak moves the rate.
+                follow_up_source:       followUpSource,
+                next_focus_after_merge: nextFocus,
               },
             },
             share_token:   shareToken,
@@ -454,13 +485,19 @@ export async function POST(req: NextRequest) {
               sections:    { short_answer: proseAccum },
               confidence:  'high',
               build_mode: {
-                focus:                turn.focus,
-                total:                merge.nextProgress.total,
-                usable_total:         merge.nextProgress.usable_total,
-                refused_targets:      merge.diff.refused,
-                set_field_count:      merge.diff.set.length,
-                appended_field_count: merge.diff.appended.length,
-                contradicted_fields:  merge.diff.contradicted.map(c => String(c.field)),
+                focus:                  turn.focus,
+                total:                  merge.nextProgress.total,
+                usable_total:           merge.nextProgress.usable_total,
+                refused_targets:        merge.diff.refused,
+                set_field_count:        merge.diff.set.length,
+                appended_field_count:   merge.diff.appended.length,
+                contradicted_fields:    merge.diff.contradicted.map(c => String(c.field)),
+                // Codex r7 — measure LLM compliance with the
+                // "always ask a question" prompt rule. orchestrator =
+                // we patched, llm = the LLM did it itself. Tracking
+                // both lets us see if a prompt tweak moves the rate.
+                follow_up_source:       followUpSource,
+                next_focus_after_merge: nextFocus,
               },
             },
             raw:        proseAccum,
