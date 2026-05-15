@@ -117,7 +117,7 @@ function buildHeathrowMinutes({ struct }: SeedContext): CellValue | null {
     const obj = a as Record<string, unknown>
     const nameStr = String(obj.name ?? obj.label ?? obj.code ?? '').toLowerCase()
     if (!/heathrow|lhr/.test(nameStr)) continue
-    const m = obj.minutes ?? obj.travel_minutes ?? obj.drive_minutes ?? obj.duration_minutes
+    const m = obj.drive_time_min_estimate ?? obj.minutes ?? obj.travel_minutes ?? obj.drive_minutes ?? obj.duration_minutes
     if (typeof m === 'number' && m > 0) return { value: `${m} min`, source: 'location_profile' }
     if (typeof m === 'string' && m.trim()) return { value: m, source: 'location_profile' }
   }
@@ -140,6 +140,51 @@ function buildTotalPupils({ struct }: SeedContext): CellValue | null {
   return { value: `~${total.toLocaleString()}`, note: bucket }
 }
 
+// Map UK "NN+" admissions notation to its corresponding Year. Per Codex pre-flight:
+// "13+" is admissions notation (entry to Year 9), NOT Year 13. This shared map +
+// the helper below prevent buildLowestBoardingEntry and buildY9Y10Admissions from
+// drifting on this rule.
+const PLUS_TO_YEAR: Readonly<Record<string, number>> = Object.freeze({
+  '7+':  3,
+  '8+':  4,
+  '11+': 7,
+  '13+': 9,
+  '14+': 10,
+  '16+': 12,
+})
+
+// Extract a UK Year (1-13) from a free-text entry_point string. Order of precedence:
+//   1. "Year N" with (?!\d) lookahead so "Year 100" doesn't match "Year 10"
+//   2. "NN+" admissions notation via PLUS_TO_YEAR (covers "13+", "11+", etc.)
+//   3. "Sixth Form" mention → Year 12
+//   4. Bare-digit fallback ONLY when no admissions notation present, capped 1-13
+// Returns null when nothing valid is extractable.
+function extractUkYearFromString(s: string): number | null {
+  // 1. "Year N" with no trailing digit
+  const yearM = s.match(/\byear\s+(\d{1,2})(?!\d)/i)
+  if (yearM) {
+    const n = Number(yearM[1])
+    if (n >= 1 && n <= 13) return n
+  }
+  // 2. NN+ admissions notation
+  const plusM = s.match(/\b(\d{1,2}\+)/)
+  if (plusM && plusM[1] in PLUS_TO_YEAR) {
+    return PLUS_TO_YEAR[plusM[1]]
+  }
+  // 3. Sixth Form
+  if (/sixth\s*form/i.test(s)) return 12
+  // 4. Bare-digit fallback (only when no NN+ is present — guards against "13+ entry"
+  //    being misread as Year 13).
+  if (!plusM) {
+    const anyM = s.match(/\b(\d{1,2})(?!\d)/)
+    if (anyM) {
+      const n = Number(anyM[1])
+      if (n >= 1 && n <= 13) return n
+    }
+  }
+  return null
+}
+
 function buildLowestBoardingEntry({ struct }: SeedContext): CellValue | null {
   const af = struct?.admissions_format as Record<string, unknown> | null | undefined
   const ep = af?.entry_points
@@ -154,20 +199,33 @@ function buildLowestBoardingEntry({ struct }: SeedContext): CellValue | null {
     let mentionsBoarding = false
     if (typeof e === 'object') {
       const o = e as Record<string, unknown>
-      const rawYear = o.year ?? o.age
-      if (typeof rawYear === 'number') y = rawYear
-      else if (typeof rawYear === 'string') {
-        const m = rawYear.match(/\d+/)
-        if (m) y = Number(m[0])
+      // Extractor writes free-text `entry_point` (e.g. "Year 9 (Third Form, age ~13)").
+      // Legacy/alternative shapes used numeric `year`/`age`. Walk all candidates in
+      // priority order and stop at the FIRST that yields a usable value — this avoids
+      // entry_point="Overseas students" (unparseable) masking a numeric `year: 9`.
+      // Per Codex r2 finding.
+      for (const raw of [o.entry_point, o.year, o.age]) {
+        if (typeof raw === 'number') { y = raw; break }
+        if (typeof raw === 'string') {
+          const parsed = extractUkYearFromString(raw)
+          if (parsed != null) { y = parsed; break }
+        }
       }
-      const blob = `${o.label ?? ''} ${o.note ?? ''} ${o.boarding ?? ''}`.toLowerCase()
-      mentionsBoarding = /boarding|board\b/.test(blob) || o.boarding === true
+      // Boarding signal blob: include entry_point text + adjacent metadata fields.
+      // Deliberately EXCLUDE `assessment` — per Codex r3, "Set by the exam board"
+      // would false-positive on the boarding regex and incorrectly flag day-only
+      // entries as boarding entries (worst-case: Year 7 with exam-board assessment
+      // beats a real Year 9 boarder row for lowest-boarding-entry).
+      // Use \bboard regex (not board\b) so "boarder"/"boarders" also matches.
+      const blob = `${o.entry_point ?? ''} ${o.label ?? ''} ${o.note ?? ''} ${o.boarding ?? ''}`.toLowerCase()
+      mentionsBoarding = /\bboard(?:ing|er|ers)?\b/.test(blob) || o.boarding === true
     } else if (typeof e === 'string') {
-      const m = e.match(/\d+/)
-      if (m) y = Number(m[0])
-      mentionsBoarding = /boarding|board\b/i.test(e)
+      y = extractUkYearFromString(e)
+      mentionsBoarding = /\bboard(?:ing|er|ers)?\b/i.test(e)
     }
     if (y == null) continue
+    // Valid UK Year range is 1-13 (Codex sanity check). Out-of-range = parser bug or wild data.
+    if (y < 1 || y > 13) continue
     if (mentionsBoarding && (lowestBoarding == null || y < lowestBoarding)) lowestBoarding = y
     if (lowestOverall == null || y < lowestOverall) lowestOverall = y
   }
@@ -307,15 +365,20 @@ function buildY9Y10Admissions({ struct }: SeedContext): CellValue | null {
   for (const e of ep) {
     if (!e || typeof e !== 'object') continue
     const o = e as Record<string, unknown>
-    const rawYear = o.year ?? o.age
+    // Extractor writes free-text `entry_point` (e.g. "Year 9 (Third Form, age ~13)").
+    // Walk candidates in priority order so an unparseable entry_point doesn't mask
+    // a structured numeric `year`/`age`. Per Codex r2 finding — keeps lockstep with
+    // buildLowestBoardingEntry. The helper handles "13+ entry" → Year 9 correctly.
     let y: number | null = null
-    if (typeof rawYear === 'number') y = rawYear
-    else if (typeof rawYear === 'string') {
-      const m = rawYear.match(/\d+/)
-      if (m) y = Number(m[0])
+    for (const raw of [o.entry_point, o.year, o.age]) {
+      if (typeof raw === 'number') { y = raw; break }
+      if (typeof raw === 'string') {
+        const parsed = extractUkYearFromString(raw)
+        if (parsed != null) { y = parsed; break }
+      }
     }
     if (y !== 9 && y !== 10) continue
-    const labelRaw = o.label ?? o.note ?? o.requirement
+    const labelRaw = o.entry_point ?? o.label ?? o.note ?? o.requirement
     if (typeof labelRaw === 'string' && labelRaw.trim()) {
       const trimmed = labelRaw.trim().slice(0, 80)
       return { value: trimmed, source: 'admissions_format.entry_points' }
