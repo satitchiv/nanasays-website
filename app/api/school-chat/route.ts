@@ -201,8 +201,19 @@ async function retrieve(slug: string, question: string) {
   let totalWords = 0
 
   if (profileRow) {
-    const w = profileRow.word_count || profileRow.content.split(/\s+/).length
-    selected.push(profileRow)
+    // P0.4 (2026-05-15): strip stale fee-line summaries (USD-hardcoded on UK/CH
+    // schools) from the pinned profile blob. See lib/server/retrieve.js for
+    // rationale.
+    const stripped: string = (profileRow.content || '')
+      .split('\n')
+      .filter((line: string) => !/^\s*Annual fees:/i.test(line))
+      .filter((line: string) => !/^\s*Boarding fees(\s|:|\()/i.test(line))
+      .filter((line: string) => !/^\s*Application fee(\s|:|\()/i.test(line))
+      .filter((line: string) => !/^\s*Admission deposit(\s|:|\()/i.test(line))
+      .join('\n')
+    const cleanedProfile = { ...profileRow, content: stripped }
+    const w = stripped.split(/\s+/).length
+    selected.push(cleanedProfile)
     sourceCounts[profileRow.source_url] = 1
     totalWords += w
   }

@@ -222,6 +222,10 @@ export interface SchoolSummary {
   curriculum: string[] | null
   fees_usd_min: number | null
   fees_usd_max: number | null
+  fees_currency: string | null
+  fees_local_min: number | null
+  fees_local_max: number | null
+  fees_local_currency: string | null
   boarding: boolean | null
   university_placement_rate: number | null
   hero_image: string | null

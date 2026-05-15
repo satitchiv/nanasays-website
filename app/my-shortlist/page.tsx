@@ -5,6 +5,8 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import nextDynamic from 'next/dynamic'
 import type { SchoolPin } from '@/components/shortlist/ShortlistMap'
+import { resolveFeesDisplay } from '@/lib/schools'
+import { CURRENCY_SYMBOL } from '@/lib/currencies'
 import './my-shortlist.css'
 
 export const dynamic = 'force-dynamic'
@@ -131,7 +133,7 @@ async function loadShortlistData(userId: string): Promise<ShortlistSchool[]> {
     { data: sensitive },
     { data: notes },
   ] = await Promise.all([
-    serviceClient.from('schools').select('slug, name, city, boarding, fees_usd_min').in('slug', slugs),
+    serviceClient.from('schools').select('slug, name, city, boarding, fees_usd_min, fees_usd_max, fees_currency, fees_local_min, fees_local_max, fees_local_currency').in('slug', slugs),
     serviceClient.from('school_structured_data').select('school_slug, sports_profile, admissions_format').in('school_slug', slugs),
     serviceClient.from('school_sensitive').select('school_slug, source, data_type, details, source_url, retrieved_date').in('school_slug', slugs),
     serviceClient.from('visit_notes').select('school_slug, content').eq('user_id', userId).in('school_slug', slugs),
@@ -152,8 +154,8 @@ async function loadShortlistData(userId: string): Promise<ShortlistSchool[]> {
     const str = structuredMap.get(slug)
     const sens = sensitiveMap.get(slug) ?? []
     const openEventsRaw = str?.admissions_format?.open_events ?? []
-    const feesMin = (meta as any)?.fees_usd_min
-    const feesDisplay = feesMin ? `$${Math.round(feesMin / 1000)}k/yr` : null
+    const fd = meta ? resolveFeesDisplay(meta as any) : null
+    const feesDisplay = fd ? `${CURRENCY_SYMBOL[fd.currency] ?? fd.currency}${Math.round(fd.min / 1000)}k/yr` : null
 
     return {
       slug,

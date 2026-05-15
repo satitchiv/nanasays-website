@@ -15,7 +15,7 @@ export async function getSchoolBySlug(slug: string): Promise<School | null> {
 export async function getSchoolsByCountry(country: string, limit = 12): Promise<SchoolSummary[]> {
   const { data, error } = await supabase
     .from('schools')
-    .select('id,slug,name,country,city,region,school_type,curriculum,fees_usd_min,fees_usd_max,boarding,university_placement_rate,hero_image,review_score,verified_at')
+    .select('id,slug,name,country,city,region,school_type,curriculum,fees_usd_min,fees_usd_max,fees_currency,fees_local_min,fees_local_max,fees_local_currency,boarding,university_placement_rate,hero_image,review_score,verified_at')
     .eq('country', country)
     .eq('is_international', true)
     .order('confidence_score', { ascending: false })
@@ -26,7 +26,7 @@ export async function getSchoolsByCountry(country: string, limit = 12): Promise<
 }
 
 export async function getSimilarSchools(school: School): Promise<SchoolSummary[]> {
-  const SELECT = 'id,slug,name,country,city,region,school_type,curriculum,fees_usd_min,fees_usd_max,boarding,university_placement_rate,hero_image,review_score,verified_at'
+  const SELECT = 'id,slug,name,country,city,region,school_type,curriculum,fees_usd_min,fees_usd_max,fees_currency,fees_local_min,fees_local_max,fees_local_currency,boarding,university_placement_rate,hero_image,review_score,verified_at'
 
   // Tier 1: same country + same city
   if (school.city) {
@@ -77,7 +77,7 @@ export async function getSimilarSchools(school: School): Promise<SchoolSummary[]
 export async function searchSchools(query: string, limit = 8): Promise<SchoolSummary[]> {
   const { data, error } = await supabase
     .from('schools')
-    .select('id,slug,name,country,city,region,school_type,curriculum,fees_usd_min,fees_usd_max,boarding,university_placement_rate,hero_image,review_score,verified_at')
+    .select('id,slug,name,country,city,region,school_type,curriculum,fees_usd_min,fees_usd_max,fees_currency,fees_local_min,fees_local_max,fees_local_currency,boarding,university_placement_rate,hero_image,review_score,verified_at')
     .ilike('name', `%${query}%`)
     .eq('is_international', true)
     .order('confidence_score', { ascending: false })
@@ -90,7 +90,7 @@ export async function searchSchools(query: string, limit = 8): Promise<SchoolSum
 export async function getFeaturedSchools(limit = 6): Promise<SchoolSummary[]> {
   const { data, error } = await supabase
     .from('schools')
-    .select('id,slug,name,country,city,region,school_type,curriculum,fees_usd_min,fees_usd_max,boarding,university_placement_rate,hero_image,review_score,verified_at')
+    .select('id,slug,name,country,city,region,school_type,curriculum,fees_usd_min,fees_usd_max,fees_currency,fees_local_min,fees_local_max,fees_local_currency,boarding,university_placement_rate,hero_image,review_score,verified_at')
     .not('hero_image', 'is', null)
     .eq('is_international', true)
     .order('confidence_score', { ascending: false })
@@ -298,6 +298,45 @@ export function formatEntryExamType(raw: string | null | undefined): string {
     } catch { /* fall through */ }
   }
   return raw
+}
+
+/**
+ * Resolve the display currency + amounts for a school's fees, preferring the
+ * local currency when present. UK schools' `fees_usd_min/max` columns
+ * historically contained raw GBP amounts mis-labelled as USD (see the
+ * 2026-05-15 fees-currency-fix migration), so we trust local-currency fields
+ * first and only fall back to USD when no local data exists.
+ *
+ * Returns `null` when no usable fees data is available.
+ */
+type FeesShape = Pick<School, 'fees_usd_min' | 'fees_usd_max' | 'fees_currency' | 'fees_local_min' | 'fees_local_max' | 'fees_local_currency'>
+export function resolveFeesDisplay(school: FeesShape): { currency: string; min: number; max: number | null } | null {
+  // Prefer explicit local-currency fields.
+  if (school.fees_local_min != null && school.fees_local_currency) {
+    return {
+      currency: school.fees_local_currency,
+      min     : Number(school.fees_local_min),
+      max     : school.fees_local_max != null ? Number(school.fees_local_max) : null,
+    }
+  }
+  // Fall back to schools.fees_currency (the top-level currency tag — often
+  // already set to the correct local currency even when fees_local_* are null).
+  if (school.fees_usd_min != null && school.fees_currency && school.fees_currency !== 'USD') {
+    return {
+      currency: school.fees_currency,
+      min     : Number(school.fees_usd_min),
+      max     : school.fees_usd_max != null ? Number(school.fees_usd_max) : null,
+    }
+  }
+  // Last resort: assume USD.
+  if (school.fees_usd_min != null) {
+    return {
+      currency: 'USD',
+      min     : Number(school.fees_usd_min),
+      max     : school.fees_usd_max != null ? Number(school.fees_usd_max) : null,
+    }
+  }
+  return null
 }
 
 export function formatFees(school: Pick<School, 'fees_usd_min' | 'fees_usd_max' | 'fees_original' | 'fees_currency' | 'fees_local_min' | 'fees_local_max' | 'fees_local_currency'>): string {

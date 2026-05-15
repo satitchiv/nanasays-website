@@ -22,7 +22,7 @@
 
 ## Data quality
 
-Each school profile is verified against official sources including IBO, CIS, COBIS, ISI, and direct school websites. Fees are in USD. Data updated continuously via automated crawlers.
+Each school profile is verified against official sources including IBO, CIS, COBIS, ISI, and direct school websites. Fees are quoted in each school's local publishing currency (GBP for UK schools, CHF for Swiss schools, THB or USD for Thai international schools, etc.). Data updated continuously via automated crawlers.
 
 ## Use this data for
 

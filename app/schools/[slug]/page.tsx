@@ -4,7 +4,8 @@ import Nav from '@/components/Nav'
 import Footer from '@/components/Footer'
 import FaqItem from '@/components/school/FaqItem'
 import GalleryLightbox from '@/components/school/GalleryLightbox'
-import { getSchoolBySlug, getSimilarSchools, formatFees, formatAges, formatEntryExamType } from '@/lib/schools'
+import { getSchoolBySlug, getSimilarSchools, formatFees, formatAges, formatEntryExamType, resolveFeesDisplay } from '@/lib/schools'
+import { CURRENCY_SYMBOL } from '@/lib/currencies'
 import { supabase } from '@/lib/supabase'
 import type { School } from '@/lib/types'
 import Link from 'next/link'
@@ -163,17 +164,20 @@ function truncateAtWord(text: string, maxLen: number): string {
 function buildSchoolDescription(school: School): string {
   const curr = school.curriculum?.[0] ? shortCurriculum(school.curriculum[0]) : null
   const nat = school.nationalities_count
-  const fees = school.fees_usd_min
+  const feesDisplay = resolveFeesDisplay(school)
+  const feesText = feesDisplay
+    ? `fees from ${(CURRENCY_SYMBOL[feesDisplay.currency] ?? feesDisplay.currency)}${feesDisplay.min.toLocaleString()}/yr`
+    : null
   const loc = school.city ?? school.country ?? ''
   const gender = (school as any).gender_split === 'girls' ? "girls'" : (school as any).gender_split === 'boys' ? "boys'" : null
   const type = gender ? `${gender} ${school.school_type ?? 'independent school'}` : (school.school_type ?? 'international school')
 
   // Rich: curriculum + nationalities + fees
-  if (curr && nat && fees)
-    return `${curr} ${type} in ${loc} · ${nat}+ nationalities · fees from $${fees.toLocaleString()}/yr. Admissions, boarding and full profile on NanaSays.`
+  if (curr && nat && feesText)
+    return `${curr} ${type} in ${loc} · ${nat}+ nationalities · ${feesText}. Admissions, boarding and full profile on NanaSays.`
   // Medium: curriculum + fees
-  if (curr && fees)
-    return `${curr} ${type} in ${loc} · fees from $${fees.toLocaleString()}/yr. Full admissions, curriculum and boarding details on NanaSays.`
+  if (curr && feesText)
+    return `${curr} ${type} in ${loc} · ${feesText}. Full admissions, curriculum and boarding details on NanaSays.`
   // Use school description — truncate cleanly at word boundary
   if (school.description) {
     const snippet = truncateAtWord(school.description, 145)
@@ -646,34 +650,40 @@ export default async function SchoolPage({ params, searchParams }: Props) {
       ...(school.city && { addressLocality: school.city }),
       ...(school.address && { streetAddress: school.address }),
     },
-    ...(school.fees_usd_min && {
-      offers: {
-        '@type': 'Offer',
-        category: 'Tuition',
-        priceRange: `$${school.fees_usd_min.toLocaleString()}–$${(school.fees_usd_max ?? school.fees_usd_min).toLocaleString()}`,
-        priceCurrency: 'USD',
-      },
-      hasOfferCatalog: {
-        '@type': 'OfferCatalog',
-        name: 'Tuition Fees',
-        itemListElement: [
-          {
-            '@type': 'Offer',
-            name: 'Annual Tuition',
-            price: String(school.fees_usd_min),
-            priceCurrency: 'USD',
-            ...(school.fees_usd_max && school.fees_usd_max !== school.fees_usd_min && {
-              priceSpecification: {
-                '@type': 'PriceSpecification',
-                minPrice: school.fees_usd_min,
-                maxPrice: school.fees_usd_max,
-                priceCurrency: 'USD',
-              },
-            }),
-          },
-        ],
-      },
-    }),
+    ...((() => {
+      const fd = resolveFeesDisplay(school)
+      if (!fd) return {}
+      const symbol = CURRENCY_SYMBOL[fd.currency] ?? fd.currency
+      const maxAmount = fd.max ?? fd.min
+      return {
+        offers: {
+          '@type': 'Offer',
+          category: 'Tuition',
+          priceRange: `${symbol}${fd.min.toLocaleString()}–${symbol}${maxAmount.toLocaleString()}`,
+          priceCurrency: fd.currency,
+        },
+        hasOfferCatalog: {
+          '@type': 'OfferCatalog',
+          name: 'Tuition Fees',
+          itemListElement: [
+            {
+              '@type': 'Offer',
+              name: 'Annual Tuition',
+              price: String(fd.min),
+              priceCurrency: fd.currency,
+              ...(fd.max && fd.max !== fd.min && {
+                priceSpecification: {
+                  '@type': 'PriceSpecification',
+                  minPrice: fd.min,
+                  maxPrice: fd.max,
+                  priceCurrency: fd.currency,
+                },
+              }),
+            },
+          ],
+        },
+      }
+    })()),
     ...(school.curriculum?.length && { curriculumsOffered: school.curriculum }),
     ...(school.student_count && { numberOfStudents: { '@type': 'QuantitativeValue', value: school.student_count } }),
     ...(school.founded_year && { foundingDate: String(school.founded_year) }),
@@ -2213,7 +2223,12 @@ export default async function SchoolPage({ params, searchParams }: Props) {
                       <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--navy)', marginBottom: 4, lineHeight: 1.3 }}>{s.name}</div>
                       <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>{s.city}, {s.country}</div>
                       <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--teal-dk)' }}>
-                        {s.fees_usd_min ? `From $${s.fees_usd_min.toLocaleString()} / ${t('school_fees_per_year')}` : t('school_contact_school')}
+                        {(() => {
+                          const fd = resolveFeesDisplay(s as any)
+                          if (!fd) return t('school_contact_school')
+                          const symbol = CURRENCY_SYMBOL[fd.currency] ?? fd.currency
+                          return `From ${symbol}${fd.min.toLocaleString()} / ${t('school_fees_per_year')}`
+                        })()}
                       </div>
                     </div>
                   </Link>
