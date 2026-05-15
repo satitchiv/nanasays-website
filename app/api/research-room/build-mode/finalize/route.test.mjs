@@ -119,6 +119,16 @@ test('finalize: enforces MIN_PROPOSALS lower bound (schema only caps MAX)', () =
   assert.match(src, /proposalsRaw\.length < MIN_PROPOSALS/)
 })
 
+test('finalize r9: trims overshoot to MAX_PROPOSALS (was unused constant)', () => {
+  // Codex r9 NIT: the Zod schema permits up to 8 proposals; the prompt
+  // asks for 3-5. Without trim, an LLM that overshoots into 6-8 would
+  // produce that many propose_add_row pills — more than the parent can
+  // realistically scan in one bubble. The trim slices to MAX_PROPOSALS.
+  assert.match(src, /MAX_PROPOSALS\s*=\s*5/)
+  assert.match(src, /proposalsExtracted\.length > MAX_PROPOSALS/)
+  assert.match(src, /proposalsExtracted\.slice\(0, MAX_PROPOSALS\)/)
+})
+
 test('finalize: drops LLM-emitted slugs not in the parent shortlist', () => {
   // Defence in depth against prompt-injection or hallucination — even
   // if the LLM emits "rugby-school" cell_data, the persisted message

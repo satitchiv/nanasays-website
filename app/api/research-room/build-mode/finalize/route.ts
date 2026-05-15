@@ -290,7 +290,17 @@ export async function POST(req: NextRequest) {
           send({ type: 'token', text: chunk })
         }
 
-        const proposalsRaw = await stream.extraction as BuildModeFinalizeProposal[]
+        const proposalsExtracted = await stream.extraction as BuildModeFinalizeProposal[]
+        // Codex r9 NIT — enforce the MAX bound that until now lived only
+        // in the prompt. The Zod schema caps the array at 8, but the
+        // prompt asks for 3-5; if the LLM overshoots into 6-8 we'd have
+        // persisted 6-8 propose_add_row pills, more than the parent can
+        // realistically scan. Trim down to MAX_PROPOSALS rather than
+        // erroring out — the LLM gave us valid extra signal; we just
+        // don't want to overwhelm the UI.
+        const proposalsRaw = proposalsExtracted.length > MAX_PROPOSALS
+          ? proposalsExtracted.slice(0, MAX_PROPOSALS)
+          : proposalsExtracted
         // Codex guardrail: enforce the MIN bound the LLM may have ignored
         // (the schema only caps at MAX). Under-count surfaces as a soft
         // error so the parent isn't left with an empty proposals bubble.
