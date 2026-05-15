@@ -326,12 +326,22 @@ export default function NanaPanel({ slug, schoolName = 'this school', isPaid = t
                 AND the case where the panel was closed mid-stream then
                 reopened — `streaming` is false but `streamBuf` still has
                 what we saw last. Better than a blank panel. */}
+            {/* N3-followup (2026-05-15): wrap StreamingState in the same
+                grid AnswerLayout uses, with an empty sidebar placeholder, so
+                the answer column width is stable across the streaming →
+                final-parse boundary. Without this, the column reflows
+                narrower the moment AnswerLayout mounts with a sidebar. */}
             {!final?.parsed && (streaming || streamBuf) && (
-              <StreamingState
-                retrievalReady={retrievalReady}
-                streamBuf={streamBuf}
-                streaming={streaming}
-              />
+              <div className="nana-answer-grid">
+                <div className="nana-answer-main">
+                  <StreamingState
+                    retrievalReady={retrievalReady}
+                    streamBuf={streamBuf}
+                    streaming={streaming}
+                  />
+                </div>
+                <div className="nana-sources-sidebar nana-sources-sidebar-empty" aria-hidden="true" />
+              </div>
             )}
 
             {final?.parsed && (
@@ -649,7 +659,11 @@ function AnswerLayout({
 
   const showSources = dedupedSources.length > 0 && !citationFailure
 
-  // Sources sidebar JSX — shared between inline (mobile) and sidebar (desktop)
+  // Sources sidebar JSX — shared between inline (mobile) and sidebar (desktop).
+  // N3-followup (2026-05-15): when sources are hidden (citation failure or
+  // no clickable/scrollable sources survived dedupe), render an empty
+  // placeholder so the desktop grid column-width matches the streaming view.
+  // Mobile: .nana-sources-sidebar-empty has display:none, so no phantom box.
   const sourcesList = showSources ? (
     <div className="nana-sources-sidebar">
       <div className="nana-eyebrow">Sources</div>
@@ -700,7 +714,9 @@ function AnswerLayout({
         </div>
       )}
     </div>
-  ) : null
+  ) : (
+    <div className="nana-sources-sidebar nana-sources-sidebar-empty" aria-hidden="true" />
+  )
 
   return (
     <article className="nana-answer">

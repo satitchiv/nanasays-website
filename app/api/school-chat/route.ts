@@ -195,6 +195,31 @@ async function retrieve(slug: string, question: string) {
     .eq('school_slug', slug)
     .single()
 
+  // P0.4-followup-r5 (2026-05-15): mirror lib/server/retrieve.js:183-207
+  // country-currency override. The Nana research path runs through retrieve.js
+  // and gets this defense; the legacy /api/school-chat path does not. Force
+  // GBP/CHF for UK/CH schools so the structured chat-context block can't
+  // re-introduce the USD lie that the 2026-05-15 migration cleaned out of
+  // the DB. Thailand is intentionally absent — Thai intl schools legitimately
+  // publish USD. Keep this block in sync with retrieve.js.
+  if (structured) {
+    const { data: schoolRow } = await supabase
+      .from('schools')
+      .select('country')
+      .eq('slug', slug)
+      .maybeSingle()
+    const forced = ({ 'United Kingdom': 'GBP', 'Switzerland': 'CHF' } as Record<string, string>)[schoolRow?.country ?? '']
+    if (forced) {
+      if (structured.fees_currency && structured.fees_currency !== forced) {
+        structured.fees_currency = forced
+      }
+      if (structured.fees_by_grade && typeof structured.fees_by_grade === 'object'
+          && structured.fees_by_grade.currency && structured.fees_by_grade.currency !== forced) {
+        structured.fees_by_grade = { ...structured.fees_by_grade, currency: forced }
+      }
+    }
+  }
+
   // Build final chunk list: profile first, then candidates up to word budget
   const selected: any[] = []
   const sourceCounts: Record<string, number> = {}

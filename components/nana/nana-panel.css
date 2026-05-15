@@ -433,6 +433,14 @@
   border-top: 1px solid #DDD4C0;
 }
 
+/* N3-followup (2026-05-15): empty placeholder rendered during streaming AND
+   when AnswerLayout has no sources. Keeps the desktop grid column-width
+   stable across streaming → final-parse boundary; collapses on mobile so
+   the streaming column doesn't show a blank box below the answer. */
+.nana-sources-sidebar-empty {
+  display: none;
+}
+
 .nana-sidebar-confidence {
   margin-top: 10px;
   font-size: 11px;
@@ -468,5 +476,20 @@
     padding-left: 20px;
     position: sticky;
     top: 20px;
+  }
+
+  /* Empty placeholder reserves the same width as the populated sidebar but
+     no border-left, padding-left, or sticky positioning — so streaming and
+     source-less final answers don't show a phantom divider or sticky behaviour.
+     Codex r1 P2: explicit overrides because both class names appear on the
+     same node and CSS source-order would otherwise let the populated rule
+     win. */
+  .nana-sources-sidebar-empty {
+    display: block;
+    width: 190px;
+    flex-shrink: 0;
+    border-left: 0;
+    padding-left: 0;
+    position: static;
   }
 }
