@@ -103,7 +103,18 @@ export interface ProposeCreateTopicLens {
   visible_base_rows?: string[]
 }
 
-export type ProposedAction = ProposedAddRow | ProposeReRank | ProposeCreateLens | ProposeAddToLetter | ProposeCreateTopicLens
+// Slice 8 Build 6: propose_add_school is emitted by Build Mode finalize
+// alongside propose_add_row. The bubble renders an "Add {School}" pill
+// using the #ic-school sprite; confirm via confirm_add_school RPC.
+export interface ProposeAddSchool {
+  kind:          'propose_add_school'
+  slug:          string
+  display_name:  string
+  rationale:     string
+  match_signals: string[]
+}
+
+export type ProposedAction = ProposedAddRow | ProposeReRank | ProposeCreateLens | ProposeAddToLetter | ProposeCreateTopicLens | ProposeAddSchool
 // Keyed by short proposal_id (^[a-zA-Z0-9_-]{1,40}$). Function reads
 // parsed_answer.proposed_actions[proposal_id] when confirming.
 export type ProposedActions = Record<string, ProposedAction>
@@ -137,6 +148,12 @@ export interface ResearchMessage {
   // Slice 7: add-to-letter proposal_ids already appended to partner_briefs.
   // Derived from research_session_messages.actions on page load.
   activeLetterProposalIds?: string[]
+  // Slice 8 Build 6: school proposal_ids whose slug is currently in the
+  // parent's shortlist. Server-derived from research_session_messages.actions
+  // (kind='add_school' stamps) PLUS direct shortlist membership of the
+  // proposal's slug. Lets the bubble's "Add {School}" pill flip to
+  // "✓ Added" based on shortlist truth.
+  activeSchoolProposalIds?: string[]
 }
 
 export interface ToolStep {

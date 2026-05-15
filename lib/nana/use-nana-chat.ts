@@ -182,7 +182,7 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
   // Stable signature dep avoids per-render churn — only fires when the
   // (msg_id, active_proposals) tuple actually changes.
   const activeProposalsSig = opts.initialMessages
-    .map(m => `${m.id}:${(m.activeProposalIds ?? []).slice().sort().join(',')}:${(m.activeLetterProposalIds ?? []).slice().sort().join(',')}`)
+    .map(m => `${m.id}:${(m.activeProposalIds ?? []).slice().sort().join(',')}:${(m.activeLetterProposalIds ?? []).slice().sort().join(',')}:${(m.activeSchoolProposalIds ?? []).slice().sort().join(',')}`)
     .join('|')
   useEffect(() => {
     const byId = new Map<string, string[]>(
@@ -190,6 +190,9 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
     )
     const lettersById = new Map<string, string[]>(
       opts.initialMessages.map(m => [m.id, m.activeLetterProposalIds ?? []])
+    )
+    const schoolsById = new Map<string, string[]>(
+      opts.initialMessages.map(m => [m.id, m.activeSchoolProposalIds ?? []])
     )
     // Browser smoke 2026-05-16: this effect fired a `setMessages` even
     // when nothing actually changed (the `.map()` always returns a new
@@ -202,17 +205,21 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
       const next = prev.map(m => {
         const nextRows = byId.get(m.id)
         const nextLetters = lettersById.get(m.id)
-        if (!nextRows && !nextLetters) return m
+        const nextSchools = schoolsById.get(m.id)
+        if (!nextRows && !nextLetters && !nextSchools) return m
         const cur = m.activeProposalIds ?? []
         const curLetters = m.activeLetterProposalIds ?? []
+        const curSchools = m.activeSchoolProposalIds ?? []
         const rowsSame = !nextRows || (cur.length === nextRows.length && cur.every((v, i) => v === nextRows[i]))
         const lettersSame = !nextLetters || (curLetters.length === nextLetters.length && curLetters.every((v, i) => v === nextLetters[i]))
-        if (rowsSame && lettersSame) return m
+        const schoolsSame = !nextSchools || (curSchools.length === nextSchools.length && curSchools.every((v, i) => v === nextSchools[i]))
+        if (rowsSame && lettersSame && schoolsSame) return m
         changed = true
         return {
           ...m,
           ...(nextRows ? { activeProposalIds: nextRows } : {}),
           ...(nextLetters ? { activeLetterProposalIds: nextLetters } : {}),
+          ...(nextSchools ? { activeSchoolProposalIds: nextSchools } : {}),
         }
       })
       return changed ? next : prev

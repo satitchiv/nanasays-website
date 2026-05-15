@@ -388,6 +388,25 @@ export default async function ResearchRoomPage({
       }
       const allActive = (activeRows ?? []) as ActiveRow[]
       const norm = (s: string) => s.trim().toLowerCase()
+
+      // Slice 8 Build 6 — server-truth for `propose_add_school`:
+      // the parent's CURRENT shortlist. A school proposal counts as
+      // "✓ Added" iff EITHER (a) the source message has an add_school
+      // stamp whose slug is still in the shortlist, OR (b) the proposed
+      // slug is in the shortlist regardless of the stamp (parent may
+      // have added it manually after seeing the proposal). Mirrors the
+      // (a) / (b) row pattern below.
+      const activeShortlistSlugs = new Set<string>()
+      if (activeChildId) {
+        const { data: shortRows } = await svc
+          .from('shortlisted_schools')
+          .select('school_slug')
+          .eq('user_id', user.id)
+          .eq('child_id', activeChildId)
+        for (const r of (shortRows ?? []) as { school_slug: string }[]) {
+          activeShortlistSlugs.add(r.school_slug)
+        }
+      }
       // Topic rows are not eligible for the "Added" derivation paths —
       // those paths only describe chat add_row proposals and base/seed
       // row coverage. Filter them out before computing names + keys.
@@ -406,7 +425,7 @@ export default async function ResearchRoomPage({
           .map(r => r.idempotency_key as string)
       )
 
-      type StampedAction = { kind?: string; proposal_id?: string; idempotency_key?: string; lens_id?: string }
+      type StampedAction = { kind?: string; proposal_id?: string; idempotency_key?: string; lens_id?: string; slug?: string }
 
       // Round-5 polish: a proposal counts as "Added" if EITHER (a) its own
       // chat row is active and visible in some tab, OR (b) ANY active row
@@ -430,8 +449,10 @@ export default async function ResearchRoomPage({
         const stamps = (m.actions ?? []) as StampedAction[]
         const activeProposalIds: string[] = []
         const activeLetterProposalIds: string[] = []
+        const activeSchoolProposalIds: string[] = []
         const seen = new Set<string>()
         const seenLetters = new Set<string>()
+        const seenSchools = new Set<string>()
 
         // (a) chat row exists active and visible.
         for (const a of stamps) {
@@ -465,7 +486,7 @@ export default async function ResearchRoomPage({
         }
 
         // (b) any active row covers the proposal's row_name.
-        type ProposalLite = { row_name?: unknown }
+        type ProposalLite = { row_name?: unknown; kind?: unknown; slug?: unknown }
         const proposals = (((m.parsed_answer as { proposed_actions?: Record<string, ProposalLite> } | null)?.proposed_actions) ?? {}) as Record<string, ProposalLite>
         for (const [pid, prop] of Object.entries(proposals)) {
           if (seen.has(pid)) continue
@@ -476,6 +497,28 @@ export default async function ResearchRoomPage({
           activeProposalIds.push(pid)
         }
 
+        // Slice 8 Build 6 — school proposal "Added" derivation. Mirrors
+        // the row pattern: (a) stamp-based, (b) slug-already-in-shortlist.
+        // (a) add_school stamp whose slug is still in the shortlist.
+        for (const a of stamps) {
+          if (a.kind !== 'add_school') continue
+          if (!a.proposal_id || !a.slug) continue
+          if (!activeShortlistSlugs.has(a.slug)) continue
+          if (seenSchools.has(a.proposal_id)) continue
+          seenSchools.add(a.proposal_id)
+          activeSchoolProposalIds.push(a.proposal_id)
+        }
+        // (b) proposed slug is already in the shortlist (parent may have
+        // added via manual + Add button after seeing the proposal).
+        for (const [pid, prop] of Object.entries(proposals)) {
+          if (seenSchools.has(pid)) continue
+          if (prop?.kind !== 'propose_add_school') continue
+          const slug = typeof prop?.slug === 'string' ? prop.slug : null
+          if (!slug || !activeShortlistSlugs.has(slug)) continue
+          seenSchools.add(pid)
+          activeSchoolProposalIds.push(pid)
+        }
+
         return {
           id:                 m.id,
           question:           m.question,
@@ -484,6 +527,7 @@ export default async function ResearchRoomPage({
           createdAt:          m.created_at,
           activeProposalIds,
           activeLetterProposalIds,
+          activeSchoolProposalIds,
         }
       })
     }

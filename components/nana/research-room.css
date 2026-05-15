@@ -1753,6 +1753,27 @@
   transform: translateY(-1px);
 }
 
+/* ── Slice 8 Build 6 · Add-school pill ────────────────────────────────── */
+/* Visual peer of the row + letter pills; uses the teal accent so parents
+   read "new school suggestion" as a distinct affordance from + Add as row
+   (default) and topic lens (sparkle). Codex r-merge Q5 NIT chose this
+   palette + #ic-school sprite to avoid the topic-lens sparkle collision. */
+.rr-proposed-btn--school {
+  border-color: var(--rr-teal, #1f8479);
+  color: var(--rr-teal-dk, #115c54);
+  background: rgba(31, 132, 121, 0.06);
+}
+.rr-proposed-btn--school:hover:not(:disabled) {
+  border-color: var(--rr-teal, #1f8479);
+  background: rgba(31, 132, 121, 0.14);
+  transform: translateY(-1px);
+}
+.rr-proposed-btn--school .rr-proposed-btn-icon svg {
+  width: 16px;
+  height: 16px;
+  color: currentColor;
+}
+
 /* ── Slice 6.5 · topic-lens pill + review panel (✦ focused mini-table) ─ */
 /* Teal accent to read as "build a focused view" — distinct from add-row
    (neutral) and re-rank (amber). Click expands to a review panel that

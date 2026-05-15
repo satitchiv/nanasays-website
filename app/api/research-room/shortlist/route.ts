@@ -3,9 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies, headers } from 'next/headers'
 import { isResearchRoomEnabled } from '@/lib/feature-flags'
 import { getUnlockedUser } from '@/lib/paid-status'
-import { supabaseService } from '@/lib/supabase-admin'
-import { loadMatchReasonsBatch } from '@/lib/research-room/match-reasons'
-import type { BriefProfile } from '@/lib/research-room/brief-predicates'
+import { writeMatchReasonsForInRoomAdd } from '@/lib/research-room/write-match-reasons'
 
 // POST /api/research-room/shortlist
 //
@@ -160,36 +158,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
 }
 
-// ── Slice 8 Build 2 r1: read child_profile, compute match_reasons for the
-// one slug just added, write via null-only UPDATE so a parent's prior
-// reasons (if any) aren't clobbered. Uses service-role for the read+write
-// because the RPC owns the row insert and we just want a post-write
-// annotation.
-async function writeMatchReasonsForInRoomAdd(
-  userId:  string,
-  childId: string,
-  slug:    string,
-): Promise<void> {
-  const svc = supabaseService()
-  const { data: childRow } = await svc
-    .from('children')
-    .select('child_profile')
-    .eq('id', childId)
-    .eq('user_id', userId)
-    .maybeSingle<{ child_profile: BriefProfile | null }>()
-  const profile = childRow?.child_profile ?? null
-  if (!profile) return
-
-  const reasonsBySlug = await loadMatchReasonsBatch(svc, profile, [slug])
-  const reasons = reasonsBySlug.get(slug)
-  if (!reasons) return
-
-  const { error } = await svc
-    .from('shortlisted_schools')
-    .update({ match_reasons: reasons })
-    .eq('user_id', userId)
-    .eq('child_id', childId)
-    .eq('school_slug', slug)
-    .is('match_reasons', null)
-  if (error) console.warn('[research-room/shortlist] match_reasons UPDATE:', error.message)
-}
+// Slice 8 Build 6 r-step2 Q2/Q9 — writeMatchReasonsForInRoomAdd was
+// extracted to lib/research-room/write-match-reasons.ts so the new
+// add_school write-action branch can share the same null-only UPDATE
+// behaviour.

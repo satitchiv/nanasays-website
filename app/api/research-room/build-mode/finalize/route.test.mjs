@@ -125,8 +125,11 @@ test('finalize r9: trims overshoot to MAX_PROPOSALS (was unused constant)', () =
   // produce that many propose_add_row pills — more than the parent can
   // realistically scan in one bubble. The trim slices to MAX_PROPOSALS.
   assert.match(src, /MAX_PROPOSALS\s*=\s*5/)
-  assert.match(src, /proposalsExtracted\.length > MAX_PROPOSALS/)
-  assert.match(src, /proposalsExtracted\.slice\(0, MAX_PROPOSALS\)/)
+  // Slice 8 Build 6: renamed proposalsExtracted → rowProposalsExtracted
+  // when the LLM payload became the parallel-array {rowProposals,
+  // schoolProposals} shape. Trim semantics unchanged.
+  assert.match(src, /rowProposalsExtracted\.length > MAX_PROPOSALS/)
+  assert.match(src, /rowProposalsExtracted\.slice\(0, MAX_PROPOSALS\)/)
 })
 
 test('finalize: drops LLM-emitted slugs not in the parent shortlist', () => {
@@ -201,11 +204,13 @@ test('finalize: research_session_messages insert + share_token wiring', () => {
 
 // ── Spend tracking ───────────────────────────────────────────────────
 
-test('finalize: logs to nana_chat_logs with backend=build-mode-finalize', () => {
-  // Distinct backend value so MC's Costs tab can break finalize spend
-  // out from interview-turn spend.
+test('finalize: logs to nana_chat_logs with backend=build-mode-finalize-v2', () => {
+  // Slice 8 Build 6: bumped from 'build-mode-finalize' (v1, rows only)
+  // to 'build-mode-finalize-v2' (v1 + school recommendations). Distinct
+  // backend label lets MC Costs split cost-per-finalize trendlines
+  // across the two revisions. Codex r-merge Q9 OK.
   assert.match(src, /\.from\(['"]nana_chat_logs['"]\)\.insert\(/)
-  assert.match(src, /backend:\s+['"]build-mode-finalize['"]/)
+  assert.match(src, /backend:\s+['"]build-mode-finalize-v2['"]/)
 })
 
 test('finalize: gpt-5.4-mini pricing matches turn route + nana-brain', () => {

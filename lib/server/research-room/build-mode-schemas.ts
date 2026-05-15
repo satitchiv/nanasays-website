@@ -262,6 +262,34 @@ export const BuildModeFinalizeProposalsSchema = z.array(BuildModeFinalizeProposa
 
 export type BuildModeFinalizeProposal = z.infer<typeof BuildModeFinalizeProposalSchema>
 
+// Slice 8 Build 6 — school proposal emitted by Build Mode finalize.
+// Codex r-merge Q1 OK: use parallel arrays in the LLM payload, then
+// persist as the existing discriminated `proposed_actions` map keyed
+// by shortId() in the route. Caps mirror the propose_add_school
+// ProposedAction type in lib/nana/types.ts.
+export const BuildModeFinalizeSchoolProposalSchema = z.object({
+  slug:          z.string().min(1).max(120),
+  rationale:     z.string().min(1).max(280),
+  match_signals: z.array(z.string().min(1).max(48)).min(1).max(5),
+}).strict()
+
+export const BuildModeFinalizeSchoolProposalsSchema = z.array(BuildModeFinalizeSchoolProposalSchema).max(5)
+
+export type BuildModeFinalizeSchoolProposal = z.infer<typeof BuildModeFinalizeSchoolProposalSchema>
+
+// Codex r-merge Q1 OK + Q2 NIT: top-level LLM output is a flat object
+// with three parallel fields (prose + rowProposals + schoolProposals).
+// Easier for strict structured output than a discriminated union; lets
+// the LLM zero out either array independently when nothing fits one
+// category. The route validates rows and schools independently with
+// one retry on "all school proposals filtered" (Q8 NIT).
+export const BuildModeFinalizeMixedSchema = z.object({
+  rowProposals:    BuildModeFinalizeProposalsSchema,
+  schoolProposals: BuildModeFinalizeSchoolProposalsSchema,
+}).strict()
+
+export type BuildModeFinalizeMixed = z.infer<typeof BuildModeFinalizeMixedSchema>
+
 // State → multiplier on the target's weight, used in totalling.
 // `total`        — UX progress (refused counts as "covered")
 // `usable_total` — proposal-readiness (refused gives zero evidence)

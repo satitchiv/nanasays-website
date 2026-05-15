@@ -156,6 +156,12 @@ export interface NanaMsgBubbleProps {
   // (action='create_topic_lens') which triggers the create_topic_lens
   // RPC on the server.
   onConfirmTopicLens?: (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string; merged?: { rows_inserted: number; rows_updated: number } }>
+  // Slice 8 Build 6: render the "Add {School}" pill for each
+  // propose_add_school entry. POSTs to write-action with action='add_school',
+  // which triggers the confirm_add_school RPC on the server. Codex
+  // r-merge Q5 NIT: uses #ic-school sprite + tooltip for rationale,
+  // distinct from the topic-lens sparkle.
+  onConfirmAddSchool?: (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
 }
 
 export function NanaMsgBubble({
@@ -167,6 +173,7 @@ export function NanaMsgBubble({
   onApplyReRank,
   onAddToLetter,
   onConfirmTopicLens,
+  onConfirmAddSchool,
 }: NanaMsgBubbleProps) {
   const parsed = msg?.parsed as any
   const s = parsed?.sections ?? {}
@@ -221,16 +228,18 @@ export function NanaMsgBubble({
               })}
           </div>
         )}
-        {!isStreaming && msg?.id && (onConfirmAddRow || onApplyReRank || onAddToLetter || onConfirmTopicLens) && parsed?.proposed_actions && (
+        {!isStreaming && msg?.id && (onConfirmAddRow || onApplyReRank || onAddToLetter || onConfirmTopicLens || onConfirmAddSchool) && parsed?.proposed_actions && (
           <ProposedActionsList
             messageId={msg.id}
             actions={parsed.proposed_actions}
             activeProposalIds={msg.activeProposalIds}
             activeLetterProposalIds={msg.activeLetterProposalIds}
+            activeSchoolProposalIds={msg.activeSchoolProposalIds}
             onConfirm={onConfirmAddRow}
             onApplyReRank={onApplyReRank}
             onAddToLetter={onAddToLetter}
             onConfirmTopicLens={onConfirmTopicLens}
+            onConfirmAddSchool={onConfirmAddSchool}
           />
         )}
         {!isStreaming && msg?.shareToken && (
@@ -353,16 +362,18 @@ export function NanaMsgBubble({
         </div>
       )}
 
-      {!isStreaming && msg?.id && (onConfirmAddRow || onApplyReRank || onAddToLetter || onConfirmTopicLens) && parsed?.proposed_actions && (
+      {!isStreaming && msg?.id && (onConfirmAddRow || onApplyReRank || onAddToLetter || onConfirmTopicLens || onConfirmAddSchool) && parsed?.proposed_actions && (
         <ProposedActionsList
           messageId={msg.id}
           actions={parsed.proposed_actions}
           activeProposalIds={msg.activeProposalIds}
           activeLetterProposalIds={msg.activeLetterProposalIds}
+          activeSchoolProposalIds={msg.activeSchoolProposalIds}
           onConfirm={onConfirmAddRow}
           onApplyReRank={onApplyReRank}
           onAddToLetter={onAddToLetter}
           onConfirmTopicLens={onConfirmTopicLens}
+          onConfirmAddSchool={onConfirmAddSchool}
         />
       )}
       {!isStreaming && msg?.shareToken && (
@@ -387,19 +398,23 @@ function ProposedActionsList({
   actions,
   activeProposalIds,
   activeLetterProposalIds,
+  activeSchoolProposalIds,
   onConfirm,
   onApplyReRank,
   onAddToLetter,
   onConfirmTopicLens,
+  onConfirmAddSchool,
 }: {
-  messageId:           string
-  actions:             Record<string, ProposedAction>
-  activeProposalIds?:  string[]
+  messageId:               string
+  actions:                 Record<string, ProposedAction>
+  activeProposalIds?:      string[]
   activeLetterProposalIds?: string[]
-  onConfirm?:          (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
-  onApplyReRank?:      (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
-  onAddToLetter?:      (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
-  onConfirmTopicLens?: (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string; merged?: { rows_inserted: number; rows_updated: number } }>
+  activeSchoolProposalIds?: string[]
+  onConfirm?:              (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
+  onApplyReRank?:          (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
+  onAddToLetter?:          (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
+  onConfirmTopicLens?:     (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string; merged?: { rows_inserted: number; rows_updated: number } }>
+  onConfirmAddSchool?:     (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
 }) {
   // Slice 6: kind-aware dispatch. add_row keeps the existing pill/flow;
   // re_rank gets a ↻ pill that triggers a pure client-state apply.
@@ -431,15 +446,29 @@ function ProposedActionsList({
           e[1] && e[1].kind === 'propose_create_topic_lens',
       )
     : []
-  if (addRowEntries.length === 0 && reRankEntries.length === 0 && addToLetterEntries.length === 0 && topicLensEntries.length === 0) return null
+  const addSchoolEntries = onConfirmAddSchool
+    ? allEntries.filter(
+        (e): e is [string, ProposedAction & { kind: 'propose_add_school' }] =>
+          e[1] && e[1].kind === 'propose_add_school',
+      )
+    : []
+  if (
+    addRowEntries.length === 0 &&
+    reRankEntries.length === 0 &&
+    addToLetterEntries.length === 0 &&
+    topicLensEntries.length === 0 &&
+    addSchoolEntries.length === 0
+  ) return null
 
   const activeSet       = new Set(activeProposalIds ?? [])
   const activeLetterSet = new Set(activeLetterProposalIds ?? [])
+  const activeSchoolSet = new Set(activeSchoolProposalIds ?? [])
   const kindsShown =
     (addRowEntries.length > 0 ? 1 : 0) +
     (reRankEntries.length > 0 ? 1 : 0) +
     (addToLetterEntries.length > 0 ? 1 : 0) +
-    (topicLensEntries.length > 0 ? 1 : 0)
+    (topicLensEntries.length > 0 ? 1 : 0) +
+    (addSchoolEntries.length > 0 ? 1 : 0)
   const eyebrow = kindsShown > 1
     ? 'Try one of these?'
     : addRowEntries.length > 0
@@ -448,7 +477,9 @@ function ProposedActionsList({
         ? 'Try a different ranking?'
         : addToLetterEntries.length > 0
           ? 'Add to your partner brief?'
-          : 'Build a focused view?'
+          : addSchoolEntries.length > 0
+            ? 'Add a school to your shortlist?'
+            : 'Build a focused view?'
 
   return (
     <div className="rr-proposed-actions">
@@ -489,6 +520,16 @@ function ProposedActionsList({
             visibleBaseRows={action.visible_base_rows}
             isAddedInTable={activeSet.has(proposalId)}
             onConfirm={() => onConfirmTopicLens!(messageId, proposalId)}
+          />
+        ))}
+        {addSchoolEntries.map(([proposalId, action]) => (
+          <AddSchoolButton
+            key={proposalId}
+            displayName={action.display_name}
+            rationale={action.rationale}
+            matchSignals={action.match_signals}
+            isInShortlist={activeSchoolSet.has(proposalId)}
+            onClick={() => onConfirmAddSchool!(messageId, proposalId)}
           />
         ))}
       </div>
@@ -827,6 +868,77 @@ function ProposedActionButton({
         {isAdded ? 'Added' : isPending ? 'Adding…' : isError ? 'Try again' : label}
       </span>
       <span className="rr-proposed-btn-group">{group}</span>
+    </button>
+  )
+}
+
+// Slice 8 Build 6 — pill for `propose_add_school` proposals emitted by
+// the Build Mode finalize endpoint. Mirrors ProposedActionButton's
+// pending/added/error state machine but uses the #ic-school SVG sprite
+// (per Codex r-merge Q5 NIT — distinct from the topic-lens sparkle) and
+// surfaces the rationale + match_signals via the title attribute and a
+// secondary line beneath the school name.
+function AddSchoolButton({
+  displayName,
+  rationale,
+  matchSignals,
+  isInShortlist,
+  onClick,
+}: {
+  displayName:   string
+  rationale:     string
+  matchSignals:  string[]
+  isInShortlist: boolean
+  onClick:       () => Promise<{ ok: boolean; code?: string }>
+}) {
+  const [override, setOverride] = useState<LocalOverride>(null)
+
+  async function handle() {
+    if (override === 'pending') return
+    if (override === 'optimistic-added' || isInShortlist) return
+    setOverride('pending')
+    const result = await onClick()
+    setOverride(result.ok ? 'optimistic-added' : 'error')
+  }
+
+  useEffect(() => {
+    if (override === 'optimistic-added' && isInShortlist) {
+      setOverride(null)
+    }
+  }, [override, isInShortlist])
+
+  const isPending = override === 'pending'
+  const isError   = override === 'error'
+  const isAdded   = !isPending && !isError && (override === 'optimistic-added' || isInShortlist)
+  const signalChips = matchSignals.slice(0, 3).join(' · ')
+
+  return (
+    <button
+      type="button"
+      className={`rr-proposed-btn rr-proposed-btn--school${isAdded ? ' is-added' : ''}${isError ? ' is-error' : ''}${isPending ? ' is-pending' : ''}`}
+      onClick={handle}
+      disabled={isPending || isAdded}
+      title={isAdded ? `${displayName} — already in your shortlist` : `${displayName}: ${rationale}`}
+    >
+      <span className="rr-proposed-btn-icon" aria-hidden="true">
+        {isAdded
+          ? <>✓</>
+          : isPending
+            ? <>…</>
+            : isError
+              ? <>!</>
+              : (
+                <svg width="16" height="16" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+                  <use href="#ic-school" />
+                </svg>
+              )}
+      </span>
+      <span className="rr-proposed-btn-label">
+        {isAdded ? `Added ${displayName}` : isPending ? `Adding ${displayName}…` : isError ? 'Try again' : `Add ${displayName}`}
+      </span>
+      {!isAdded && !isPending && !isError && signalChips && (
+        <span className="rr-proposed-btn-group">{signalChips}</span>
+      )}
     </button>
   )
 }

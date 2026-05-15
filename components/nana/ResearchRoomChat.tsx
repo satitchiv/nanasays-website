@@ -94,6 +94,7 @@ function ChatBody({
   showWelcomeBack,
   onDismissWelcomeBack,
   onConfirmAddRow,
+  onConfirmAddSchool,
   onApplyReRank,
   onAddToLetter,
   onConfirmTopicLens,
@@ -116,6 +117,7 @@ function ChatBody({
   showWelcomeBack:      boolean
   onDismissWelcomeBack: () => void
   onConfirmAddRow:      (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
+  onConfirmAddSchool:   (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
   onApplyReRank?:       (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
   onAddToLetter:        (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
   onConfirmTopicLens?:  (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string; merged?: { rows_inserted: number; rows_updated: number } }>
@@ -272,6 +274,7 @@ function ChatBody({
             <NanaMsgBubble
               msg={msg}
               onConfirmAddRow={onConfirmAddRow}
+              onConfirmAddSchool={onConfirmAddSchool}
               onApplyReRank={onApplyReRank}
               onAddToLetter={onAddToLetter}
               onConfirmTopicLens={onConfirmTopicLens}
@@ -620,6 +623,32 @@ export default function ResearchRoomChat({
     }
   }
 
+  // Slice 8 Build 6: confirm a "+ Add Sherborne" school proposal. Posts to
+  // write-action; the server calls confirm_add_school RPC + best-effort
+  // refreshes seeded rows so the new column populates on next render.
+  async function onConfirmAddSchool(messageId: string, proposalId: string): Promise<{ ok: boolean; code?: string }> {
+    try {
+      const res = await fetch('/api/research-room/write-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add_school', message_id: messageId, proposal_id: proposalId }),
+      })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        const code = typeof j?.code === 'string' ? j.code : 'request_failed'
+        setActionError(`Could not add that school (${code}).`)
+        return { ok: false, code }
+      }
+      setActionError(null)
+      router.refresh()
+      return { ok: true }
+    } catch (e) {
+      console.error('[research-room add-school]', e)
+      setActionError('Network error while adding the school.')
+      return { ok: false, code: 'network' }
+    }
+  }
+
   async function onAddToLetter(messageId: string, proposalId: string): Promise<{ ok: boolean; code?: string }> {
     try {
       const res = await fetch('/api/research-room/write-action', {
@@ -850,7 +879,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={handleSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={handleSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onConfirmAddSchool={onConfirmAddSchool} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         )}
       </aside>
@@ -921,7 +950,7 @@ export default function ResearchRoomChat({
               </button>
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={handleSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={handleSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onConfirmAddSchool={onConfirmAddSchool} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         </>
       )}

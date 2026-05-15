@@ -44,7 +44,11 @@ type SaveViewAsLensBody  = { action: 'save_view_as_lens';  message_id: string; p
 // inserts a comparison_lenses row + N comparison_rows with
 // created_by_lens_id set + flips active_lens_id.
 type CreateTopicLensBody = { action: 'create_topic_lens';  message_id: string; proposal_id: string }
-type Body = AddRowBody | UndoRowBody | RestoreRowBody | AddToLetterBody | CreateLensBody | SaveViewAsLensBody | CreateTopicLensBody
+// Slice 8 Build 6: confirm propose_add_school. Calls confirm_add_school
+// RPC, then best-effort writes match_reasons + refreshes seeded rows
+// so the new column populates immediately on the parent's current view.
+type AddSchoolBody       = { action: 'add_school';         message_id: string; proposal_id: string }
+type Body = AddRowBody | UndoRowBody | RestoreRowBody | AddToLetterBody | CreateLensBody | SaveViewAsLensBody | CreateTopicLensBody | AddSchoolBody
 
 const UUID_RX        = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
 const PROPOSAL_ID_RX = /^[a-zA-Z0-9_-]{1,40}$/
@@ -99,7 +103,16 @@ function parseBody(raw: unknown): { body: Body | null; error?: string } {
     return { body: { action, message_id: o.message_id, proposal_id: o.proposal_id } }
   }
 
-  return { body: null, error: 'action must be add_row | undo_add_row | restore_row | add_to_letter | create_lens | save_view_as_lens | create_topic_lens' }
+  // Slice 8 Build 6 — add_school: confirm a propose_add_school. The
+  // RPC reads the slug from parsed_answer.proposed_actions[proposal_id]
+  // so the route only carries pointers.
+  if (action === 'add_school') {
+    if (typeof o.message_id !== 'string' || !UUID_RX.test(o.message_id))                return { body: null, error: 'message_id must be a UUID' }
+    if (typeof o.proposal_id !== 'string' || !PROPOSAL_ID_RX.test(o.proposal_id as string)) return { body: null, error: 'proposal_id must match ^[a-zA-Z0-9_-]{1,40}$' }
+    return { body: { action, message_id: o.message_id, proposal_id: o.proposal_id } }
+  }
+
+  return { body: null, error: 'action must be add_row | undo_add_row | restore_row | add_to_letter | create_lens | save_view_as_lens | create_topic_lens | add_school' }
 }
 
 async function getAuthClient() {
@@ -502,6 +515,69 @@ export async function POST(req: NextRequest) {
       }, { status: 409 })
     }
     console.error('[write-action] unexpected create_topic_lens status:', status)
+    return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
+  }
+
+  // Slice 8 Build 6 — add_school: confirm a propose_add_school proposal.
+  // Calls confirm_add_school RPC (which atomically inserts shortlisted_schools
+  // + stamps actions[]); on success, best-effort writes match_reasons and
+  // refreshes seeded comparison_rows so the new school's column populates
+  // immediately. Codex r-step2 Q3 OK: do not 500 on seed failure — page
+  // reload re-runs seedResearchSession via the page-load path.
+  if (body.action === 'add_school') {
+    const { data, error: rpcErr } = await supabase
+      .rpc('confirm_add_school', { p_message_id: body.message_id, p_proposal_id: body.proposal_id })
+    if (rpcErr) return rpcErrorToResponse(rpcErr, 'confirm_add_school')
+
+    const result = Array.isArray(data) ? data[0] : data
+    if (!result) return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
+
+    const { out_slug, out_status, out_session_id, out_child_id } = result as {
+      out_slug:       string
+      out_status:     string
+      out_session_id: string
+      out_child_id:   string
+    }
+
+    if (out_status === 'added' || out_status === 'already_present' || out_status === 'already_confirmed' || out_status === 're_added') {
+      // Best-effort side effects. Failures log but don't bubble — the
+      // RPC's atomic write already succeeded.
+      try {
+        const { writeMatchReasonsForInRoomAdd } = await import('@/lib/research-room/write-match-reasons')
+        await writeMatchReasonsForInRoomAdd(user.id, out_child_id, out_slug)
+      } catch (e) {
+        console.warn('[write-action] match_reasons after add_school failed:', e)
+      }
+      try {
+        // Refresh seeded rows so the new column populates on the parent's
+        // current view (without this they'd see '—' until next page load,
+        // when seedResearchSession runs from page.tsx). reconcileSeededRows
+        // covers general + brief rows; chat/topic-lens rows are out of
+        // scope for v1 (documented in TASKS Build 6).
+        const [{ loadShortlistContext, seedResearchSession }, { supabaseService }] = await Promise.all([
+          import('@/lib/research-room/seed-rows'),
+          import('@/lib/supabase-admin'),
+        ])
+        const svc = supabaseService()
+        const ctx = await loadShortlistContext(svc, user.id, out_child_id)
+        const { data: childRow } = await svc
+          .from('children')
+          .select('child_profile')
+          .eq('id', out_child_id)
+          .maybeSingle()
+        const briefProfile = (childRow?.child_profile ?? null) as
+          | import('@/lib/research-room/brief-predicates').BriefProfile
+          | null
+        await seedResearchSession(svc, user.id, out_session_id, ctx, briefProfile)
+      } catch (e) {
+        console.warn('[write-action] seedResearchSession after add_school failed:', e)
+      }
+      // 're_added' is also a fresh write (insert path) so return 201
+      // to mirror the manual + Add school header button (created).
+      const httpStatus = (out_status === 'added' || out_status === 're_added') ? 201 : 200
+      return NextResponse.json({ ok: true, status: out_status, school_slug: out_slug }, { status: httpStatus })
+    }
+    console.error('[write-action] unexpected confirm_add_school status:', out_status)
     return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
   }
 
