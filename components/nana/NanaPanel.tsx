@@ -16,7 +16,7 @@
  * structured answer.
  */
 
-import { useState, useRef, FormEvent, useEffect } from 'react'
+import { useState, useRef, FormEvent, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import './nana-panel.css'
 
@@ -603,7 +603,6 @@ function AnswerLayout({
   validationIssues: string[]
 }) {
   const s = parsed.sections || {}
-  const sources = parsed.sources_used || []
   const followUps = parsed.follow_ups || []
 
   // The schema/citation validator is the trust mechanism. If any issue
@@ -614,20 +613,55 @@ function AnswerLayout({
   const citationFailure = validationIssues.some((v) =>
     /sources_used|source_url|citation/i.test(v)
   )
-  const showSources = sources.length > 0 && !citationFailure
+
+  // Dedupe + filter sources before render.
+  // The LLM occasionally cites multiple distinct umbrella fields with the
+  // same generic section_label (e.g. "PROFILE FIELDS") + empty source_url,
+  // producing N identical non-clickable pills. The prompt rule asks for
+  // specific field-name labels but compliance is hit-and-miss across
+  // questions. UI dedupe is the defense-in-depth.
+  //
+  // Rules:
+  //   - Key dedupe on (label, ACTION-TARGET): safeHref OR mapped scroll id.
+  //     Two entries that resolve to the same action collapse.
+  //   - DROP entries with neither a clickable URL nor a MAPPED scroll
+  //     target. Note we do NOT fall back to raw section_id as a scroll
+  //     target here — that's what allowed "PROFILE FIELDS" through
+  //     before. Future structured-only sources must add an explicit
+  //     SECTION_DOM_ID entry to surface.
+  const dedupedSources = useMemo(() => {
+    const raw = parsed.sources_used || []
+    const seen = new Set<string>()
+    const out: Source[] = []
+    for (const src of raw) {
+      const label = src.section_label || src.section_id || src.source_url || 'source'
+      const safeHref = isSafeHttpUrl(src.source_url)
+      const rawId = (src.section_id || '').trim()
+      const scrollTarget = rawId ? SECTION_DOM_ID[rawId] : ''
+      if (!safeHref && !scrollTarget) continue
+      const key = `${label}|${safeHref || scrollTarget || ''}`
+      if (seen.has(key)) continue
+      seen.add(key)
+      out.push(src)
+    }
+    return out
+  }, [parsed.sources_used])
+
+  const showSources = dedupedSources.length > 0 && !citationFailure
 
   // Sources sidebar JSX — shared between inline (mobile) and sidebar (desktop)
   const sourcesList = showSources ? (
     <div className="nana-sources-sidebar">
       <div className="nana-eyebrow">Sources</div>
       <div className="nana-sources">
-        {sources.map((src, i) => {
+        {dedupedSources.map((src, i) => {
           const safeHref = isSafeHttpUrl(src.source_url)
           const label = src.section_label || src.section_id || src.source_url || 'source'
+          const keyId = `${label}|${safeHref || src.section_id || i}`
           if (safeHref) {
             return (
               <a
-                key={i}
+                key={keyId}
                 href={safeHref}
                 target="_blank"
                 rel="noopener noreferrer"
@@ -637,11 +671,12 @@ function AnswerLayout({
               </a>
             )
           }
-          const rawId = src.section_id || ''
-          const domId = SECTION_DOM_ID[rawId] ?? rawId
+          // Filter has already guaranteed a mapped scroll target exists.
+          const rawId = (src.section_id || '').trim()
+          const domId = SECTION_DOM_ID[rawId] || ''
           return (
             <button
-              key={i}
+              key={keyId}
               className="nana-pill nana-pill-scroll"
               onClick={() => {
                 if (!domId) return
