@@ -171,6 +171,22 @@ export function NanaMsgBubble({
   const parsed = msg?.parsed as any
   const s = parsed?.sections ?? {}
 
+  // P6 — route parity with NanaPanel's citation guardrail. When the
+  // runner's validator flags hallucinated URLs / out-of-scope slugs, hide
+  // the source chips entirely (better no source than an unverifiable one).
+  // Regex matches NanaPanel.tsx:623 so both runners share one contract.
+  // Historical messages without parsed.validationIssues default to no-issues
+  // — safe no-op. Scoped at function level so both the prose-mode return
+  // (line ~210) AND the structured render (line ~370) can honour it; the
+  // structured branch reads from the agentic runner's validateAnswer output
+  // (nana-brain.js validationIssues), which already populates parsed.
+  const validationIssues: string[] = Array.isArray(parsed?.validationIssues)
+    ? parsed.validationIssues
+    : []
+  const citationFailure = validationIssues.some((v) =>
+    typeof v === 'string' && /sources_used|source_url|citation/i.test(v)
+  )
+
   // ── Phase A: prose-mode render ──
   // Triggered by either: live stream marked as prose (intent router path), or
   // a finalised message persisted in prose_v1 format. Renders plain markdown
@@ -205,7 +221,12 @@ export function NanaMsgBubble({
             </div>
           )
         }
-        {!isStreaming && citations.length > 0 && (
+        {!isStreaming && citationFailure && (
+          <div className="dh-msg-nana-validation-warn">
+            ⚠ Some source links were hidden because Nana cited something we couldn't verify.
+          </div>
+        )}
+        {!isStreaming && !citationFailure && citations.length > 0 && (
           <div className="dh-sources">
             {citations
               .filter(url => typeof url === 'string' && isSafeUrl(url))
@@ -340,7 +361,12 @@ export function NanaMsgBubble({
         </div>
       )}
 
-      {!isStreaming && parsed?.sources_used && parsed.sources_used.length > 0 && (
+      {!isStreaming && citationFailure && (
+        <div className="dh-msg-nana-validation-warn">
+          ⚠ Some source links were hidden because Nana cited something we couldn&apos;t verify.
+        </div>
+      )}
+      {!isStreaming && !citationFailure && parsed?.sources_used && parsed.sources_used.length > 0 && (
         <div className="dh-sources">
           {parsed.sources_used
             .filter((s: any) => s.source_url && s.section_label && isSafeUrl(s.source_url))

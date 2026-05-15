@@ -741,6 +741,16 @@
   line-height: 1.55;
   color: rgba(255,255,255,.8);
 }
+.dh-msg-nana-validation-warn {
+  background: rgba(245,166,35,.12);
+  border-left: 3px solid #F5A623;
+  border-radius: 0 6px 6px 0;
+  padding: 8px 12px;
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: rgba(255,255,255,.8);
+}
 .dh-msg-nana-tradeoff-label {
   font-size: 10px;
   font-weight: 800;

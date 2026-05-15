@@ -43,6 +43,21 @@ export default async function SharedAnswerPage({ params }: { params: Promise<{ t
   // { format: 'prose_v1', prose, citations } instead of { sections }.
   const isProse: boolean = parsed?.format === 'prose_v1' && typeof parsed?.prose === 'string'
   const proseCitations: string[] = Array.isArray(parsed?.citations) ? parsed.citations : []
+  // P6 — share-route parity with NanaPanel + NanaBubble: hide citations
+  // when the persisted validator output flagged hallucinations / out-of-scope
+  // slugs. Same regex contract as NanaPanel.tsx:623 + NanaBubble.tsx:180.
+  // Without this guard, prose answers reaching the public share link could
+  // surface unverifiable URLs even though the in-app bubble hid them.
+  const validationIssues: string[] = Array.isArray(parsed?.validationIssues)
+    ? parsed.validationIssues
+    : []
+  const citationFailure = validationIssues.some((v: any) =>
+    typeof v === 'string' && /sources_used|source_url|citation/i.test(v)
+  )
+  function isSafeShareUrl(u: string): boolean {
+    try { const url = new URL(u); return url.protocol === 'https:' || url.protocol === 'http:' }
+    catch { return false }
+  }
 
   return (
     <div className="shared-answer-shell">
@@ -62,15 +77,24 @@ export default async function SharedAnswerPage({ params }: { params: Promise<{ t
               <section>
                 <p className="shared-prose" style={{ whiteSpace: 'pre-wrap' }}>{parsed.prose}</p>
               </section>
-              {proseCitations.length > 0 && (
+              {citationFailure ? (
+                <section className="shared-sources">
+                  <p className="shared-prose">
+                    ⚠ Some source links were hidden because Nana cited something we couldn&apos;t verify.
+                  </p>
+                </section>
+              ) : proseCitations.length > 0 && (
                 <section className="shared-sources">
                   <div className="shared-eyebrow">Sources</div>
                   <div className="shared-pills">
-                    {proseCitations.slice(0, 8).map((url, i) => {
-                      let label = 'source'
-                      try { label = new URL(url).hostname.replace(/^www\./, '') } catch {}
-                      return <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="shared-pill">{label}</a>
-                    })}
+                    {proseCitations
+                      .filter((url) => typeof url === 'string' && isSafeShareUrl(url))
+                      .slice(0, 8)
+                      .map((url, i) => {
+                        let label = 'source'
+                        try { label = new URL(url).hostname.replace(/^www\./, '') } catch {}
+                        return <a key={i} href={url} target="_blank" rel="noopener noreferrer" className="shared-pill">{label}</a>
+                      })}
                   </div>
                 </section>
               )}
@@ -111,7 +135,13 @@ export default async function SharedAnswerPage({ params }: { params: Promise<{ t
             </section>
           )}
 
-          {sources.length > 0 && (
+          {citationFailure ? (
+            <section className="shared-sources">
+              <p className="shared-prose">
+                ⚠ Some source links were hidden because Nana cited something we couldn&apos;t verify.
+              </p>
+            </section>
+          ) : sources.length > 0 && (
             <section className="shared-sources">
               <div className="shared-eyebrow">Sources</div>
               <div className="shared-pills">

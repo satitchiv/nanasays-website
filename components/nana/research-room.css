@@ -2045,6 +2045,12 @@
 .rr-app .dh-msg-nana-tradeoff-label {
   color: var(--rr-amber);
 }
+.rr-app .dh-msg-nana-validation-warn {
+  /* P6: same amber accent as tradeoff; without this override the dark-theme
+     rgba-white text in nana-bubble.css becomes invisible on the light RR
+     panel (see header comment above on dark→light inversion). */
+  color: var(--rr-navy);
+}
 .rr-app .dh-msg-nana-tour {
   background: var(--rr-off);
   border-color: var(--rr-border);
