@@ -66,9 +66,25 @@ type SchoolMeta = {
   gender_split:  string | null
 }
 
+// One row of school_notion_backfill (Phase 1 sidecar). `parsed` holds the
+// fields the parser was confident enough to write — extractor is still the
+// primary source; Notion fills nulls per the precedence rules. See
+// scripts/sync-notion-schools.mjs FIELD_RULES.
+//
+// Codex r1 P2: deliberately omit `flagged_review` from this type. Cell builders
+// must NEVER surface flagged values (Wellington `66% (9-8)` GCSE trap, Sevenoaks
+// `IB 3957%`, etc.) — keeping the property out of the type prevents accidental
+// reads and keeps the SELECT lean.
+type NotionBackfillRow = {
+  school_slug: string
+  status:      string
+  parsed:      Record<string, unknown> | null
+}
+
 type SeedContext = {
   meta:   SchoolMeta
   struct: StructuredRow | null
+  notion: NotionBackfillRow | null
 }
 
 type SeedRowSpec = {
@@ -81,6 +97,43 @@ type SeedRowSpec = {
   // renders '—' for absent cells; lenient strictness per the round-1
   // architecture decision.
   build:       (ctx: SeedContext) => CellValue | null
+}
+
+// ─── Notion sidecar accessors ───────────────────────────────────────────────
+//
+// The sync writes only safe-to-surface values to `parsed` (extractor was null
+// OR no conflict was detected). Anything that needed manual reconciliation
+// landed in `flagged_review` and we deliberately do NOT read those here.
+// Cell-builder rule: extractor first; if null, fall back to notion.parsed[key].
+
+function notionParsed(notion: NotionBackfillRow | null, field: string): unknown {
+  if (!notion?.parsed) return null
+  const v = (notion.parsed as Record<string, unknown>)[field]
+  return v == null ? null : v
+}
+
+function notionParsedNumber(notion: NotionBackfillRow | null, field: string): number | null {
+  const v = notionParsed(notion, field)
+  return typeof v === 'number' && Number.isFinite(v) ? v : null
+}
+
+// Format a parsed-fee value (scalar or {min,max}) as £XX,XXX or £XX,XXX–£XX,XXX.
+function formatGbp(value: number | { min: number; max: number }): string {
+  if (typeof value === 'number') return `£${Math.round(value).toLocaleString()}`
+  const { min, max } = value
+  if (min === max) return `£${Math.round(min).toLocaleString()}`
+  return `£${Math.round(min).toLocaleString()}–£${Math.round(max).toLocaleString()}`
+}
+
+// Read a parsed-fee value: number or {min,max} object. Returns null if neither.
+function notionParsedFee(notion: NotionBackfillRow | null, field: string): number | { min: number; max: number } | null {
+  const v = notionParsed(notion, field)
+  if (typeof v === 'number' && Number.isFinite(v)) return v
+  if (v && typeof v === 'object') {
+    const o = v as { min?: unknown; max?: unknown }
+    if (typeof o.min === 'number' && typeof o.max === 'number') return { min: o.min, max: o.max }
+  }
+  return null
 }
 
 // ─── Cell builders (ported from lib/research-comparison.ts) ─────────────────
@@ -124,20 +177,46 @@ function buildHeathrowMinutes({ struct }: SeedContext): CellValue | null {
   return null
 }
 
-function buildClassSize(_: SeedContext): CellValue | null {
-  // Pending chunk-mining (slice 5.5g). Renders '—' until the extractor lands.
+function buildClassSize({ notion }: SeedContext): CellValue | null {
+  // Extractor doesn't currently surface class_size; Notion fills it.
+  // Notion shape (parser v1.0.1): { senior?: number|{min,max}, sixth?: number|{min,max} }
+  // OR { average: number }. Format the most informative pair.
+  const parsed = notionParsed(notion, 'class_size')
+  if (!parsed || typeof parsed !== 'object') return null
+  const o = parsed as { senior?: unknown; sixth?: unknown; average?: unknown }
+  const fmtBucket = (v: unknown): string | null => {
+    if (typeof v === 'number') return String(v)
+    if (v && typeof v === 'object') {
+      const r = v as { min?: unknown; max?: unknown }
+      if (typeof r.min === 'number' && typeof r.max === 'number') {
+        return r.min === r.max ? String(r.min) : `${r.min}–${r.max}`
+      }
+    }
+    return null
+  }
+  const senior = fmtBucket(o.senior)
+  const sixth = fmtBucket(o.sixth)
+  if (senior && sixth) return { value: `Senior ${senior} · Sixth ${sixth}`, source: 'notion.parsed.class_size' }
+  if (senior) return { value: senior, source: 'notion.parsed.class_size' }
+  if (sixth) return { value: sixth, source: 'notion.parsed.class_size' }
+  if (typeof o.average === 'number') return { value: `~${o.average} avg`, source: 'notion.parsed.class_size' }
   return null
 }
 
-function buildTotalPupils({ struct }: SeedContext): CellValue | null {
-  const total = (struct?.student_community as Record<string, unknown> | undefined)?.total_pupils
-  if (typeof total !== 'number') return null
+function buildTotalPupils({ struct, notion }: SeedContext): CellValue | null {
+  const sc = struct?.student_community as Record<string, unknown> | null | undefined
+  const ext = typeof sc?.total_pupils === 'number' ? sc.total_pupils as number : null
+  // Conflict-gated in the sync — Notion's parsed value is only set when extractor
+  // was empty, so the precedence here is just "extractor first, else Notion".
+  const total = ext ?? notionParsedNumber(notion, 'total_pupils')
+  if (total == null) return null
   let bucket = ''
   if (total <= 400) bucket = 'Small'
   else if (total <= 800) bucket = 'Mid-size'
   else if (total <= 1200) bucket = 'Larger'
   else bucket = 'Very large'
-  return { value: `~${total.toLocaleString()}`, note: bucket }
+  const source = ext != null ? 'student_community.total_pupils' : 'notion.parsed.total_pupils'
+  return { value: `~${total.toLocaleString()}`, note: bucket, source }
 }
 
 // Map UK "NN+" admissions notation to its corresponding Year. Per Codex pre-flight:
@@ -185,10 +264,26 @@ function extractUkYearFromString(s: string): number | null {
   return null
 }
 
-function buildLowestBoardingEntry({ struct }: SeedContext): CellValue | null {
+function buildLowestBoardingEntry({ struct, notion }: SeedContext): CellValue | null {
   const af = struct?.admissions_format as Record<string, unknown> | null | undefined
   const ep = af?.entry_points
-  if (!Array.isArray(ep)) return null
+  // Notion fallback when extractor's entry_points array is missing/empty
+  // (e.g. Rugby School in the original audit). Notion stores a normalised
+  // integer 1-13. We return early so the existing extractor logic still
+  // runs first when entry_points is present.
+  //
+  // Codex r1 P2: the sync's readExtractorField() treats any non-empty
+  // entry_points as "extractor present" and skips Notion writes. So the
+  // SECOND fallback below (entries present but pick == null) is defensive
+  // dead code today, but worth keeping in case the sync predicate gets
+  // tightened later to mean "can parse a year."
+  if (!Array.isArray(ep) || ep.length === 0) {
+    const n = notionParsedNumber(notion, 'lowest_boarding_entry')
+    if (n != null && n >= 1 && n <= 13) {
+      return { value: `Year ${n}`, source: 'notion.parsed.lowest_boarding_entry' }
+    }
+    return null
+  }
   // Find the lowest year/age across entry points that mentions boarding,
   // or fall back to the lowest year overall if none flag boarding explicitly.
   let lowestBoarding: number | null = null
@@ -230,82 +325,132 @@ function buildLowestBoardingEntry({ struct }: SeedContext): CellValue | null {
     if (lowestOverall == null || y < lowestOverall) lowestOverall = y
   }
   const pick = lowestBoarding ?? lowestOverall
-  if (pick == null) return null
+  if (pick == null) {
+    // Extractor entries existed but nothing parsed cleanly — try Notion.
+    const n = notionParsedNumber(notion, 'lowest_boarding_entry')
+    if (n != null && n >= 1 && n <= 13) {
+      return { value: `Year ${n}`, source: 'notion.parsed.lowest_boarding_entry' }
+    }
+    return null
+  }
   return { value: `Year ${pick}`, source: 'admissions_format.entry_points' }
 }
 
-function buildBoardingPupils(_: SeedContext): CellValue | null {
-  // Pending re-extraction (slice 5.5h) — student_community.boarding_pct is
-  // mostly NULL across the corpus.
+function buildBoardingPupils({ struct, notion }: SeedContext): CellValue | null {
+  // Extractor's student_community.boarder_count is mostly NULL today —
+  // Notion is the de-facto source. Honour extractor if it ever lands a value.
+  const sc = struct?.student_community as Record<string, unknown> | null | undefined
+  const ext = typeof sc?.boarder_count === 'number' ? sc.boarder_count as number : null
+  if (ext != null) return { value: `~${ext.toLocaleString()}`, source: 'student_community.boarder_count' }
+  const n = notionParsedNumber(notion, 'boarder_count')
+  if (n != null) return { value: `~${n.toLocaleString()}`, source: 'notion.parsed.boarder_count' }
   return null
 }
 
-function buildInternationalPupils(_: SeedContext): CellValue | null {
-  return null  // pending 5.5h
+function buildInternationalPupils({ struct, notion }: SeedContext): CellValue | null {
+  const sc = struct?.student_community as Record<string, unknown> | null | undefined
+  const ext = typeof sc?.intl_count === 'number' ? sc.intl_count as number : null
+  if (ext != null) return { value: `~${ext.toLocaleString()}`, source: 'student_community.intl_count' }
+  const n = notionParsedNumber(notion, 'intl_count')
+  if (n != null) return { value: `~${n.toLocaleString()}`, source: 'notion.parsed.intl_count' }
+  return null
 }
 
 function buildDayPupils(_: SeedContext): CellValue | null {
-  return null  // pending 5.5h
+  return null  // Notion does not carry day_count; pending extractor (5.5h)
 }
 
-function buildBoardingRatio(_: SeedContext): CellValue | null {
-  return null  // depends on the three above
+function buildBoardingRatio({ struct, notion }: SeedContext): CellValue | null {
+  // Codex r1 P1: extractor (extract-batch-culture.js) writes student_community.boarding_pct
+  // as a percentage 0-100. Earlier draft of this builder read `boarding_ratio` which never
+  // existed in extractor data — Notion was always winning by default. Read both keys; if a
+  // value < 1 sneaks in (legacy fraction shape), treat as 0-1 and rescale.
+  const sc = struct?.student_community as Record<string, unknown> | null | undefined
+  let ext: number | null = null
+  for (const k of ['boarding_pct', 'boarding_ratio']) {
+    const v = sc?.[k]
+    if (typeof v === 'number' && Number.isFinite(v)) { ext = v; break }
+  }
+  if (ext != null) {
+    const pct = ext > 0 && ext <= 1 ? ext * 100 : ext
+    return { value: `${Math.round(pct)}%`, source: ext === sc?.boarding_pct ? 'student_community.boarding_pct' : 'student_community.boarding_ratio' }
+  }
+  const n = notionParsedNumber(notion, 'boarding_ratio')
+  if (n != null) {
+    // Notion stores percentages as 75.6 (already %, not 0.756). Round for display.
+    return { value: `${Math.round(n)}%`, source: 'notion.parsed.boarding_ratio' }
+  }
+  return null
 }
 
-function buildGcsePct({ struct }: SeedContext): CellValue | null {
+function buildGcsePct({ struct, notion }: SeedContext): CellValue | null {
   const gcse = (struct?.exam_results as Record<string, unknown> | null | undefined)?.gcse as
     | Record<string, unknown>
     | undefined
   const pct = gcse?.pct_7_to_9
-  if (typeof pct !== 'number') return null
-  return { value: `${Math.round(pct)}%`, source: 'exam_results.gcse' }
+  if (typeof pct === 'number') return { value: `${Math.round(pct)}%`, source: 'exam_results.gcse' }
+  // Conflict-gated: Notion's parsed value only set when extractor was empty.
+  // The (9-8) trap was caught in the parser — anything in parsed is safely 9-7.
+  const n = notionParsedNumber(notion, 'gcse_pct')
+  if (n != null) return { value: `${Math.round(n)}%`, source: 'notion.parsed.gcse_pct' }
+  return null
 }
 
-function buildALevelPct({ struct }: SeedContext): CellValue | null {
+function buildALevelPct({ struct, notion }: SeedContext): CellValue | null {
   const al = (struct?.exam_results as Record<string, unknown> | null | undefined)?.a_level as
     | Record<string, unknown>
     | undefined
   const pct = al?.pct_a_star_a
-  if (typeof pct !== 'number') return null
-  return { value: `${Math.round(pct)}%`, source: 'exam_results.a_level' }
+  if (typeof pct === 'number') return { value: `${Math.round(pct)}%`, source: 'exam_results.a_level' }
+  const n = notionParsedNumber(notion, 'a_level_pct')
+  if (n != null) return { value: `${Math.round(n)}%`, source: 'notion.parsed.a_level_pct' }
+  return null
 }
 
-function buildBoardingFeeTerm({ struct }: SeedContext): CellValue | null {
+function buildBoardingFeeTerm({ struct, notion }: SeedContext): CellValue | null {
   // 2026-05-08 audit (Theo's shortlist): fees_by_grade.rows[] contains
   // per_term values for senior-school boarding rows in 4/6 schools.
   // Pick the highest per-term boarding figure as a proxy for the
   // standard senior boarding fee — flexi-boarding rows are lower and
   // prep-school rows are too small to compare across schools.
   const rows = (struct?.fees_by_grade as Record<string, unknown> | null | undefined)?.rows
-  if (!Array.isArray(rows)) return null
   const cur = (struct?.fees_by_grade as { currency?: string } | null | undefined)?.currency ?? struct?.fees_currency ?? 'GBP'
   const sym = cur === 'GBP' ? '£' : cur === 'USD' ? '$' : ''
-  let max: number | null = null
-  for (const r of rows) {
-    if (!r || typeof r !== 'object') continue
-    const o = r as Record<string, unknown>
-    const phase = String(o.phase ?? '').toLowerCase()
-    if (!/boarding|7 nights/.test(phase)) continue
-    if (/flexi/.test(phase)) continue
-    const per = typeof o.per_term === 'number' ? o.per_term : (typeof o.per_term === 'string' ? Number(o.per_term) : null)
-    if (per && (max == null || per > max)) max = per
+  if (Array.isArray(rows)) {
+    let max: number | null = null
+    for (const r of rows) {
+      if (!r || typeof r !== 'object') continue
+      const o = r as Record<string, unknown>
+      const phase = String(o.phase ?? '').toLowerCase()
+      if (!/boarding|7 nights/.test(phase)) continue
+      if (/flexi/.test(phase)) continue
+      const per = typeof o.per_term === 'number' ? o.per_term : (typeof o.per_term === 'string' ? Number(o.per_term) : null)
+      if (per && (max == null || per > max)) max = per
+    }
+    if (max != null) return { value: `${sym}${Math.round(max).toLocaleString()}`, source: 'fees_by_grade' }
   }
-  if (max == null) return null
-  return { value: `${sym}${Math.round(max).toLocaleString()}`, source: 'fees_by_grade' }
+  // Notion fallback (Phase 1) — value is GBP scalar or {min,max}.
+  const fee = notionParsedFee(notion, 'boarding_fee_term')
+  if (fee != null) return { value: formatGbp(fee), source: 'notion.parsed.boarding_fee_term' }
+  return null
 }
 
-function buildAnnualBoardingFee({ struct }: SeedContext): CellValue | null {
-  if (!struct) return null
-  const min = typeof struct.fees_min === 'number' ? struct.fees_min : null
-  const max = typeof struct.fees_max === 'number' ? struct.fees_max : null
-  if (min == null && max == null) return null
-  const cur = struct.fees_currency ?? 'GBP'
-  const sym = cur === 'GBP' ? '£' : cur === 'USD' ? '$' : ''
-  const fmt = (n: number) => `${sym}${n.toLocaleString()}`
-  if (min != null && max != null && max !== min) {
-    return { value: `${fmt(min)}–${fmt(max)}`, source: 'school_structured_data.fees' }
+function buildAnnualBoardingFee({ struct, notion }: SeedContext): CellValue | null {
+  const min = typeof struct?.fees_min === 'number' ? struct.fees_min : null
+  const max = typeof struct?.fees_max === 'number' ? struct.fees_max : null
+  if (min != null || max != null) {
+    const cur = struct?.fees_currency ?? 'GBP'
+    const sym = cur === 'GBP' ? '£' : cur === 'USD' ? '$' : ''
+    const fmt = (n: number) => `${sym}${n.toLocaleString()}`
+    if (min != null && max != null && max !== min) {
+      return { value: `${fmt(min)}–${fmt(max)}`, source: 'school_structured_data.fees' }
+    }
+    return { value: fmt(min ?? max!), source: 'school_structured_data.fees' }
   }
-  return { value: fmt(min ?? max!), source: 'school_structured_data.fees' }
+  // Notion fallback — conflict-gated, so only set when extractor was empty.
+  const fee = notionParsedFee(notion, 'boarding_fee_year')
+  if (fee != null) return { value: formatGbp(fee), source: 'notion.parsed.boarding_fee_year' }
+  return null
 }
 
 function buildRegistrationFee({ struct }: SeedContext): CellValue | null {
@@ -529,6 +674,7 @@ type ShortlistContext = {
   slugs:     string[]
   schoolMap: Map<string, SchoolMeta>
   structMap: Map<string, StructuredRow>
+  notionMap: Map<string, NotionBackfillRow>
 }
 
 /**
@@ -554,7 +700,8 @@ export async function seedResearchSession(
       const meta = ctx.schoolMap.get(slug)
       if (!meta) continue
       const struct = ctx.structMap.get(slug) ?? null
-      const cell = spec.build({ meta, struct })
+      const notion = ctx.notionMap.get(slug) ?? null
+      const cell = spec.build({ meta, struct, notion })
       if (cell == null || cell.value == null || cell.value === '') continue
       cell_data[slug] = cell
     }
@@ -788,20 +935,32 @@ export async function loadShortlistContext(
 
   const slugs = (rows ?? []).map((r: { school_slug: string }) => r.school_slug)
   if (slugs.length === 0) {
-    return { slugs: [], schoolMap: new Map(), structMap: new Map() }
+    return { slugs: [], schoolMap: new Map(), structMap: new Map(), notionMap: new Map() }
   }
 
-  const [schoolsRes, structRes] = await Promise.all([
+  const [schoolsRes, structRes, notionRes] = await Promise.all([
     supabase.from('schools')
       .select('slug, name, city, region, boarding, gender_split')
       .in('slug', slugs),
     supabase.from('school_structured_data')
       .select('school_slug, fees_min, fees_max, fees_currency, exam_results, university_destinations, admissions_format, sports_profile, student_community, location_profile, fees_by_grade, application_fee_usd, bursary_note')
       .in('school_slug', slugs),
+    // school_notion_backfill is the Phase 1 sidecar — one row per school×Notion-page.
+    // Always queried alongside struct so cell builders can fall back per the
+    // precedence rules (extractor wins; Notion fills nulls / conflict-gated).
+    // Soft-fail (treat as empty) if the table read errors so the comparison
+    // table never breaks because of a Notion sync hiccup.
+    supabase.from('school_notion_backfill')
+      .select('school_slug, status, parsed')
+      .in('school_slug', slugs),
   ])
 
   if (schoolsRes.error) throw new Error(`loadShortlistContext: schools read failed: ${schoolsRes.error.message}`)
   if (structRes.error)  throw new Error(`loadShortlistContext: structured read failed: ${structRes.error.message}`)
+  if (notionRes.error) {
+    // Don't throw — Notion is supplementary. Log + continue with empty map.
+    console.warn(`[loadShortlistContext] notion sidecar read failed: ${notionRes.error.message}`)
+  }
 
   const schoolMap = new Map<string, SchoolMeta>(
     (schoolsRes.data ?? []).map((s: SchoolMeta) => [s.slug, s])
@@ -809,5 +968,8 @@ export async function loadShortlistContext(
   const structMap = new Map<string, StructuredRow>(
     (structRes.data ?? []).map((s: StructuredRow) => [s.school_slug, s])
   )
-  return { slugs, schoolMap, structMap }
+  const notionMap = new Map<string, NotionBackfillRow>(
+    (notionRes.data ?? []).map((n: NotionBackfillRow) => [n.school_slug, n])
+  )
+  return { slugs, schoolMap, structMap, notionMap }
 }
