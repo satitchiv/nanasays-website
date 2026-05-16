@@ -59,6 +59,12 @@ type Props = {
   // Used by both Skip (via onSkipBuildMode → ResearchRoom's handler)
   // AND the in-chat Build-my-table-now CTA (handleBuildTableNow below).
   onExitInterview?:     () => void
+  // Slice 8 Build 7 Phase C followup #2 — fired by handleBuildTableNow
+  // *after* exitInterview, *before* the finalize ask. ResearchRoom routes
+  // the comparison-area tab to 'compare' so the parent watches the newly-
+  // streamed rows land on the surface they were just sent back to. No-op
+  // when caller doesn't pass it (older embeddings unaffected).
+  onTableBuilt?:        () => void
   // Slice 3d phase 4 — slugs from the active child's comparison data.
   // Threaded into the chat hook's API call so Nana scopes answers to
   // the parent's current shortlist, mirroring DecisionHub's behaviour.
@@ -491,6 +497,7 @@ export default function ResearchRoomChat({
   buildMode,
   fullscreenBuildMode = false,
   onExitInterview,
+  onTableBuilt,
   onCollapse,
   onExpandDefault,
   onToggleFocus,
@@ -683,6 +690,12 @@ export default function ResearchRoomChat({
     // Exit BEFORE firing finalize so the comparison panel re-appears
     // while finalize's row proposals stream in.
     onExitInterview?.()
+    // Followup #2 — switch the comparison-area tab to 'compare' so the
+    // streamed rows land on the visible panel. Fires AFTER exitInterview
+    // (fullscreen cleared first) and BEFORE chat.ask() so the tab swap
+    // is committed to state by the time finalize's SSE deltas arrive.
+    // No-op when parent is already on 'compare'; harmless on mobile.
+    onTableBuilt?.()
     void chat.ask('Build my comparison table now', {
       endpointOverride: '/api/research-room/build-mode/finalize',
     })

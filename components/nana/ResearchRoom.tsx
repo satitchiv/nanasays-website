@@ -475,6 +475,16 @@ export default function ResearchRoom({
     scrollPagerToTab(tab)
   }
 
+  // Slice 8 Build 7 Phase C followup #2 — fired by ResearchRoomChat's
+  // handleBuildTableNow after the parent clicks the wrap-up CTA. Routes
+  // them to the Comparison tab so the finalize-streamed rows land on a
+  // panel they can actually see. handleTabClick (not raw setActiveTab)
+  // so the mobile pager scrolls alongside. No-op when activeTab is
+  // already 'compare'.
+  const handleTableBuilt = () => {
+    handleTabClick('compare')
+  }
+
   // Initial scroll position: jump (no animation) to the default active tab so
   // the pager renders with Comparison centered, not Brief.
   useLayoutEffect(() => {
@@ -782,6 +792,7 @@ export default function ResearchRoom({
           buildMode={chatBuildMode}
           fullscreenBuildMode={fullscreenBuildMode}
           onExitInterview={handleExitInterview}
+          onTableBuilt={handleTableBuilt}
           onCollapse={handleCollapseChat}
           onExpandDefault={handleExpandDefault}
           onToggleFocus={handleToggleFocus}

@@ -112,6 +112,25 @@ test('Phase C: passes chatBuildMode + fullscreenBuildMode + onExitInterview to c
   assert.ok(/onExitInterview=\{\s*handleExitInterview\s*\}/.test(src), 'passes onExitInterview={handleExitInterview}')
 })
 
+// ── Phase C followup #2: auto-switch to Compare tab after Build-table-now ──
+
+test('Phase C followup #2: handleTableBuilt calls handleTabClick(\'compare\')', () => {
+  // Source-of-truth tab routing — must reuse handleTabClick so the mobile
+  // pager scrolls alongside the chip highlight. Raw setActiveTab leaves
+  // the pager visually mis-aligned.
+  assert.ok(
+    /const handleTableBuilt\s*=\s*\(\s*\)\s*=>\s*\{[\s\S]*?handleTabClick\(\s*['"]compare['"]\s*\)[\s\S]*?\}/m.test(src),
+    'handleTableBuilt must call handleTabClick(\'compare\')',
+  )
+})
+
+test('Phase C followup #2: passes onTableBuilt={handleTableBuilt} to ResearchRoomChat', () => {
+  assert.ok(
+    /onTableBuilt=\{\s*handleTableBuilt\s*\}/.test(src),
+    'expected onTableBuilt={handleTableBuilt} in <ResearchRoomChat> JSX',
+  )
+})
+
 // ── Phase C followup: auto-activate new children ──────────────────────
 // Browser-smoke caught that adding 2nd/3rd child didn't trigger the
 // funnel — server's POST /api/children persisted active_child_id but

@@ -226,6 +226,36 @@ test('Phase C: handleBuildTableNow calls onExitInterview (not onToggleBuildMode)
   }
 })
 
+test('Phase C followup #2: onTableBuilt is declared as optional prop', () => {
+  // Outer ResearchRoomChat Props must expose onTableBuilt alongside
+  // onExitInterview so ResearchRoom can wire its tab routing.
+  assert.ok(
+    /onTableBuilt\?:\s*\(\s*\)\s*=>\s*void/.test(src),
+    'Props must declare onTableBuilt?: () => void',
+  )
+})
+
+test('Phase C followup #2: handleBuildTableNow fires onTableBuilt between exitInterview and chat.ask', () => {
+  const handlerMatch = src.match(/const handleBuildTableNow\s*=\s*\(\s*\)\s*=>\s*\{[\s\S]*?\n  \}/m)
+  assert.ok(handlerMatch, 'expected to find handleBuildTableNow handler block')
+  const body = handlerMatch[0]
+
+  const exitIdx       = body.search(/onExitInterview\?\.\(\s*\)/)
+  const tableBuiltIdx = body.search(/onTableBuilt\?\.\(\s*\)/)
+  // Match the literal invocation, not the prose mention in adjacent
+  // comments (which reads "BEFORE chat.ask()" and would otherwise win
+  // the index race against the real call site).
+  const askIdx        = body.search(/void chat\.ask\(/)
+
+  assert.ok(exitIdx >= 0,       'must call onExitInterview?.()')
+  assert.ok(tableBuiltIdx >= 0, 'must call onTableBuilt?.()')
+  assert.ok(askIdx >= 0,        'must call chat.ask(...)')
+  assert.ok(
+    exitIdx < tableBuiltIdx && tableBuiltIdx < askIdx,
+    `expected order: exitInterview → onTableBuilt → chat.ask (got indices ${exitIdx}/${tableBuiltIdx}/${askIdx})`,
+  )
+})
+
 test('Phase C: bar CTA is suppressed when wrap-up bubble is active', () => {
   // r1 P2 #6: BuildModeProgressBar.onBuildTableNow gated on !buildModeWrapUp.
   assert.ok(
