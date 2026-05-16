@@ -3,7 +3,7 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { supabaseService } from '@/lib/supabase-admin'
 import { recommendShortlist } from '@/lib/recommend-shortlist'
-import { ONBOARDING_FIELD_NAMES } from '@/lib/onboarding-fields'
+import { ONBOARDING_FIELD_NAMES, FAMILY_CONSTANT_FIELD_NAMES } from '@/lib/onboarding-fields'
 
 // Children CRUD for the Research Room Brief tab.
 // RLS on `children` table enforces auth.uid() = user_id, so the
@@ -61,15 +61,40 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'date_of_birth must be YYYY-MM-DD' }, { status: 400 })
   }
 
-  // Copy ALL 9 onboarding fields from parent_profiles into the new
-  // child_profile. Slice 3.3 model: every field is per-child, no
-  // family-level enforcement. New children inherit the parent's
-  // onboarding answers as a starting template; can be tweaked
-  // independently from the Brief tab.
+  // Slice 8 Build 7 Phase C followup #3 (2026-05-16) — selective
+  // inheritance. The first-EVER child still inherits ALL wizard answers
+  // from parent_profiles (those answers ARE about this child).
+  // Second/Nth siblings inherit only the 6 family-constant fields
+  // (region, boarding, budget, curriculum, ethos, intl); child-specific
+  // fields (year, gender, priority, class_size, sen, phone, lgbtq,
+  // pastoral) start blank so Build Mode's interview tailors them per
+  // child instead of cloning the prior child's identity.
   const svc = supabaseService()
+
+  // Probe existing children to pick the right seed-field set. Count all
+  // children, including archived: an archived child still proves
+  // parent_profiles may contain child-specific answers from an older
+  // child, so a new child must not be treated as wizard-fresh.
+  // (Codex r1 P1 — was active-only, would re-bleed after archive-only-
+  // child → add new child path.)
+  const { count: existingChildCount, error: countErr } = await svc
+    .from('children')
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+
+  if (countErr) {
+    console.error('[POST /api/children] child count failed:', countErr.message)
+    return NextResponse.json({ error: 'Failed to seed child profile' }, { status: 500 })
+  }
+
+  const isFirstChild = (existingChildCount ?? 0) === 0
+  const seedFields = isFirstChild
+    ? ONBOARDING_FIELD_NAMES
+    : FAMILY_CONSTANT_FIELD_NAMES
+
   const { data: pp, error: ppErr } = await svc
     .from('parent_profiles')
-    .select(ONBOARDING_FIELD_NAMES.join(', '))
+    .select(seedFields.join(', '))
     .eq('id', user.id)
     .maybeSingle()
 
@@ -80,7 +105,7 @@ export async function POST(req: NextRequest) {
 
   const childProfile: Record<string, unknown> = {}
   if (pp) {
-    for (const key of ONBOARDING_FIELD_NAMES) {
+    for (const key of seedFields) {
       const v = (pp as unknown as Record<string, unknown>)[key]
       if (v != null) childProfile[key] = v
     }

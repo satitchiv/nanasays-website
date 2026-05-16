@@ -227,6 +227,32 @@ export const CHILD_FIELDS  = ONBOARDING_FIELDS.filter(f => f.level === 'child')
 export const CHILD_FIELD_NAMES   = CHILD_FIELDS.map(f => f.field)
 export const ONBOARDING_FIELD_NAMES = ONBOARDING_FIELDS.map(f => f.field)
 
+// Slice 8 Build 7 Phase C followup #3 (2026-05-16) — which fields inherit
+// from parent_profiles into a new SIBLING's child_profile. The first-ever
+// child create still copies everything (those wizard answers ARE about
+// that child); a second or third "+Add child" only inherits these six
+// family-level constants so the parent doesn't accidentally clone the
+// first child's age / gender / priorities onto a sibling.
+//
+// Note: this allowlist is INTENTIONALLY independent of OnboardingField.level.
+// `level` is analytics metadata (kept for the "sync across kids" UX
+// some future build may want); this allowlist is operational policy for
+// what gets COPIED on +Add child. `phone_pref`, `lgbtq_pref`, `pastoral_pref`
+// are flagged 'family' for analytics but RESET per-child here because
+// they describe "what THIS child needs" not "what this family believes."
+//
+// Adding a new entry to ONBOARDING_FIELDS auto-defaults to "child-specific"
+// (i.e. start blank for siblings) unless explicitly added below.
+export const FAMILY_CONSTANT_FIELD_NAMES = [
+  'home_region',
+  'boarding_pref',
+  'budget_range',
+  'curriculum_pref',
+  'ethos_pref',
+  'intl_pref',
+] as const
+export type FamilyConstantFieldName = typeof FAMILY_CONSTANT_FIELD_NAMES[number]
+
 // Slice 8 Build 1: which 5 fields ship in the onboarding wizard. The
 // remaining 9 stay editable in ChildBriefTab (and Build 3's Nana
 // interview will populate them conversationally).
