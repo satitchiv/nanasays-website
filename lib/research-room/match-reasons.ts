@@ -29,6 +29,13 @@ export type SchoolForReasons = {
   region:      string | null
   boarding:    boolean | null
   sen_support: boolean | null
+  // 2026-05-19 Bug 2 fix — read curriculum from the authoritative `schools`
+  // column (the same one the parent-facing UI displays) instead of inferring
+  // IB from `school_structured_data.exam_results.ib`. The exam_results.ib
+  // field is over-populated by the extractor — every school has a non-null
+  // object even when they don't offer IB Diploma (verified: Eton's
+  // schools.curriculum is NULL but exam_results.ib is non-null).
+  curriculum:  string[] | null
 }
 
 export type StructForReasons = {
@@ -76,9 +83,22 @@ function strongestSport(struct: StructForReasons | null): { sport: SportKey, tie
   return { sport: best.sport, tier: best.tier }
 }
 
-function schoolOffersIb(struct: StructForReasons | null): boolean {
-  const ib = (struct?.exam_results as Record<string, unknown> | null | undefined)?.ib
-  return ib != null && typeof ib === 'object'
+// 2026-05-19 Bug 2 fix — verify IB from the authoritative `schools.curriculum`
+// column. The IB Diploma label appears in the data in five variants; match any.
+// The exam_results.ib JSONB path is unreliable (over-populated by the
+// extractor — Eton has non-null exam_results.ib but does not offer IB).
+const IB_CURRICULUM_VARIANTS = new Set<string>([
+  'IB',
+  'IB Diploma',
+  'IB Diploma Programme',
+  'IB Middle Years Programme',
+  'IB Primary Years Programme',
+])
+
+function schoolOffersIb(school: SchoolForReasons): boolean {
+  const arr = school.curriculum
+  if (!Array.isArray(arr)) return false
+  return arr.some(v => typeof v === 'string' && IB_CURRICULUM_VARIANTS.has(v))
 }
 
 /**
@@ -115,8 +135,9 @@ export function buildMatchReasons(
     if (strongest) out.push(`strong ${strongest.sport}`)
   }
 
-  // Curriculum: IB.
-  if (isIbCurriculum(profile) && schoolOffersIb(struct)) {
+  // Curriculum: IB. 2026-05-19 — argument shape changed to read from the
+  // school's authoritative `curriculum` column (see schoolOffersIb above).
+  if (isIbCurriculum(profile) && schoolOffersIb(school)) {
     out.push('offers IB diploma')
   }
 
@@ -176,7 +197,7 @@ export async function loadMatchReasonsBatch(
 
   const [schoolsRes, structRes] = await Promise.all([
     supabase.from('schools')
-      .select('slug, name, region, boarding, sen_support')
+      .select('slug, name, region, boarding, sen_support, curriculum')
       .in('slug', slugs),
     supabase.from('school_structured_data')
       .select('school_slug, sports_profile, exam_results')

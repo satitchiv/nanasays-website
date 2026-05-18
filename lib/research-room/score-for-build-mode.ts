@@ -90,6 +90,22 @@ const YEAR_TO_ENTRY_AGE: Record<string, number | null> = {
 const BOY_COMPAT  = new Set(['boys', 'boys only', 'co-ed', 'co-educational', 'mixed'])
 const GIRL_COMPAT = new Set(['girls', 'girls only', 'co-ed', 'co-educational', 'mixed'])
 
+// 2026-05-19 Bug 1 fix — curriculum filter parity with Picker #1
+// (lib/recommend-shortlist.ts:73-80). When the parent says IB, drop
+// schools whose curriculum array doesn't include any IB variant. When
+// they say A-Level, keep A-Level-tagged schools AND NULL-curriculum
+// schools (most UK independents teach A-Level by default but don't
+// always tag it). Before this fix, Picker #2 returned Eton (curriculum
+// NULL = no IB) for IB-preferring parents.
+const IB_VARIANTS = [
+  'IB',
+  'IB Diploma',
+  'IB Diploma Programme',
+  'IB Middle Years Programme',
+  'IB Primary Years Programme',
+]
+const ALEVEL_VARIANTS = ['A-Level']
+
 // Per-sport DIMENSIONS keys. The Build Mode interview captures free-text
 // `interests_sports[].sport` (e.g. "football", "rugby", "tennis"); we map
 // to the corresponding DIMENSIONS scorer if one exists. Synonyms map onto
@@ -519,6 +535,15 @@ export async function scoreForBuildMode(
     .eq('country', 'United Kingdom')
 
   q = q.or('fees_usd_min.is.null,fees_usd_min.gte.5000') // drop extraction-bug zero fees
+
+  // 2026-05-19 Bug 1 fix — curriculum filter parity with Picker #1.
+  // Without this, an IB-preferring parent could get A-Level-only schools
+  // (Eton has curriculum=NULL → no IB, but used to slip through here).
+  if (parent?.curriculum_pref === 'ib') {
+    q = q.overlaps('curriculum', IB_VARIANTS)
+  } else if (parent?.curriculum_pref === 'a-level') {
+    q = q.or(`curriculum.ov.{${ALEVEL_VARIANTS.join(',')}},curriculum.is.null`)
+  }
 
   // Min-confidence floor (parity with recommend-shortlist.ts 2026-05-18).
   // The conf=0 cohort in schools_status is dominated by state primary
