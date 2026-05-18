@@ -305,6 +305,11 @@ export function rankCandidates(
     let score = (s.confidence_score ?? 0) / 100  // 0..1 base
 
     // ── Region ──────────────────────────────────────────────────────
+    // Wrong-bucket penalty bumped to -2.0 (parity with recommend-shortlist.ts
+    // 2026-05-18). The prior -1.0 was being overpowered by confidence_score=100
+    // / 100 = 1.0 base + sport boosts, letting Wellington-Berkshire win
+    // south-west queries. Build Mode finalize is the recommender that
+    // matters once Commit C lands, so this needs to be at least as tight.
     if (parent?.home_region && parent.home_region !== 'overseas') {
       if (s.region == null) {
         // neutral
@@ -312,7 +317,7 @@ export function rankCandidates(
         score += 0.6
         signals.push(`${s.region.toLowerCase()} region`)
       } else {
-        score -= 1.0
+        score -= 2.0
       }
     }
 
@@ -514,6 +519,13 @@ export async function scoreForBuildMode(
     .eq('country', 'United Kingdom')
 
   q = q.or('fees_usd_min.is.null,fees_usd_min.gte.5000') // drop extraction-bug zero fees
+
+  // Min-confidence floor (parity with recommend-shortlist.ts 2026-05-18).
+  // The conf=0 cohort in schools_status is dominated by state primary
+  // schools (Gladstone Primary, City of London Freemen's etc.) and a
+  // `reeds-school-uk` duplicate — none of which belong in a Build Mode
+  // proposal. NULL confidence is preserved (unknown, don't punish).
+  q = q.or('confidence_score.is.null,confidence_score.gte.10')
 
   const budgetCeiling = BUDGET_CEILING_USD[parent?.budget_range ?? '']
   if (budgetCeiling != null) {

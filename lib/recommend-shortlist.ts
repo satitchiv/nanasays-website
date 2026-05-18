@@ -267,13 +267,13 @@ export async function pickTopSchoolSlugs(
   if (ukSlugs.length === 0) return { slugs: [], reason: 'no_matches' }
 
   // 4. Build candidate query — hard filters in SQL
-  // confidence_score >= 60 was removed — Westminster + St Paul's have
-  // confidence_score=0 in the data despite being substantial-evidence
-  // UK schools. The schools_status filter (is_uk_evidence +
-  // has_substantial_chunks) is already a meaningful quality bar; the
-  // additional confidence threshold was double-filtering and dropping
-  // famous schools whose extraction never finished. confidence_score
-  // still acts as a tiebreaker via the JS scoring base.
+  // Min-confidence floor (added 2026-05-18): drop confidence_score < 10.
+  // The earlier comment "Westminster + St Paul's have confidence_score=0"
+  // is stale — verified live, Westminster=100, St Paul's=79, Eton=79.
+  // The conf=0 cohort is now state primary schools (Gladstone Primary,
+  // City of London Freemen's etc.) that slipped into the is_uk_evidence
+  // set, plus the `reeds-school-uk` duplicate (the real `reeds-school`
+  // is conf=64). NULL confidence is kept (unknown, don't punish).
   // is_international filter dropped: Westminster + several famous schools
   // have is_international=NULL despite being substantial UK independents.
   // The schools_status filter (is_uk_evidence) is already a stricter
@@ -283,6 +283,7 @@ export async function pickTopSchoolSlugs(
     .select('slug, name, gender_split, boarding, fees_usd_min, sen_support, strengths, confidence_score, age_min, age_max, region')
     .in('slug', ukSlugs)
     .eq('country', 'United Kingdom')
+    .or('confidence_score.is.null,confidence_score.gte.10')
 
   // Region: moved to JS scoring (not a hard SQL filter). Many famous
   // schools have region=NULL (Westminster, St Paul's, Dulwich) and would
@@ -397,16 +398,17 @@ export async function pickTopSchoolSlugs(
     let score = (s.confidence_score ?? 0) / 100  // 0..1 base
 
     // Region match: in bucket → +0.6, NULL → 0 (neutral, common for
-    // famous schools), wrong bucket → -1.0 (was -0.5; bumped after dry-
-    // run #7 surfaced Plymouth + Warwick in a London query — high
-    // confidence_score was overcoming the soft region penalty).
+    // famous schools), wrong bucket → -2.0 (was -1.0; bumped 2026-05-18
+    // after Maya's south-west query returned 5/7 schools outside the
+    // south-west bucket — confidence_score=100 + sport boost was still
+    // overcoming the -1.0 penalty for Wellington-Berkshire et al.).
     if (profile.home_region && profile.home_region !== 'overseas') {
       if (s.region == null) {
         // neutral
       } else if (regionBucket.has(s.region)) {
         score += 0.6
       } else {
-        score -= 1.0
+        score -= 2.0
       }
     }
 

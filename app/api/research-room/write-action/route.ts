@@ -539,6 +539,19 @@ export async function POST(req: NextRequest) {
       out_child_id:   string
     }
 
+    // 2026-05-18 — DB-level gender validation. The RPC skips both the
+    // INSERT and the action stamp when the school is gender-incompatible,
+    // so the LLM can re-propose a different school on the next turn
+    // without a stale 'add_school' stamp pinning the message.
+    if (out_status === 'rejected_gender_mismatch') {
+      return NextResponse.json({
+        ok: false,
+        code: 'rejected_gender_mismatch',
+        detail: 'That school doesn\'t match this child\'s gender.',
+        school_slug: out_slug,
+      }, { status: 409 })
+    }
+
     if (out_status === 'added' || out_status === 'already_present' || out_status === 'already_confirmed' || out_status === 're_added') {
       // Best-effort side effects. Failures log but don't bubble — the
       // RPC's atomic write already succeeded.
