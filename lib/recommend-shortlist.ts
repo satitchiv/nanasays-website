@@ -402,7 +402,10 @@ export async function pickTopSchoolSlugs(
     // after Maya's south-west query returned 5/7 schools outside the
     // south-west bucket — confidence_score=100 + sport boost was still
     // overcoming the -1.0 penalty for Wellington-Berkshire et al.).
-    if (profile.home_region && profile.home_region !== 'overseas') {
+    // 2026-05-19 — also skip when home_region='anywhere' (parents who
+    // pick "Anywhere in the UK / no preference" shouldn't have any
+    // region influence their ranking).
+    if (profile.home_region && profile.home_region !== 'overseas' && profile.home_region !== 'anywhere') {
       if (s.region == null) {
         // neutral
       } else if (regionBucket.has(s.region)) {

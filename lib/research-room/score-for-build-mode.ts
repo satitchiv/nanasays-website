@@ -326,7 +326,10 @@ export function rankCandidates(
     // / 100 = 1.0 base + sport boosts, letting Wellington-Berkshire win
     // south-west queries. Build Mode finalize is the recommender that
     // matters once Commit C lands, so this needs to be at least as tight.
-    if (parent?.home_region && parent.home_region !== 'overseas') {
+    // 2026-05-19 — also skip the region scoring when the parent picked
+    // 'anywhere' (added to the dropdown to let parents say "no preference"
+    // instead of inheriting an inherited home_region from parent_profiles).
+    if (parent?.home_region && parent.home_region !== 'overseas' && parent.home_region !== 'anywhere') {
       if (s.region == null) {
         // neutral
       } else if (regionBucket.has(s.region)) {

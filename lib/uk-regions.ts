@@ -12,7 +12,13 @@
 //
 // home_region enum values from onboarding-fields.ts:29 (7 buckets total).
 
+// 2026-05-19 — `anywhere` is the "no preference" choice (added to the
+// onboarding dropdown so parents don't have to pick a region they don't
+// actually care about). It has no bucket — the scorer must short-circuit
+// region scoring entirely when home_region='anywhere'. regionInBucket
+// returns false for it, which is the right behaviour for match_reasons.
 export type HomeRegion =
+  | 'anywhere'
   | 'london'
   | 'south-east'
   | 'south-west'
@@ -22,6 +28,7 @@ export type HomeRegion =
   | 'overseas'
 
 export const REGION_BUCKETS: Record<HomeRegion, readonly string[]> = {
+  anywhere: [],
   london: [
     'London', 'Greater London',
     'Hammersmith', 'Brook Green', 'South Kensington',

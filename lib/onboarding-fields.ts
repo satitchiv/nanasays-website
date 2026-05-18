@@ -26,11 +26,19 @@ export type OnboardingField = {
 
 export const ONBOARDING_FIELDS: OnboardingField[] = [
   {
+    // DB column stays `home_region` (no migration). The label changed
+    // 2026-05-19 from "Where (are you based)" to "Interested location"
+    // because the field is really "where do you want to look for
+    // schools", not "where the family lives". An overseas family
+    // looking at UK boarding shouldn't have to pick 'overseas' as their
+    // school location — they should be able to say "anywhere in the UK"
+    // or pick a specific region. Added 'anywhere' option for that.
     field: 'home_region',
-    short: 'Where',
-    question: 'Where are you based?',
+    short: 'Interested location',
+    question: 'Where do you want to look for schools?',
     level: 'family',
     options: [
+      { value: 'anywhere',       label: 'Anywhere in the UK (no preference)' },
       { value: 'london',         label: 'London' },
       { value: 'south-east',     label: 'South East England' },
       { value: 'south-west',     label: 'South West England' },
