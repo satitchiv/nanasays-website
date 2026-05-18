@@ -151,40 +151,21 @@ export const ONBOARDING_FIELDS: OnboardingField[] = [
   // builder before reaching dim.rank(), matching the scorer's
   // if (!want) null-short-circuit semantics.
   //
-  // ethos_pref values MUST match school_facts.ethos_label enum (today:
-  // church_of_england, christian_general, secular, roman_catholic,
-  // mixed_faith, methodist, quaker) — dimensions.js scores
-  // f.ethos_label === want as +5 exact match.
-  {
-    field: 'ethos_pref',
-    short: 'Ethos',
-    question: 'Any school ethos preference?',
-    level: 'family',
-    options: [
-      { value: 'church_of_england', label: 'Church of England' },
-      { value: 'roman_catholic',    label: 'Roman Catholic' },
-      { value: 'christian_general', label: 'Other Christian (non-denominational)' },
-      { value: 'secular',           label: 'Secular / non-religious' },
-      { value: 'mixed_faith',       label: 'Mixed / multi-faith environment' },
-      { value: 'no-preference',     label: 'No strong preference' },
-    ],
-  },
-  // intl_pref scorer is binary: 'low' rewards low-intl schools, anything
-  // else rewards high-intl. Three UI options with the middle ('balanced')
-  // mapping to null in the ctx builder so scorer short-circuits and
-  // ranking stays neutral — avoids the UX lie of 'balanced' and 'global'
-  // both rewarding high-intl identically.
-  {
-    field: 'intl_pref',
-    short: 'Intl mix',
-    question: 'How important is the international mix at school?',
-    level: 'family',
-    options: [
-      { value: 'low',           label: 'Mostly British — minimal international cohort' },
-      { value: 'high',          label: 'International / global community' },
-      { value: 'no-preference', label: 'No preference — show me both' },
-    ],
-  },
+  // 2026-05-19 — ethos_pref and intl_pref field definitions REMOVED from
+  // the Brief form. User decision: these felt out-of-place at the
+  // parent-brief level — they're better surfaced as filters on the
+  // school-detail / comparison-table side, not as a recommender
+  // gate. The columns stay in parent_profiles (no DB migration); the
+  // recommender code that reads them still functions if they ever come
+  // back. The DIMENSIONS.ethos_match + .intl_share scorers stay live
+  // for any caller that wires them in later (currently neither Picker
+  // is wired to read ethos_pref / intl_pref).
+  //
+  // History of the removed fields preserved here for reference if we
+  // need to reinstate (e.g. as a "/schools filter" rather than a brief
+  // field): ethos_pref dropdown values mapped to school_facts.ethos_label
+  // (church_of_england, christian_general, secular, roman_catholic,
+  // mixed_faith, methodist, quaker); intl_pref had low/high/no-preference.
   // phone_pref scorer is binary: 'flexible' inverts the score (rewards
   // open-phone schools); anything else rewards stricter policies.
   {
@@ -256,8 +237,10 @@ export const FAMILY_CONSTANT_FIELD_NAMES = [
   'boarding_pref',
   'budget_range',
   'curriculum_pref',
-  'ethos_pref',
-  'intl_pref',
+  // ethos_pref + intl_pref removed 2026-05-19 — those fields are no
+  // longer in the Brief form (parent doesn't pick them) so there's
+  // nothing to inherit from parent_profiles onto siblings. The
+  // columns still exist in DB for callers that may reinstate the UX.
 ] as const
 export type FamilyConstantFieldName = typeof FAMILY_CONSTANT_FIELD_NAMES[number]
 
