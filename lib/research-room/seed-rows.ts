@@ -393,6 +393,13 @@ function buildGcsePct({ struct, notion }: SeedContext): CellValue | null {
   // The (9-8) trap was caught in the parser — anything in parsed is safely 9-7.
   const n = notionParsedNumber(notion, 'gcse_pct')
   if (n != null) return { value: `${Math.round(n)}%`, source: 'notion.parsed.gcse_pct' }
+  // Wellington / Harrow only publish 9-8, not 9-7. Promoted into a separate slot
+  // (gcse_pct_alt_band) so parsed.gcse_pct's 9-7 invariant stays intact; cell
+  // renders the band inline so the column-default "GCSE 9–7" header isn't a lie.
+  const alt = notionParsed(notion, 'gcse_pct_alt_band')
+  if (typeof alt === 'string' && alt.length > 0) {
+    return { value: alt, source: 'notion.parsed.gcse_pct_alt_band' }
+  }
   return null
 }
 
