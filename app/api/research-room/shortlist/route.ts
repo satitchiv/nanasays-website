@@ -128,11 +128,12 @@ export async function POST(req: NextRequest) {
     // when the user expands a duplicate group and deliberately picks
     // an alternate. See lib/research-room/school-canonical.ts.
     //
-    // Codex r1 P1 #1: Build Mode's confirm_add_school RPC path
-    // (via /api/research-room/write-action) constructs its slug from a
-    // pre-saved proposal_id and bypasses this route entirely, so this
-    // backstop does NOT cover LLM-originated propose_add_school adds.
-    // Tracked as a separate followup (see TASKS.md).
+    // 2026-05-19 — the LLM-driven `propose_add_school` path now has its
+    // own canonicalize wrap at propose-time inside
+    // build-mode/finalize/route.ts (so the parent never sees the wrong
+    // school name in the proposal pill). This route stays as the
+    // belt-and-braces for manual SchoolAdder + any future programmatic
+    // callers.
     let writeSlug = body.school_slug
     if (!body.skip_canonicalize) {
       try {

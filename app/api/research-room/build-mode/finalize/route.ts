@@ -606,6 +606,50 @@ export async function POST(req: NextRequest) {
             return true
           })
         }
+        // 2026-05-19 — canonicalize each surviving school proposal to its
+        // richest twin BEFORE display-name resolution + persistence. Closes
+        // the LLM-driven add-school path's twin-slug hole (manual SchoolAdder
+        // got the same backstop in shortlist/route.ts on 2026-05-18; comment
+        // there explicitly flagged this path as the remaining gap).
+        // Failures fall back to the original slug — canonicalize is best-
+        // effort, never blocks the proposal.
+        // After canonicalization a re-dedupe pass drops collisions (e.g. LLM
+        // emitted both wellington-school and wellington-college, both
+        // canonicalize to wellington-college).
+        // Codex r1 P2: also drop proposals whose canonical slug is already
+        // in the parent's shortlist. The scorer excludes exact shortlistSlugs
+        // upstream, but a data-poor twin slug that escapes the exclude can
+        // canonicalize INTO an already-shortlisted slug — at which point
+        // there's nothing useful to propose. Note this uses the raw
+        // shortlistSlugs set; if the shortlist itself contains a data-poor
+        // twin (legacy), a future canonicalize-the-shortlist pass would
+        // catch that too (out of scope for this slice).
+        {
+          const { canonicalizeSlug } = await import('@/lib/research-room/school-canonical-server')
+          const shortlistSet = new Set(shortlistSlugs)
+          const out: typeof safeSchoolProposals = []
+          const seen = new Set<string>()
+          for (const sp of safeSchoolProposals) {
+            let finalSlug = sp.slug
+            try {
+              const { canonical, swapped, reason } = await canonicalizeSlug(sp.slug)
+              if (swapped) {
+                console.info('[build-mode/finalize] canonicalized', sp.slug, '→', canonical, reason)
+                finalSlug = canonical
+              }
+            } catch (e) {
+              console.warn('[build-mode/finalize] canonicalize failed for', sp.slug, e)
+            }
+            if (shortlistSet.has(finalSlug)) {
+              console.info('[build-mode/finalize] dropping proposal — canonical already in shortlist:', sp.slug, '→', finalSlug)
+              continue
+            }
+            if (seen.has(finalSlug)) continue
+            seen.add(finalSlug)
+            out.push({ ...sp, slug: finalSlug })
+          }
+          safeSchoolProposals = out
+        }
         // Trim and resolve display_name from schools table in one batch.
         // 2026-05-18 — uses the computed maxSchoolProposals (fresh-start =
         // 6, augment = 3) so empty-shortlist finalize seeds a real table.
