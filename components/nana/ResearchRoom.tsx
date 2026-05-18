@@ -485,6 +485,10 @@ export default function ResearchRoom({
     handleTabClick('compare')
   }
 
+  const handleShortlistRefreshed = () => {
+    handleTabClick('compare')
+  }
+
   // Initial scroll position: jump (no animation) to the default active tab so
   // the pager renders with Comparison centered, not Brief.
   useLayoutEffect(() => {
@@ -764,6 +768,7 @@ export default function ResearchRoom({
                       familyPreferences={familyPreferences}
                       onActiveChildChange={handleActiveChildChange}
                       onChildAdded={handleChildAdded}
+                      onShortlistRefreshed={handleShortlistRefreshed}
                     />
                   ) : t === 'verdict' ? (
                     <VerdictTab

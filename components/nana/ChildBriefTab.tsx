@@ -34,6 +34,11 @@ type Props = {
   // + router.refresh together. Optional for back-compat; if absent we
   // fall back to a plain router.refresh().
   onChildAdded?: (childId: string) => void
+  // rr-8-brief-refresh-auto-jump: parent owns activeTab. When the user
+  // clicks "Refresh recommendations" we ask the parent to flip Brief →
+  // Comparison so the freshly-recommended shortlist lands on a visible
+  // panel. Optional for back-compat / tests.
+  onShortlistRefreshed?: () => void
 }
 
 const BASICS_FIELDS     = ['child_year', 'child_gender'] as const
@@ -84,6 +89,7 @@ export default function ChildBriefTab({
   activeChildId,
   onActiveChildChange,
   onChildAdded,
+  onShortlistRefreshed,
 }: Props) {
   const [adding, setAdding] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -153,6 +159,7 @@ export default function ChildBriefTab({
           setBusy={setBusy}
           setError={setError}
           onSetActive={() => onActiveChildChange?.(c.id)}
+          onShortlistRefreshed={onShortlistRefreshed}
         />
       ))}
 
@@ -182,7 +189,7 @@ export default function ChildBriefTab({
 // ─── Child panel — one per child, fully self-contained ───────────────────
 
 function ChildPanel({
-  child, isActive, busy, setBusy, setError, onSetActive,
+  child, isActive, busy, setBusy, setError, onSetActive, onShortlistRefreshed,
 }: {
   child: ChildSummary
   isActive: boolean
@@ -190,6 +197,7 @@ function ChildPanel({
   setBusy: (b: boolean) => void
   setError: (s: string | null) => void
   onSetActive: () => void
+  onShortlistRefreshed?: () => void
 }) {
   const router = useRouter()
   const [editingMeta, setEditingMeta] = useState(false)
@@ -289,6 +297,7 @@ function ChildPanel({
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Failed to refresh recommendations')
       router.refresh()
+      onShortlistRefreshed?.()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error')
     } finally {
