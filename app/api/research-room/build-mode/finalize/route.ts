@@ -816,7 +816,13 @@ export async function POST(req: NextRequest) {
           )
           for (const [proposalId] of schoolProposalEntries) {
             try {
-              const { data: rpcData, error: rpcErr } = await svc.rpc('confirm_add_school', {
+              // 2026-05-19 — confirm_add_school is a SECURITY DEFINER RPC
+              // that requires auth.uid() to be set (it RAISEs 'unauthorized'
+              // otherwise). The service-role client (`svc`) bypasses RLS
+              // but doesn't carry the user's auth context, so this MUST
+              // use the auth client (`supabase`). Mirrors the chip-click
+              // flow at app/api/research-room/write-action/route.ts:529.
+              const { data: rpcData, error: rpcErr } = await supabase.rpc('confirm_add_school', {
                 p_message_id:  messageId,
                 p_proposal_id: proposalId,
               })
