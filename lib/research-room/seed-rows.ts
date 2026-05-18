@@ -179,8 +179,11 @@ function buildHeathrowMinutes({ struct }: SeedContext): CellValue | null {
 
 function buildClassSize({ notion }: SeedContext): CellValue | null {
   // Extractor doesn't currently surface class_size; Notion fills it.
-  // Notion shape (parser v1.0.1): { senior?: number|{min,max}, sixth?: number|{min,max} }
-  // OR { average: number }. Format the most informative pair.
+  // Notion shape (parser v1.0.2):
+  //   { senior?: number|{min,max}, sixth?: number|{min,max} }
+  //   OR { average: number|{min,max} }
+  // 2026-05-19: range averages (e.g. "12-15" → {average:{min:12,max:15}}) now
+  // supported via fmtBucket on the average branch.
   const parsed = notionParsed(notion, 'class_size')
   if (!parsed || typeof parsed !== 'object') return null
   const o = parsed as { senior?: unknown; sixth?: unknown; average?: unknown }
@@ -199,7 +202,8 @@ function buildClassSize({ notion }: SeedContext): CellValue | null {
   if (senior && sixth) return { value: `Senior ${senior} · Sixth ${sixth}`, source: 'notion.parsed.class_size' }
   if (senior) return { value: senior, source: 'notion.parsed.class_size' }
   if (sixth) return { value: sixth, source: 'notion.parsed.class_size' }
-  if (typeof o.average === 'number') return { value: `~${o.average} avg`, source: 'notion.parsed.class_size' }
+  const avg = fmtBucket(o.average)
+  if (avg) return { value: `~${avg} avg`, source: 'notion.parsed.class_size' }
   return null
 }
 
@@ -356,8 +360,32 @@ function buildInternationalPupils({ struct, notion }: SeedContext): CellValue | 
   return null
 }
 
-function buildDayPupils(_: SeedContext): CellValue | null {
-  return null  // Notion does not carry day_count; pending extractor (5.5h)
+function buildDayPupils({ struct, notion }: SeedContext): CellValue | null {
+  // 2026-05-19 — derive day pupils from total_pupils − boarder_count when both
+  // come from the SAME source family. Mixing extractor's total with Notion's
+  // boarder count would compare different cohort definitions / snapshot dates,
+  // so each branch (extractor / Notion) only fires when both sides are present
+  // for that source. Sanity: total > boarders (≤0 ⇒ data error, fall through).
+  const sc = struct?.student_community as Record<string, unknown> | null | undefined
+  const extTotal    = typeof sc?.total_pupils  === 'number' ? sc.total_pupils  as number : null
+  const extBoarders = typeof sc?.boarder_count === 'number' ? sc.boarder_count as number : null
+  if (extTotal != null && extBoarders != null && extTotal > extBoarders) {
+    return {
+      value:  `~${(extTotal - extBoarders).toLocaleString()}`,
+      source: 'derived: student_community.total_pupils − boarder_count',
+      note:   'Total − Boarders',
+    }
+  }
+  const notionTotal    = notionParsedNumber(notion, 'total_pupils')
+  const notionBoarders = notionParsedNumber(notion, 'boarder_count')
+  if (notionTotal != null && notionBoarders != null && notionTotal > notionBoarders) {
+    return {
+      value:  `~${(notionTotal - notionBoarders).toLocaleString()}`,
+      source: 'derived: notion.parsed.total_pupils − boarder_count',
+      note:   'Total − Boarders',
+    }
+  }
+  return null
 }
 
 function buildBoardingRatio({ struct, notion }: SeedContext): CellValue | null {
