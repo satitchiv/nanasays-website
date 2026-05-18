@@ -136,18 +136,16 @@ export async function POST(req: NextRequest) {
   // Optional Stage 2 (LLM) is gated separately via NANA_CLARIFIER_LLM.
   // Both stages fail OPEN — any error preserves today's behaviour.
   //
-  // hasUsableHistory: hardcoded `false` for v1 ship. The proper signal is
-  // "session has prior message rows" — Research Room can pre-create empty
-  // sessions via ensure_research_session_for_child, so sessionId presence
-  // alone is too broad. When NANA_CLARIFIER_LLM is later flipped on, the
-  // client (useNanaChat) should send hasUsableHistory: messages.length > 0
-  // in the request body and this line becomes `body?.hasUsableHistory === true`.
+  // hasUsableHistory must mean "prior chat turns exist", not just sessionId:
+  // Research Room can pre-create empty sessions via
+  // ensure_research_session_for_child. useNanaChat sends the prior-message
+  // signal so second-turn clarifier answers like "academics" are allowed.
   //
   // No session_ready emission for clarifier turns — useNanaChat treats every
   // session_ready as the active session, so a fake id would orphan an
   // in-flight research session. Just emit `final` and close.
   const clarifier = await needsClarification(question, {
-    hasUsableHistory: false,
+    hasUsableHistory: body?.hasUsableHistory === true,
     signal: req.signal || null,
   })
   if (clarifier.needsClarification) {

@@ -117,6 +117,8 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
   const abortRef   = useRef<AbortController | null>(null)
   const chatEndRef = useRef<HTMLDivElement>(null)
   const inputRef   = useRef<HTMLTextAreaElement>(null)
+  const messagesRef = useRef(messages)
+  messagesRef.current = messages
 
   // Keep latest references to caller-provided getters in refs so the ask()
   // useCallback can stay stable. If we put them in deps, an inline closure
@@ -237,6 +239,7 @@ export function useNanaChat(opts: UseNanaChatOptions): UseNanaChatReturn {
         body: JSON.stringify({
           question: q,
           sessionId: session?.id,
+          hasUsableHistory: messagesRef.current.length > 0,
           devilsAdvocate,
           deepMode: deepMode && sp.shortlistSlugs.length >= 2,
           activeTab: sp.activeTab,

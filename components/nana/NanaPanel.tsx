@@ -94,9 +94,19 @@ type StreamEvent =
   | { type: 'final'; payload: FinalPayload; shareToken?: string }
   | { type: 'error'; error: string; code: string }
 
-type Props = { slug: string; schoolName?: string; isPaid?: boolean }
+type Props = {
+  slug: string
+  schoolName?: string
+  headerSchoolName?: string
+  isPaid?: boolean
+}
 
-export default function NanaPanel({ slug, schoolName = 'this school', isPaid = true }: Props) {
+export default function NanaPanel({
+  slug,
+  schoolName = 'this school',
+  headerSchoolName,
+  isPaid = true,
+}: Props) {
   const [open, setOpen] = useState(false)
   const [question, setQuestion] = useState('')
   const [streaming, setStreaming] = useState(false)
@@ -147,6 +157,8 @@ export default function NanaPanel({ slug, schoolName = 'this school', isPaid = t
     const q = (override ?? question).trim()
     if (!q || streaming) return
 
+    const hasUsableHistory = Boolean(askedQuestion || final || streamBuf)
+
     reset()
     setAskedQuestion(q)
     setQuestion('')
@@ -165,7 +177,7 @@ export default function NanaPanel({ slug, schoolName = 'this school', isPaid = t
       const res = await fetch(`/api/nana-parent-chatbot/${slug}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: q, devilsAdvocate }),
+        body: JSON.stringify({ question: q, devilsAdvocate, hasUsableHistory }),
         signal: controller.signal,
       })
 
@@ -290,7 +302,7 @@ export default function NanaPanel({ slug, schoolName = 'this school', isPaid = t
           <header className="nana-header">
             <span className="nana-pulse" />
             <h2 className="nana-title">Nana</h2>
-            <span className="nana-sub">reading {schoolName}</span>
+            <span className="nana-sub">reading {headerSchoolName ?? schoolName}</span>
             <button
               className={`nana-devil-toggle${devilsAdvocate ? ' active' : ''}`}
               onClick={() => setDevilsAdvocate(d => !d)}

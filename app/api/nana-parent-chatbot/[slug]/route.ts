@@ -188,7 +188,7 @@ export async function POST(
   // can submit deliberate edge-case prompts.
   if (!isDevBypass) {
     const clarifier = await needsClarification(question, {
-      hasUsableHistory: false, // NanaPanel is single-turn per page-load
+      hasUsableHistory: body?.hasUsableHistory === true,
       signal: req.signal || null,
     })
     if (clarifier.needsClarification) {

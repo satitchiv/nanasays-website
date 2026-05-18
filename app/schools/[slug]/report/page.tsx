@@ -41,6 +41,7 @@ import PoliciesSection, { hasMeaningfulPoliciesData } from '@/components/report/
 import UnlockBanner           from '@/components/report/UnlockBanner'
 import { computeDossierStats } from '@/lib/dossier-stats'
 import { getUnlockedUser }    from '@/lib/paid-status'
+import { disambiguateSchoolDisplayName, schoolNameSearchPrefix } from '@/lib/school-display-name'
 import VisitNotes             from '@/components/school/VisitNotes'
 import ShortlistButton        from '@/components/school/ShortlistButton'
 
@@ -69,6 +70,40 @@ async function loadAll(slug: string) {
     sensitive: paid.sensitive,
     policyDocs: paid.policyDocs,
   }
+}
+
+async function loadNanaPanelSchoolName(school: any) {
+  const fallback = school?.name ?? 'this school'
+  const prefix = schoolNameSearchPrefix(school?.name)
+  if (!prefix) return fallback
+
+  const sb = supabaseService()
+  // Codex r3 P6-A: scope collision lookup to schools_status with
+  // has_substantial_chunks=true — i.e. schools that actually have report pages
+  // a parent could navigate to. Verified row counts (2026-05-16 Supabase):
+  // schools table = 25,256 UK rows ("St ..." alone = 2,115), schools_status
+  // with substantial chunks = 140 UK rows. The previous limit(2000) would
+  // have silently missed collisions for any "St ..." host. Disambiguation
+  // against non-substantial directory rows is unnecessary — those slugs
+  // don't render reports, so no parent confusion is possible.
+  let query = sb
+    .from('schools_status')
+    .select('school_slug, name')
+    .eq('has_substantial_chunks', true)
+    .ilike('name', `${prefix}%`)
+    .order('school_slug', { ascending: true })
+
+  if (school.country) {
+    query = query.eq('profile_country', school.country)
+  }
+
+  // Substantial-UK is ~140 rows. 1000 cap is comfortable headroom; sort makes
+  // any rare overflow deterministic.
+  const { data, error } = await query.limit(1000)
+  if (error) return fallback
+
+  const peers = (data ?? []).map(row => ({ slug: (row as any).school_slug, name: (row as any).name }))
+  return disambiguateSchoolDisplayName(school, peers)
 }
 
 function findRow(rows: any[], source: string, dataType?: string) {
@@ -276,6 +311,7 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
   const justUnlocked = sp.just_unlocked === 'true'
   const { school, structured, sensitive, policyDocs } = await loadAll(slug)
   if (!school) notFound()
+  const nanaPanelSchoolName = await loadNanaPanelSchoolName(school)
 
   const stats = computeDossierStats(structured, sensitive)
 
@@ -637,7 +673,12 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
         </span>
       )}
 
-      <NanaPanel slug={slug} schoolName={school.name} isPaid={isPaid} />
+      <NanaPanel
+        slug={slug}
+        schoolName={school.name}
+        headerSchoolName={nanaPanelSchoolName}
+        isPaid={isPaid}
+      />
     </main>
   )
 }
