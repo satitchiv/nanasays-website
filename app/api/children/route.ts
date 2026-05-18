@@ -2,14 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { supabaseService } from '@/lib/supabase-admin'
-import { recommendShortlist } from '@/lib/recommend-shortlist'
 import { ONBOARDING_FIELD_NAMES, FAMILY_CONSTANT_FIELD_NAMES } from '@/lib/onboarding-fields'
 
 // Children CRUD for the Research Room Brief tab.
 // RLS on `children` table enforces auth.uid() = user_id, so the
-// authenticated client is sufficient for reads/writes. The recommender
-// fired on POST uses the service-role client because schools_status /
-// school_structured_data are RLS-locked from anon.
+// authenticated client is sufficient for reads/writes. POST creates a
+// new child with funnel_state='interview' so the parent is forced into
+// the Build 7 fullscreen Build Mode interview before any recommendation
+// fires. The interview's finalize step is the ONLY auto-recommender
+// (2026-05-18) — the onboarding-time recommendShortlist() call that
+// used to fire here was dropped because it ran on the thin 5-field
+// profile before Nana had collected sports/goals/personality/free-text
+// signal, producing weak picks that polluted the shortlist.
 
 async function getAuthClient() {
   const cookieStore = await cookies()
@@ -143,15 +147,13 @@ export async function POST(req: NextRequest) {
     .eq('id', user.id)
   if (activeErr) console.warn('[POST /api/children] active_child_id update failed:', activeErr.message)
 
-  // Best-effort: run the recommender for this new child. Failures
-  // never fail the create — the child still exists and the parent
-  // can re-trigger via the Brief tab later.
-  try {
-    const result = await recommendShortlist(svc, user.id, created.id)
-    console.log('[POST /api/children recommendShortlist]', user.id, created.id, result.reason, result.added.length)
-  } catch (e) {
-    console.error('[POST /api/children recommendShortlist] threw:', e)
-  }
+  // 2026-05-18 — recommendShortlist() at child-creation time was removed.
+  // The parent now lands in the Build 7 fullscreen interview with an
+  // empty shortlist; Build Mode finalize's score-for-build-mode.ts is the
+  // only auto-recommender and runs once the interview has captured the
+  // rich Build Mode signal (sports/goals/personality/free-text). Parents
+  // who want recommendations on demand can still hit
+  // /api/children/[id]/refresh-recommendations from the Brief tab.
 
   return NextResponse.json({ child: created }, { status: 201 })
 }

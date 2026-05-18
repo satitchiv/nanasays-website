@@ -94,9 +94,13 @@ test('finalize: child_profile filtered via WRITABLE_PROFILE_KEYS allowlist', () 
 
 // ── Shortlist handling ───────────────────────────────────────────────
 
-test('finalize: empty shortlist returns 409', () => {
+test('finalize: empty shortlist is now valid (2026-05-18 Commit C) — picker seeds 6 schools', () => {
+  // Commit C removed the onboarding-time recommender; finalize is the
+  // first auto-recommender to fire. Empty shortlist must succeed and
+  // bump the propose cap to MAX_SCHOOL_PROPOSALS_FRESH (6).
   assert.match(src, /shortlistSlugs\.length === 0/)
-  assert.match(src, /'empty_shortlist'/)
+  assert.doesNotMatch(src, /'empty_shortlist'/)
+  assert.match(src, /MAX_SCHOOL_PROPOSALS_FRESH/)
 })
 
 test('finalize: shortlist falls back to comparison_views when body omits it', () => {
@@ -114,9 +118,14 @@ test('finalize: shortlist capped at MAX_SHORTLIST for prompt size', () => {
 
 // ── Proposal validation + shortlist allowlist ────────────────────────
 
-test('finalize: enforces MIN_PROPOSALS lower bound (schema only caps MAX)', () => {
+test('finalize: enforces MIN_PROPOSALS lower bound when shortlist is non-empty', () => {
+  // 2026-05-18 — the gate is now per-request: minRowProposals = 0 in
+  // fresh-start mode (empty shortlist) so the LLM can legitimately emit
+  // rowProposals: []. Falls back to MIN_PROPOSALS=3 otherwise. Combined
+  // sanity check after schools are appended catches the wholly-empty case.
   assert.match(src, /MIN_PROPOSALS\s*=\s*3/)
-  assert.match(src, /proposalsRaw\.length < MIN_PROPOSALS/)
+  assert.match(src, /const minRowProposals = isFreshStart \? 0 : MIN_PROPOSALS/)
+  assert.match(src, /proposalsRaw\.length < minRowProposals/)
 })
 
 test('finalize r9: trims overshoot to MAX_PROPOSALS (was unused constant)', () => {
@@ -158,11 +167,12 @@ test('finalize r6: rejects any response carrying an off-shortlist slug', () => {
   assert.match(src, /off-shortlist slug/)
 })
 
-test('finalize r6: re-checks MIN_PROPOSALS after the shortlist filter', () => {
+test('finalize r6: re-checks MIN_PROPOSALS after the shortlist filter (non-fresh only)', () => {
   // The pre-filter check catches under-count from the LLM; the post-
   // filter check covers the case where all of a proposal's cell_data
   // was off-list and got dropped, silently reducing persisted count.
-  assert.match(src, /Object\.keys\(proposed_actions\)\.length < MIN_PROPOSALS/)
+  // 2026-05-18 — gated on !isFreshStart so empty-shortlist mode skips it.
+  assert.match(src, /if \(!isFreshStart && Object\.keys\(proposed_actions\)\.length < MIN_PROPOSALS\)/)
   assert.match(src, /after filtering/)
 })
 

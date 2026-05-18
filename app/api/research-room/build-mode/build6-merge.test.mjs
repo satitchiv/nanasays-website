@@ -188,10 +188,17 @@ test('finalize route: backend tag bumped to build-mode-finalize-v2 (Codex Q9)', 
   assert.match(src, /backend:\s+['"]build-mode-finalize-v2['"]/)
 })
 
-test('finalize route: MAX_SCHOOL_PROPOSALS = 3 enforced after filter', () => {
+test('finalize route: school proposal bounds split into _DEFAULT (3) + _FRESH (6) after 2026-05-18', () => {
+  // The cap was split because Commit C removed the onboarding-time
+  // recommender — finalize now seeds the comparison table for fresh
+  // parents, so 2-3 picks would leave the table thin.
   const src = readFile('app/api/research-room/build-mode/finalize/route.ts')
-  assert.match(src, /MAX_SCHOOL_PROPOSALS\s*=\s*3/)
-  assert.match(src, /safeSchoolProposals\.slice\(0, MAX_SCHOOL_PROPOSALS\)/)
+  assert.match(src, /MAX_SCHOOL_PROPOSALS_DEFAULT\s*=\s*3/)
+  assert.match(src, /MAX_SCHOOL_PROPOSALS_FRESH\s*=\s*6/)
+  // Slicer reads the per-request computed cap, not the constant directly.
+  assert.match(src, /safeSchoolProposals\.slice\(0, maxSchoolProposals\)/)
+  // The branch that picks the cap lives next to shortlistSlugs.
+  assert.match(src, /shortlistSlugs\.length === 0\s*\n\s*\?\s*MAX_SCHOOL_PROPOSALS_FRESH\s*\n\s*:\s*MAX_SCHOOL_PROPOSALS_DEFAULT/)
 })
 
 // ── 4. write-action add_school branch ───────────────────────────────

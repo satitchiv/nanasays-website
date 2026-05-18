@@ -55,9 +55,15 @@ const MAX_SHORTLIST = 12   // Defensive cap; comparison_views typically ≤ 8.
 const MIN_PROPOSALS = 3
 const MAX_PROPOSALS = 5
 // Slice 8 Build 6: school proposal bounds. Codex r-merge Q3 capped at
-// 5 candidates surfaced as pills; the scorer returns more (up to 20)
-// so the LLM has room to discriminate before picking 2-3.
-const MAX_SCHOOL_PROPOSALS = 3
+// 3 surfaced as pills; the scorer returns more (up to 20) so the LLM has
+// room to discriminate.
+// 2026-05-18 — split into _DEFAULT vs _FRESH. After Commit C the parent
+// arrives at finalize with an EMPTY shortlist by default (the onboarding-
+// time recommender was removed), and 2–3 picks left the comparison table
+// thin. Bump to 6 for fresh entry; keep at 3 when the parent already
+// curated a shortlist (finalize is then augmenting, not seeding).
+const MAX_SCHOOL_PROPOSALS_DEFAULT = 3
+const MAX_SCHOOL_PROPOSALS_FRESH   = 6
 const SCORER_CANDIDATE_LIMIT = 20
 
 const RequestSchema = z.object({
@@ -136,10 +142,11 @@ function shortId(): string {
 }
 
 function buildFinalizeSystemPrompt(args: {
-  childName:      string
-  childProfile:   Partial<BuildModeExtractionHTTP>
-  shortlistSlugs: string[]
-  candidates:     ScoredCandidate[]
+  childName:           string
+  childProfile:        Partial<BuildModeExtractionHTTP>
+  shortlistSlugs:      string[]
+  candidates:          ScoredCandidate[]
+  maxSchoolProposals:  number
 }): string {
   const profileLines: string[] = []
   const p = args.childProfile
@@ -170,21 +177,35 @@ function buildFinalizeSystemPrompt(args: {
     ? args.candidates.map(c => `• ${c.slug}: ${c.rationale_seed}`).join('\n')
     : '(none — DO NOT include schoolProposals at all. Emit `schoolProposals: []` verbatim. Do not invent slugs.)'
 
+  // 2026-05-18 — empty-shortlist branch. After Commit C the parent arrives
+  // here with an empty shortlist by default; rowProposals reference
+  // cell_data per shortlist slug, so with zero slugs the rows have
+  // nowhere to anchor. Tell the LLM to skip rowProposals entirely in
+  // that case — the standard general/brief rows auto-seed from
+  // seedResearchSession when each proposed school is confirmed.
+  const isFreshStart = args.shortlistSlugs.length === 0
+  const shortlistBlock = isFreshStart
+    ? '(none — the parent is starting fresh. Emit `rowProposals: []` verbatim; the general rows auto-populate when each school is added.)'
+    : args.shortlistSlugs.map(s => `• ${s}`).join('\n')
+  const rowProposalLine = isFreshStart
+    ? `  1. NO comparison rows — emit \`rowProposals: []\` verbatim. (See SHORTLIST SCHOOLS below.)`
+    : `  1. ${MIN_PROPOSALS}-${MAX_PROPOSALS} comparison ROWS for the table — each row anchored on a SPECIFIC priority captured below.`
+
   return [
     `You are Nana, helping a parent build a comparison table tailored to their child.`,
     ``,
     `The parent has just finished a Build Mode interview about ${args.childName}.`,
     `Your job: propose BOTH of the following in a single JSON response:`,
-    `  1. ${MIN_PROPOSALS}-${MAX_PROPOSALS} comparison ROWS for the table — each row anchored on a SPECIFIC priority captured below.`,
-    `  2. 0-${MAX_SCHOOL_PROPOSALS} new SCHOOL suggestions to add to the parent's shortlist — picked from the candidate list below if any fit, otherwise emit []. Only suggest schools the parent doesn't already have.`,
+    rowProposalLine,
+    `  2. 0-${args.maxSchoolProposals} new SCHOOL suggestions to add to the parent's shortlist — picked from the candidate list below if any fit, otherwise emit []. Only suggest schools the parent doesn't already have.`,
     ``,
     `CHILD PROFILE`,
     profileBlock,
     ``,
     `SHORTLIST SCHOOLS (use ONLY these exact slugs in row cell_data — never propose a row covering a school outside this list):`,
-    args.shortlistSlugs.map(s => `• ${s}`).join('\n'),
+    shortlistBlock,
     ``,
-    `OFF-SHORTLIST CANDIDATE SCHOOLS (you may pick UP TO ${MAX_SCHOOL_PROPOSALS} from this list to suggest as new additions; never invent slugs outside this list):`,
+    `OFF-SHORTLIST CANDIDATE SCHOOLS (you may pick UP TO ${args.maxSchoolProposals} from this list to suggest as new additions; never invent slugs outside this list):`,
     candidateBlock,
     ``,
     `RULES — rowProposals`,
@@ -281,7 +302,15 @@ export async function POST(req: NextRequest) {
       shortlistSlugs = views.map(v => (v as { school_slug: string }).school_slug).filter(Boolean)
     }
   }
-  if (shortlistSlugs.length === 0) return jsonError(409, 'empty_shortlist')
+  // 2026-05-18 — empty shortlist is now valid. With Commit C removing the
+  // onboarding-time recommender, the parent reaches finalize from a fresh
+  // state. We rely on Picker #2 (score-for-build-mode.ts) + the LLM
+  // proposal step to seed 5–6 schools; the empty-shortlist 409 that used
+  // to live here was a leftover from the "shortlist always pre-populated"
+  // assumption.
+  const maxSchoolProposals = shortlistSlugs.length === 0
+    ? MAX_SCHOOL_PROPOSALS_FRESH
+    : MAX_SCHOOL_PROPOSALS_DEFAULT
 
   // ── Score off-shortlist candidates (Codex r-merge Q4 P1) ──────────
   // Run the Build Mode scorer against the FULL UK directory, excluding
@@ -326,7 +355,7 @@ export async function POST(req: NextRequest) {
   // We reuse streamBuildModeTurn as the streaming primitive. The
   // extraction schema is the parallel-array shape
   // (rowProposals + schoolProposals) per Codex r-merge Q1 OK.
-  const systemPrompt = buildFinalizeSystemPrompt({ childName, childProfile, shortlistSlugs, candidates })
+  const systemPrompt = buildFinalizeSystemPrompt({ childName, childProfile, shortlistSlugs, candidates, maxSchoolProposals })
   const messages: BuildModeMessage[] = [
     { role: 'system', content: systemPrompt },
     { role: 'user',   content: 'Please propose the rows and school suggestions now.' },
@@ -377,11 +406,19 @@ export async function POST(req: NextRequest) {
         // ── Row proposals — same handling as v1 finalize ─────────────
         // Codex r9 NIT — trim to MAX_PROPOSALS even though the schema
         // caps at 8 (prompt asks for 3-5; protect the UI from overshoot).
+        // 2026-05-18 — relax the MIN_PROPOSALS gate in fresh-start mode.
+        // With an empty shortlist there's no slug to anchor rows against,
+        // so the prompt instructs the LLM to emit rowProposals: []. The
+        // previous hard gate would crash the entire finalize before
+        // schools were ever processed. A combined "must produce SOME
+        // action" sanity check fires after schools are appended below.
+        const isFreshStart = shortlistSlugs.length === 0
+        const minRowProposals = isFreshStart ? 0 : MIN_PROPOSALS
         const proposalsRaw = rowProposalsExtracted.length > MAX_PROPOSALS
           ? rowProposalsExtracted.slice(0, MAX_PROPOSALS)
           : rowProposalsExtracted
-        if (proposalsRaw.length < MIN_PROPOSALS) {
-          send({ type: 'error', error: `Finalize returned ${proposalsRaw.length} row proposals; expected ≥ ${MIN_PROPOSALS}` })
+        if (proposalsRaw.length < minRowProposals) {
+          send({ type: 'error', error: `Finalize returned ${proposalsRaw.length} row proposals; expected ≥ ${minRowProposals}` })
           return
         }
 
@@ -424,7 +461,10 @@ export async function POST(req: NextRequest) {
           send({ type: 'error', error: `Finalize emitted ${offListSlugs.length} off-shortlist slug(s); rejecting response.` })
           return
         }
-        if (Object.keys(proposed_actions).length < MIN_PROPOSALS) {
+        // 2026-05-18 — fresh-start mode rightly has zero row proposals at
+        // this point. Skip the row-retention gate; the combined sanity
+        // check after schools are appended catches a wholly-empty finalize.
+        if (!isFreshStart && Object.keys(proposed_actions).length < MIN_PROPOSALS) {
           send({ type: 'error', error: `Finalize retained ${Object.keys(proposed_actions).length} row proposals after filtering; expected ≥ ${MIN_PROPOSALS}` })
           return
         }
@@ -496,8 +536,10 @@ export async function POST(req: NextRequest) {
             return true
           })
         }
-        // Trim and resolve display_name from schools table in one batch
-        safeSchoolProposals = safeSchoolProposals.slice(0, MAX_SCHOOL_PROPOSALS)
+        // Trim and resolve display_name from schools table in one batch.
+        // 2026-05-18 — uses the computed maxSchoolProposals (fresh-start =
+        // 6, augment = 3) so empty-shortlist finalize seeds a real table.
+        safeSchoolProposals = safeSchoolProposals.slice(0, maxSchoolProposals)
         if (safeSchoolProposals.length > 0) {
           const slugs = safeSchoolProposals.map(sp => sp.slug)
           const { data: nameRows } = await svc
@@ -524,6 +566,15 @@ export async function POST(req: NextRequest) {
         // Persist + log. Parallel with the turn route's pattern.
         const rowCount    = Object.values(proposed_actions).filter(a => a.kind === 'propose_add_row').length
         const schoolCount = Object.values(proposed_actions).filter(a => a.kind === 'propose_add_school').length
+        // 2026-05-18 — fresh-start sanity gate. The per-stream early
+        // returns now skip the row-min gate in fresh-start mode, so the
+        // only remaining "wholly empty finalize" guard is here: if
+        // neither rows NOR schools survived, error rather than persist
+        // an empty message.
+        if (rowCount === 0 && schoolCount === 0) {
+          send({ type: 'error', error: `Finalize produced no row or school proposals; nothing to persist.` })
+          return
+        }
         const parsedAnswer = {
           format:           'prose_v1' as const,
           prose:            proseAccum,
