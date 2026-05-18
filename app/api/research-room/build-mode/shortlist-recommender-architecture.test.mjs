@@ -108,3 +108,22 @@ test('Commit C bug-fix: combined sanity check after schools appended', () => {
   assert.match(src, /if \(rowCount === 0 && schoolCount === 0\) \{/)
   assert.match(src, /Finalize produced no row or school proposals/)
 })
+
+// Bug 5 fix (Option A, 2026-05-19) — the LLM was picking famous-but-
+// wrong-region schools over higher-ranked Midlands+football schools
+// because the prompt didn't tell it the candidates were pre-sorted.
+test('Bug 5: prompt declares candidate list is pre-sorted by data-driven fit', () => {
+  const src = readFile('app/api/research-room/build-mode/finalize/route.ts')
+  // The explicit pre-sort declaration in the candidate section
+  assert.match(src, /THE LIST IS PRE-SORTED BY DATA-DRIVEN FIT/)
+  assert.match(src, /PREFER the top \$\{args\.maxSchoolProposals\} candidates/)
+  // The swap-justification clause
+  assert.match(src, /rationale MUST explain the swap based on the captured profile/)
+})
+
+test('Bug 5: schoolProposals rules include the pre-sort-respect rule (10b)', () => {
+  const src = readFile('app/api/research-room/build-mode/finalize/route.ts')
+  assert.match(src, /10b\. RESPECT THE PRE-SORT/)
+  // The worked example pinning the SmokeTestBoy regression class.
+  assert.match(src, /Famous-school reputation is NOT a valid reason/)
+})

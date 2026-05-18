@@ -206,7 +206,17 @@ function buildFinalizeSystemPrompt(args: {
     `SHORTLIST SCHOOLS (use ONLY these exact slugs in row cell_data — never propose a row covering a school outside this list):`,
     shortlistBlock,
     ``,
-    `OFF-SHORTLIST CANDIDATE SCHOOLS (you may pick UP TO ${args.maxSchoolProposals} from this list to suggest as new additions; never invent slugs outside this list):`,
+    // 2026-05-19 Bug 5 fix (Option A) — the candidate list is ALREADY
+    // sorted by data-driven fit (region match + curriculum + sport tier +
+    // budget + academic + pastoral + class size). Without the explicit
+    // "respect the order" instruction, GPT was passing over the top-
+    // ranked Midlands+football schools (Shrewsbury, Repton, Bromsgrove,
+    // Malvern) and picking famous-but-wrong-region picks (Eton, Wellington-
+    // Berkshire) on its own internal "best schools I know" prior. The
+    // explicit instruction below tells GPT the candidates are pre-ranked
+    // so it leans on the data signals rather than its training set.
+    `OFF-SHORTLIST CANDIDATE SCHOOLS (you may pick UP TO ${args.maxSchoolProposals} from this list to suggest as new additions; never invent slugs outside this list).`,
+    `THE LIST IS PRE-SORTED BY DATA-DRIVEN FIT TO THIS CHILD'S PROFILE — top of the list = best match per the scorer (region, curriculum, sport tier, budget, academic strength, etc.). PREFER the top ${args.maxSchoolProposals} candidates unless a lower-ranked candidate's rationale_seed clearly explains a better fit for THIS specific child's captured priorities. If you swap a top candidate for a lower-ranked one, your rationale MUST explain the swap based on the captured profile — not on general school reputation.`,
     candidateBlock,
     ``,
     // Build 6 row-dedup followup (2026-05-18) — list the rows the
@@ -232,6 +242,7 @@ function buildFinalizeSystemPrompt(args: {
     `8. rationale: one short sentence linking the school to the captured profile. Use ${args.childName}'s ACTUAL captured interests (sports, arts, goals) — NEVER substitute a different sport or interest than what the parent told us. If the candidate's rationale_seed says "strong football", the rationale must reference football, not rugby or another sport.`,
     `9. match_signals: 1–5 short chip labels (≤48 chars each) summarising why this school fits. Use the signals from the candidate's rationale_seed when you can.`,
     `10. Only propose schools where the rationale ties to a SPECIFIC captured priority. If no candidate fits the parent's priorities well, return schoolProposals: [].`,
+    `10b. RESPECT THE PRE-SORT — pick contiguously from the top of the candidate list. The scorer already weighed region, curriculum, sport tier, budget, and academic strength. Famous-school reputation is NOT a valid reason to skip a higher-ranked candidate; data-driven fit is. (Worked example: if the top-ranked candidate is in the parent's region with national-strong football, do not skip it for a national-elite school in the wrong region.)`,
     ``,
     `GENERAL`,
     `11. Do NOT mention schools outside the shortlist OR the candidate list. Do NOT summarise the table. Do NOT recommend a single school in prose.`,
