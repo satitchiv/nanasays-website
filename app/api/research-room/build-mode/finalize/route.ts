@@ -147,6 +147,7 @@ function buildFinalizeSystemPrompt(args: {
   shortlistSlugs:      string[]
   candidates:          ScoredCandidate[]
   maxSchoolProposals:  number
+  existingRowNames:    string[]
 }): string {
   const profileLines: string[] = []
   const p = args.childProfile
@@ -208,22 +209,33 @@ function buildFinalizeSystemPrompt(args: {
     `OFF-SHORTLIST CANDIDATE SCHOOLS (you may pick UP TO ${args.maxSchoolProposals} from this list to suggest as new additions; never invent slugs outside this list):`,
     candidateBlock,
     ``,
+    // Build 6 row-dedup followup (2026-05-18) — list the rows the
+    // parent's table already has, plus an explicit instruction to skip
+    // overlapping proposals. Tested on the actual duplicate-pair set
+    // that surfaced in browser smoke 2026-05-15 ("Pastoral care and
+    // social fit" / "Pastoral care after bullying" etc.).
+    `EXISTING COMPARISON ROWS (already in the parent's table — propose a row only if it covers a DISTINCT topic):`,
+    args.existingRowNames.length > 0
+      ? args.existingRowNames.map(n => `• ${n}`).join('\n')
+      : '(none — this is the first finalize for this session.)',
+    ``,
     `RULES — rowProposals`,
     `1. Each row MUST anchor on one specific captured priority. If the parent said "football", propose "Football competitive level" — NOT generic "Sports". Use their actual words.`,
     `2. group_name MUST be exactly "child-specific" (verbatim) — no other groups.`,
     `3. weight: 0.0–1.0 reflecting how important this row is to the child. The single highest-priority topic gets ≥0.8. Otherwise 0.4–0.7.`,
     `4. rationale: one short sentence linking the row to a specific thing the parent said.`,
     `5. cell_data: emit ONE entry per shortlist slug above. Use { slug, value: null, source: null, note: null } — leave value population for follow-up turns. Don't invent data.`,
+    `6. DEDUPE against EXISTING COMPARISON ROWS above. If a proposed row covers the same topic (even with different wording — "Pastoral care and social fit" vs "Pastoral care after bullying" overlap), DROP it. The parent already has that topic. Only propose rows whose topic isn't already represented.`,
     ``,
     `RULES — schoolProposals`,
-    `6. slug: MUST be EXACTLY one of the OFF-SHORTLIST CANDIDATE slugs above. Never invent.`,
-    `7. rationale: one short sentence linking the school to the captured profile. Use ${args.childName}'s ACTUAL captured interests (sports, arts, goals) — NEVER substitute a different sport or interest than what the parent told us. If the candidate's rationale_seed says "strong football", the rationale must reference football, not rugby or another sport.`,
-    `8. match_signals: 1–5 short chip labels (≤48 chars each) summarising why this school fits. Use the signals from the candidate's rationale_seed when you can.`,
-    `9. Only propose schools where the rationale ties to a SPECIFIC captured priority. If no candidate fits the parent's priorities well, return schoolProposals: [].`,
+    `7. slug: MUST be EXACTLY one of the OFF-SHORTLIST CANDIDATE slugs above. Never invent.`,
+    `8. rationale: one short sentence linking the school to the captured profile. Use ${args.childName}'s ACTUAL captured interests (sports, arts, goals) — NEVER substitute a different sport or interest than what the parent told us. If the candidate's rationale_seed says "strong football", the rationale must reference football, not rugby or another sport.`,
+    `9. match_signals: 1–5 short chip labels (≤48 chars each) summarising why this school fits. Use the signals from the candidate's rationale_seed when you can.`,
+    `10. Only propose schools where the rationale ties to a SPECIFIC captured priority. If no candidate fits the parent's priorities well, return schoolProposals: [].`,
     ``,
     `GENERAL`,
-    `10. Do NOT mention schools outside the shortlist OR the candidate list. Do NOT summarise the table. Do NOT recommend a single school in prose.`,
-    `11. Return JSON matching the response_format schema: { rowProposals: [...], schoolProposals: [...] }.`,
+    `11. Do NOT mention schools outside the shortlist OR the candidate list. Do NOT summarise the table. Do NOT recommend a single school in prose.`,
+    `12. Return JSON matching the response_format schema: { rowProposals: [...], schoolProposals: [...] }.`,
   ].join('\n')
 }
 
@@ -312,6 +324,34 @@ export async function POST(req: NextRequest) {
     ? MAX_SCHOOL_PROPOSALS_FRESH
     : MAX_SCHOOL_PROPOSALS_DEFAULT
 
+  // ── Existing comparison rows (Build 6 row-dedup followup, 2026-05-18) ──
+  // Each "Build my comparison table now" re-click runs finalize fresh,
+  // so without this the LLM proposed near-duplicates on subsequent
+  // clicks ("Pastoral care and social fit" → "Pastoral care after
+  // bullying"; "Maths support when behind" → "Maths support when under
+  // pressure"). Surface the current row_name set so the LLM can avoid
+  // overlapping proposals. Best-effort: failure here is logged and we
+  // fall back to the old behaviour (LLM may propose duplicates, parent
+  // can × them manually).
+  let existingRowNames: string[] = []
+  try {
+    const { data: rowsData, error: rowsErr } = await svc
+      .from('comparison_rows')
+      .select('row_name')
+      .eq('session_id', body.sessionId)
+      .is('undone_at', null)
+      .limit(64)
+    if (rowsErr) {
+      console.warn('[build-mode/finalize] existing rows read failed:', rowsErr.message)
+    } else if (Array.isArray(rowsData)) {
+      existingRowNames = rowsData
+        .map(r => (r as { row_name: unknown }).row_name)
+        .filter((n): n is string => typeof n === 'string' && n.trim() !== '')
+    }
+  } catch (e) {
+    console.warn('[build-mode/finalize] existing rows read threw:', e)
+  }
+
   // ── Score off-shortlist candidates (Codex r-merge Q4 P1) ──────────
   // Run the Build Mode scorer against the FULL UK directory, excluding
   // the parent's current shortlist. Result feeds the LLM prompt as the
@@ -355,7 +395,7 @@ export async function POST(req: NextRequest) {
   // We reuse streamBuildModeTurn as the streaming primitive. The
   // extraction schema is the parallel-array shape
   // (rowProposals + schoolProposals) per Codex r-merge Q1 OK.
-  const systemPrompt = buildFinalizeSystemPrompt({ childName, childProfile, shortlistSlugs, candidates, maxSchoolProposals })
+  const systemPrompt = buildFinalizeSystemPrompt({ childName, childProfile, shortlistSlugs, candidates, maxSchoolProposals, existingRowNames })
   const messages: BuildModeMessage[] = [
     { role: 'system', content: systemPrompt },
     { role: 'user',   content: 'Please propose the rows and school suggestions now.' },
@@ -400,8 +440,27 @@ export async function POST(req: NextRequest) {
         }
 
         const extracted = await stream.extraction as BuildModeFinalizeMixed
-        const rowProposalsExtracted    = extracted.rowProposals
+        let rowProposalsExtracted      = extracted.rowProposals
         const schoolProposalsExtracted = extracted.schoolProposals
+
+        // Build 6 row-dedup followup defense-in-depth (2026-05-18) —
+        // the prompt asks the LLM to dedupe against EXISTING COMPARISON
+        // ROWS, but exact-name collisions still occasionally slip
+        // through. Drop any proposal whose row_name (case-insensitive,
+        // trimmed) matches a row already on the table. The prompt rule
+        // still does the heavy lifting for the "different wording, same
+        // topic" case which exact-match can't catch.
+        if (existingRowNames.length > 0) {
+          const existingLc = new Set(existingRowNames.map(n => n.trim().toLowerCase()))
+          const before = rowProposalsExtracted.length
+          rowProposalsExtracted = rowProposalsExtracted.filter(p => {
+            const name = typeof p?.row_name === 'string' ? p.row_name.trim().toLowerCase() : ''
+            return name === '' || !existingLc.has(name)
+          })
+          if (rowProposalsExtracted.length < before) {
+            console.log(`[build-mode/finalize] row-dedup dropped ${before - rowProposalsExtracted.length} exact-name duplicates`)
+          }
+        }
 
         // ── Row proposals — same handling as v1 finalize ─────────────
         // Codex r9 NIT — trim to MAX_PROPOSALS even though the schema
