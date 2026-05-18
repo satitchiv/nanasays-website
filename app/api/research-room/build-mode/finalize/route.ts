@@ -795,12 +795,96 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        // 2026-05-19 Option A — fresh-start auto-accept.
+        // In fresh-start mode (empty shortlist on entry), the
+        // "Build my comparison table now" CTA should actually BUILD
+        // the table, not just propose 5–6 chips the parent has to
+        // click. Mirrors the chip-click flow's confirm_add_school RPC
+        // + match_reasons + seedResearchSession side effects but does
+        // them server-side automatically in a tight loop. The
+        // auto_accepted_count flag on the final event triggers the
+        // client to router.refresh, which picks up the new shortlist
+        // + actions[] stamps so the chips render as "✓ Added".
+        // Augment mode (non-fresh, parent already had a shortlist)
+        // keeps the existing chip-confirm UX — the parent reviews
+        // additions one-by-one when augmenting.
+        let autoAcceptedCount = 0
+        const autoAcceptedSlugs: string[] = []
+        if (isFreshStart && messageId && schoolCount > 0 && sess?.child_id) {
+          const schoolProposalEntries = Object.entries(proposed_actions).filter(
+            ([, a]) => a.kind === 'propose_add_school',
+          )
+          for (const [proposalId] of schoolProposalEntries) {
+            try {
+              const { data: rpcData, error: rpcErr } = await svc.rpc('confirm_add_school', {
+                p_message_id:  messageId,
+                p_proposal_id: proposalId,
+              })
+              if (rpcErr) {
+                console.warn('[build-mode/finalize] auto-accept rpc failed', proposalId, rpcErr.message)
+                continue
+              }
+              const result = Array.isArray(rpcData) ? rpcData[0] : rpcData
+              const outSlug   = (result as { out_slug?: string } | null)?.out_slug
+              const outStatus = (result as { out_status?: string } | null)?.out_status
+              if (typeof outSlug === 'string' &&
+                  (outStatus === 'added' || outStatus === 're_added' || outStatus === 'already_present')) {
+                autoAcceptedSlugs.push(outSlug)
+                autoAcceptedCount += 1
+                // Best-effort match_reasons (mirrors the chip-click path
+                // in app/api/research-room/write-action/route.ts).
+                try {
+                  const { writeMatchReasonsForInRoomAdd } = await import('@/lib/research-room/write-match-reasons')
+                  await writeMatchReasonsForInRoomAdd(user.id, sess.child_id, outSlug)
+                } catch (e) {
+                  console.warn('[build-mode/finalize] auto-accept match_reasons failed', e)
+                }
+              } else if (outStatus === 'rejected_gender_mismatch') {
+                console.warn('[build-mode/finalize] auto-accept gender mismatch', outSlug)
+              }
+            } catch (e) {
+              console.warn('[build-mode/finalize] auto-accept threw', e)
+            }
+          }
+          // Refresh seeded rows ONCE after all schools added so the
+          // comparison table populates immediately on the parent's
+          // post-finalize refresh.
+          if (autoAcceptedCount > 0) {
+            try {
+              const { loadShortlistContext, seedResearchSession } =
+                await import('@/lib/research-room/seed-rows')
+              const ctx = await loadShortlistContext(svc, user.id, sess.child_id)
+              const briefProfile = (child.child_profile ?? null) as
+                | import('@/lib/research-room/brief-predicates').BriefProfile
+                | null
+              await seedResearchSession(svc, user.id, body.sessionId, ctx, briefProfile)
+            } catch (e) {
+              console.warn('[build-mode/finalize] auto-accept seedResearchSession failed', e)
+            }
+          }
+        }
+
+        // Layer the auto-accept telemetry onto the in-memory copy of
+        // parsedAnswer for the final event. The persisted DB record
+        // (research_session_messages.parsed_answer) keeps the pre-auto-
+        // accept snapshot — that's fine because the source of truth for
+        // chip "✓ Added" state is the actions[] stamps confirm_add_school
+        // wrote above, NOT the parsed_answer.build_mode.auto_* fields.
+        const finalParsed = {
+          ...parsedAnswer,
+          build_mode: {
+            ...parsedAnswer.build_mode,
+            auto_accepted_count: autoAcceptedCount,
+            auto_accepted_slugs: autoAcceptedSlugs,
+          },
+        }
+
         send({
           type:       'final',
           shareToken: insertError ? null : shareToken,
           messageId,
           payload: {
-            parsed:     parsedAnswer,
+            parsed:     finalParsed,
             raw:        proseAccum,
             parseError: undefined,
           },

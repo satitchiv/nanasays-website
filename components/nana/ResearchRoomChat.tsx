@@ -725,6 +725,39 @@ export default function ResearchRoomChat({
     }
   }, [pendingAutoConfirmTopic, chat.messages, chat.isStreaming])
 
+  // 2026-05-19 — Option A: auto-refresh after finalize auto-accept.
+  // When the parent reaches Build Mode finalize from an empty
+  // shortlist (fresh-start mode), the server now auto-confirms each
+  // propose_add_school proposal server-side (confirm_add_school RPC
+  // + match_reasons + seedResearchSession) instead of waiting for
+  // the parent to click each chip individually. The server's final
+  // event carries `build_mode.auto_accepted_count > 0` as the
+  // signal. This effect calls router.refresh() once per such
+  // message so:
+  //   • activeShortlistSlugs + activeSchoolProposalIds re-derive
+  //     from the new actions[] stamps + shortlisted_schools rows,
+  //   • the chips render in their "✓ Added" state,
+  //   • the comparison table renders the new schools + seeded rows.
+  // The ref watermark stops repeat-firing on the same message
+  // (subsequent React re-renders re-run this effect; without the
+  // watermark we'd refresh infinitely while the message stays in
+  // chat.messages).
+  const lastAutoAcceptedMsgIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    const last = chat.messages[chat.messages.length - 1]
+    if (!last) return
+    if (lastAutoAcceptedMsgIdRef.current === last.id) return
+    const buildMode = (last.parsed as {
+      build_mode?: { auto_accepted_count?: number }
+    } | null)?.build_mode
+    const count = typeof buildMode?.auto_accepted_count === 'number'
+      ? buildMode.auto_accepted_count
+      : 0
+    if (count <= 0) return
+    lastAutoAcceptedMsgIdRef.current = last.id
+    router.refresh()
+  }, [chat.messages, router])
+
   // Slice 8 Build 3 session 4 — "Build my table" CTA. Posts to the
   // dedicated /api/research-room/build-mode/finalize route (NOT through
   // the regular Nana brain — the C-option fix replaced the earlier

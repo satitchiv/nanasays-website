@@ -127,3 +127,43 @@ test('Bug 5: schoolProposals rules include the pre-sort-respect rule (10b)', () 
   // The worked example pinning the SmokeTestBoy regression class.
   assert.match(src, /Famous-school reputation is NOT a valid reason/)
 })
+
+// Option A (2026-05-19): "Build my comparison table now" must actually
+// build the table, not just propose chips the parent has to click. The
+// server now auto-confirms each propose_add_school proposal server-side
+// in fresh-start mode + emits an auto_accepted_count flag the client
+// uses to trigger router.refresh.
+test('Option A: finalize auto-accepts propose_add_school proposals in fresh-start mode', () => {
+  const src = readFile('app/api/research-room/build-mode/finalize/route.ts')
+  // The auto-accept block is gated on isFreshStart + messageId + schoolCount > 0
+  assert.match(src, /if \(isFreshStart && messageId && schoolCount > 0 && sess\?\.child_id\)/)
+  // Calls confirm_add_school RPC for each proposal (same RPC as chip click)
+  assert.match(src, /\.rpc\('confirm_add_school', \{\s*p_message_id:\s+messageId/)
+  // Match outStatus must be 'added' | 're_added' | 'already_present' to count.
+  assert.match(src, /outStatus === 'added' \|\| outStatus === 're_added' \|\| outStatus === 'already_present'/)
+})
+
+test('Option A: best-effort match_reasons + seedResearchSession side effects', () => {
+  const src = readFile('app/api/research-room/build-mode/finalize/route.ts')
+  // Mirrors the chip-click flow in write-action/route.ts
+  assert.match(src, /writeMatchReasonsForInRoomAdd/)
+  // seedResearchSession fires ONCE after all auto-accepts (not per-school)
+  // — pinned by the "if (autoAcceptedCount > 0)" guard above the import.
+  assert.match(src, /if \(autoAcceptedCount > 0\) \{\s*\n\s*try \{\s*\n\s*const \{ loadShortlistContext, seedResearchSession \}/)
+})
+
+test('Option A: final event payload carries auto_accepted_count + slugs', () => {
+  const src = readFile('app/api/research-room/build-mode/finalize/route.ts')
+  // finalParsed extends build_mode with the auto-accept telemetry
+  assert.match(src, /auto_accepted_count:\s+autoAcceptedCount/)
+  assert.match(src, /auto_accepted_slugs:\s+autoAcceptedSlugs/)
+})
+
+test('Option A: client (ResearchRoomChat) refreshes on auto_accepted_count > 0', () => {
+  const src = readFile('components/nana/ResearchRoomChat.tsx')
+  // The useEffect that watches chat.messages for the build_mode auto-accept signal
+  assert.match(src, /lastAutoAcceptedMsgIdRef/)
+  assert.match(src, /build_mode\?: \{ auto_accepted_count\?: number \}/)
+  // Watermark prevents repeat-firing on re-renders
+  assert.match(src, /if \(lastAutoAcceptedMsgIdRef\.current === last\.id\) return/)
+})
