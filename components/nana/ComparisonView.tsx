@@ -591,6 +591,19 @@ export default function ComparisonView({
                 </div>
                 <div className="rr-cmp-head-name">{s.name}</div>
                 <div className="rr-cmp-head-meta">{s.meta}</div>
+                {/* Slice 8 Build 2b (2026-05-18) — surface the
+                    match_reasons stored on shortlisted_schools as
+                    "Added because: …" so parents can see WHY each
+                    school landed in their list. Null-safe: skipped
+                    when the row has no reasons (pre-Build-2 legacy
+                    rows, or chat-adds where the best-effort reasons
+                    write failed). */}
+                {s.addedBecause && (
+                  <div className="rr-cmp-head-reasons" title={`Added because: ${s.addedBecause}`}>
+                    <span className="rr-cmp-head-reasons-label">Added because:</span>{' '}
+                    <span className="rr-cmp-head-reasons-text">{s.addedBecause}</span>
+                  </div>
+                )}
                 {activeChildId && (
                   <button
                     type="button"

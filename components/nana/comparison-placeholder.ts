@@ -6,6 +6,14 @@ export type SchoolColumn = {
   slug: string
   name: string
   meta: string
+  // Slice 8 Build 2b (2026-05-18): pre-joined display string of the
+  // human-readable reasons stored on shortlisted_schools.match_reasons
+  // ("boarding school · strong rugby · offers IB diploma"). Rendered as
+  // an "Added because:" line under the school name in the comparison
+  // column header. Null/undefined when the school has no match_reasons
+  // row (legacy pre-Build-2 shortlist entries, or chat-added schools
+  // whose best-effort reasons write failed).
+  addedBecause?: string | null
 }
 
 export type RowCell =

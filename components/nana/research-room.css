@@ -3020,6 +3020,34 @@
   margin-top: 5px;
 }
 
+/* Slice 8 Build 2b (2026-05-18) — "Added because:" line under the
+   school name. Sits between .rr-cmp-head-meta (region · gender) and
+   the remove button. Same font / size / colour as the meta line so
+   it reads as a sibling subtitle; the label is teal to give the
+   reasons a small visual anchor without shouting. */
+.rr-cmp-head-reasons {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  color: var(--rr-muted);
+  margin-top: 4px;
+  line-height: 1.35;
+  /* Two-line clamp so very long reason strings don't blow up the
+     column header height. CSS-property-supports cascade with title
+     attr handles the overflow tooltip on hover. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rr-cmp-head-reasons-label {
+  color: var(--rr-teal-dark, var(--rr-navy));
+  font-weight: 600;
+}
+.rr-cmp-head-reasons-text {
+  color: var(--rr-muted);
+}
+
 .rr-cmp-dim {
   /* Slice 6.5 polish: match cell padding (22px 24px) so the label
      baseline aligns with the right-side content. align-self:start

@@ -116,9 +116,17 @@ async function loadSchoolColumns(
   // Shortlist — same scoping as before. Per-child when childId is set,
   // parent-wide otherwise (legacy behavior for users still on the old
   // pre-multi-child flow).
+  //
+  // Slice 8 Build 2b (2026-05-18): match_reasons is selected here so the
+  // comparison column header can render an "Added because:" line. The
+  // JSONB column is { reasons: string[]; computed_at; rules_version }
+  // (see lib/research-room/match-reasons.ts MatchReasonsRecord). Old
+  // shortlist rows pre-Build-2 have match_reasons IS NULL; new chat-add
+  // rows where the best-effort reasons write failed also stay null. The
+  // render path is null-safe.
   let shortlistQuery = supabase
     .from('shortlisted_schools')
-    .select('school_slug, added_at')
+    .select('school_slug, added_at, match_reasons')
     .eq('user_id', userId)
     .order('added_at', { ascending: true })
   shortlistQuery = childId
@@ -130,8 +138,41 @@ async function loadSchoolColumns(
     throw new Error(`${caller}: shortlist read failed: ${shortlistError.message}`)
   }
 
-  const slugs = (rows ?? []).map((r: { school_slug: string }) => r.school_slug)
+  type ShortlistRow = {
+    school_slug:   string
+    added_at:      string
+    match_reasons: { reasons?: unknown } | null
+  }
+  const shortlistRows = (rows ?? []) as ShortlistRow[]
+  const slugs = shortlistRows.map(r => r.school_slug)
   if (slugs.length === 0) return []
+
+  // Build a slug → addedBecause display string map. Only joins the
+  // human-readable reasons array; ignores computed_at / rules_version.
+  // Caps to 4 reasons and 120 chars total so the column header doesn't
+  // overflow on schools with very long match lists.
+  const REASONS_DISPLAY_CAP   = 4
+  const REASONS_LENGTH_CAP    = 120
+  const addedBecauseBySlug = new Map<string, string | null>()
+  for (const r of shortlistRows) {
+    const reasonsRaw = r.match_reasons?.reasons
+    if (!Array.isArray(reasonsRaw)) {
+      addedBecauseBySlug.set(r.school_slug, null)
+      continue
+    }
+    const strings = reasonsRaw
+      .filter((x): x is string => typeof x === 'string' && x.trim() !== '')
+      .slice(0, REASONS_DISPLAY_CAP)
+    if (strings.length === 0) {
+      addedBecauseBySlug.set(r.school_slug, null)
+      continue
+    }
+    let joined = strings.join(' · ')
+    if (joined.length > REASONS_LENGTH_CAP) {
+      joined = joined.slice(0, REASONS_LENGTH_CAP - 1).trimEnd() + '…'
+    }
+    addedBecauseBySlug.set(r.school_slug, joined)
+  }
 
   // School column headers. We only need light metadata — the seeder is
   // responsible for any structured-data joins that turn into cell content.
@@ -155,6 +196,7 @@ async function loadSchoolColumns(
       slug,
       name: m.name,
       meta: metaParts.join(' · ') || '—',
+      addedBecause: addedBecauseBySlug.get(slug) ?? null,
     })
   }
   return schools
