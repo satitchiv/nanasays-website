@@ -70,7 +70,15 @@ const RequestSchema = z.object({
   // The chat hook always posts a `question` field (placeholder for this
   // route — finalize doesn't consume it). Allow but ignore.
   sessionId:      z.string().uuid(),
-  shortlistSlugs: z.array(z.string().min(1).max(120)).min(1).max(MAX_SHORTLIST).optional(),
+  // 2026-05-19 — dropped the `.min(1)` constraint. The handler below
+  // already treats omitted + empty array identically (both yield
+  // shortlistSlugs.length === 0), and yesterday's Commit C made
+  // empty-shortlist a first-class case (MAX_SCHOOL_PROPOSALS_FRESH=6
+  // when the parent reaches finalize from a fresh state). The chat
+  // hook sends an empty array for new children, which the schema
+  // rejected before this fix → 400 'invalid_request' → "Request failed"
+  // toast on every first-time finalize.
+  shortlistSlugs: z.array(z.string().min(1).max(120)).max(MAX_SHORTLIST).optional(),
 }).passthrough()
 
 // Same pricing constants as the turn route — duplicated to keep the
