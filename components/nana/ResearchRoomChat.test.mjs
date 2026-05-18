@@ -42,12 +42,14 @@ test('+New button source comment cites the Codex r6 P1#3 rationale', () => {
 
 // ── Build Mode UI invariants surfaced during session 4 ───────────────
 
-test('BuildModeProgressBar mounted only when buildMode === true && buildModeState present', () => {
-  // The bar takes the latest SSE progress event from the chat hook.
-  // Rendering it without buildMode would leak the bar into regular
-  // chat sessions whose state.progress is stale (e.g. parent switched
-  // children mid-interview).
-  assert.match(src, /buildMode && buildModeState && \(\s*<BuildModeProgressBar/)
+test('BuildModeProgressBar mounted whenever buildMode === true with synthetic fallback state', () => {
+  // Slice 8 Build 7 Phase C followup #4 — bar stays hidden outside Build
+  // Mode but no longer requires a real progress event. Children with
+  // prior regular chat and zero Build Mode turns get the synthetic 0%
+  // state instead of a silent toggle.
+  assert.match(src, /\{buildMode && \(\s*<BuildModeProgressBar/)
+  assert.match(src, /state=\{buildModeState \?\? SYNTH_EMPTY_BUILD_MODE_STATE\}/)
+  assert.doesNotMatch(src, /buildMode && buildModeState && \(\s*<BuildModeProgressBar/)
 })
 
 test('Skip Build Mode link gated on buildMode + onSkipBuildMode + !isStreaming', () => {
@@ -233,6 +235,50 @@ test('Phase C followup #2: onTableBuilt is declared as optional prop', () => {
     /onTableBuilt\?:\s*\(\s*\)\s*=>\s*void/.test(src),
     'Props must declare onTableBuilt?: () => void',
   )
+})
+
+test('Phase C followup #4: SYNTH_EMPTY_BUILD_MODE_STATE declared with usable_total=0 and focus=free', () => {
+  // Module-level constant the bar falls back to when buildModeState is
+  // null. Pin its key fields so a future contributor can't accidentally
+  // ship a non-zero default that would visually mislead the parent.
+  assert.match(
+    src,
+    /const SYNTH_EMPTY_BUILD_MODE_STATE[\s\S]*?usable_total:\s*0/m,
+    'must declare SYNTH_EMPTY_BUILD_MODE_STATE with usable_total: 0',
+  )
+  assert.match(
+    src,
+    /SYNTH_EMPTY_BUILD_MODE_STATE[\s\S]*?focus:\s*['"]free['"]/m,
+    "synth state focus must be 'free' so heading reads 'Nana is following your lead'",
+  )
+  assert.match(
+    src,
+    /SYNTH_EMPTY_BUILD_MODE_STATE[\s\S]*?mode:\s*['"]minimal['"]/m,
+    "synth state mode must be 'minimal' to mirror server's emptyProgress('minimal')",
+  )
+})
+
+test('Phase C followup #4: fresh-start bubble fires on non-empty thread without progress', () => {
+  // Disjoint from welcome-back via !buildModeState, and disjoint from
+  // empty-thread welcome via messages.length > 0. Pinned outside rr-thread
+  // so it doesn't pretend to be a retroactive chat message.
+  assert.match(
+    src,
+    /\{\s*buildMode\s*&&\s*!buildModeState\s*&&\s*messages\.length\s*>\s*0\s*&&\s*!isStreaming\s*&&\s*\(/m,
+    'fresh-start bubble must gate on `buildMode && !buildModeState && messages.length > 0 && !isStreaming`',
+  )
+})
+
+test('Phase C followup #4: fresh-start bubble copy + pinned class', () => {
+  // Copy includes the "Build Mode" framing + the Skip affordance pointer
+  // so the parent knows their out. Pinned outside rr-thread (mirrors v4
+  // welcome-back) so it doesn't read as a retroactive chat message.
+  const freshBlock = src.match(/!buildModeState\s*&&\s*messages\.length\s*>\s*0[\s\S]*?<\/div>\s*\)\s*\}/m)
+  assert.ok(freshBlock, 'expected to find fresh-start bubble block')
+  // Wider gap allows for HTML-encoded apostrophe (&rsquo; = 7 chars).
+  assert.match(freshBlock[0], /You.{0,15}re in Build Mode/, "copy must include \"You're in Build Mode\"")
+  assert.match(freshBlock[0], /Skip Build Mode/, 'copy must mention the Skip affordance')
+  assert.match(freshBlock[0], /rr-bubble-nana--pinned/, 'fresh-start bubble must use the pinned class (outside rr-thread)')
 })
 
 test('Phase C followup #2: handleBuildTableNow fires onTableBuilt between exitInterview and chat.ask', () => {

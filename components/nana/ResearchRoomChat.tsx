@@ -14,6 +14,30 @@ import type { Session, ResearchMessage } from '@/lib/nana/types'
 // breaking auto-scroll and "+ New" focus.
 const MOBILE_BREAKPOINT = 880
 
+// Slice 8 Build 7 Phase C followup #4 — synthetic empty Build Mode state.
+// Used when the parent toggles Build Mode ON but no turn has fired yet,
+// so the progress bar can render at 0% with the "Nana is following your
+// lead" heading (focus='free'). Real progress events from /turn always
+// override via `buildModeState ?? SYNTH`. NOT persisted; pure display.
+//
+// `mode: 'minimal'` mirrors the server's emptyProgress('minimal') path in
+// app/api/research-room/build-mode/turn/route.ts so the sentinel stays
+// semantically aligned if display code later starts reading `mode`.
+// `last_updated_at` is the Unix epoch so any real progress event trivially
+// wins on first comparison.
+const SYNTH_EMPTY_BUILD_MODE_STATE: import('@/lib/nana/types').BuildModeStreamState = {
+  progress: {
+    targets:               {},
+    total:                 0,
+    usable_total:          0,
+    mode:                  'minimal',
+    pending_confirmations: [],
+    last_updated_at:       '1970-01-01T00:00:00.000Z',
+  },
+  focus:    'free',
+  lastDiff: null,
+}
+
 function useIsMobile(): boolean {
   // Default to false on the server — SSR mounts the desktop branch first;
   // a mobile client will swap to mobile on the first effect after hydrate.
@@ -209,9 +233,12 @@ function ChatBody({
         <span className="rr-bt-state">{buildMode ? 'ON' : 'OFF'}</span>
       </button>
 
-      {buildMode && buildModeState && (
+      {buildMode && (
         <BuildModeProgressBar
-          state={buildModeState}
+          // Slice 8 Build 7 Phase C followup #4 — fall back to a synthetic
+          // 0% state when no Build Mode turn has fired yet. Real progress
+          // overrides on the next /turn SSE event.
+          state={buildModeState ?? SYNTH_EMPTY_BUILD_MODE_STATE}
           // Slice 8 Build 7 Phase C (Codex r1 P2 #6) — suppress the bar's
           // "Build table now" button once the wrap-up bubble takes over.
           // The bar CTA exists as an early-exit at ≥80%; post-wrap-up the
@@ -265,6 +292,41 @@ function ChatBody({
             You’re at <strong>{Math.round((chat.buildModeState.progress?.usable_total ?? 0) * 100)}%</strong> on Build Mode.
             We can pick up right where we left off — just answer the next question below,
             or hit <em>Skip Build Mode for now</em> to head back to the table.
+          </div>
+        </div>
+      )}
+
+      {/* Slice 8 Build 7 Phase C followup #4 — Build Mode fresh-start
+          notice. Fires when parent toggled Build Mode ON but no turn has
+          fired yet AND the thread has prior non-Build-Mode messages
+          (e.g. they chatted in regular mode first, then toggled Build
+          Mode). The empty-thread welcome bubble below (~line 311) handles
+          the empty-thread case; this handles the "had prior chat" gap.
+
+          Pinned OUTSIDE rr-thread so it doesn't pretend to be a
+          retroactive chat message; mirrors the welcome-back v4 fix.
+
+          Disjoint from welcome-back (above) by !buildModeState, so a
+          child with real progress never shows both at once. Hides when
+          (a) parent sends first turn → buildModeState becomes non-null,
+          or (b) parent hits Skip → buildMode flips false. */}
+      {buildMode && !buildModeState && messages.length > 0 && !isStreaming && (
+        <div
+          className="rr-bubble-nana rr-bubble-nana--pinned"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="rr-bubble-head">
+            <svg className="rr-bubble-avatar" aria-hidden="true">
+              <use href="#ic-nana" />
+            </svg>
+            <div className="rr-bubble-name">Nana</div>
+          </div>
+          <div className="rr-bubble-lead">
+            <strong>You&rsquo;re in Build Mode.</strong>{' '}
+            Tell me about your child to start — a few sentences is enough.
+            I&rsquo;ll fill in the rest with small follow-up questions. Or hit{' '}
+            <em>Skip Build Mode for now</em> to head back to the table.
           </div>
         </div>
       )}
