@@ -178,10 +178,16 @@ export default async function ResearchRoomPage({
       }
       activeLensId = (sessions[0].active_lens_id as string | null) ?? null
       initialBuildModeProgress = sessions[0].build_mode_progress as unknown
-    } else if (shortlistCtx && shortlistCtx.slugs.length > 0) {
-      // Slice 8 Step 0.5: parent has a shortlist but no session yet — ensure
-      // one exists via the service-role RPC so the page renders seeded rows
-      // on first arrival instead of waiting for the first chat message.
+    } else if (activeChildId) {
+      // Slice 8 Step 0.5 + 2026-05-19 fix — ensure a research_sessions row
+      // exists whenever the parent is viewing an active child, regardless
+      // of shortlist size. The prior `shortlistCtx.slugs.length > 0` guard
+      // assumed every child arrives with auto-recommended schools, which
+      // stopped being true on 2026-05-18 (Commit C — recommendation flow
+      // cleanup removed the onboarding-time recommender). Without this
+      // change, every new child hit a 400 on the first Build Mode turn
+      // because no sessionId existed yet. The ensure RPC is idempotent;
+      // calling it for a child that already has a session is a no-op.
       const { data: ensuredId, error: ensureErr } = await svc.rpc('ensure_research_session_for_child', {
         p_user_id:  user.id,
         p_child_id: activeChildId,
