@@ -117,6 +117,9 @@ export type ResearchContextPack = {
     ethos_pref: string | null
     intl_pref: string | null
     phone_pref: string | null
+    // 2026-05-10 ISI deep extraction prefs (inclusive_culture, pastoral_care).
+    lgbtq_pref: string | null
+    pastoral_pref: string | null
   }
   child: MinimisedChild | null
   session: { id: string; title: string; rolling_summary: string | null; turn_count: number }
@@ -295,6 +298,10 @@ export async function assembleResearchContextPack(
     ]),
     intl_pref: new Set(['low', 'high']),
     phone_pref: new Set(['strict', 'flexible']),
+    // 2026-05-10 ISI deep extraction: drives inclusive_culture + pastoral_care
+    // scorers. Same 'no-preference' → null pattern as the T4.16 prefs above.
+    lgbtq_pref:    new Set(['important']),
+    pastoral_pref: new Set(['high_priority', 'standard']),
   } as const
   type PrefKey = keyof typeof prefAllowed
   const readPref = (key: PrefKey): string | null => {
@@ -315,6 +322,8 @@ export async function assembleResearchContextPack(
       ethos_pref: readPref('ethos_pref'),
       intl_pref:  readPref('intl_pref'),
       phone_pref: readPref('phone_pref'),
+      lgbtq_pref:    readPref('lgbtq_pref'),
+      pastoral_pref: readPref('pastoral_pref'),
     },
     child: childMinimal,
     session: {
@@ -425,7 +434,7 @@ async function fetchParent(supabase: SupabaseClient, userId: string) {
   // reads child-first, parent-fallback for these 3 keys.
   const { data } = await supabase
     .from('parent_profiles')
-    .select('id, child_year, boarding_pref, budget_range, top_priority, home_region, ethos_pref, intl_pref, phone_pref')
+    .select('id, child_year, boarding_pref, budget_range, top_priority, home_region, ethos_pref, intl_pref, phone_pref, lgbtq_pref, pastoral_pref')
     .eq('id', userId)
     .maybeSingle<{
       id: string
@@ -437,6 +446,8 @@ async function fetchParent(supabase: SupabaseClient, userId: string) {
       ethos_pref: string | null
       intl_pref: string | null
       phone_pref: string | null
+      lgbtq_pref: string | null
+      pastoral_pref: string | null
     }>()
   return data
 }
