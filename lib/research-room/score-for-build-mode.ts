@@ -663,7 +663,9 @@ export function rankCandidates(
       if (rawScore > 0) {
         const norm = Math.min(rawScore / 8, 1.0)
         score += norm
-        if (norm >= 0.6) signals.push('inclusive culture')
+        // unshift — parent-stated preference match (lgbtq_pref='important'),
+        // must survive the top-5 dedupe/slice. See ethos-match for full rationale.
+        if (norm >= 0.6) signals.unshift('inclusive culture')
       }
     }
 
@@ -702,7 +704,9 @@ export function rankCandidates(
     // ── SEN positive ────────────────────────────────────────────────
     if (parent?.sen_need === 'yes-priority' && s.sen_support === true) {
       score += 0.4
-      signals.push('SEN-aware')
+      // unshift — parent-stated preference match (sen_need='yes-priority'),
+      // must survive the top-5 dedupe/slice. See ethos-match for full rationale.
+      signals.unshift('SEN-aware')
     }
 
     // ── Phase 1 data-utilization (2026-05-21) — Medicine / law / engineering
