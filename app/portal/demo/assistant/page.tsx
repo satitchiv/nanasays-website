@@ -1,7 +1,8 @@
 'use client'
 
 import './assistant.css'
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 
 const navy   = '#1B3252'
 const teal   = '#34C3A0'
@@ -23,6 +24,7 @@ const SCHOOLS = {
     { slug: 'bangkok-christian-international-school',            name: 'Bangkok Christian International School' },
   ],
   Switzerland: [
+    { slug: 'gymnasium-disentis',                       name: 'Gymnasium & Internat Kloster Disentis' },
     { slug: 'institut-le-rosey',                        name: 'Institut Le Rosey' },
     { slug: 'aiglon-college',                           name: 'Aiglon College' },
     { slug: 'zurich-international-school',              name: 'Zurich International School' },
@@ -47,23 +49,64 @@ const SCHOOLS = {
 }
 
 const ALL_SCHOOLS = Object.values(SCHOOLS).flat()
-const DEFAULT_SLUG = 'nist-international-school'
+// Default to Disentis — the prototype school for the agent demo. Other schools
+// in the dropdown work too, but Disentis is the most polished and the one
+// being shown to prospects first.
+const DEFAULT_SLUG = 'gymnasium-disentis'
 
+// Agent-flavoured starter prompts — picked to demonstrate the BREADTH of
+// what the chatbot can do, one capability per chip. An agent (or a prospect
+// trying the demo) can scan these and immediately see the range:
+//   1. Multilingual brochure delivery (deterministic doc card)
+//   2. Cost question with PDF attached (LLM + attached doc)
+//   3. Specific PDF download (deterministic doc card, different doc type)
+//   4. Location + map (surroundings handler + map link in WhatsApp paste)
+//   5. Transport sub-intent (airport / how-to-get-there)
+//   6. Admissions process (LLM with admissions card)
+//   7. Summer camp programs (summer-camp doc intent)
+//   8. Pastoral / boarding life (vector search over deep PDFs)
 const SUGGESTED = [
-  'What are our current tuition fees?',
-  'What are our latest IB results?',
-  'How does our admissions process work?',
-  'Do we offer any scholarships?',
-  'How do we compare to Harrow Bangkok?',
+  'Send me the brochure',
+  'What are the total annual fees?',
+  'Send me the boarding rules PDF',
+  'Show me some campus photos',
+  'Photos of the dining hall',
+  'Send me a video about the school',
+  'Any music or concert videos?',
+  'Where is the school located?',
+  'What is the nearest airport?',
+  'How do I apply?',
+  'Do you offer summer camps?',
+  'Tell me about the boarding house',
 ]
 
-type CardType = 'fees' | 'admissions' | 'results' | 'general'
+type CardType = 'fees' | 'admissions' | 'results' | 'general' | 'brochure' | 'document'
 type Source   = { label: string; url: string }
+type BrochureItem = {
+  title: string
+  url: string
+  language: string
+  sizeMb: number | null
+  summary: string | null
+  badge?: string | null
+}
+// DocumentItem is structurally identical to BrochureItem — alias for clarity.
+type DocumentItem = BrochureItem
+type SurroundingsBlock = {
+  map_embed_url?: string | null
+  lat?: number | null
+  lng?: number | null
+  pois?: Array<{ name: string; type: string; distance: string; note: string }> | null
+}
 type CardSpec = {
   hero?:  { eyebrow?: string; stat: string; caption?: string }
   alerts?: { color: 'yellow' | 'red' | 'green' | 'blue'; label: string; text: string }[]
   rows?:  { key: string; val: string }[]
   steps?: { num: number; title: string; desc: string }[]
+  brochures?: BrochureItem[]
+  documents?: DocumentItem[]
+  docType?: string
+  surroundings?: SurroundingsBlock
 }
 type Message  = {
   role: 'user' | 'assistant'
@@ -144,10 +187,60 @@ function renderMarkdown(text: string): React.ReactNode {
 }
 
 function inlineMd(text: string): React.ReactNode {
-  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*)/g)
+  // Codex P2: also handle [text](url) markdown links so the chatbot's deterministic
+  // brochure/PDF responses render as clickable downloads in the default chat view.
+  // Disentis media: `![alt](url)` renders an inline image — used by the photos +
+  // video-thumbnail short-circuits in /api/school-chat.
+  // Linked-image `[![alt](src)](dest)` renders a clickable thumbnail: photos
+  // click through to their full-size R2 URL, video thumbnails click through
+  // to YouTube. The linked-image pattern sits FIRST in the alternation so the
+  // outer `[…]()` doesn't get swallowed by the plain-image or plain-link branch.
+  const parts = text.split(/(\[!\[[^\]]*\]\([^)]+\)\]\([^)]+\)|!\[[^\]]*\]\([^)]+\)|\*\*[^*]+\*\*|\*[^*]+\*|\[[^\]]+\]\([^)]+\))/g)
   return parts.map((p, i) => {
+    if (p.startsWith('[![')) {
+      const linkedImg = p.match(/^\[!\[([^\]]*)\]\(([^)]+)\)\]\(([^)]+)\)$/)
+      if (linkedImg) {
+        const [, alt, src, href] = linkedImg
+        return (
+          <a key={i} href={href} target="_blank" rel="noopener noreferrer" style={{ display: 'block', margin: '8px 0' }} data-testid="chat-media-link">
+            <img
+              src={src}
+              alt={alt}
+              loading="lazy"
+              style={{ maxWidth: '100%', maxHeight: 260, borderRadius: 8, display: 'block', objectFit: 'cover', cursor: 'pointer' }}
+              data-testid="chat-media-image"
+            />
+          </a>
+        )
+      }
+    }
+    if (p.startsWith('![')) {
+      const imgMatch = p.match(/^!\[([^\]]*)\]\(([^)]+)\)$/)
+      if (imgMatch) {
+        const [, alt, src] = imgMatch
+        return (
+          <img
+            key={i}
+            src={src}
+            alt={alt}
+            loading="lazy"
+            style={{ maxWidth: '100%', maxHeight: 260, borderRadius: 8, margin: '8px 0', display: 'block', objectFit: 'cover' }}
+            data-testid="chat-media-image"
+          />
+        )
+      }
+    }
     if (p.startsWith('**') && p.endsWith('**')) return <strong key={i}>{p.slice(2, -2)}</strong>
     if (p.startsWith('*')  && p.endsWith('*'))  return <em key={i}>{p.slice(1, -1)}</em>
+    const linkMatch = p.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
+    if (linkMatch) {
+      const [, label, href] = linkMatch
+      return (
+        <a key={i} href={href} target="_blank" rel="noopener noreferrer" style={{ color: teal, fontWeight: 600, textDecoration: 'underline' }}>
+          {label}
+        </a>
+      )
+    }
     return p
   })
 }
@@ -281,30 +374,123 @@ function Alert({ color, label, children }: { color: 'yellow' | 'red' | 'green' |
   )
 }
 
-function SourcesBar({ sources, onPDF }: { sources: Source[]; onPDF: () => void }) {
+// Build a WhatsApp-ready message string from a chatbot answer.
+// WhatsApp renders *bold* (single asterisks), so we convert markdown bold (**)
+// to WA-style. Markdown links [text](url) become "text: url" so they stay
+// scannable when pasted into WhatsApp (which doesn't render md links).
+// Brochure / document download URLs are appended as a "Download" section.
+function buildWhatsAppMessage(
+  schoolName: string,
+  facts: string,
+  sources: Source[] | undefined,
+  documents: BrochureItem[] | DocumentItem[] | undefined,
+  surroundings: SurroundingsBlock | undefined,
+): string {
+  const out: string[] = []
+  out.push(`*${schoolName}*`)
+  out.push('')
+  // Strip MD bold/italic into WA-compatible bold + plain link rendering.
+  const cleanFacts = (facts || '')
+    .replace(/\*\*([^*]+)\*\*/g, '*$1*')
+    .replace(/(^|[\s(])\*([^*\n]+)\*(?=[\s.,;:!?)]|$)/g, '$1_$2_')
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '$1: $2')
+  out.push(cleanFacts.trim())
+  if (documents?.length) {
+    out.push('', '*Download:*')
+    for (const d of documents) {
+      const label = d.language || d.title || 'PDF'
+      out.push(`${label}: ${d.url}`)
+    }
+  }
+  // Surroundings answer → append a parent-tappable map link (non-embed format
+  // so it opens in WhatsApp's link preview / Google Maps app, not as an iframe).
+  if (surroundings?.lat != null && surroundings?.lng != null) {
+    out.push('', `*Map:* https://maps.google.com/?q=${surroundings.lat},${surroundings.lng}`)
+  } else if (surroundings?.map_embed_url) {
+    // Fallback: strip the &output=embed param so the link opens in a normal
+    // browser tab instead of as an iframe.
+    out.push('', `*Map:* ${surroundings.map_embed_url.replace(/[?&]output=embed/, '')}`)
+  }
+  if (sources?.length) {
+    const primary = sources[0]
+    out.push('', `_Source: ${primary.label}${primary.url ? ' — ' + primary.url : ''}_`)
+  }
+  return out.join('\n')
+}
+
+async function copyToClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+  } catch { /* fall through */ }
+  // Legacy fallback for non-secure contexts (e.g. http on Tailscale IP)
+  try {
+    const ta = document.createElement('textarea')
+    ta.value = text
+    ta.style.position = 'fixed'
+    ta.style.opacity = '0'
+    document.body.appendChild(ta)
+    ta.select()
+    const ok = document.execCommand('copy')
+    document.body.removeChild(ta)
+    return ok
+  } catch {
+    return false
+  }
+}
+
+function SourcesBar({
+  sources, onPDF, onWhatsApp, copiedToast,
+}: {
+  sources: Source[]
+  onPDF: () => void
+  onWhatsApp: () => void
+  copiedToast: boolean
+}) {
   return (
     <div style={{
       background: '#fff', borderLeft: `1px solid ${border}`, borderRight: `1px solid ${border}`,
       borderBottom: `1px solid ${border}`, borderRadius: '0 0 12px 12px',
       padding: '10px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+      gap: 10, flexWrap: 'wrap' as const,
     }}>
-      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' as const }}>
-        {sources.map((s, i) => (
-          <a key={i} href={s.url} target="_blank" rel="noopener noreferrer"
-            style={{ fontSize: 11, color: teal, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}
-          >
-            ↗ {s.label}
-          </a>
-        ))}
+      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap' as const, flex: 1, minWidth: 0 }}>
+        {sources.length === 0
+          ? <span style={{ fontSize: 11, color: muted, fontStyle: 'italic' }}>No source attached</span>
+          : sources.map((s, i) => (
+              <a key={i} href={s.url} target="_blank" rel="noopener noreferrer"
+                style={{ fontSize: 11, color: teal, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 3 }}
+              >
+                ↗ {s.label}
+              </a>
+            ))
+        }
       </div>
-      <button onClick={onPDF} style={{
-        fontSize: 11, fontWeight: 700, color: navy,
-        background: '#F8FAFC', border: `1px solid ${border}`,
-        borderRadius: 6, padding: '5px 10px', cursor: 'pointer', fontFamily: 'inherit',
-        display: 'flex', alignItems: 'center', gap: 4,
-      }}>
-        ↓ Save PDF
-      </button>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        {copiedToast && (
+          <span style={{ fontSize: 11, color: '#239C80', fontWeight: 700, background: '#E8FAF6', padding: '4px 8px', borderRadius: 4 }}>
+            ✓ Copied
+          </span>
+        )}
+        <button onClick={onWhatsApp} title="Copy a WhatsApp-ready message" style={{
+          fontSize: 11, fontWeight: 700, color: '#fff',
+          background: '#25D366', border: 'none',
+          borderRadius: 6, padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit',
+          display: 'flex', alignItems: 'center', gap: 5,
+        }}>
+          📲 Copy for WhatsApp
+        </button>
+        <button onClick={onPDF} style={{
+          fontSize: 11, fontWeight: 700, color: navy,
+          background: '#F8FAFC', border: `1px solid ${border}`,
+          borderRadius: 6, padding: '5px 10px', cursor: 'pointer', fontFamily: 'inherit',
+          display: 'flex', alignItems: 'center', gap: 4,
+        }}>
+          ↓ PDF
+        </button>
+      </div>
     </div>
   )
 }
@@ -447,7 +633,45 @@ function EditableBlock({ block, isFirst, isLast, editable, onMove, onDelete, onU
 }
 
 // ── Page component ────────────────────────────────────────────────────────────
+// Wrapped in Suspense because useSearchParams requires it under Next 14 app
+// router. The inner component reads ?demo=<token> for per-prospect demo URLs.
 export default function DemoAssistantPage() {
+  return (
+    <Suspense fallback={<div style={{ padding: 40 }}>Loading…</div>}>
+      <DemoAssistantInner />
+    </Suspense>
+  )
+}
+
+function DemoAssistantInner() {
+  const searchParams = useSearchParams()
+  const demoToken = searchParams.get('demo') || ''
+  // Stash the token in state so React renders deterministically + we can
+  // attach it to every /api/school-chat request as a header.
+  const [token, setToken] = useState(demoToken)
+  useEffect(() => { setToken(demoToken) }, [demoToken])
+
+  // Token-driven UI scoping: when the page loads with `?demo=<token>`, fetch
+  // the token's allowed_slugs from /api/demo-token-info and use it to filter
+  // the school dropdown. If allowed_slugs has exactly one school, the
+  // dropdown is replaced with a static label (no switcher). When there's no
+  // token (PIN-gated internal use), allowedSlugs stays null = full access.
+  const [allowedSlugs, setAllowedSlugs] = useState<string[] | null>(null)
+  const [tokenStatus,  setTokenStatus]  = useState<'idle' | 'loading' | 'valid' | 'invalid'>('idle')
+  const [prospectName, setProspectName] = useState<string | null>(null)
+  useEffect(() => {
+    if (!token) { setTokenStatus('idle'); setAllowedSlugs(null); return }
+    setTokenStatus('loading')
+    fetch('/api/demo-token-info', { headers: { 'x-demo-token': token } })
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then(d => {
+        setAllowedSlugs(Array.isArray(d.allowed_slugs) && d.allowed_slugs.length > 0 ? d.allowed_slugs : null)
+        setProspectName(d.prospect_name || null)
+        setTokenStatus('valid')
+      })
+      .catch(() => { setTokenStatus('invalid'); setAllowedSlugs(null) })
+  }, [token])
+
   const [slug, setSlug]           = useState(DEFAULT_SLUG)
   const [messages, setMessages]   = useState<Message[]>([])
   const [input, setInput]         = useState('')
@@ -458,7 +682,43 @@ export default function DemoAssistantPage() {
   // Card designer state
   const [editStates, setEditStates] = useState<Record<number, CardEditState>>({})
   const [editModes,  setEditModes]  = useState<Set<number>>(new Set())
+  // Per-message "copied to clipboard" toast — shows for ~2s after copy.
+  const [copiedFor,  setCopiedFor]  = useState<number | null>(null)
+  const triggerWhatsAppCopy = async (i: number, msg: Message) => {
+    const docs = msg.card?.brochures || msg.card?.documents
+    const surroundings = msg.card?.surroundings
+    const text = buildWhatsAppMessage(currentSchool.name, msg.facts || '', msg.sources, docs, surroundings)
+    const ok = await copyToClipboard(text)
+    if (ok) {
+      setCopiedFor(i)
+      setTimeout(() => setCopiedFor(prev => prev === i ? null : prev), 2200)
+    }
+  }
   const [addDrop, setAddDrop]       = useState<{ msgIdx: number; blockId: string; top: number; left: number } | null>(null)
+
+  // If the token scopes to specific schools and the current slug isn't one of
+  // them, snap the slug to the first allowed school. Runs whenever
+  // allowedSlugs changes (i.e. after token validation lands).
+  useEffect(() => {
+    if (allowedSlugs && allowedSlugs.length > 0 && !allowedSlugs.includes(slug)) {
+      setSlug(allowedSlugs[0])
+      setMessages([])
+    }
+  }, [allowedSlugs, slug])
+
+  // For the dropdown: if allowedSlugs is set, filter SCHOOLS to only those
+  // (preserves country grouping). If null, show all (internal use).
+  const visibleSchoolsByCountry = (() => {
+    if (!allowedSlugs) return SCHOOLS
+    const out: Record<string, Array<{ slug: string; name: string }>> = {}
+    for (const [country, list] of Object.entries(SCHOOLS)) {
+      const allowed = list.filter(s => allowedSlugs.includes(s.slug))
+      if (allowed.length) out[country] = allowed
+    }
+    return out
+  })()
+  const visibleSchools = Object.values(visibleSchoolsByCountry).flat()
+  const lockedToOneSchool = !!allowedSlugs && visibleSchools.length === 1
 
   const currentSchool = ALL_SCHOOLS.find(s => s.slug === slug)!
 
@@ -597,7 +857,9 @@ export default function DemoAssistantPage() {
     setInput(''); setLoading(true)
     setMessages(prev => [...prev, { role: 'user', text: question }, { role: 'assistant', loading: true }])
     try {
-      const res  = await fetch('/api/school-chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug, question }) })
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) headers['x-demo-token'] = token
+      const res  = await fetch('/api/school-chat', { method: 'POST', headers, body: JSON.stringify({ slug, question }) })
       const data = await res.json()
       setMessages(prev => {
         const next = [...prev]
@@ -630,8 +892,10 @@ export default function DemoAssistantPage() {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(input) }
   }
 
+  // Include !!msg.card so short doc-only answers (e.g. brochure short-circuit
+  // with a brief facts string) still expose the card UI. (Codex review.)
   const hasCard = (msg: Message) =>
-    !msg.loading && !!msg.facts && (msg.facts.length > 100 || !!msg.signals || !!msg.intelligence)
+    !msg.loading && !!msg.facts && (msg.facts.length > 100 || !!msg.signals || !!msg.intelligence || !!msg.card)
 
   return (
     <div
@@ -639,27 +903,49 @@ export default function DemoAssistantPage() {
       onClick={() => setAddDrop(null)}
     >
 
-      {/* School switcher */}
+      {/* School switcher — locks to a static label when the demo token scopes
+          the agent to a single school. Hides switcher when allowedSlugs has
+          one entry; shows a filtered dropdown when allowedSlugs has multiple. */}
       <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <label style={{ fontSize: 10, fontWeight: 700, color: muted, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Switch school</label>
-          <select value={slug} onChange={e => switchSchool(e.target.value)} style={{
-            padding: '7px 12px', borderRadius: 8, border: `1px solid ${border}`,
-            fontSize: 13, color: navy, background: '#fff', fontFamily: 'inherit', cursor: 'pointer', outline: 'none',
-          }}>
-            {Object.entries(SCHOOLS).map(([country, schools]) => (
-              <optgroup key={country} label={`── ${country} ──`}>
-                {schools.map(s => <option key={s.slug} value={s.slug}>{s.name}</option>)}
-              </optgroup>
-            ))}
-          </select>
+          {lockedToOneSchool ? (
+            <>
+              <label style={{ fontSize: 10, fontWeight: 700, color: muted, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>School</label>
+              <div style={{ padding: '7px 12px', borderRadius: 8, border: `1px solid ${border}`, fontSize: 13, color: navy, background: '#F8FAFC', fontWeight: 600 }}>
+                {currentSchool.name}
+              </div>
+            </>
+          ) : (
+            <>
+              <label style={{ fontSize: 10, fontWeight: 700, color: muted, textTransform: 'uppercase' as const, letterSpacing: '0.06em' }}>
+                {allowedSlugs ? 'Your schools' : 'Switch school'}
+              </label>
+              <select value={slug} onChange={e => switchSchool(e.target.value)} style={{
+                padding: '7px 12px', borderRadius: 8, border: `1px solid ${border}`,
+                fontSize: 13, color: navy, background: '#fff', fontFamily: 'inherit', cursor: 'pointer', outline: 'none',
+              }}>
+                {Object.entries(visibleSchoolsByCountry).map(([country, schools]) => (
+                  <optgroup key={country} label={`── ${country} ──`}>
+                    {schools.map(s => <option key={s.slug} value={s.slug}>{s.name}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+            </>
+          )}
         </div>
-        {messages.length > 0 && (
-          <button onClick={() => { setMessages([]); setCardViews(new Set()); setEditStates({}); setEditModes(new Set()) }}
-            style={{ fontSize: 11, color: muted, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}>
-            Clear chat
-          </button>
-        )}
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+          {prospectName && tokenStatus === 'valid' && (
+            <span style={{ fontSize: 11, color: muted, fontStyle: 'italic' as const }}>
+              Demo for: {prospectName}
+            </span>
+          )}
+          {messages.length > 0 && (
+            <button onClick={() => { setMessages([]); setCardViews(new Set()); setEditStates({}); setEditModes(new Set()) }}
+              style={{ fontSize: 11, color: muted, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}>
+              Clear chat
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Chat shell */}
@@ -668,8 +954,8 @@ export default function DemoAssistantPage() {
         {/* Navy top bar */}
         <div style={{ background: navy, padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>School Assistant</div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 1 }}>Powered by NanaSays intelligence</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>School Partner Workspace</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 1 }}>Find every fact, send to a parent in one tap.</div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(52,195,160,0.15)', border: '1px solid rgba(52,195,160,0.35)', borderRadius: 20, padding: '4px 12px' }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: teal }} />
@@ -682,15 +968,10 @@ export default function DemoAssistantPage() {
 
           {messages.length === 0 && (
             <div>
-              <p style={{ fontSize: 12, color: muted, marginBottom: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Try asking:</p>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                {SUGGESTED.map(q => (
-                  <button key={q} onClick={() => send(q)} style={{
-                    padding: '7px 14px', borderRadius: 20, border: `1px solid ${border}`, background: '#fff',
-                    fontSize: 13, color: navy, cursor: 'pointer', fontWeight: 600, fontFamily: 'inherit',
-                  }}>{q}</button>
-                ))}
-              </div>
+              <p style={{ fontSize: 12, color: muted, marginBottom: 6, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Try asking:</p>
+              <p style={{ fontSize: 12, color: muted, marginBottom: 14, lineHeight: 1.5 }}>
+                Each chip below shows a different capability of the chatbot. Pick one to start, or type your own question.
+              </p>
             </div>
           )}
 
@@ -732,16 +1013,34 @@ export default function DemoAssistantPage() {
                           </div>
                         )}
                       </div>
-                      {hasCard(msg) && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 2 }}>
-                          <button onClick={() => toggleCard(i)} style={{ fontSize: 11, fontWeight: 700, color: '#2563EB', background: 'none', border: '1px solid #DBEAFE', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
-                            ⊞ Format as card
-                          </button>
-                          <button onClick={() => savePDF(currentSchool.name, msg.facts!, msg.signals, msg.intelligence, msg.sources)} style={{ fontSize: 11, color: muted, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}>
-                            Download PDF
-                          </button>
-                        </div>
-                      )}
+                      {/* Action row: WhatsApp copy is the agent's primary
+                          flow, so it's the prominent green button. Always
+                          shown after any non-empty answer (not gated on
+                          hasCard) so even short doc-only answers get it. */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingLeft: 2, flexWrap: 'wrap' as const }}>
+                        <button
+                          onClick={() => triggerWhatsAppCopy(i, msg)}
+                          title="Copy a WhatsApp-ready message for the parent"
+                          style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: '#25D366', border: 'none', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}
+                        >
+                          📲 Copy for WhatsApp
+                        </button>
+                        {copiedFor === i && (
+                          <span style={{ fontSize: 11, color: '#239C80', fontWeight: 700, background: '#E8FAF6', padding: '4px 8px', borderRadius: 4 }}>
+                            ✓ Copied
+                          </span>
+                        )}
+                        {hasCard(msg) && (
+                          <>
+                            <button onClick={() => toggleCard(i)} style={{ fontSize: 11, fontWeight: 700, color: '#2563EB', background: 'none', border: '1px solid #DBEAFE', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                              ⊞ Format as card
+                            </button>
+                            <button onClick={() => savePDF(currentSchool.name, msg.facts!, msg.signals, msg.intelligence, msg.sources)} style={{ fontSize: 11, color: muted, background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit' }}>
+                              Download PDF
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </>
                   )}
 
@@ -806,7 +1105,7 @@ export default function DemoAssistantPage() {
                             {/* Editable facts */}
                             <div style={{ background: '#fff', padding: '14px 18px', borderLeft: `1px solid ${border}`, borderRight: `1px solid ${border}` }}>
                               <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: '#94A3B8', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <span>Your school — facts</span>
+                                <span>Selected school — facts</span>
                                 <span style={{ flex: 1, height: 1, background: border, display: 'inline-block' }} />
                               </div>
                               <div
@@ -816,7 +1115,12 @@ export default function DemoAssistantPage() {
                                 style={{ fontSize: 14, color: navy, lineHeight: 1.7, outline: `2px solid ${teal}`, borderRadius: 4, padding: '4px 6px', cursor: 'text', whiteSpace: 'pre-wrap' as const }}
                               >{es.factsText}</div>
                             </div>
-                            <SourcesBar sources={msg.sources || []} onPDF={() => savePDF(currentSchool.name, msg.facts!, msg.signals, msg.intelligence, msg.sources)} />
+                            <SourcesBar
+                              sources={msg.sources || []}
+                              onPDF={() => savePDF(currentSchool.name, msg.facts!, msg.signals, msg.intelligence, msg.sources)}
+                              onWhatsApp={() => triggerWhatsAppCopy(i, msg)}
+                              copiedToast={copiedFor === i}
+                            />
                           </div>
                         </div>
                       )
@@ -843,12 +1147,17 @@ export default function DemoAssistantPage() {
                             </div>
                             <div style={{ background: '#fff', padding: '14px 18px', borderLeft: `1px solid ${border}`, borderRight: `1px solid ${border}` }}>
                               <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: '#94A3B8', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <span>Your school — facts</span>
+                                <span>Selected school — facts</span>
                                 <span style={{ flex: 1, height: 1, background: border, display: 'inline-block' }} />
                               </div>
                               <div style={{ fontSize: 14, color: navy, lineHeight: 1.7, whiteSpace: 'pre-wrap' as const }}>{es.factsText}</div>
                             </div>
-                            <SourcesBar sources={msg.sources || []} onPDF={() => savePDF(currentSchool.name, es.factsText, msg.signals, msg.intelligence, msg.sources)} />
+                            <SourcesBar
+                              sources={msg.sources || []}
+                              onPDF={() => savePDF(currentSchool.name, es.factsText, msg.signals, msg.intelligence, msg.sources)}
+                              onWhatsApp={() => triggerWhatsAppCopy(i, msg)}
+                              copiedToast={copiedFor === i}
+                            />
                           </div>
 
                           <div style={{ display: 'flex', gap: 8, marginTop: 6, paddingLeft: 2 }}>
@@ -869,10 +1178,15 @@ export default function DemoAssistantPage() {
                     const signals    = msg.signals ? parseSignals(msg.signals) : []
                     const hasSignals = signals.length > 0
                     const hasIntel   = !!msg.intelligence
-                    const hasHero    = !!card?.hero?.stat
-                    const hasAlerts  = !!(card?.alerts?.length)
-                    const hasSteps   = !!(card?.steps?.length)
-                    const hasRows    = !!(card?.rows?.length)
+                    const hasHero      = !!card?.hero?.stat
+                    const hasAlerts    = !!(card?.alerts?.length)
+                    const hasSteps     = !!(card?.steps?.length)
+                    const hasRows      = !!(card?.rows?.length)
+                    const hasBrochures = !!(card?.brochures?.length)
+                    const hasDocuments = !!(card?.documents?.length)
+                    // Codex P-extras: hasCard is true if ANY card content exists
+                    // so a short doc-only response still surfaces the card UI.
+                    const cardItems    = card?.brochures || card?.documents || []
 
                     return (
                       <div style={{ maxWidth: '100%' }}>
@@ -933,10 +1247,52 @@ export default function DemoAssistantPage() {
                         {/* Data rows */}
                         {hasRows && <DataRows rows={card!.rows!} />}
 
+                        {/* Brochures / Documents — clickable PDF download list */}
+                        {(hasBrochures || hasDocuments) && (
+                          <div style={{ background: '#fff', padding: '4px 18px', borderLeft: `1px solid ${border}`, borderRight: `1px solid ${border}` }}>
+                            {cardItems.map((b, bi) => (
+                              <a
+                                key={bi}
+                                href={b.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  display: 'flex', gap: 14, padding: '14px 0',
+                                  borderBottom: bi < cardItems.length - 1 ? `1px solid #F1F5F9` : 'none',
+                                  alignItems: 'flex-start', textDecoration: 'none', color: 'inherit',
+                                  cursor: 'pointer',
+                                }}
+                              >
+                                <div style={{ width: 38, height: 38, borderRadius: 8, background: '#E8FAF6', color: '#239C80', fontSize: 11, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 2 }}>
+                                  PDF
+                                </div>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontSize: 13, fontWeight: 700, color: navy, marginBottom: 3, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                                    <span>{b.title || b.language || 'Document'}</span>
+                                    {b.badge && (
+                                      <span style={{ fontSize: 9, fontWeight: 800, color: '#239C80', background: '#E8FAF6', padding: '2px 7px', borderRadius: 4, textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>
+                                        {b.badge}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {b.summary && (
+                                    <div style={{ fontSize: 12, color: '#475569', lineHeight: 1.5, marginBottom: 4 }}>
+                                      {b.summary}
+                                    </div>
+                                  )}
+                                  <div style={{ fontSize: 11, color: teal, fontWeight: 600 }}>
+                                    Click to download {b.sizeMb ? `· ${b.sizeMb} MB` : ''}
+                                  </div>
+                                </div>
+                              </a>
+                            ))}
+                          </div>
+                        )}
+
                         {/* Summary prose */}
                         <div style={{ background: '#fff', padding: '14px 18px', borderLeft: `1px solid ${border}`, borderRight: `1px solid ${border}`, borderBottom: 'none', borderRadius: 0 }}>
                           <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase' as const, color: '#94A3B8', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span>Your school — facts</span>
+                            <span>Selected school — facts</span>
                             <span style={{ flex: 1, height: 1, background: border, display: 'inline-block' }} />
                           </div>
                           <div style={{ fontSize: 14, color: navy, lineHeight: 1.7 }}>{renderMarkdown(msg.facts!)}</div>
@@ -972,14 +1328,23 @@ export default function DemoAssistantPage() {
                         <SourcesBar
                           sources={msg.sources || []}
                           onPDF={() => savePDF(currentSchool.name, msg.facts!, msg.signals, msg.intelligence, msg.sources)}
+                          onWhatsApp={() => triggerWhatsAppCopy(i, msg)}
+                          copiedToast={copiedFor === i}
                         />
 
-                        {/* Edit button */}
-                        <div style={{ display: 'flex', gap: 8, marginTop: 6, paddingLeft: 2 }}>
-                          <button onClick={() => openEdit(i, msg)} style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: teal, border: 'none', borderRadius: 6, padding: '5px 14px', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}>
-                            ✏ Edit / Customise
-                          </button>
-                        </div>
+                        {/* Edit button — hidden for any document/brochure card
+                            because toEditBlocks() doesn't know about
+                            card.brochures / card.documents and would strip them.
+                            For agent users this button is also confusing
+                            (it's school-admin-listing UX). Hidden globally
+                            for now per Codex agent-polish review. */}
+                        {false && !hasBrochures && !hasDocuments && (
+                          <div style={{ display: 'flex', gap: 8, marginTop: 6, paddingLeft: 2 }}>
+                            <button onClick={() => openEdit(i, msg)} style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: teal, border: 'none', borderRadius: 6, padding: '5px 14px', cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 5 }}>
+                              ✏ Edit / Customise
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )
                   })()}
@@ -989,6 +1354,34 @@ export default function DemoAssistantPage() {
             </div>
           ))}
           <div ref={bottomRef} />
+        </div>
+
+        {/* Persistent shortcut strip — always visible above the input. Each
+            chip showcases a different chatbot capability so a tester can keep
+            sampling without retyping. Horizontally scrollable on narrow
+            screens. */}
+        <div style={{ borderTop: `1px solid ${border}`, padding: '10px 16px 6px', background: '#FAFBFC', flexShrink: 0 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: muted, textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 6 }}>
+            Shortcuts — tap to ask
+          </div>
+          <div style={{ display: 'flex', gap: 6, overflowX: 'auto' as const, paddingBottom: 4 }}>
+            {SUGGESTED.map(q => (
+              <button
+                key={q}
+                onClick={() => send(q)}
+                disabled={loading}
+                title={q}
+                style={{
+                  padding: '6px 12px', borderRadius: 16, border: `1px solid ${border}`, background: '#fff',
+                  fontSize: 12, color: navy, cursor: loading ? 'default' : 'pointer', fontWeight: 600,
+                  fontFamily: 'inherit', whiteSpace: 'nowrap' as const, flexShrink: 0,
+                  opacity: loading ? 0.5 : 1,
+                }}
+              >
+                {q}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Input bar */}
