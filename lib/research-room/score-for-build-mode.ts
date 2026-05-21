@@ -129,6 +129,58 @@ const SPORT_TIER_LABELS: Record<string, string> = {
   regional:          'regional',
 }
 
+// Phase 3 Bug #2 (2026-05-21) — parent-stated level scales the sport boost.
+// Canonical vocabulary comes from `lib/server/research-room/build-mode-prompt.ts:74`
+// — "(recreational | school-team | county | national | professional)" — the
+// 5 answers the Build Mode interview asks for. The interview also surfaces
+// the phrases "team-level", "county-level", and "more for fun" in the
+// follow-up prompt at line :42, so realistic free-text answers map onto
+// the same five tiers. Aliases below cover those variants:
+//   • `regional` / `county-regional` / `regional-level` / `county-level` ≡ county
+//     (interview prose collapses the two; hyphenated dual-tag occasionally seen)
+//   • `school` / `school team` / `school team level` / `school-level` /
+//     `school level` / `school_level` / `team-level` ≡ school-team
+//     (existing tests use `level: 'school'`; without the alias they silently
+//     fell to the 0.5 default instead of the intended 0.4. Codex r2 added
+//     the rest)
+//   • `for fun` / `more for fun` / `local` ≡ recreational
+//     (Codex r2: "more for fun" appears verbatim in the interview prompt;
+//     `local` collapses to recreational for most sports outside elite
+//     organised competition)
+// `club` and `district` intentionally NOT aliased — they vary by sport
+// (district hockey ≠ district football) and would mis-score if forced.
+// Unknown / missing level → 0.5 (mid-range) so we don't punish schools when
+// the interview captured a sport but couldn't pin down level.
+const SPORT_LEVEL_MULTIPLIER: Record<string, number> = {
+  professional:         1.0,
+  national:             1.0,
+  county:               0.7,
+  regional:             0.7,
+  'county-regional':    0.7,
+  'county-level':       0.7,
+  'regional-level':     0.7,
+  'school-team':        0.4,
+  school:               0.4,
+  'school team':        0.4,
+  'school-level':       0.4,
+  'school level':       0.4,
+  'school_level':       0.4,
+  'school team level':  0.4,
+  'team-level':         0.4,
+  recreational:         0.2,
+  'for fun':            0.2,
+  'more for fun':       0.2,
+  local:                0.2,
+}
+const SPORT_LEVEL_DEFAULT = 0.5
+
+// Phase 3 Bug #1 (2026-05-21) — total sport-boost cap per school.
+// Each individual sport can still earn its full +2.5 share, but the SUM
+// across all the child's mapped sports is capped here. Before this cap,
+// Maya's 2 sports → +5.0, dwarfing region (-2.0) and academic (+2.0) and
+// pastoral (+1.5) combined.
+const SPORT_TOTAL_CAP = 3.0
+
 // Keyword heuristics applied to Build Mode prose fields to infer pastoral /
 // inclusive interest when the onboarding dropdown didn't capture it.
 const PASTORAL_HINT_RE   = /\b(pastoral|wellbeing|well-being|anxiety|anxious|homesick|mental health|counsell|safeguard|nurtur)\b/i
@@ -215,6 +267,13 @@ type SchoolRow = {
   name:             string
   gender_split:     string | null
   fees_usd_min:     number | null
+  // Phase 3 Bug #7 (2026-05-21): `fees_usd_max` selected so the
+  // in-budget chip can switch from day-fee-min to boarding-fee-max
+  // when the parent's boarding_pref is full / weekly / flexi. UK
+  // schools often have a wide fees range (e.g. day £25k → boarding
+  // £60k); the original chip claimed "in budget" for any full-board
+  // parent with a ceiling >= the day-fee-min, a false positive.
+  fees_usd_max:     number | null
   sen_support:      boolean | null
   strengths:        string[] | null
   confidence_score: number | null
@@ -365,7 +424,12 @@ export function rankCandidates(
   const ctx = buildScorerCtx(parent, child)
   const homeRegion = (parent?.home_region ?? '').toLowerCase().trim() as HomeRegion
   const regionBucket = new Set(REGION_BUCKETS[homeRegion] ?? [])
-  regionBucket.add('England')
+  // Phase 3 Bug #3 (2026-05-21) — `regionBucket.add('England')` removed.
+  // Before: schools tagged `region='England'` (a broad / country-level tag,
+  // not a narrow city/county) earned a +0.6 regional chip + boost for every
+  // UK home_region. After: they're treated neutrally below (no boost AND
+  // no -2.0 wrong-bucket penalty), matching the existing `s.region == null`
+  // path.
   const budgetCeiling = BUDGET_CEILING_USD[parent?.budget_range ?? '']
 
   const sportsInterest = (child?.interests_sports ?? [])
@@ -460,8 +524,9 @@ export function rankCandidates(
     // 'anywhere' (added to the dropdown to let parents say "no preference"
     // instead of inheriting an inherited home_region from parent_profiles).
     if (parent?.home_region && parent.home_region !== 'overseas' && parent.home_region !== 'anywhere') {
-      if (s.region == null) {
-        // neutral
+      const broadEngland = typeof s.region === 'string' && s.region.trim().toLowerCase() === 'england'
+      if (s.region == null || broadEngland) {
+        // neutral — null OR broad country-level tag ('England')
       } else if (regionBucket.has(s.region)) {
         score += 0.6
         signals.push(`${s.region.toLowerCase()} region`)
@@ -471,13 +536,34 @@ export function rankCandidates(
     }
 
     // ── Budget closeness ────────────────────────────────────────────
-    if (budgetCeiling != null && s.fees_usd_min != null) {
-      const ratio = s.fees_usd_min / budgetCeiling
+    // Phase 3 Bug #7 (2026-05-21) — for full / weekly / flexi boarding
+    // parents, check against `fees_usd_max` (the upper end / boarding
+    // fee) instead of `fees_usd_min` (which is often the day-fee). When
+    // the boarder's fees_usd_max is null, skip the chip entirely rather
+    // than fall back to the day-fee — better silent than false-positive
+    // "in budget" on a school whose boarding fee actually exceeds the
+    // parent's ceiling.
+    const isBoarderBudget =
+      parent?.boarding_pref === 'full'   ||
+      parent?.boarding_pref === 'weekly' ||
+      parent?.boarding_pref === 'flexi'
+    const budgetCheckFee = isBoarderBudget ? s.fees_usd_max : s.fees_usd_min
+    if (budgetCeiling != null && budgetCheckFee != null) {
+      const ratio = budgetCheckFee / budgetCeiling
       if (ratio <= 1.0)      { score += 0.5; signals.push('in budget') }
       else if (ratio <= 1.2)  score += 0.2
     }
 
     // ── Per-sport interest ──────────────────────────────────────────
+    // Phase 3 Bug #1+#2 (2026-05-21):
+    //   * #2 level weighting — multiply each sport's normalised boost by
+    //     SPORT_LEVEL_MULTIPLIER for the parent-stated `sp.level`. A
+    //     "school-team" rugby kid no longer earns the same boost as a
+    //     "national" rugby kid even when the school is national-elite.
+    //   * #1 total cap — track the running sum and stop adding to `score`
+    //     once SPORT_TOTAL_CAP is reached. Chips still emit so the parent
+    //     sees all matched sports; only the numeric contribution caps.
+    let sportBoostTotal = 0
     for (const sp of sportsInterest) {
       const scorerKey = SPORT_SCORER_BY_LABEL[sp.key]
       const dim = (DIMENSIONS as Record<string, { rank: (row: unknown, ctx: unknown) => number } | undefined>)[scorerKey]
@@ -486,14 +572,20 @@ export function rankCandidates(
         // Normalise: rugby/football/cricket/hockey scorers return 0-60ish, tennis similar.
         // Bring into the 0-2.5 range so a single strong sport can compete with region.
         const norm = Math.min(rawScore / 20, 2.5)
-        score += norm
+        const levelKey = (sp.level ?? '').toLowerCase().trim()
+        const levelMul = SPORT_LEVEL_MULTIPLIER[levelKey] ?? SPORT_LEVEL_DEFAULT
+        const scaled = norm * levelMul
+        const remainingCap = Math.max(0, SPORT_TOTAL_CAP - sportBoostTotal)
+        const boost = Math.min(scaled, remainingCap)
+        score += boost
+        sportBoostTotal += boost
         const sportName = sp.key === 'rugby union' || sp.key === 'rugby league' ? 'rugby' : sp.key
         const lookupSport = sportName === 'rugby' ? 'rugby' : sportName
         const tier = readSportTier(struct, lookupSport)
         const tierFrag = tierToChipFragment(tier)
         if (tierFrag) {
           signals.push(`strong ${sportName} (${tierFrag})`)
-        } else if (norm >= 1.0) {
+        } else if (scaled >= 1.0) {
           signals.push(`strong ${sportName}`)
         }
       }
@@ -788,9 +880,17 @@ export function rankCandidates(
     return { school: s, struct, score, signals, facts }
   })
 
-  // 6. Sort + slice
+  // 6. Sort, drop no-signal, slice
+  // Phase 3 Bug #4 (2026-05-21) — the no-signal filter now runs BEFORE
+  // the limit slice. Previous order: sort → slice(limit) → drop empty
+  // → return. That could hide real positive-signal matches when a
+  // high-confidence-but-no-signal cluster filled the top `limit` rows
+  // and got dropped afterwards, leaving the LLM with an undersized
+  // candidate set even though many positive-signal schools existed
+  // further down the sort. New order: sort → drop empty → slice(limit).
   scored.sort((a, b) => b.score - a.score)
-  const top = scored.slice(0, Math.max(limit, 0))
+  const withSignals = scored.filter(s => s.signals.length > 0)
+  const top = withSignals.slice(0, Math.max(limit, 0))
 
   // 7. Build outputs
   const out: ScoredCandidate[] = top.map(t => {
@@ -807,12 +907,7 @@ export function rankCandidates(
       rationale_seed,
     }
   })
-
-  // Drop candidates with no positive signal at all — they only scored on
-  // the base confidence_score, not on anything the parent actually said.
-  // Better empty than a generic "famous UK school" pile.
-  const filteredOut = out.filter(c => c.signals.length > 0)
-  return filteredOut
+  return out
 }
 
 // ── Main scorer (DB-backed wrapper) ─────────────────────────────────
@@ -835,7 +930,7 @@ export async function scoreForBuildMode(
   // 2. Candidate query — hard filters in SQL where possible
   let q = supabase
     .from('schools')
-    .select('slug, name, gender_split, fees_usd_min, sen_support, strengths, confidence_score, age_min, age_max, region')
+    .select('slug, name, gender_split, fees_usd_min, fees_usd_max, sen_support, strengths, confidence_score, age_min, age_max, region')
     .in('slug', candidateSlugs)
     .eq('country', 'United Kingdom')
 
@@ -857,9 +952,22 @@ export async function scoreForBuildMode(
   // proposal. NULL confidence is preserved (unknown, don't punish).
   q = q.or('confidence_score.is.null,confidence_score.gte.10')
 
+  // Phase 3 Bug #7 (Codex r1 P1): the SQL HARD filter must use the same
+  // fee column as the in-budget chip below. For full/weekly/flexi boarders,
+  // a school's fees_usd_min is usually the day fee and would let
+  // unaffordable boarding schools survive the hard cap, rank on
+  // sport/region/academic signals, and surface as proposals with no
+  // negative budget signal. Switch the column conditionally; NULL on the
+  // chosen column still passes (preserves the existing extraction-gap
+  // tolerance).
   const budgetCeiling = BUDGET_CEILING_USD[parent?.budget_range ?? '']
   if (budgetCeiling != null) {
-    q = q.or(`fees_usd_min.is.null,fees_usd_min.lte.${Math.round(budgetCeiling * 1.3)}`)
+    const isBoarderBudget =
+      parent?.boarding_pref === 'full'   ||
+      parent?.boarding_pref === 'weekly' ||
+      parent?.boarding_pref === 'flexi'
+    const budgetFilterCol = isBoarderBudget ? 'fees_usd_max' : 'fees_usd_min'
+    q = q.or(`${budgetFilterCol}.is.null,${budgetFilterCol}.lte.${Math.round(budgetCeiling * 1.3)}`)
   }
 
   const entryAge = YEAR_TO_ENTRY_AGE[childYear ?? '']
@@ -873,10 +981,16 @@ export async function scoreForBuildMode(
     q = q.or('sen_support.is.null,sen_support.eq.true')
   }
 
-  // Pull more than `limit` so soft scoring has room to discriminate; cap
-  // at 120 to keep the structured-data fetch and the in-JS scoring loop
-  // bounded.
-  q = q.order('confidence_score', { ascending: false }).limit(120)
+  // Pull more than `limit` so soft scoring has room to discriminate.
+  // Phase 3 Bug #5 (2026-05-21) — raised from 120 to 250. UK independents
+  // in `schools_status` with `has_substantial_chunks=true` currently
+  // number ~140, so 120 was clipping the bottom ~20 by confidence_score
+  // and locking out strong lower-confidence sport / academic / pastoral
+  // matches from ever reaching the JS scorer (they'd never appear even
+  // as #20 in a Build Mode recommendation). 250 covers the full UK
+  // corpus today with safe headroom; the structured-data + facts fetches
+  // below stay bounded by this same number.
+  q = q.order('confidence_score', { ascending: false }).limit(250)
   const { data: rawCandidates, error: candidateErr } = await q
   if (candidateErr) return { candidates: [], reason: 'fetch_failed' }
   if (!rawCandidates || rawCandidates.length === 0) {
@@ -892,7 +1006,8 @@ export async function scoreForBuildMode(
   // v2.0 polymorphic blob with per-subject items[] + summary paragraph.
   // Drives subject-intent boost in rankCandidates via the new
   // DIMENSIONS.subject_strengths dim. Heavy column (~5-15KB per school)
-  // but it's only fetched for the ≤120 candidates post-hard-filter.
+  // but it's only fetched for the ≤250 candidates post-hard-filter (Phase
+  // 3 Bug #5 raised the cap from 120; Codex r1 NIT corrected the comment).
   const slugs = (rawCandidates as SchoolRow[]).map(s => s.slug)
   const { data: structRows, error: structErr } = await supabase
     .from('school_structured_data')
@@ -916,17 +1031,34 @@ export async function scoreForBuildMode(
   // so the new ethos-match scoring branch can read school.ethos_label
   // from the same struct row. Same loadDimFactsBundles call covers both
   // (the function pulls all dim bundles for the requested slugs).
+  // Phase 3 Bug #6 (2026-05-21) — build a map keyed by ALL candidate
+  // slugs, not just slugs that have an SSD row. Before: schools with
+  // `school_facts` (ISI deep, ethos) but no `school_structured_data` row
+  // silently lost those facts because the iteration was over `structRows`
+  // only. After: every candidate slug gets a StructRow with SSD fields
+  // null when absent, so the pastoral / inclusive / ethos scorers still
+  // fire for facts-only schools.
   const factsBundles = await loadDimFactsBundles(supabase, slugs)
-  const structBySlug = new Map<string, StructRow>(
-    (structRows ?? []).map((r: Omit<StructRow, 'isi_deep_facts' | 'ethos_facts'>) => [
-      r.school_slug,
-      {
-        ...r,
-        isi_deep_facts: (factsBundles.get(r.school_slug)?.isi_deep_facts as Record<string, unknown> | undefined) ?? null,
-        ethos_facts:    (factsBundles.get(r.school_slug)?.ethos_facts    as Record<string, unknown> | undefined) ?? null,
-      },
-    ]),
-  )
+  const structRowsBySlug = new Map<string, Omit<StructRow, 'isi_deep_facts' | 'ethos_facts'>>()
+  for (const rawRow of structRows ?? []) {
+    const r = rawRow as Omit<StructRow, 'isi_deep_facts' | 'ethos_facts'>
+    structRowsBySlug.set(r.school_slug, r)
+  }
+  const structBySlug = new Map<string, StructRow>()
+  for (const slug of slugs) {
+    const r = structRowsBySlug.get(slug)
+    structBySlug.set(slug, {
+      school_slug:             slug,
+      sports_profile:          r?.sports_profile ?? null,
+      exam_results:            r?.exam_results ?? null,
+      university_destinations: r?.university_destinations ?? null,
+      student_community:       r?.student_community ?? null,
+      wellbeing_staffing:      r?.wellbeing_staffing ?? null,
+      subject_strengths:       r?.subject_strengths ?? null,
+      isi_deep_facts: (factsBundles.get(slug)?.isi_deep_facts as Record<string, unknown> | undefined) ?? null,
+      ethos_facts:    (factsBundles.get(slug)?.ethos_facts    as Record<string, unknown> | undefined) ?? null,
+    })
+  }
 
   // Phase 1 data-utilization (2026-05-21): arts_music_drama fact counts
   // per slug. Separate fetch (the existing factsBundles loader doesn't
