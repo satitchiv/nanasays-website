@@ -1105,6 +1105,11 @@
   gap: 8px;
   margin-bottom: 8px;
   font-family: var(--rr-sans);
+  /* Codex r5 P2.3 — allow the chip strip to wrap to a second line on
+     narrow mobile widths. "Capturing the basics first" + the two
+     chips can exceed the container's inner width below ~360px. With
+     flex-wrap the chips drop under the heading rather than clip. */
+  flex-wrap: wrap;
 }
 .rr-build-progress-focus {
   font-size: 11.5px;
@@ -1118,6 +1123,80 @@
   color: var(--rr-muted);
   font-weight: 800;
   letter-spacing: .04em;
+}
+/* rr-8-build3-sibling-gender-year (2026-05-21) — basics chip-strip for
+   the sibling_basics focus. Replaces the % in the bar's head: shows
+   "Year group ⋯ · Gender ⋯" with each chip flipping to "✓" as the
+   field gets captured. Visible signal that something is happening
+   while the underlying usable_total is still 0 — addresses two browser-
+   smoke gripes: (a) parent thought the bar was broken when % didn't
+   move on the basics turn, and (b) when the LLM re-asks after a non-
+   answer, the chips show the parent which field Nana is still waiting on. */
+.rr-build-progress-basics {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--rr-sans);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  color: var(--rr-muted);
+}
+.rr-build-progress-basic-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--rr-off-2);
+  border: 1px solid var(--rr-border);
+  color: var(--rr-muted);
+  transition: background .25s ease, border-color .25s ease, color .25s ease;
+}
+.rr-build-progress-basic-chip.is-captured {
+  /* Codex r5 NIT — color-mix() lands in Chrome 111+ / Safari 16.2+ /
+     Firefox 113+; the hex fallbacks below land in any browser. Both
+     fallback + color-mix lines stay so a browser that supports the
+     latter overrides the former; if it doesn't, the hex paints the
+     intended tint (--rr-teal #34C3A0 mixed 14% with white ≈ #dff5ed
+     background; 45% with --rr-border ≈ #87cdbb border). */
+  background:    #dff5ed;
+  background:    color-mix(in srgb, var(--rr-teal) 14%, var(--rr-white));
+  border-color:  #87cdbb;
+  border-color:  color-mix(in srgb, var(--rr-teal) 45%, var(--rr-border));
+  color:         var(--rr-navy);
+}
+.rr-build-progress-basic-chip-mark {
+  font-family: var(--rr-mono);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+  color: inherit;
+}
+.rr-build-progress-basic-chip.is-captured .rr-build-progress-basic-chip-mark {
+  color: var(--rr-teal);
+}
+.rr-build-progress-basic-divider {
+  color: var(--rr-border);
+  font-weight: 700;
+}
+/* Codex r5 P2.4 — visually-hidden text node for the chip strip's
+   role="status" container. AT stacks announce live-region TEXT
+   mutations (not aria-label changes), so the chip-state text needs
+   to be a real DOM node rather than an attribute. Standard sr-only
+   pattern: keeps the element in the a11y tree + reading order but
+   removes it from visual layout. */
+.rr-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 .rr-build-progress-bar {
   position: relative;

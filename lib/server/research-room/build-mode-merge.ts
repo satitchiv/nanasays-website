@@ -30,6 +30,10 @@ import {
   TARGET_WEIGHTS,
   computeTotals,
 } from './build-mode-schemas.ts'
+import {
+  parseSiblingBasicsAnswer,
+  type SiblingBasicsParseResult,
+} from './sibling-basics-parser.ts'
 
 const VISIBLE_NOTES_CAP = 4000   // per-field char cap on visible text
 const MAX_NONNEGOTIABLES = 20
@@ -228,8 +232,26 @@ export type MergeBuildModeTurnOpts = {
   priorProfile:   PriorProfile
   priorProgress:  BuildModeProgress
   payload:        BuildModeTurnPayload
-  currentFocus:   TargetKey | 'confirm_contradiction' | 'free'
+  // rr-8-build3-sibling-gender-year (2026-05-21): 'sibling_basics'
+  // added to mirror pickFocus's new return type. Merge layer just
+  // forwards it to mergeProgress, which only uses currentFocus as a
+  // tiebreaker for drill_down/other (neither path matches
+  // 'sibling_basics'), so behaviour is unchanged for the new value.
+  currentFocus:   TargetKey | 'confirm_contradiction' | 'sibling_basics' | 'free'
   turnAt:         string   // ISO timestamp produced by the caller
+  /**
+   * rr-8-build3-sibling-gender-year chat-quality (2026-05-21) — the
+   * user's raw message + the last Nana prose, used by the
+   * deterministic sibling-basics parser as a safety net for the
+   * LLM's structured-output bias toward null on fragment answers
+   * like "year 9" or "son". The parser is INVOKED ONLY when
+   * currentFocus === 'sibling_basics' AND the LLM emitted null for
+   * the basic. LLM-emitted values always win over the parser; the
+   * parser only fills LLM-null gaps. Optional for back-compat with
+   * existing callers (parser simply doesn't fire when absent).
+   */
+  userMessage?:   string | null
+  lastNanaProse?: string | null
 }
 
 export function mergeBuildModeTurn(opts: MergeBuildModeTurnOpts): MergeResult {
@@ -281,6 +303,62 @@ export function mergeBuildModeTurn(opts: MergeBuildModeTurnOpts): MergeResult {
       nextProfile.nonnegotiables = value
       diff.set.push({ field: 'nonnegotiables', value })
     }
+  }
+
+  // ── child_gender + child_year (scalar enums, no contradiction track) ──
+  // rr-8-build3-sibling-gender-year (2026-05-21): these are basics-level
+  // facts captured by the sibling_basics opener turn. Unlike
+  // goal_orientation we don't track contradictions — a parent changing
+  // "son" to "daughter" mid-interview is an explicit correction the
+  // simplest interpretation of which is: trust the latest answer. The
+  // values flow into children.child_profile via the existing v5 RPC, and
+  // the turn + finalize routes read them with child_profile preferred
+  // over parent_profiles (which carries the FIRST child's stale values).
+  // Spelled out per-field (instead of a for-loop) to keep the discriminated
+  // zod enum type intact across the assignment — a string-indexed loop
+  // collapses to `unknown` which the strict HTTPSchema rejects.
+  //
+  // Chat-quality (2026-05-21, Codex advisory): the deterministic
+  // parser fills LLM-null gaps for sibling basics. The LLM occasionally
+  // emits null on fragment answers ("year 9", "son") because strict
+  // structured output biases toward null. The parser catches those
+  // unambiguous patterns deterministically — Codex's framing: "the
+  // difference between 'the model should remember' and 'the product
+  // definitely remembers'." LLM values ALWAYS win when non-null; the
+  // parser only fills when the LLM left it blank.
+  let parserResult: SiblingBasicsParseResult | null = null
+  if (
+    opts.currentFocus === 'sibling_basics' &&
+    typeof opts.userMessage === 'string' &&
+    opts.userMessage.trim().length > 0
+  ) {
+    parserResult = parseSiblingBasicsAnswer({
+      userMessage:   opts.userMessage,
+      lastNanaProse: opts.lastNanaProse ?? null,
+    })
+  }
+
+  // Codex r7 P2.3: ONLY let the parser fill basics that are MISSING
+  // on priorProfile. Without this gate, an off-topic mention later in
+  // the interview (parent says "she sees a tutor" while answering an
+  // unrelated focus) could trigger the parser to flip an already-known
+  // child_gender, silently corrupting the captured profile. The LLM
+  // is the canonical correction path — it has full context and can
+  // distinguish a deliberate correction ("actually, daughter") from
+  // an incidental pronoun. The parser ONLY fills gaps the LLM left.
+  const parserGender = opts.priorProfile.child_gender == null ? (parserResult?.child_gender ?? null) : null
+  const parserYear   = opts.priorProfile.child_year   == null ? (parserResult?.child_year   ?? null) : null
+
+  const resolvedGender = fields.child_gender ?? parserGender ?? null
+  const resolvedYear   = fields.child_year   ?? parserYear   ?? null
+
+  if (resolvedGender != null && resolvedGender !== opts.priorProfile.child_gender) {
+    nextProfile.child_gender = resolvedGender
+    diff.set.push({ field: 'child_gender', value: resolvedGender })
+  }
+  if (resolvedYear != null && resolvedYear !== opts.priorProfile.child_year) {
+    nextProfile.child_year = resolvedYear
+    diff.set.push({ field: 'child_year', value: resolvedYear })
   }
 
   // ── goal_orientation (enum, contradiction-tracked) ────────────────
@@ -339,7 +417,11 @@ function mergeProgress(args: {
   diff:             ProfileDiff
   pending:          PendingConfirmation | null
   reaffirmedFields: Set<string>
-  currentFocus:     TargetKey | 'confirm_contradiction' | 'free'
+  // rr-8-build3-sibling-gender-year (2026-05-21): 'sibling_basics' kept
+  // in the union for type-consistency with mergeBuildModeTurn caller; the
+  // drill_down/other tiebreaker below never matches it so behaviour
+  // is unchanged for that new value.
+  currentFocus:     TargetKey | 'confirm_contradiction' | 'sibling_basics' | 'free'
   turnAt:           string
 }): BuildModeProgress {
   const { prior, payload, diff, pending, reaffirmedFields, currentFocus, turnAt } = args

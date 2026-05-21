@@ -43,6 +43,7 @@ import {
   type BuildModeExtractionHTTP,
   type BuildModeProgress,
 } from '@/lib/server/research-room/build-mode-schemas'
+import { buildUkYearHint } from '@/lib/server/research-room/uk-school-year'
 
 export const runtime    = 'nodejs'
 export const dynamic    = 'force-dynamic'
@@ -141,6 +142,12 @@ const WRITABLE_PROFILE_KEYS = [
   'goal_orientation',
   'interests_sports',
   'interests_arts',
+  // rr-8-build3-sibling-gender-year (2026-05-21): sibling-basics opener
+  // captures these on child_profile so the read-preference flip below
+  // sees them on subsequent turns. Stays in sync with FIELD_DEFS in
+  // build-mode-schemas.ts (which has the matching zod enums).
+  'child_gender',
+  'child_year',
 ] as const
 
 function extractWritableProfile(profile: Record<string, unknown>): Partial<BuildModeExtractionHTTP> {
@@ -149,7 +156,30 @@ function extractWritableProfile(profile: Record<string, unknown>): Partial<Build
     if (k in profile && profile[k] != null) filtered[k] = profile[k]
   }
   const parsed = BuildModeExtractionHTTPSchema.safeParse(filtered)
-  return parsed.success ? parsed.data : {}
+  if (parsed.success) return parsed.data
+  // Codex r1 Q11 + r2 NIT.1 — legacy-data hardening with logging.
+  // Without this fallback, ONE bad enum value (e.g. a hand-edited
+  // child_gender='male' from before the 'boy/girl/either' enum was
+  // canonical) would empty the entire priorProfile because zod's
+  // strict parse is all-or-nothing. Retry without the new basics
+  // fields so the rest of the captured Build Mode notes flow through;
+  // the sibling_basics opener will re-ask and overwrite with a canonical
+  // value. Codex r2 NIT.1: log issue PATHS (not values, to avoid
+  // dumping the whole child_profile) so Mission Control can see drift.
+  console.warn('[build-mode/turn] extractWritableProfile schema-drift fallback', {
+    issuePaths: parsed.error.issues.map(i => i.path.join('.')),
+  })
+  const fallback: Record<string, unknown> = { ...filtered }
+  delete fallback.child_gender
+  delete fallback.child_year
+  const fallbackParsed = BuildModeExtractionHTTPSchema.safeParse(fallback)
+  if (!fallbackParsed.success) {
+    console.warn('[build-mode/turn] extractWritableProfile fallback ALSO failed', {
+      issuePaths: fallbackParsed.error.issues.map(i => i.path.join('.')),
+    })
+    return {}
+  }
+  return fallbackParsed.data
 }
 
 export async function POST(req: NextRequest) {
@@ -189,11 +219,16 @@ export async function POST(req: NextRequest) {
   // ── Load child profile + brief ─────────────────────────────────────
   const [childRes, parentRes] = await Promise.all([
     svc.from('children')
-      .select('user_id, name, child_profile')
+      // chat-quality (2026-05-21) — date_of_birth added to SELECT so
+      // the sibling_basics opener can suggest a UK Year derived from
+      // the birthday rather than asking blind. parent_profiles SELECT
+      // ALSO carries curriculum_pref for the sibling-aware "Already
+      // reused from the family profile" rendering in build-mode-prompt.
+      .select('user_id, name, child_profile, date_of_birth')
       .eq('id', sess.child_id)
-      .maybeSingle<{ user_id: string; name: string | null; child_profile: Record<string, unknown> | null }>(),
+      .maybeSingle<{ user_id: string; name: string | null; child_profile: Record<string, unknown> | null; date_of_birth: string | null }>(),
     svc.from('parent_profiles')
-      .select('child_year, child_gender, boarding_pref, budget_range, top_priority, home_region')
+      .select('child_year, child_gender, boarding_pref, budget_range, top_priority, home_region, curriculum_pref')
       .eq('id', user.id)
       .maybeSingle<Record<string, unknown>>(),
   ])
@@ -201,8 +236,31 @@ export async function POST(req: NextRequest) {
   if (childRes.data.user_id !== user.id)    return jsonError(403, 'forbidden')
 
   const childName    = childRes.data.name ?? 'your child'
-  const priorProfile = extractWritableProfile(childRes.data.child_profile ?? {})
-  const brief        = parentRes.data ?? {}
+  const childProfileRaw = childRes.data.child_profile ?? {}
+  const priorProfile = extractWritableProfile(childProfileRaw)
+
+  // rr-8-build3-sibling-gender-year (2026-05-21): construct the brief
+  // with child_gender + child_year sourced from THIS child's profile
+  // ONLY. The earlier draft fell back to parent_profiles when the
+  // child row had no value, but Codex r1 P1.1 caught that the fallback
+  // re-introduced the exact bug we're fixing: for a sibling who hasn't
+  // filled basics yet, the fallback feeds the FIRST child's gender/year
+  // back into renderPriorFacts(), so the prompt context says
+  // "Brief: Year group: <first child> · Gender: <first child>" while
+  // sibling_basics asks "Is this for a son or a daughter?" — confusing
+  // for the model AND wrong context if it weights brief over questions.
+  // First children's child_profile already mirrors parent_profiles
+  // (the wizard copies all 14 fields on first-child create), so the
+  // null-only path covers them. The sibling_basics opener (pickFocus
+  // gate) is the canonical way to fill blanks; the parent_profiles
+  // fallback was a safety net that wasn't actually safe.
+  const childGenderRaw = (childProfileRaw as Record<string, unknown>).child_gender
+  const childYearRaw   = (childProfileRaw as Record<string, unknown>).child_year
+  const brief = {
+    ...(parentRes.data ?? {}),
+    child_gender: (typeof childGenderRaw === 'string' && childGenderRaw) ? childGenderRaw : null,
+    child_year:   (typeof childYearRaw === 'string' && childYearRaw)   ? childYearRaw   : null,
+  }
 
   // ── Parse progress with the new shape; fall back to empty on shape
   // mismatch (e.g. v4 numeric targets sitting in the column from a dev
@@ -283,6 +341,35 @@ export async function POST(req: NextRequest) {
     else req.signal.addEventListener('abort', () => ac.abort(), { once: true })
   }
 
+  // chat-quality (2026-05-21) — derive a UK Year hint from the child's
+  // date_of_birth so the sibling_basics opener can SUGGEST a year
+  // ("From the birthday, I have ${name} as Year 9 now") instead of
+  // asking blind. Null when DOB is missing or falls outside the
+  // UK school year band; the prompt branch then asks plainly.
+  const siblingYearHint = buildUkYearHint(childRes.data.date_of_birth ?? null)
+
+  // Codex r7 P2.1 — true sibling = the user has more than one child
+  // on their account (active OR archived; either way another child
+  // existed at some point, so "earlier child" wording is accurate).
+  // Used to gate the sibling-specific copy in the basics prompt
+  // branch — pickFocus's sibling_basics gate also fires for legacy
+  // first children with blank basics, and we don't want to falsely
+  // claim "earlier child" in that case. Best-effort: a count-query
+  // failure defaults isSibling to false (cosmetic loss for true
+  // siblings, no false claim either way).
+  let isSibling = false
+  {
+    const { count, error: countErr } = await svc
+      .from('children')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+    if (countErr) {
+      console.warn('[build-mode/turn] sibling-count probe failed', countErr.message)
+    } else {
+      isSibling = (count ?? 0) > 1
+    }
+  }
+
   let turn
   try {
     turn = runInterviewTurn({
@@ -291,6 +378,8 @@ export async function POST(req: NextRequest) {
       priorProfile,
       priorProgress: progress,
       history,
+      siblingYearHint,
+      isSibling,
       signal:        ac.signal,
     })
   } catch (e) {
@@ -326,11 +415,35 @@ export async function POST(req: NextRequest) {
         // next focus. Append a deterministic question when the LLM
         // forgot. Skip when next focus is `free` (all targets done) or
         // `confirm_contradiction` (different conversational path).
-        const nextFocus = pickFocus(merge.nextProgress)
+        // rr-8-build3-sibling-gender-year (2026-05-21): pass a union of
+        // priorProfile + this turn's delta so pickFocus sees the freshly-
+        // captured child_gender/year and stops returning 'sibling_basics'
+        // once both fields are present. merge.nextProfile contains ONLY
+        // the fields that changed THIS turn (the RPC's `||` operator
+        // merges into existing child_profile in DB), so the next-focus
+        // calculation needs the union here.
+        const mergedProfileForFocus = { ...priorProfile, ...merge.nextProfile }
+        const nextFocus = pickFocus(merge.nextProgress, mergedProfileForFocus)
         const llmAskedQuestion = hasTerminalQuestion(proseAccum)
         let followUpSource: 'llm' | 'orchestrator' = 'llm'
-        if (!llmAskedQuestion && nextFocus !== 'free' && nextFocus !== 'confirm_contradiction') {
-          const question = buildFollowUpQuestion({ childName, focus: nextFocus })
+        // Codex r1 P1.2: sibling_basics MUST get the follow-up appendix
+        // when the LLM omits a terminal question. Earlier draft skipped
+        // sibling_basics here, but the LLM is known to drop closing
+        // questions on ~50% of turns; that would ship a sibling-opener
+        // turn that recites prior facts and stops, with no prompt for
+        // the parent to respond to. buildFollowUpQuestion has a
+        // dedicated SIBLING_BASICS_FOLLOW_UP that asks both basics
+        // with deflection escape hatches ("either" / "not sure").
+        if (
+          !llmAskedQuestion &&
+          nextFocus !== 'free' &&
+          nextFocus !== 'confirm_contradiction'
+        ) {
+          // Codex r2 P2.1 — pass mergedProfileForFocus so the
+          // sibling_basics appendix only re-asks the missing field.
+          // Other focuses ignore mergedProfile via the function's
+          // optional param (back-compat).
+          const question = buildFollowUpQuestion({ childName, focus: nextFocus, mergedProfile: mergedProfileForFocus })
           const appendix = (proseAccum.trim() ? '\n\n' : '') + question
           proseAccum += appendix
           send({ type: 'token', text: appendix })

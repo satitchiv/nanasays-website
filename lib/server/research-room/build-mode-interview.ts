@@ -28,6 +28,7 @@ import {
 } from './build-mode-schemas.ts'
 import { buildSystemPrompt } from './build-mode-prompt.ts'
 import { mergeBuildModeTurn, type MergeResult } from './build-mode-merge.ts'
+import type { UkYearHint } from './uk-school-year.ts'
 
 // Generic stream-fn signature so the production `streamBuildModeTurn`
 // and the test mock both satisfy it.
@@ -46,6 +47,26 @@ export type RunInterviewTurnOpts = {
   priorProfile: Partial<BuildModeExtractionHTTP>
   priorProgress: BuildModeProgress
   history:      BuildModeMessage[]
+  /**
+   * rr-8-build3-sibling-gender-year chat-quality (2026-05-21) —
+   * birthday-derived UK Year hint (current academic year + next
+   * September). Renders into the sibling_basics opener as
+   * "From the birthday, I have yoyo as Year 9 now, likely Year 10
+   * from September. Is that right?". The turn route computes this
+   * from children.date_of_birth via buildUkYearHint(). Null when DOB
+   * is missing or DOB resolves to a non-UK-school year.
+   */
+  siblingYearHint?: UkYearHint | null
+  /**
+   * Codex r7 P2.1 — true when this child is actually a sibling
+   * (other children exist on the user's account). Used by the
+   * sibling_basics prompt branch to neutralise "earlier child"
+   * wording when false, since pickFocus also fires for legacy
+   * first children with missing child_profile basics. The turn route
+   * derives this from a children-count query; default false is the
+   * safer choice (no false sibling claim).
+   */
+  isSibling?:   boolean
   signal?:      AbortSignal
   /** Defaults to the real OpenAI-backed streamBuildModeTurn. Tests inject a mock. */
   streamFn?:    StreamFn
@@ -54,7 +75,7 @@ export type RunInterviewTurnOpts = {
 }
 
 export type RunInterviewTurnResult = {
-  focus:         TargetKey | 'confirm_contradiction' | 'free'
+  focus:         TargetKey | 'confirm_contradiction' | 'sibling_basics' | 'free'
   proseStream:   AsyncIterable<string>
   payload:       Promise<BuildModeTurnPayload>
   mergeResult:   Promise<MergeResult>
@@ -82,9 +103,26 @@ function targetHeadroom(state: ProgressState): number {
 }
 
 /** Public helper so tests can assert focus selection without running the LLM. */
-export function pickFocus(progress: BuildModeProgress): TargetKey | 'confirm_contradiction' | 'free' {
+export function pickFocus(
+  progress:    BuildModeProgress,
+  priorProfile?: Partial<BuildModeExtractionHTTP>,
+): TargetKey | 'confirm_contradiction' | 'sibling_basics' | 'free' {
   // Contradictions trump everything — must be resolved before drift.
   if (progress.pending_confirmations.length > 0) return 'confirm_contradiction'
+
+  // rr-8-build3-sibling-gender-year (2026-05-21): siblings skip the
+  // 5-question wizard and inherit only the 4 family-constant fields
+  // (region/boarding/budget/curriculum) from parent_profiles. If
+  // child_gender or child_year is missing on THIS child's profile,
+  // run a one-shot opener turn to capture them BEFORE diving into the
+  // interview proper — otherwise the turn + finalize routes fall back
+  // to parent_profiles.child_gender/year, which still carries the FIRST
+  // child's values, silently mis-targeting recommendations. Optional
+  // priorProfile keeps backwards-compat for any caller that doesn't yet
+  // pass it (gate just doesn't fire).
+  if (priorProfile && (!priorProfile.child_gender || !priorProfile.child_year)) {
+    return 'sibling_basics'
+  }
 
   // Pick the target with the largest weight × headroom. TARGET_KEYS
   // order is the deterministic tie-breaker.
@@ -110,14 +148,16 @@ export function runInterviewTurn(opts: RunInterviewTurnOpts): RunInterviewTurnRe
   const streamFn = opts.streamFn ?? streamBuildModeTurn
   const now      = opts.now      ?? (() => new Date())
 
-  const focus = pickFocus(opts.priorProgress)
+  const focus = pickFocus(opts.priorProgress, opts.priorProfile)
 
   const systemPrompt = buildSystemPrompt({
-    childName:    opts.childName,
-    progress:     opts.priorProgress,
-    brief:        opts.childBrief,
-    priorProfile: opts.priorProfile,
-    currentFocus: focus,
+    childName:       opts.childName,
+    progress:        opts.priorProgress,
+    brief:           opts.childBrief,
+    priorProfile:    opts.priorProfile,
+    currentFocus:    focus,
+    siblingYearHint: opts.siblingYearHint ?? null,
+    isSibling:       opts.isSibling ?? false,
   })
 
   const messages: BuildModeMessage[] = [
@@ -134,6 +174,29 @@ export function runInterviewTurn(opts: RunInterviewTurnOpts): RunInterviewTurnRe
   // Compose mergeResult promise. Reject cleanly when extraction fails,
   // never produce a half-merged state (Codex r2 R7 + P3).
   const turnAt = now().toISOString()
+
+  // Chat-quality (2026-05-21): pull the current user message + the
+  // immediately-prior Nana prose out of history so the merge layer
+  // can invoke the deterministic sibling-basics parser as a safety
+  // net on the LLM's structured-output bias toward null. The
+  // chronological convention is: `opts.history` is oldest → newest
+  // and the FINAL entry is the current user message the LLM is
+  // responding to (set by the turn route before calling).
+  const userMessage = (() => {
+    for (let i = opts.history.length - 1; i >= 0; i--) {
+      const m = opts.history[i]
+      if (m && m.role === 'user') return m.content
+    }
+    return null
+  })()
+  const lastNanaProse = (() => {
+    for (let i = opts.history.length - 1; i >= 0; i--) {
+      const m = opts.history[i]
+      if (m && m.role === 'assistant') return m.content
+    }
+    return null
+  })()
+
   const mergeResult: Promise<MergeResult> = stream.extraction.then((payload) =>
     mergeBuildModeTurn({
       priorProfile:  opts.priorProfile,
@@ -141,6 +204,8 @@ export function runInterviewTurn(opts: RunInterviewTurnOpts): RunInterviewTurnRe
       payload,
       currentFocus:  focus,
       turnAt,
+      userMessage,
+      lastNanaProse,
     }),
   )
 
@@ -198,12 +263,47 @@ const GENERIC_FALLBACK = (n: string) => `Anything else you'd like to tell me abo
  * post-merge focus. Used by the turn route when the LLM forgets to ask.
  * `confirm_contradiction` and `free` are handled by the caller (the
  * route only appends when focus is a real target).
+ *
+ * rr-8-build3-sibling-gender-year (Codex r1 P1.2 + r2 P2.1):
+ * `sibling_basics` has a deterministic follow-up too. The LLM is
+ * known to drop terminal questions on ~50% of turns; without a
+ * dedicated appendix, the sibling-basics opener could ship a turn
+ * that recites the prior facts and then stops, leaving the parent
+ * with no prompt to respond to.
+ *
+ * Partial-aware (Codex r2 P2.1): the route passes `mergedProfile` so
+ * the appendix only re-asks the field that's still missing. Without
+ * this, a parent who answered only gender would be re-asked BOTH
+ * questions if the LLM forgot the year — which feels robotic and
+ * could read as the system ignoring their first answer.
+ *
+ * The deflection escape hatches ("either" / "not sure") let the
+ * parent move on without retyping.
  */
+// Codex r3 NIT.1: all three variants end with `?` since they're the
+// terminal fallback question. The route's hasTerminalQuestion regex
+// doesn't actually check the appendix (only the LLM prose), but reading
+// quality matters — a question that ends with `.)` reads as an aside,
+// not a prompt. The earlier "(Or 'either' …)" parenthetical is folded
+// inline so the sentence ends with the question mark.
+const SIBLING_BASICS_BOTH = `Quick check first — is this for a son or a daughter (or "either" if you'd rather we show co-ed and both single-sex options)? And what year group are they entering — Year 7, Year 9, Year 10, Sixth Form, or "not sure"?`
+const SIBLING_BASICS_GENDER_ONLY = `One quick basic before we dive in — is this for a son or a daughter, or would you rather we show co-ed and both single-sex schools ("either")?`
+const SIBLING_BASICS_YEAR_ONLY = `One quick basic before we dive in — what year group are they entering: Year 7, Year 9, Year 10, Sixth Form, or "not sure"?`
+
 export function buildFollowUpQuestion(opts: {
-  childName: string
-  focus:     TargetKey | 'confirm_contradiction' | 'free'
+  childName:      string
+  focus:          TargetKey | 'confirm_contradiction' | 'sibling_basics' | 'free'
+  /** Codex r2 P2.1 — partial-aware sibling_basics appendix. Optional for back-compat. */
+  mergedProfile?: Partial<BuildModeExtractionHTTP>
 }): string {
   const name = opts.childName?.trim() || 'your child'
+  if (opts.focus === 'sibling_basics') {
+    const missingGender = !opts.mergedProfile?.child_gender
+    const missingYear   = !opts.mergedProfile?.child_year
+    if (missingGender && !missingYear) return SIBLING_BASICS_GENDER_ONLY
+    if (missingYear   && !missingGender) return SIBLING_BASICS_YEAR_ONLY
+    return SIBLING_BASICS_BOTH
+  }
   if (opts.focus === 'confirm_contradiction' || opts.focus === 'free') {
     return GENERIC_FALLBACK(name)
   }

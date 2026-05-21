@@ -130,6 +130,12 @@ const WRITABLE_PROFILE_KEYS = [
   'goal_orientation',
   'interests_sports',
   'interests_arts',
+  // rr-8-build3-sibling-gender-year (2026-05-21): mirrors the turn
+  // route's allowlist + FIELD_DEFS in build-mode-schemas.ts so the
+  // child_profile's gender/year captured during the sibling_basics
+  // opener turn round-trip cleanly through finalize's extractWritableProfile.
+  'child_gender',
+  'child_year',
 ] as const
 
 function extractWritableProfile(profile: Record<string, unknown>): Partial<BuildModeExtractionHTTP> {
@@ -138,7 +144,28 @@ function extractWritableProfile(profile: Record<string, unknown>): Partial<Build
     if (k in profile && profile[k] != null) filtered[k] = profile[k]
   }
   const parsed = BuildModeExtractionHTTPSchema.safeParse(filtered)
-  return parsed.success ? parsed.data : {}
+  if (parsed.success) return parsed.data
+  // Codex r1 Q11 + r2 NIT.1 — legacy-data hardening with logging.
+  // Mirrors the turn route. ONE bad enum value would otherwise empty
+  // the entire priorProfile and wreck finalize's prompt context. Retry
+  // without the new basics so the captured Build Mode notes still flow
+  // through; finalize's childGender/Year reads come from raw
+  // child_profile separately (see below) so the basics still reach
+  // the scorer even when this schema-parse drops them.
+  console.warn('[build-mode/finalize] extractWritableProfile schema-drift fallback', {
+    issuePaths: parsed.error.issues.map(i => i.path.join('.')),
+  })
+  const fallback: Record<string, unknown> = { ...filtered }
+  delete fallback.child_gender
+  delete fallback.child_year
+  const fallbackParsed = BuildModeExtractionHTTPSchema.safeParse(fallback)
+  if (!fallbackParsed.success) {
+    console.warn('[build-mode/finalize] extractWritableProfile fallback ALSO failed', {
+      issuePaths: fallbackParsed.error.issues.map(i => i.path.join('.')),
+    })
+    return {}
+  }
+  return fallbackParsed.data
 }
 
 // Build a short, opinionated random id that satisfies the existing
@@ -296,9 +323,13 @@ export async function POST(req: NextRequest) {
   // current view); fall back to active comparison_views if absent.
   const { data: child } = await svc
     .from('children')
-    .select('user_id, name, child_profile')
+    // chat-quality (2026-05-21) — mirror the turn route's SELECT shape
+    // (incl. date_of_birth) for consistency. Finalize doesn't currently
+    // use DOB itself, but querying the same projection prevents the two
+    // routes from drifting on what they consider a "child" row.
+    .select('user_id, name, child_profile, date_of_birth')
     .eq('id', sess.child_id)
-    .maybeSingle<{ user_id: string; name: string | null; child_profile: Record<string, unknown> | null }>()
+    .maybeSingle<{ user_id: string; name: string | null; child_profile: Record<string, unknown> | null; date_of_birth: string | null }>()
   if (!child)                       return jsonError(404, 'child_not_found')
   if (child.user_id !== user.id)    return jsonError(403, 'forbidden')
 
@@ -315,8 +346,25 @@ export async function POST(req: NextRequest) {
     .eq('id', user.id)
     .maybeSingle<BriefProfile & { child_gender?: string | null; child_year?: string | null }>()
   const briefProfile: BriefProfile | null = parentRow ?? null
-  const childGender = parentRow?.child_gender ?? null
-  const childYear   = parentRow?.child_year   ?? null
+  // rr-8-build3-sibling-gender-year (2026-05-21): prefer THIS child's
+  // captured gender/year over the parent_profiles fallback. For
+  // siblings, parent_profiles still carries the FIRST child's values
+  // (the wizard is skipped on +Add child after the first), and reading
+  // them directly fed the scorer wrong gender/year — silently mis-
+  // targeting recommendations. The sibling_basics opener turn (Build
+  // Mode focus = 'sibling_basics') now writes both values onto
+  // children.child_profile via the v5 RPC; once they're present this
+  // read picks them up. The parent_profiles fallback stays for
+  // back-compat with first-child / pre-fix siblings.
+  const childProfileRaw = (child.child_profile ?? {}) as Record<string, unknown>
+  const childGenderOnRow = typeof childProfileRaw.child_gender === 'string' && childProfileRaw.child_gender
+    ? childProfileRaw.child_gender
+    : null
+  const childYearOnRow = typeof childProfileRaw.child_year === 'string' && childProfileRaw.child_year
+    ? childProfileRaw.child_year
+    : null
+  const childGender = childGenderOnRow ?? parentRow?.child_gender ?? null
+  const childYear   = childYearOnRow   ?? parentRow?.child_year   ?? null
 
   let shortlistSlugs: string[] = Array.isArray(body.shortlistSlugs) ? body.shortlistSlugs : []
   if (shortlistSlugs.length === 0) {

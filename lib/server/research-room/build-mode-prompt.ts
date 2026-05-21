@@ -20,6 +20,7 @@
 import 'server-only'
 import type { BuildModeExtractionHTTP, BuildModeProgress, TargetKey } from './build-mode-schemas.ts'
 import { TARGET_KEYS } from './build-mode-schemas.ts'
+import type { UkYearHint } from './uk-school-year.ts'
 
 const PRIOR_NOTE_CAP = 600   // chars per visible-note field when rendered into prompt
 
@@ -155,19 +156,71 @@ function renderPriorFacts(
   // The 5-question form (BriefProfile) is always known by this point.
   // Surface the most steering fields. Read defensively because brief
   // schemas evolve.
-  const briefBits: Array<[string, unknown]> = [
-    ['Year group',     brief.child_year],
-    ['Gender',         brief.child_gender],
-    ['Boarding/day',   brief.boarding_pref],
-    ['Budget',         brief.budget_range],
-    ['Home region',    brief.home_region],
-    ['Top priority',   brief.top_priority],
-  ]
-  const briefLine = briefBits
-    .filter(([, v]) => v != null && v !== '')
-    .map(([k, v]) => `${k}: ${String(v)}`)
-    .join(' · ')
-  if (briefLine) lines.push(`Brief: ${briefLine}`)
+  //
+  // rr-8-build3-sibling-gender-year chat-quality (2026-05-21, Codex
+  // #3): when child_gender OR child_year is missing on THIS child's
+  // profile, we're in the sibling case. Split the brief into:
+  //   - "Already reused from the family profile" (region/boarding/
+  //     budget/curriculum — the 4 inherited fields)
+  //   - "Still needed for this child" (gender + year, with explicit
+  //     "do not assume from another child" guard)
+  // Without this split, the LLM sees "Brief: Year group: year-9 ·
+  // Gender: boy ·..." even for a blank sibling — because brief is
+  // sourced from parent_profiles, which still carries the FIRST
+  // child's values. The earlier brief-read flip (rr-r1-P1.1) stops
+  // that for child-specific fields, but the prompt-side rendering
+  // should ALSO be explicit that we're missing those values for the
+  // sibling, not silently absent.
+  const siblingNeedsBasics = !profile.child_gender || !profile.child_year
+
+  if (siblingNeedsBasics) {
+    const familyBits: Array<[string, unknown]> = [
+      ['Region',                brief.home_region],
+      ['Boarding/day',          brief.boarding_pref],
+      ['Budget',                brief.budget_range],
+      ['Curriculum preference', brief.curriculum_pref],
+    ]
+    const familyRendered = familyBits
+      .filter(([, v]) => v != null && v !== '')
+      .map(([k, v]) => `${k}: ${String(v)}`)
+      .join(' · ')
+    if (familyRendered) {
+      // Codex r7 P2.1: phrase neutrally — "family preferences on file"
+      // is accurate whether this is the second child or a legacy first
+      // child who has parent_profiles set but child_profile basics
+      // missing.
+      lines.push(`Family preferences on file: ${familyRendered}`)
+    }
+    const stillNeeded: string[] = []
+    if (!profile.child_gender) stillNeeded.push('son/daughter (or open)')
+    if (!profile.child_year)   stillNeeded.push('school year')
+    if (stillNeeded.length > 0) {
+      lines.push(`Still needed for this child: ${stillNeeded.join(' · ')}`)
+    }
+    // The load-bearing instruction: blocks the LLM from confidently
+    // filling in another child's values, AND tells it to use chat
+    // history before asking again. Codex r7 P2.1: wording is neutral
+    // ("another child" not "another sibling") so the rule applies
+    // cleanly whether this is a true sibling case or a legacy first
+    // child.
+    lines.push(`Do NOT assume this child's missing basics from another child's profile or from parent-level defaults. Use the latest parent answer and recent chat first; if the parent has already answered a still-needed item, do not ask it again.`)
+  } else {
+    // Standard brief render — first-child path, or sibling whose
+    // basics are already captured. Show every steering field.
+    const briefBits: Array<[string, unknown]> = [
+      ['Year group',     brief.child_year],
+      ['Gender',         brief.child_gender],
+      ['Boarding/day',   brief.boarding_pref],
+      ['Budget',         brief.budget_range],
+      ['Home region',    brief.home_region],
+      ['Top priority',   brief.top_priority],
+    ]
+    const briefLine = briefBits
+      .filter(([, v]) => v != null && v !== '')
+      .map(([k, v]) => `${k}: ${String(v)}`)
+      .join(' · ')
+    if (briefLine) lines.push(`Brief: ${briefLine}`)
+  }
 
   // Codex r3 Q15a: the ACTUAL prior facts the parent has shared so far.
   // Without this the LLM cannot detect explicit corrections of earlier
@@ -234,11 +287,30 @@ export type BuildSystemPromptOpts = {
   brief:            Record<string, unknown>
   /** Codex r3 Q15a: the parent's already-known facts about this child. */
   priorProfile:     Partial<BuildModeExtractionHTTP>
-  currentFocus:     TargetKey | 'confirm_contradiction' | 'free'
+  currentFocus:     TargetKey | 'confirm_contradiction' | 'sibling_basics' | 'free'
+  /**
+   * rr-8-build3-sibling-gender-year chat-quality (2026-05-21) — UK
+   * Year hint derived from children.date_of_birth, used by the
+   * sibling_basics opener to suggest a year rather than asking blind.
+   * Null when no DOB or non-entry year band.
+   */
+  siblingYearHint?: UkYearHint | null
+  /**
+   * Codex r7 P2.1: pickFocus's sibling_basics gate ALSO fires for
+   * legacy first children whose child_profile is missing basics
+   * (e.g. created before the wizard wrote child_profile). The
+   * "earlier child" wording in the sibling_basics prompt branch is
+   * incorrect for those users — they don't have an earlier child.
+   * isSibling lets the prompt branch neutralise its language when
+   * false. Derived in the turn route from `childSummariesCount > 1`
+   * or equivalent; default false is the safer choice (cosmetic loss
+   * for a true sibling, no false claim for a first child).
+   */
+  isSibling?:       boolean
 }
 
 export function buildSystemPrompt(opts: BuildSystemPromptOpts): string {
-  const { childName, progress, brief, priorProfile, currentFocus } = opts
+  const { childName, progress, brief, priorProfile, currentFocus, siblingYearHint, isSibling } = opts
 
   const focusLine = (() => {
     if (currentFocus === 'confirm_contradiction') {
@@ -246,6 +318,14 @@ export function buildSystemPrompt(opts: BuildSystemPromptOpts): string {
     }
     if (currentFocus === 'free') {
       return `This turn: the parent has more to say. Let them dump; then summarise back what you heard.`
+    }
+    if (currentFocus === 'sibling_basics') {
+      return renderSiblingBasicsFocus({
+        childName,
+        priorProfile,
+        siblingYearHint: siblingYearHint ?? null,
+        isSibling: isSibling ?? false,
+      })
     }
     return `This turn, focus on: ${FOCUS_HINTS[currentFocus]}. Phrase the question naturally — do not announce the target.`
   })()
@@ -264,6 +344,169 @@ export function buildSystemPrompt(opts: BuildSystemPromptOpts): string {
   ].join('\n')
 }
 
+// ── sibling_basics focus rendering ──────────────────────────────────
+//
+// rr-8-build3-sibling-gender-year chat-quality (2026-05-21):
+// extracted into its own function for readability and to keep the
+// main buildSystemPrompt body lean. Implements Codex's chat-quality
+// advisory recommendations:
+//
+//   1. FIRST-RESOLVE-FROM-LATEST-ANSWER block — gives the LLM
+//      explicit permission to treat fragment answers ("year 9",
+//      "son") as valid extractions instead of defaulting to null.
+//      Codex's pithy framing: "the parent may answer with a fragment
+//      because they are replying to your last question."
+//   2. Shorthand mapping table inline so the LLM has the canonical
+//      pattern → enum-value mappings at hand.
+//   3. Tone block — bans system-y vocab (captured, field, basics,
+//      onboarding, prior facts) from parent-facing prose; sets a
+//      Year-6 reading level cap.
+//   4. Birthday-aware suggestion: when DOB-derived UkYearHint is
+//      available, Nana proposes a year ("From the birthday, I have
+//      yoyo as Year 9 now. Is that right?") rather than listing
+//      enum options to the parent.
+//   5. Extraction/prose consistency rule — never re-ask for a value
+//      you're setting this turn.
+
+type RenderSiblingBasicsOpts = {
+  childName:       string
+  priorProfile:    Partial<BuildModeExtractionHTTP>
+  siblingYearHint: UkYearHint | null
+  /**
+   * Codex r7 P2.1: false → neutralise the "sibling / earlier child"
+   * framing because pickFocus also fires for legacy first children
+   * with missing basics (no earlier child exists).
+   */
+  isSibling:       boolean
+}
+
+function renderSiblingBasicsFocus(opts: RenderSiblingBasicsOpts): string {
+  const { childName, priorProfile, siblingYearHint, isSibling } = opts
+  const name = childName || 'this child'
+  const missingGender = !priorProfile.child_gender
+  const missingYear   = !priorProfile.child_year
+
+  const lines: string[] = []
+
+  // ── 1. Frame the turn ─────────────────────────────────────────────
+  // Codex r7 P2.1: wording branches on isSibling so a legacy first
+  // child (basics blank for whatever reason) doesn't get "earlier
+  // child" claims they can't relate to.
+  if (isSibling) {
+    lines.push(
+      `BASICS opener — ${name} is a sibling; the family preferences (region, boarding, budget, curriculum) carry over from the earlier child, but ${name}'s school year and son/daughter haven't been captured yet. Capture them THIS TURN before moving on.`,
+    )
+  } else {
+    lines.push(
+      `BASICS opener — ${name}'s school year and son/daughter aren't on file yet. Capture them THIS TURN before moving on. (Do NOT claim they're a sibling or reference any "earlier child" — we don't know who they are relative to other children.)`,
+    )
+  }
+
+  // ── 2. FIRST-RESOLVE rule (Codex chat-quality #1) ─────────────────
+  lines.push(
+    '',
+    `FIRST, resolve any sibling basics from the latest user message and recent chat history BEFORE writing your prose. The parent may answer with a fragment because they are replying to your last question — treat bare answers as valid:`,
+    `  • "year 7", "y7", "yr 7", "7", "seventh" → child_year: "year-7"`,
+    `  • "year 9", "y9", "yr 9", "9", "ninth"   → child_year: "year-9"`,
+    `  • "year 10", "y10", "yr 10", "10"        → child_year: "year-10"`,
+    `  • "sixth form", "6th form", "year 12", "y13", "L6", "U6" → child_year: "sixth-form"`,
+    `  • "not sure", "don't know", "depends", "skip", "pass" → child_year: "not-sure"`,
+    `  • "son", "boy", "lad", "he", "him" → child_gender: "boy"`,
+    `  • "daughter", "girl", "she", "her" → child_gender: "girl"`,
+    `  • "either", "both", "no preference", "doesn't matter", "co-ed only" → child_gender: "either"`,
+    `  • "skip", "rather not say", "n/a" → child_gender: "either"`,
+    `Only treat a bare number like "9" as a school year when the LAST Nana message asked about year group. Pronouns ("she", "him") count as gender answers because the parent is replying to your chat.`,
+  )
+
+  // ── 3. Birthday hint (Codex chat-quality #2, r7 P2.4) ─────────────
+  //
+  // Codex r7 P2.4: only propose a birthday-derived year if the
+  // schema can actually store it. The enum supports Year 7 / 9 / 10 /
+  // Sixth Form — not Y8, Y11, etc. If we render a label for an
+  // unsupported year (e.g. "Year 8 now, likely Year 9 from September")
+  // the parent might confirm "yes, Year 8" and the LLM will set null
+  // (because Y8 isn't in the enum) → looks like nothing happened.
+  // Gate each side of the hint on the enum value being non-null.
+  if (siblingYearHint && missingYear) {
+    const curLabel  = siblingYearHint.currentLabel
+    const nextLabel = siblingYearHint.nextSeptemberLabel
+    const curValue  = siblingYearHint.currentValue
+    const nextValue = siblingYearHint.nextSeptemberValue
+    // Only suggest a year if its enum value is storable.
+    const curSuggestable  = curLabel  && curValue
+    const nextSuggestable = nextLabel && nextValue
+    if (curSuggestable && nextSuggestable && curValue !== nextValue) {
+      // Codex r8 NIT.1: gate on ENUM value, not label. Otherwise a kid
+      // in Year 12 now / Year 13 from September would trigger the
+      // both-variants prose ("which year should I use?") even though
+      // both labels collapse to the same `sixth-form` enum — the
+      // prompt would be asking the parent a distinction that the
+      // schema doesn't preserve.
+      lines.push(
+        '',
+        `BIRTHDAY HINT: based on ${name}'s date of birth, they look like ${curLabel} now and ${nextLabel} from September. In your prose, propose one of those (do NOT list enum options) — for example: "From the birthday, I have ${name} as ${curLabel} now, likely ${nextLabel} from September. Which year should I use for the search?". Do NOT silently set child_year unless the parent confirms.`,
+      )
+    } else if (curSuggestable) {
+      lines.push(
+        '',
+        `BIRTHDAY HINT: based on ${name}'s date of birth, they look like ${curLabel}. Propose this rather than listing enum options — for example: "From the birthday, I have ${name} as ${curLabel}. Is that right?". Do NOT silently set child_year unless the parent confirms.`,
+      )
+    } else if (nextSuggestable) {
+      // Current year falls outside the entry-point enum (e.g. Y8 / Y11),
+      // but the September year DOES map. Suggest September only and
+      // explicitly say current year isn't a search option to avoid
+      // confusion.
+      lines.push(
+        '',
+        `BIRTHDAY HINT: based on ${name}'s date of birth, they aren't in one of our entry-year groups (Year 7, 9, 10, Sixth Form) right now, but they'd be ${nextLabel} from September. Propose: "From the birthday, ${name} would be ${nextLabel} from September — should I search for that year?". Do NOT silently set child_year unless the parent confirms.`,
+      )
+    }
+    // If NEITHER side has a storable value (very rare — out-of-band
+    // DOB), no birthday hint is rendered; the prompt falls through to
+    // the "ask plainly" branch below.
+  }
+
+  // ── 4. What to ask + extraction/prose consistency ─────────────────
+  const asks: string[] = []
+  if (missingGender) {
+    asks.push(`son/daughter (or "either" if they'd rather we show co-ed and both)`)
+  }
+  if (missingYear) {
+    if (siblingYearHint && (siblingYearHint.currentLabel || siblingYearHint.nextSeptemberLabel)) {
+      asks.push(`school year (propose the birthday-derived suggestion from the hint above)`)
+    } else {
+      asks.push(`school year — Year 7, Year 9, Year 10, Sixth Form, or "not sure"`)
+    }
+  }
+  if (asks.length > 0) {
+    lines.push(
+      '',
+      `Then, in ONE short message (this is the deliberate exception to the "ask ONE thing at a time" rule above for sibling basics), ask for: ${asks.join(' AND ')}.`,
+      `CONSISTENCY: never ask in prose for a basic you are setting in extraction this turn. If the parent's message resolves a basic, set it and DON'T re-ask it.`,
+      `If both basics resolve this turn, briefly acknowledge ("Got it, ${name}'s a Year 9 boy.") and stop — the next turn will move into the real interview.`,
+    )
+  } else {
+    lines.push(
+      '',
+      `(Both basics already present. Acknowledge briefly and pivot to the first interview question.)`,
+    )
+  }
+
+  // ── 5. Tone block (Codex chat-quality #4 + r7 NIT.2) ──────────────
+  // Negative bans land better when paired with positive replacements
+  // (per Codex r7 NIT.2). Both halves are intentionally short — long
+  // prompt rules get diluted.
+  lines.push(
+    '',
+    `TONE: write like a calm human adviser. Plain UK parent language, Year-6 reading level. Keep it under 30 words where possible.`,
+    `Words to USE: "check", "use for the search", "tell me", "is that right?", "got it", "not sure is fine".`,
+    `Words to AVOID in parent-facing prose: "captured", "field", "prior facts", "onboarding", "basics" — those are system words, not parent words.`,
+    `Do NOT list enum options in prose unless the parent seems unsure. Avoid sounding like a form.`,
+  )
+
+  return lines.join('\n')
+}
+
 // Exported for tests so they can spot-check focus rendering without
 // reconstructing the whole prompt.
-export const _internal = { renderPriorFacts, FOCUS_HINTS, SYSTEM_BASE }
+export const _internal = { renderPriorFacts, renderSiblingBasicsFocus, FOCUS_HINTS, SYSTEM_BASE }

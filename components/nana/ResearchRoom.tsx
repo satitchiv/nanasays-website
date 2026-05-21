@@ -383,6 +383,36 @@ export default function ResearchRoom({
   // separately (via its own prop) for things like disabling the toggle.
   const chatBuildMode = buildMode || fullscreenBuildMode
 
+  // rr-8-build3-sibling-gender-year (2026-05-21): a sibling that lands in
+  // fullscreen Build Mode without child_gender or child_year captured on
+  // its row. Drives a one-line signage paragraph in the welcome bubble so
+  // the parent knows the wizard was deliberately skipped and that the
+  // first turn will ask a couple of basics. Two gates:
+  //   - childSummaries.length > 1 → this user actually has multiple
+  //     children, so "reuse your family preferences" copy is accurate.
+  //   - basics missing on THIS child's profile → the sibling_basics
+  //     opener will fire. Existing siblings who've already filled basics
+  //     via the Brief tab don't see the message.
+  const currentChildProfile = currentChild?.child_profile ?? null
+  const siblingNeedsBasics  = !!(
+    fullscreenBuildMode &&
+    currentChildProfile &&
+    childSummaries.length > 1 &&
+    (!currentChildProfile.child_gender || !currentChildProfile.child_year)
+  )
+  // rr-8-build3-sibling-gender-year chip-strip (2026-05-21) — initial
+  // captured state for the BuildModeProgressBar basics chips. Derived
+  // from THIS child's profile (NOT parent_profiles, which would carry
+  // first-child values for siblings). Live updates flow via the SSE
+  // build_mode_progress diff inside BuildModeProgressBar — this prop
+  // just seeds the initial render so a refresh/reload preserves any
+  // basics already captured. Always defined so child component
+  // doesn't need to null-check.
+  const siblingBasicsCaptured = {
+    gender: !!currentChildProfile?.child_gender,
+    year:   !!currentChildProfile?.child_year,
+  }
+
   // Chat-must-be-open invariant: when fullscreen is on AND state goes
   // 'closed' (Escape listener in ResearchRoomChat, or any future close
   // path), force back to 'default'. Codex r4 P1 — depending only on
@@ -796,6 +826,10 @@ export default function ResearchRoom({
           state={chatState}
           buildMode={chatBuildMode}
           fullscreenBuildMode={fullscreenBuildMode}
+          siblingNeedsBasics={siblingNeedsBasics}
+          siblingBasicsCaptured={siblingBasicsCaptured}
+          siblingActiveChildName={currentChild?.name ?? null}
+          siblingActiveChildDob={currentChild?.date_of_birth ?? null}
           onExitInterview={handleExitInterview}
           onTableBuilt={handleTableBuilt}
           onCollapse={handleCollapseChat}

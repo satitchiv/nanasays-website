@@ -31,6 +31,14 @@ import { z } from 'zod'
 // Schemas below add .nullable() (LLM) or .optional() (HTTP) per surface.
 // Caps mirror Slice 5's `propose_add_row` validator caps + the route's
 // per-field 8KB guard against runaway LLM output.
+//
+// rr-8-build3-sibling-gender-year (2026-05-21): child_gender + child_year
+// added to the allowlist so a sibling's Build Mode interview can capture
+// them on the child_profile directly. Enums mirror the onboarding wizard
+// values in lib/onboarding-fields.ts so the Brief tab + scorer continue
+// to read a consistent vocabulary. Without these, sibling routes were
+// reading gender/year from parent_profiles (the FIRST child's values),
+// producing silently-wrong recommendations.
 const FIELD_DEFS = {
   personality_notes: z.string().max(8000),
   anchors_notes:     z.string().max(8000),
@@ -51,6 +59,8 @@ const FIELD_DEFS = {
       level: z.string().min(1).max(64),
     }).strict(),
   ).max(20),
+  child_gender:      z.enum(['boy', 'girl', 'either']),
+  child_year:        z.enum(['year-7', 'year-9', 'year-10', 'sixth-form', 'not-sure']),
 } as const
 
 export const BUILD_MODE_FIELD_KEYS = Object.keys(FIELD_DEFS) as readonly (keyof typeof FIELD_DEFS)[]
@@ -69,6 +79,8 @@ export const BuildModeExtractionLLMSchema = z.object({
   goal_orientation:  FIELD_DEFS.goal_orientation.nullable(),
   interests_sports:  FIELD_DEFS.interests_sports.nullable(),
   interests_arts:    FIELD_DEFS.interests_arts.nullable(),
+  child_gender:      FIELD_DEFS.child_gender.nullable(),
+  child_year:        FIELD_DEFS.child_year.nullable(),
 }).strict()
 
 // ── HTTP-side schema (.optional()) ───────────────────────────────────
@@ -87,6 +99,8 @@ export const BuildModeExtractionHTTPSchema = z.object({
   goal_orientation:  FIELD_DEFS.goal_orientation.optional(),
   interests_sports:  FIELD_DEFS.interests_sports.optional(),
   interests_arts:    FIELD_DEFS.interests_arts.optional(),
+  child_gender:      FIELD_DEFS.child_gender.optional(),
+  child_year:        FIELD_DEFS.child_year.optional(),
 }).strict()
 
 export type BuildModeExtractionLLM  = z.infer<typeof BuildModeExtractionLLMSchema>
@@ -154,6 +168,8 @@ const CorrectionsSchema = z.object({
   goal_orientation:  z.boolean(),
   interests_sports:  z.boolean(),
   interests_arts:    z.boolean(),
+  child_gender:      z.boolean(),
+  child_year:        z.boolean(),
 }).strict()
 
 const ConfidenceMapSchema = z.object({
@@ -166,6 +182,8 @@ const ConfidenceMapSchema = z.object({
   goal_orientation:  ConfidenceFieldSchema,
   interests_sports:  ConfidenceFieldSchema,
   interests_arts:    ConfidenceFieldSchema,
+  child_gender:      ConfidenceFieldSchema,
+  child_year:        ConfidenceFieldSchema,
 }).strict()
 
 // Top-level LLM payload. Step 0.1's helper wraps this as

@@ -6,6 +6,11 @@ import { useNanaChat } from '@/lib/nana/use-nana-chat'
 import { NanaMsgBubble, prettyToolName } from './NanaBubble'
 import BuildModeProgressBar from './BuildModeProgressBar'
 import type { Session, ResearchMessage } from '@/lib/nana/types'
+// rr-8-build3-sibling-gender-year proactive opener (2026-05-21) —
+// uk-school-year.ts is pure functions (no 'server-only' marker) so it's
+// safe to import client-side. Used to derive a year suggestion from
+// DOB and weave it into the welcome bubble's basics question.
+import { buildUkYearHint } from '@/lib/server/research-room/uk-school-year'
 
 // Codex P2 #2 fix: gate desktop vs mobile ChatBody rendering by viewport
 // so we mount only ONE instance at a time. Both surfaces share inputRef +
@@ -36,6 +41,90 @@ const SYNTH_EMPTY_BUILD_MODE_STATE: import('@/lib/nana/types').BuildModeStreamSt
   },
   focus:    'free',
   lastDiff: null,
+}
+
+// rr-8-build3-sibling-gender-year proactive opener (2026-05-21) — the
+// welcome bubble's content when sibling basics are missing. Renders
+// Nana's first message as an actual gender/year question (with DOB-
+// derived suggestion when available) so the parent can respond right
+// away, instead of staring at a generic "Tell me about your child"
+// placeholder. The copy mirrors the server-side sibling_basics prompt
+// branch's intent — Nana sounds the same whether the opener is this
+// static welcome bubble or a streamed LLM turn.
+function renderSiblingBasicsOpener(args: {
+  name: string | null
+  dob:  string | null
+}) {
+  const childRef = args.name?.trim() ? args.name.trim() : 'them'
+  const hint = buildUkYearHint(args.dob ?? null)
+
+  // Reused-preferences signage stays — sets the "we're not asking
+  // everything from scratch" context that the user explicitly wanted.
+  const reusedLine = (
+    <div className="rr-bubble-lead">
+      <strong>Welcome back.</strong>{' '}
+      I’ve reused your family preferences from your earlier child: region, boarding, budget, and curriculum.
+      Just a couple of quick checks about {childRef} first, then we’ll keep going.
+    </div>
+  )
+
+  // The actual question. Three shapes depending on what the DOB hint
+  // gives us — mirrors the server-side prompt branching but the COPY
+  // here is what the parent sees first, before any LLM turn fires.
+  const curSuggestable  = !!(hint?.currentLabel  && hint.currentValue)
+  const nextSuggestable = !!(hint?.nextSeptemberLabel && hint.nextSeptemberValue)
+  const cur  = hint?.currentLabel
+  const next = hint?.nextSeptemberLabel
+  const curValue  = hint?.currentValue
+  const nextValue = hint?.nextSeptemberValue
+
+  let questionLead: React.ReactNode
+  if (curSuggestable && nextSuggestable && curValue !== nextValue) {
+    // E.g. "Year 9 now, likely Year 10 from September" — different enums.
+    questionLead = (
+      <>
+        Is {childRef} your son or daughter? And from the birthday, I have {childRef} as <strong>{cur}</strong> now,
+        likely <strong>{next}</strong> from September — which year should I use for the search?
+      </>
+    )
+  } else if (curSuggestable) {
+    // E.g. "Year 7 now" and either no September suggestion or same enum.
+    questionLead = (
+      <>
+        Is {childRef} your son or daughter? And from the birthday, I have {childRef} as <strong>{cur}</strong> — is that right?
+      </>
+    )
+  } else if (nextSuggestable) {
+    // Current year isn't an entry-point year (e.g. Y8 / Y11), but
+    // September IS. Say so explicitly.
+    questionLead = (
+      <>
+        Is {childRef} your son or daughter? From the birthday, {childRef} would be <strong>{next}</strong> from September —
+        should I search for that year? (Right now they’re between our entry years of 7, 9, 10, and Sixth Form.)
+      </>
+    )
+  } else {
+    // No DOB or out-of-band → ask plainly.
+    questionLead = (
+      <>
+        Is {childRef} your son or daughter, and what school year — Year 7, Year 9, Year 10, or Sixth Form?
+      </>
+    )
+  }
+
+  return (
+    <>
+      {reusedLine}
+      <div className="rr-bubble-lead">
+        <strong>Quick one before we dive in.</strong>{' '}
+        {questionLead}
+      </div>
+      <div className="rr-bubble-lead">
+        You can skip anything you’d rather not answer, pause with the “Skip for now” button at any time,
+        and I’ll remember where we left off.
+      </div>
+    </>
+  )
 }
 
 function useIsMobile(): boolean {
@@ -78,6 +167,34 @@ type Props = {
   // to ChatState (per Codex r9) — focus/default/closed still mean the
   // same thing, just visually pinned to full width.
   fullscreenBuildMode?: boolean
+  // rr-8-build3-sibling-gender-year (2026-05-21) — true when this is a
+  // sibling landing in Build Mode whose child_gender or child_year is
+  // missing on the row. ResearchRoom derives this from currentChild +
+  // childSummaries.length. Drives an extra signage paragraph in the
+  // welcome bubble explaining that family preferences are reused from
+  // the earlier child and that Build Mode will check year group + the
+  // boys/girls/co-ed mix for this child first. Defaults to false
+  // (back-compat for any other embedder).
+  siblingNeedsBasics?:  boolean
+  // rr-8-build3-sibling-gender-year chip-strip (2026-05-21) — initial
+  // captured state for the BuildModeProgressBar basics chips, derived
+  // in ResearchRoom from currentChild.child_profile. Threaded through
+  // ChatBody into the progress bar so the chips seed correctly on
+  // first paint after a reload. Live updates flow via SSE diff inside
+  // the bar itself. Optional with safe default.
+  siblingBasicsCaptured?: { gender: boolean; year: boolean }
+  // rr-8-build3-sibling-gender-year proactive opener (2026-05-21) —
+  // browser smoke caught that the welcome bubble's generic "Tell me
+  // about your child first..." copy did NOT lead with the basics
+  // question, so parents typed an unrelated answer first and only got
+  // the gender/year ask AFTER one round-trip. The fix: when
+  // siblingNeedsBasics is true, the welcome bubble swaps its generic
+  // opener for a proactive question that includes the DOB-derived
+  // year suggestion (computed client-side via buildUkYearHint on
+  // siblingActiveChildDob). Optional + safe defaults so non-sibling
+  // path is unchanged.
+  siblingActiveChildName?: string | null
+  siblingActiveChildDob?:  string | null
   // Slice 8 Build 7 Phase C — single-shot exit primitive. Sets user-
   // buildMode to false AND dismisses fullscreen for the active child.
   // Used by both Skip (via onSkipBuildMode → ResearchRoom's handler)
@@ -137,6 +254,10 @@ const DRAG_SNAP_THRESHOLD = 70
 function ChatBody({
   buildMode,
   fullscreenBuildMode,
+  siblingNeedsBasics,
+  siblingBasicsCaptured,
+  siblingActiveChildName,
+  siblingActiveChildDob,
   onToggleBuildMode,
   onSkipBuildMode,
   onBuildTableNow,
@@ -157,6 +278,17 @@ function ChatBody({
   // Slice 8 Build 7 Phase C — gates the build-toggle disabled state +
   // the wrap-up CTA bubble render. See outer Props type for full docs.
   fullscreenBuildMode:  boolean
+  // rr-8-build3-sibling-gender-year — gates a sibling-aware signage
+  // paragraph in the welcome bubble. See outer Props type.
+  siblingNeedsBasics:   boolean
+  // rr-8-build3-sibling-gender-year chip-strip — seed for the basics
+  // chips inside BuildModeProgressBar. See outer Props type.
+  siblingBasicsCaptured: { gender: boolean; year: boolean }
+  // rr-8-build3-sibling-gender-year proactive opener — child name +
+  // DOB so the welcome bubble can render a year suggestion. See outer
+  // Props type.
+  siblingActiveChildName: string | null
+  siblingActiveChildDob:  string | null
   onToggleBuildMode:    () => void
   // Slice 8 Build 3 session 4 — Build Mode session-exit affordances.
   // Both are pure callbacks; ResearchRoomChat owns the state transitions
@@ -244,6 +376,9 @@ function ChatBody({
           // The bar CTA exists as an early-exit at ≥80%; post-wrap-up the
           // bubble is the single primary action.
           onBuildTableNow={chat.buildModeWrapUp ? undefined : onBuildTableNow}
+          // rr-8-build3-sibling-gender-year (2026-05-21) — seed for the
+          // basics chip-strip; only rendered when focus==='sibling_basics'.
+          basics={siblingBasicsCaptured}
         />
       )}
 
@@ -386,15 +521,24 @@ function ChatBody({
               // messages.length > 0 and this branch hides naturally.
               //
               // Slice 8 Build 7 Phase D (2026-05-15) — blurb-first opener.
-              // Old framing led with "what's the one thing that matters
-              // most to you?" — a single-question prompt that closed off
-              // the wider conversation. New framing invites a holistic
-              // dump about the child, then promises targeted follow-ups.
-              // The LLM's existing dump-handling (acknowledge + extract
-              // + smallest follow-up rule in build-mode-prompt.ts) does
-              // the rest. No backend change needed for v1 (Codex r1 GREEN
-              // on minimal frontend-only scope; escalate to backend
-              // "intake" focus only if smoke shows turn-1 feels jarring).
+              // rr-8-build3-sibling-gender-year proactive opener
+              // (2026-05-21) — when siblingNeedsBasics is true, swap the
+              // generic "Tell me about your child" lead for a focused
+              // basics question that the parent can answer right away.
+              // Browser smoke caught that without this, the parent saw
+              // only a placeholder ("Ask Nana about these schools…")
+              // and felt like the chat hadn't started — they typed an
+              // unrelated message ("loves football and is very smart in
+              // academics") and only got the gender/year ask AFTER one
+              // round-trip. The proactive variant uses the DOB hint
+              // when storable so Nana suggests a year rather than
+              // listing enum options.
+              siblingNeedsBasics
+                ? renderSiblingBasicsOpener({
+                    name: siblingActiveChildName ?? null,
+                    dob:  siblingActiveChildDob  ?? null,
+                  })
+                : (
               <>
                 <div className="rr-bubble-lead">
                   <strong>Welcome to Build Mode.</strong>{' '}
@@ -413,6 +557,7 @@ function ChatBody({
                   I’ll ask small follow-up questions to fill in the rest.
                 </div>
               </>
+                )
             ) : (
               <div className="rr-bubble-lead">
                 Ask me anything about the schools in your comparison — fees, results, pastoral care, how they stack up against each other.
@@ -558,6 +703,10 @@ export default function ResearchRoomChat({
   state,
   buildMode,
   fullscreenBuildMode = false,
+  siblingNeedsBasics = false,
+  siblingBasicsCaptured = { gender: false, year: false },
+  siblingActiveChildName = null,
+  siblingActiveChildDob = null,
   onExitInterview,
   onTableBuilt,
   onCollapse,
@@ -1124,7 +1273,7 @@ export default function ResearchRoomChat({
               )}
             </header>
 
-            <ChatBody buildMode={buildMode} fullscreenBuildMode={fullscreenBuildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={onSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onConfirmAddSchool={onConfirmAddSchool} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} fullscreenBuildMode={fullscreenBuildMode} siblingNeedsBasics={siblingNeedsBasics} siblingBasicsCaptured={siblingBasicsCaptured} siblingActiveChildName={siblingActiveChildName} siblingActiveChildDob={siblingActiveChildDob} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={onSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onConfirmAddSchool={onConfirmAddSchool} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         )}
       </aside>
@@ -1208,7 +1357,7 @@ export default function ResearchRoomChat({
               )}
             </header>
 
-            <ChatBody buildMode={buildMode} fullscreenBuildMode={fullscreenBuildMode} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={onSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onConfirmAddSchool={onConfirmAddSchool} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} fullscreenBuildMode={fullscreenBuildMode} siblingNeedsBasics={siblingNeedsBasics} siblingBasicsCaptured={siblingBasicsCaptured} siblingActiveChildName={siblingActiveChildName} siblingActiveChildDob={siblingActiveChildDob} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={onSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onConfirmAddSchool={onConfirmAddSchool} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         </>
       )}
