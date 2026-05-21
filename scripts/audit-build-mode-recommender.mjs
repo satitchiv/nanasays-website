@@ -169,7 +169,9 @@ console.log('')
 
 // ── 4. Build scorer input + run it ─────────────────────────────────
 
-const briefProfile = parentRow ?? null  // shape matches BriefProfile
+// Use briefRaw (the override-mutated copy), not parentRow (the immutable DB row),
+// so AUDIT_HOME_REGION et al actually reach the scorer.
+const briefProfile = parentRow ? briefRaw : null  // shape matches BriefProfile
 
 // Mirror the turn route's WRITABLE_PROFILE_KEYS filter so the scorer
 // sees the same shape it does in production.
