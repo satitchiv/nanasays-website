@@ -819,7 +819,11 @@ export function rankCandidates(
         score += 1.0
         // Friendly chip — strip the underscore taxonomy for parent-facing prose.
         const friendly = schoolEthos.replace(/_/g, ' ')
-        signals.push(`ethos match (${friendly})`)
+        // unshift, not push: parent-stated preference matches must survive the
+        // top-5 signal dedupe/slice (line ~897). Pushed last, they get truncated
+        // when a school already has 5 region/sport/academic signals — even
+        // though the +1.0 score lands, the LLM never sees the signal name.
+        signals.unshift(`ethos match (${friendly})`)
       }
     }
 
@@ -867,13 +871,17 @@ export function rankCandidates(
       const hasSportSignal     = signalsLc.some(x => x.includes('strong ') && /football|rugby|cricket|hockey|tennis|sport/.test(x))
       const hasPastoralSignal  = signalsLc.some(x => x.includes('pastoral') || x.includes('wellbeing'))
       const hasArtsSignal      = signalsLc.some(x => x.includes('arts') || x.includes('music') || x.includes('drama') || x.includes('dance'))
-      if      (topPriority === 'academic' && hasAcademicSignal) { score += 0.5; signals.push('academic-priority match') }
-      else if (topPriority === 'sport'    && hasSportSignal)    { score += 0.5; signals.push('sport-priority match') }
-      else if (topPriority === 'pastoral' && hasPastoralSignal) { score += 0.5; signals.push('pastoral-priority match') }
-      else if (topPriority === 'arts'     && hasArtsSignal)     { score += 0.5; signals.push('arts-priority match') }
+      // unshift, not push: parent's stated #1 priority match must survive the
+      // top-5 signal dedupe/slice (line ~897). Pushed last, it gets truncated
+      // when a school already has 5 region/sport/academic signals — even
+      // though the +0.5 score lands, the LLM never sees the signal name.
+      if      (topPriority === 'academic' && hasAcademicSignal) { score += 0.5; signals.unshift('academic-priority match') }
+      else if (topPriority === 'sport'    && hasSportSignal)    { score += 0.5; signals.unshift('sport-priority match') }
+      else if (topPriority === 'pastoral' && hasPastoralSignal) { score += 0.5; signals.unshift('pastoral-priority match') }
+      else if (topPriority === 'arts'     && hasArtsSignal)     { score += 0.5; signals.unshift('arts-priority match') }
       else if (topPriority === 'all-round') {
         const matchCount = [hasAcademicSignal, hasSportSignal, hasPastoralSignal, hasArtsSignal].filter(Boolean).length
-        if (matchCount >= 3) { score += 0.5; signals.push('all-round match') }
+        if (matchCount >= 3) { score += 0.5; signals.unshift('all-round match') }
       }
     }
 
