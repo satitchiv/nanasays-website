@@ -136,6 +136,41 @@ const INCLUSIVE_HINT_RE  = /\b(inclusiv|diversity|lgbtq|lgbt\b|gay\b|queer|trans
 const FULL_BOARDING_HINT_RE = /\b(full board|full-board|weekly board|boarding school)\b/i
 const SMALL_CLASS_HINT_RE   = /\b(small class|small school|small community|smaller class|low pupil)\b/i
 
+// Phase 1 data-utilization (2026-05-21): medicine / vet / dentistry / law /
+// engineering intent detection from Build Mode prose. When a parent's
+// goals_notes / academic_notes / child_wants mentions one of these career
+// paths, the recommender unlocks the corresponding boost for schools whose
+// university_destinations.medicine_dentistry_vet_count or oxbridge_subjects
+// signal that pathway. Gating on intent (not always-on) prevents medicine-
+// specialist schools (Concord, Caterham) from getting an unfair boost for
+// non-medicine kids. Codex flagged that `medicine_dentistry_vet_count` is
+// extracted as a field but the scorer never reads it.
+// Codex r1 P1.3 (2026-05-21): added "med school", "medical school", US
+// spelling "pediatric*", "vet school". Kept tight to avoid bare "biology"
+// false positives (a kid loving biology class isn't necessarily medicine).
+// `pediatrics?` / `paediatrics?` covers both UK + US spelling AND the
+// plural form parents commonly type ("interested in pediatrics"). The
+// trailing `s?` is INSIDE the word boundary so `\b...\b` still anchors.
+//
+// Codex r2 P1 follow-up: `pharmac` and `orthodont` were sitting inside
+// the trailing `\b`, so "pharmacy" / "pharmacist" / "orthodontist"
+// (longer words) didn't match. Use suffix optional groups so the
+// matched token can absorb the trailing characters before the `\b`.
+// "dentistry" → already covered by `dentistry` alternation.
+const MEDICINE_INTENT_RE = /\b(medicine|medical|medic|med\s*school|doctor|gp\b|gp\s+|surgeon|physician|nurse|nursing|paediatrics?|pediatrics?|dentist|dentistry|orthodont(?:ist|ics?)?|vet|veterinary|veterinarian|vet\s*school|biomedical|pharmac(?:y|ist|ology|euticals?)?)\b/i
+const LAW_INTENT_RE      = /\b(law|lawyer|solicitor|barrister|legal|judge|attorney|jurisprudence)\b/i
+const ENGINEERING_INTENT_RE = /\b(engineer|engineering|architect|architecture)\b/i
+
+// Codex r1 P1.2 (2026-05-21): oxbridge subject matching upgraded from exact
+// Set.has() to substring/regex. Cambridge titles like "Jurisprudence" (Law)
+// and "Engineering Science" and "Computer Science and Philosophy" don't
+// match exact strings. Patterns are case-insensitive and applied to
+// LOWERCASED entries (so the regex source stays lowercase). Each path
+// returns true if ANY entry in oxbridge_subjects matches the pattern.
+const OXBRIDGE_MEDICINE_RE = /(?:medicine|biomedical|natural\s*sciences|veterinary|dentistry|medical\s*sciences)/i
+const OXBRIDGE_LAW_RE      = /(?:\blaw\b|jurisprudence|land\s*economy)/i
+const OXBRIDGE_ENG_RE      = /(?:engineer|architecture|computer\s*science|electronics|mechanical)/i
+
 // ── DB types ─────────────────────────────────────────────────────────
 
 type SchoolRow = {
@@ -158,6 +193,9 @@ type StructRow = {
   university_destinations: Record<string, unknown> | null
   student_community:       Record<string, unknown> | null
   isi_deep_facts:          Record<string, unknown> | null
+  // Phase 1 data-utilization (2026-05-21):
+  wellbeing_staffing:      Record<string, unknown> | null  // total_staff, ratio_per_pupil
+  ethos_facts:             Record<string, unknown> | null  // ethos_label (church_of_england, roman_catholic, secular, etc.)
 }
 
 // ── UK evidence slugs (paginated; mirrors recommend-shortlist private helper) ──
@@ -250,6 +288,10 @@ export function rankCandidates(
   structBySlug: Map<string, StructRow>,
   input: BuildModeScorerInput,
   limit: number,
+  // Phase 1 data-utilization (2026-05-21): per-slug arts_music_drama fact
+  // count for the new arts scoring branch. Empty map = no arts boosts fire.
+  // Optional with safe default so existing direct-test callers don't break.
+  artsCountBySlug: Map<string, number> = new Map(),
 ): ScoredCandidate[] {
   const { parent, child, childGender } = input
 
@@ -305,6 +347,42 @@ export function rankCandidates(
   ].filter(Boolean).join(' \n ')
   const wantsFullBoardingProse = FULL_BOARDING_HINT_RE.test(proseBlob)
   const wantsSmallProse        = SMALL_CLASS_HINT_RE.test(proseBlob)
+
+  // Phase 1 data-utilization (2026-05-21): career-intent detection. Reads
+  // wider prose blob (goals_notes + academic_notes also matter for career
+  // intent, NOT just anchors/personality). When parent's free text mentions
+  // medicine / law / engineering, unlock the corresponding pathway boost.
+  const careerProseBlob = [
+    child?.goals_notes,
+    child?.academic_notes,
+    child?.child_wants,
+    child?.anchors_notes,
+    child?.personality_notes,
+    ...(child?.nonnegotiables ?? []),
+  ].filter(Boolean).join(' \n ')
+  const wantsMedicine    = MEDICINE_INTENT_RE.test(careerProseBlob)
+  const wantsLaw         = LAW_INTENT_RE.test(careerProseBlob)
+  const wantsEngineering = ENGINEERING_INTENT_RE.test(careerProseBlob)
+
+  // Phase 1 data-utilization: arts intent. Fires when the parent's brief
+  // captured an arts interest OR the parent's wizard answer was
+  // top_priority='arts'. Without either, arts_music_drama facts are not
+  // scored (a kid not interested in arts shouldn't get arts-strong school
+  // recommendations purely on data availability).
+  const wantsArts = artsInterest.length > 0 || parent?.top_priority === 'arts'
+
+  // Phase 1 data-utilization: parent's top_priority from the 5-question
+  // wizard (academic / sport / pastoral / arts / all-round). Currently
+  // ignored by the scorer (Codex audit 2026-05-21 — biggest single-fix
+  // priority). Used below as a small bonus when a school's existing
+  // signals match the parent's stated priority area.
+  const topPriority = (parent?.top_priority ?? '').trim()
+
+  // Phase 1 data-utilization: ethos match (parent's RC / CofE / etc.
+  // preference vs school's extracted ethos_label). 'no-preference' or
+  // null short-circuits — schools aren't penalised, the dim just doesn't
+  // fire.
+  const wantsEthos = parent?.ethos_pref && parent.ethos_pref !== 'no-preference' ? parent.ethos_pref : null
 
   type ScoredSchool = {
     school:  SchoolRow
@@ -483,6 +561,126 @@ export function rankCandidates(
       signals.push('SEN-aware')
     }
 
+    // ── Phase 1 data-utilization (2026-05-21) — Medicine / law / engineering
+    //    pathway scoring via university_destinations + oxbridge_subjects.
+    //    Gated on parent prose intent (don't boost medicine schools for
+    //    non-medicine kids). Positive-only — schools without the data
+    //    aren't penalised. Multiple pathways can stack (a medicine+vet
+    //    kid gets both contributions).
+    const ud = struct?.university_destinations as Record<string, unknown> | undefined
+    const oxbridgeSubjectsRaw = Array.isArray(ud?.oxbridge_subjects)
+      ? (ud!.oxbridge_subjects as string[])
+      : []
+    const oxbridgeSubjectsLc = oxbridgeSubjectsRaw
+      .filter((x): x is string => typeof x === 'string')
+      .map(x => x.toLowerCase().trim())
+    if (wantsMedicine) {
+      const medCount = typeof ud?.medicine_dentistry_vet_count === 'number'
+        ? ud!.medicine_dentistry_vet_count as number
+        : 0
+      // Codex r1 P1.2: substring regex (not exact Set.has) so Cambridge
+      // titles like "Natural Sciences" / "Biomedical Sciences" /
+      // "Veterinary Medicine" all qualify regardless of whitespace.
+      const oxbridgeMedHit = oxbridgeSubjectsLc.some(x => OXBRIDGE_MEDICINE_RE.test(x))
+      if (medCount >= 1 || oxbridgeMedHit) {
+        // Normalise count: ~10 placements is "strong", ~30 is "exceptional".
+        // Cap at +2.0 so a single-pathway boost can't dwarf region.
+        const countBoost = Math.min(medCount / 10, 1.5)
+        const oxbridgeBoost = oxbridgeMedHit ? 0.5 : 0
+        score += countBoost + oxbridgeBoost
+        if (medCount >= 1) {
+          signals.push(`medicine pipeline (${medCount} placement${medCount === 1 ? '' : 's'})`)
+          facts.push(`${medCount} medical / vet placements`)
+        } else if (oxbridgeMedHit) {
+          signals.push('Oxbridge medicine pathway')
+        }
+      }
+    }
+    if (wantsLaw) {
+      const oxbridgeLawHit = oxbridgeSubjectsLc.some(x => OXBRIDGE_LAW_RE.test(x))
+      if (oxbridgeLawHit) {
+        score += 0.5
+        signals.push('Oxbridge law pathway')
+      }
+    }
+    if (wantsEngineering) {
+      const oxbridgeEngHit = oxbridgeSubjectsLc.some(x => OXBRIDGE_ENG_RE.test(x))
+      if (oxbridgeEngHit) {
+        score += 0.5
+        signals.push('Oxbridge engineering pathway')
+      }
+    }
+
+    // ── Phase 1 data-utilization — Ethos match (parent's RC / CofE etc.
+    //    vs school's extracted ethos_label). Positive-only — schools with
+    //    a non-matching or missing ethos aren't penalised. The 2026-05-19
+    //    Brief form removed the ethos_pref dropdown but the column lives
+    //    on for existing users + future re-instatement. Filed as TODO:
+    //    surface ethos_pref capture again so new parents can benefit.
+    if (wantsEthos) {
+      const schoolEthos = (struct?.ethos_facts as { ethos_label?: string } | undefined)?.ethos_label
+      if (schoolEthos && schoolEthos === wantsEthos) {
+        score += 1.0
+        // Friendly chip — strip the underscore taxonomy for parent-facing prose.
+        const friendly = schoolEthos.replace(/_/g, ' ')
+        signals.push(`ethos match (${friendly})`)
+      }
+    }
+
+    // ── Phase 1 data-utilization — Wellbeing staffing structured signal.
+    //    Complements the existing ISI pastoral hint (which only reads
+    //    isi_deep_facts.mental_health_signal etc.) with actual staffing
+    //    counts. Gated on pastoral interest. Capped at +0.5 so it doesn't
+    //    dwarf the existing pastoral scoring.
+    if (wantsPastoral) {
+      const ws = struct?.wellbeing_staffing as { total_staff?: number; ratio_per_pupil?: number | null } | undefined
+      const totalStaff = typeof ws?.total_staff === 'number' ? ws!.total_staff : 0
+      if (totalStaff >= 5) {
+        score += 0.5
+        signals.push(`wellbeing team (${totalStaff} staff)`)
+      } else if (totalStaff >= 3) {
+        score += 0.25
+      }
+    }
+
+    // ── Phase 1 data-utilization — Arts scoring via school_facts dim
+    //    'arts_music_drama'. Count-based: schools with rich arts
+    //    infrastructure (≥5 facts: drama theatre, music school,
+    //    scholarships, ensembles) get a meaningful boost.
+    if (wantsArts) {
+      const artsCount = artsCountBySlug.get(s.slug) ?? 0
+      if (artsCount >= 5) {
+        score += 1.0
+        signals.push(`rich arts programme (${artsCount} signals)`)
+      } else if (artsCount >= 3) {
+        score += 0.5
+        signals.push('arts programme')
+      } else if (artsCount >= 1) {
+        score += 0.2
+      }
+    }
+
+    // ── Phase 1 data-utilization — top_priority nudge. Lightweight before
+    //    the priority-aware redesign (backlog memory: project-priority-
+    //    aware-recommender-backlog-2026-05-21). Adds +0.5 when one of
+    //    the school's signals matches the parent's stated #1 priority.
+    //    Not multiplicative — additive — so it doesn't snowball.
+    if (topPriority) {
+      const signalsLc = signals.map(x => x.toLowerCase())
+      const hasAcademicSignal  = signalsLc.some(x => x.includes('academic') || x.includes('oxbridge') || x.includes('medicine pipeline'))
+      const hasSportSignal     = signalsLc.some(x => x.includes('strong ') && /football|rugby|cricket|hockey|tennis|sport/.test(x))
+      const hasPastoralSignal  = signalsLc.some(x => x.includes('pastoral') || x.includes('wellbeing'))
+      const hasArtsSignal      = signalsLc.some(x => x.includes('arts') || x.includes('music') || x.includes('drama') || x.includes('dance'))
+      if      (topPriority === 'academic' && hasAcademicSignal) { score += 0.5; signals.push('academic-priority match') }
+      else if (topPriority === 'sport'    && hasSportSignal)    { score += 0.5; signals.push('sport-priority match') }
+      else if (topPriority === 'pastoral' && hasPastoralSignal) { score += 0.5; signals.push('pastoral-priority match') }
+      else if (topPriority === 'arts'     && hasArtsSignal)     { score += 0.5; signals.push('arts-priority match') }
+      else if (topPriority === 'all-round') {
+        const matchCount = [hasAcademicSignal, hasSportSignal, hasPastoralSignal, hasArtsSignal].filter(Boolean).length
+        if (matchCount >= 3) { score += 0.5; signals.push('all-round match') }
+      }
+    }
+
     return { school: s, struct, score, signals, facts }
   })
 
@@ -582,10 +780,14 @@ export async function scoreForBuildMode(
   }
 
   // 3. Structured-data fetch for soft scoring
+  // Phase 1 data-utilization (2026-05-21): `wellbeing_staffing` added so
+  // the pastoral-priority parents see structured staffing signal (total
+  // staff + ratio) on top of the existing ISI hint. Codex audit showed
+  // the column was extracted but never read.
   const slugs = (rawCandidates as SchoolRow[]).map(s => s.slug)
   const { data: structRows, error: structErr } = await supabase
     .from('school_structured_data')
-    .select('school_slug, sports_profile, exam_results, university_destinations, student_community')
+    .select('school_slug, sports_profile, exam_results, university_destinations, student_community, wellbeing_staffing')
     .in('school_slug', slugs)
   if (structErr) return { candidates: [], reason: 'fetch_failed' }
 
@@ -600,19 +802,73 @@ export async function scoreForBuildMode(
   // tools.js). Reuse it here so pastoral_care + inclusive_culture +
   // diversity_culture dimension scorers can fire when the parent has
   // pastoral_pref='high_priority' or lgbtq_pref='important'.
+  //
+  // Phase 1 data-utilization (2026-05-21): also fold in `ethos_facts`
+  // so the new ethos-match scoring branch can read school.ethos_label
+  // from the same struct row. Same loadDimFactsBundles call covers both
+  // (the function pulls all dim bundles for the requested slugs).
   const factsBundles = await loadDimFactsBundles(supabase, slugs)
   const structBySlug = new Map<string, StructRow>(
-    (structRows ?? []).map((r: Omit<StructRow, 'isi_deep_facts'>) => [
+    (structRows ?? []).map((r: Omit<StructRow, 'isi_deep_facts' | 'ethos_facts'>) => [
       r.school_slug,
       {
         ...r,
         isi_deep_facts: (factsBundles.get(r.school_slug)?.isi_deep_facts as Record<string, unknown> | undefined) ?? null,
+        ethos_facts:    (factsBundles.get(r.school_slug)?.ethos_facts    as Record<string, unknown> | undefined) ?? null,
       },
     ]),
   )
 
+  // Phase 1 data-utilization (2026-05-21): arts_music_drama fact counts
+  // per slug. Separate fetch (the existing factsBundles loader doesn't
+  // include this dimension). 146 facts in this dimension —
+  // has_drama_theatre, has_music_school, music/drama scholarships,
+  // ensembles. Schools with ≥5 unique positive signals get the strong
+  // arts boost in rankCandidates.
+  //
+  // Codex r1 P1.1: de-noise. Pull canonical_key + claim and:
+  //   1. Exclude rows whose claim.value === false (e.g. a fact saying
+  //      "this school does NOT have a music scholarship").
+  //   2. Dedupe by canonical_key per slug so the same canonical claim
+  //      doesn't double-count (e.g. two extractions of has_music_school
+  //      shouldn't make the school look twice as arts-rich).
+  // Pre-fix: any active row inflated the count, including duplicates
+  // and negatively-flagged facts.
+  const { data: artsRows, error: artsErr } = await supabase
+    .from('school_facts')
+    .select('school_slug, canonical_key, claim')
+    .in('school_slug', slugs)
+    .eq('dimension', 'arts_music_drama')
+    .eq('status', 'active')
+  if (artsErr) return { candidates: [], reason: 'fetch_failed' }
+  const artsPositiveKeys = new Map<string, Set<string>>()  // slug → unique-positive canonical_keys
+  for (const rawRow of artsRows ?? []) {
+    const row = rawRow as { school_slug: string; canonical_key: string | null; claim: { value?: unknown } | null }
+    const slug = row.school_slug
+    const key = row.canonical_key ?? ''
+    if (!key) continue
+    // Exclude explicit negatives. Boolean false, string 'false', and
+    // numeric 0 all count as negative. Anything else (true, a number > 0,
+    // a non-empty string, a structured object) counts as positive.
+    const v = row.claim?.value
+    const isNegative =
+      v === false ||
+      v === 'false' ||
+      v === 0 ||
+      v === null ||
+      v === undefined ||
+      v === ''
+    if (isNegative) continue
+    if (!artsPositiveKeys.has(slug)) artsPositiveKeys.set(slug, new Set())
+    artsPositiveKeys.get(slug)!.add(key)
+  }
+  const artsCountBySlug = new Map<string, number>()
+  for (const [slug, keys] of Array.from(artsPositiveKeys.entries())) {
+    artsCountBySlug.set(slug, keys.size)
+  }
+
   // 4. Pure ranker
-  const candidates = rankCandidates(rawCandidates as SchoolRow[], structBySlug, input, limit)
+  const candidates = rankCandidates(rawCandidates as SchoolRow[], structBySlug, input, limit, artsCountBySlug)
   if (candidates.length === 0) return { candidates: [], reason: 'no_candidates' }
   return { candidates, reason: 'ok' }
 }
