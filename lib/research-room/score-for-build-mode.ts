@@ -188,6 +188,134 @@ const INCLUSIVE_HINT_RE  = /\b(inclusiv|diversity|lgbtq|lgbt\b|gay\b|queer|trans
 const FULL_BOARDING_HINT_RE = /\b(full board|full-board|weekly board|boarding school)\b/i
 const SMALL_CLASS_HINT_RE   = /\b(small class|small school|small community|smaller class|low pupil)\b/i
 
+// Recommender Phase 4 (2026-05-22): nonnegotiables hard-filter.
+// Codex audit 2026-05-21 (line 6239) flagged that free-text nonnegotiables
+// like "must be co-ed", "not too religious", "weekly only", "no London"
+// are captured but never enforced — schools violating these constraints
+// still appear in recommendations because the scorer only treats the
+// blob as fodder for soft pastoral/inclusive hints.
+//
+// Design: per-entry pattern match (each nonneg string scanned
+// independently — avoids cross-entry leakage like "boys only OR girls
+// only" reading as both). When a pattern matches an entry, the matching
+// filter's predicate is applied to every candidate school; violators
+// are dropped before scoring.
+//
+// NULL-data safety: every predicate returns TRUE (school passes) when
+// the relevant field is missing. Matches the existing gender-filter
+// pattern (line ~407: `return !g || genderAllow.has(g)`).
+//
+// Schools that survive get NO per-school chip — Codex repeatedly flagged
+// signal-noise risk. The filter is invisible-but-effective.
+
+// Religious ethos labels. Mirrors the canonical vocab in
+// lib/server/research-context-pack.ts:302-305 + DIMENSIONS.ethos_match
+// in lib/server/dimensions.js. 'secular' is intentionally OUT — a
+// "not religious" parent wants secular schools to pass through. Aliases
+// 'cofe' / 'rc' added because dimensions-scorers.test.mjs shows both
+// short forms appear in real data alongside the full forms.
+const RELIGIOUS_ETHOS_LABELS = new Set([
+  'church_of_england', 'cofe',
+  'roman_catholic',    'rc',
+  'christian_general',
+  'methodist',
+  'quaker',
+  'jewish',
+  'muslim',
+  'mixed_faith',
+])
+
+type NonnegFilter = {
+  name:      string
+  pattern:   RegExp
+  predicate: (s: SchoolRow, struct: StructRow | null) => boolean
+}
+
+const NONNEG_FILTERS: NonnegFilter[] = [
+  // ── Gender ───────────────────────────────────────────────────────
+  // "must be co-ed" / "co-ed only" / "coed only" / "mixed only"
+  {
+    name: 'must-be-coed',
+    pattern: /\b(?:(?:must\s+be|need|needs|want|wants|require[sd]?|prefer|preferred|only|strictly)\s+(?:a\s+)?(?:co-?ed(?:ucational)?|coed|mixed(?:\s+gender)?(?:\s+school)?)|(?:co-?ed(?:ucational)?|coed|mixed(?:\s+gender)?)\s+(?:school\s+)?only)\b/i,
+    predicate: (s) => {
+      const g = (s.gender_split ?? '').trim().toLowerCase()
+      if (!g) return true
+      return /co-?ed|coed|mixed/.test(g)
+    },
+  },
+  // "girls only" / "all-girls" / "single-sex girls"
+  {
+    name: 'girls-only',
+    pattern: /\b(?:(?:must\s+be|need|needs|want|wants|require[sd]?|only|strictly)\s+(?:an?\s+)?(?:all[-\s]?girls?|girls[-\s]?only|single[-\s]sex\s+girls?)|girls[-\s]?only|all[-\s]?girls?\s+(?:school\s+)?only|single[-\s]sex\s+girls?)\b/i,
+    predicate: (s) => {
+      const g = (s.gender_split ?? '').trim().toLowerCase()
+      if (!g) return true
+      return /girls/.test(g) && !/co-?ed|coed|mixed/.test(g)
+    },
+  },
+  // "boys only" / "all-boys" / "single-sex boys"
+  {
+    name: 'boys-only',
+    pattern: /\b(?:(?:must\s+be|need|needs|want|wants|require[sd]?|only|strictly)\s+(?:an?\s+)?(?:all[-\s]?boys?|boys[-\s]?only|single[-\s]sex\s+boys?)|boys[-\s]?only|all[-\s]?boys?\s+(?:school\s+)?only|single[-\s]sex\s+boys?)\b/i,
+    predicate: (s) => {
+      const g = (s.gender_split ?? '').trim().toLowerCase()
+      if (!g) return true
+      return /boys/.test(g) && !/co-?ed|coed|mixed/.test(g)
+    },
+  },
+  // ── Location ─────────────────────────────────────────────────────
+  // "no London" / "not London" / "outside London" / "away from London"
+  {
+    name: 'no-london',
+    pattern: /\b(?:no\s+london|not\s+(?:in\s+)?london|outside\s+(?:of\s+)?london|away\s+from\s+london|anywhere\s+but\s+london|excluding\s+london|avoid(?:ing)?\s+london)\b/i,
+    predicate: (s) => {
+      const r = (s.region ?? '').trim().toLowerCase()
+      if (!r) return true
+      return !/london/.test(r)
+    },
+  },
+  // ── Boarding ─────────────────────────────────────────────────────
+  // "weekly boarding only" / "no full boarding" — narrower than
+  // parent.boarding_pref='weekly' (which still allows full-boarding
+  // schools that offer weekly options). This drops schools whose name
+  // appears in KNOWN_FULL_BOARDING_NAMES (single-mode full-board only).
+  {
+    name: 'weekly-only',
+    pattern: /\b(?:weekly\s+(?:boarding\s+)?only|only\s+weekly\s+boarding|no\s+full[-\s]board(?:ing)?|not?\s+full[-\s]board(?:ing)?|weekly[-\s]?board(?:ing)?\s+(?:school\s+)?only)\b/i,
+    predicate: (s) => !KNOWN_FULL_BOARDING_NAMES.has(normalizeSchoolName(s.name)),
+  },
+  // ── Religion ─────────────────────────────────────────────────────
+  // "not religious" / "no religion" / "secular only" / "non-religious"
+  // — drops schools whose ethos_label is one of the religious-affiliated
+  // tags. Schools with ethos_label='secular' OR NULL pass through.
+  {
+    name: 'not-religious',
+    pattern: /\b(?:not\s+religious|no\s+religion|non[-\s]?religious|secular\s+(?:school\s+)?only|secular(?:\s+only)?|no\s+religious(?:\s+(?:affiliation|ethos|school))?)\b/i,
+    predicate: (s, struct) => {
+      const label = (struct?.ethos_facts as { ethos_label?: string } | undefined)?.ethos_label
+      if (!label) return true
+      return !RELIGIOUS_ETHOS_LABELS.has(label.trim().toLowerCase())
+    },
+  },
+]
+
+// Returns the set of NonnegFilter entries that any nonneg string in the
+// parent's list triggers. Each entry is scanned independently so e.g.
+// "girls only" + "no London" → both filters fire; a single entry with
+// "boys only or co-ed" would only fire whichever matches its own regex
+// (not both, avoiding contradiction).
+function matchedNonnegFilters(nonnegs: string[] | null | undefined): NonnegFilter[] {
+  if (!Array.isArray(nonnegs) || nonnegs.length === 0) return []
+  const fired = new Map<string, NonnegFilter>()
+  for (const entry of nonnegs) {
+    if (typeof entry !== 'string' || !entry.trim()) continue
+    for (const f of NONNEG_FILTERS) {
+      if (f.pattern.test(entry)) fired.set(f.name, f)
+    }
+  }
+  return Array.from(fired.values())
+}
+
 // Phase 1 data-utilization (2026-05-21): medicine / vet / dentistry / law /
 // engineering intent detection from Build Mode prose. When a parent's
 // goals_notes / academic_notes / child_wants mentions one of these career
@@ -416,6 +544,18 @@ export function rankCandidates(
     filtered = filtered.filter(s => !KNOWN_DAY_ONLY_NAMES.has(normalizeSchoolName(s.name)))
   } else if (parent?.boarding_pref === 'day') {
     filtered = filtered.filter(s => !KNOWN_FULL_BOARDING_NAMES.has(normalizeSchoolName(s.name)))
+  }
+
+  // Phase 4 (2026-05-22) — nonnegotiables hard-filter. Drops schools that
+  // violate parent free-text constraints (must-be-coed / girls-only /
+  // boys-only / no-london / weekly-only / not-religious). See
+  // NONNEG_FILTERS for the full pattern table + predicates.
+  const firedNonnegFilters = matchedNonnegFilters(input.child?.nonnegotiables)
+  if (firedNonnegFilters.length > 0) {
+    filtered = filtered.filter(s => {
+      const struct = structBySlug.get(s.slug) ?? null
+      return firedNonnegFilters.every(f => f.predicate(s, struct))
+    })
   }
 
   if (filtered.length === 0) return []
