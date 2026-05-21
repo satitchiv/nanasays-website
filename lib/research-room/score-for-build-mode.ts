@@ -161,6 +161,43 @@ const MEDICINE_INTENT_RE = /\b(medicine|medical|medic|med\s*school|doctor|gp\b|g
 const LAW_INTENT_RE      = /\b(law|lawyer|solicitor|barrister|legal|judge|attorney|jurisprudence)\b/i
 const ENGINEERING_INTENT_RE = /\b(engineer|engineering|architect|architecture)\b/i
 
+// Recommender Phase 2 (2026-05-21): subject-intent regexes for the 9 v2.0
+// subject_strengths buckets. Anchored with optional suffix groups so e.g.
+// "biological" absorbs the suffix before `\b` (Codex r2 lesson from Phase 1
+// `pharmac…` regex). Fed by careerProseBlob (goals_notes / academic_notes /
+// child_wants / anchors_notes / personality_notes / nonnegotiables). Matches
+// drive ctx.subject_intents → DIMENSIONS.subject_strengths.rank() boost.
+//
+// Codex r1 P1.1 (2026-05-21): tightened `english` / `history` /
+// `economics_business` patterns that previously had bare-word matches with
+// high false-positive risk: "first-language English", "family history",
+// "medical history", "family business", "financial aid". Now require
+// subject-specific cognates (literature, historian, business studies,
+// economist, accounting, etc.) or explicit study-context phrases.
+//
+// Codex r1 P1.2 (2026-05-21): added plural variants previously missing.
+// `physic(?:s|ist)` → `physic(?:s|ists?)` so "physicists" fires; similarly
+// for biologists, historians, mathematicians, programmers, software
+// engineers/developers.
+const SUBJECT_INTENT_RE: Record<string, RegExp> = {
+  maths:              /\b(?:maths?|mathemati(?:cs?|cal|cians?))\b/i,
+  biology:            /\b(?:biolog(?:y|ists?|ical)|biomedical|biotech\w*)\b/i,
+  chemistry:          /\b(?:chemist(?:ry|s|ries)?|chemical\w*)\b/i,
+  physics:            /\b(?:physic(?:s|ists?)|astrophysic\w*|astronom(?:y|ers?|ical))\b/i,
+  english:            /\b(?:english\s+(?:literature|lit|language\s+studies)|literature|creative\s+writing|poet(?:ry|s)|novelists?|english\s+(?:class|lessons?|teacher|essay|essays?|degree|department|major))\b/i,
+  history:            /\b(?:historians?|history\s+(?:class|lessons?|teacher|essay|essays?|degree|department|major|geek|fan|enthusiast|book|books?|buff|of\s+art)|historical\s+(?:research|study|analysis|fiction|writing))\b/i,
+  modern_languages:   /\b(?:french|spanish|german|mandarin|chinese|japanese|italian|latin|linguistic\w*|foreign\s+languages?)\b/i,
+  computer_science:   /\b(?:computer\s*scien(?:ce|tists?)|comp\s*sci|coders?|coding|programmers?|programming|software\s+(?:engineer|engineering|engineers|developer|developers|development|design))\b/i,
+  // Codex r2 P1 (2026-05-21): `economic(?:s|al|ics)` matched `economical`
+  // ("more economical school") and missed bare `economic` ("economic
+  // policy"). Replaced with explicit terms — `economics`, `economist(s)`,
+  // `economy`, `econometric*` — and dropped `economical` (adjective for
+  // cost-effectiveness, not the subject).
+  // Codex r3 NIT: include micro/macroeconomics as cognates (not matched by
+  // bare `economics` because of the leading word boundary).
+  economics_business: /\b(?:(?:micro|macro)?economics?|economists?|econom(?:y|etric\w*)|business\s+(?:studies|class|management|administration|degree|school)|entrepreneur(?:s|ship|ial)?|accounting|commerce|financial\s+(?:markets?|literacy|analysis|degree)|finance(?!\s+(?:aid|app|company|department)))\b/i,
+}
+
 // Codex r1 P1.2 (2026-05-21): oxbridge subject matching upgraded from exact
 // Set.has() to substring/regex. Cambridge titles like "Jurisprudence" (Law)
 // and "Engineering Science" and "Computer Science and Philosophy" don't
@@ -196,6 +233,10 @@ type StructRow = {
   // Phase 1 data-utilization (2026-05-21):
   wellbeing_staffing:      Record<string, unknown> | null  // total_staff, ratio_per_pupil
   ethos_facts:             Record<string, unknown> | null  // ethos_label (church_of_england, roman_catholic, secular, etc.)
+  // Phase 2 data-utilization (2026-05-21): subject_strengths v2.0 polymorphic
+  // blob. Per-subject {items[], summary_paragraph_for_chatbot}. Consumed by
+  // DIMENSIONS.subject_strengths.rank() when ctx.subject_intents is non-empty.
+  subject_strengths:       Record<string, unknown> | null
 }
 
 // ── UK evidence slugs (paginated; mirrors recommend-shortlist private helper) ──
@@ -363,6 +404,17 @@ export function rankCandidates(
   const wantsMedicine    = MEDICINE_INTENT_RE.test(careerProseBlob)
   const wantsLaw         = LAW_INTENT_RE.test(careerProseBlob)
   const wantsEngineering = ENGINEERING_INTENT_RE.test(careerProseBlob)
+
+  // Phase 2 data-utilization (2026-05-21): subject-intent detection. For each
+  // of the 9 v2.0 subject_strengths buckets, fire when the parent's free text
+  // mentions that subject (or a tight set of cognates). Drives the
+  // DIMENSIONS.subject_strengths.rank() boost below. Empty set → dim short-
+  // circuits to 0 (no penalty), which is the correct behaviour for parents
+  // who never named a subject.
+  const subjectIntents = new Set<string>()
+  for (const subject of Object.keys(SUBJECT_INTENT_RE)) {
+    if (SUBJECT_INTENT_RE[subject].test(careerProseBlob)) subjectIntents.add(subject)
+  }
 
   // Phase 1 data-utilization: arts intent. Fires when the parent's brief
   // captured an arts interest OR the parent's wizard answer was
@@ -611,6 +663,58 @@ export function rankCandidates(
       }
     }
 
+    // ── Phase 2 data-utilization (2026-05-21) — Subject-strengths density
+    //    over v2.0 polymorphic blob. Reads struct.subject_strengths via
+    //    DIMENSIONS.subject_strengths.rank() with ctx.subject_intents (Set
+    //    populated above by SUBJECT_INTENT_RE). Per-subject banding inside
+    //    the dim: 5+ items = +1.0, 2-4 = +0.5, else 0. Cap total at +2.5
+    //    so a 4-subject-intent kid doesn't dwarf region (-2.0) or sport
+    //    stacking (~+2.5 per sport).
+    //
+    //    Surfaces a concrete signal chip per qualifying subject AND a top
+    //    fact line (highest-item subject) for the LLM rationale_seed. The
+    //    fact uses the bucket's summary_paragraph_for_chatbot when present
+    //    (Claude-generated at extract time, chat-shaped) or falls back to
+    //    a plain item count.
+    if (subjectIntents.size > 0 && struct?.subject_strengths) {
+      const dim = (DIMENSIONS as Record<string, { rank: (row: unknown, ctx: unknown) => number } | undefined>).subject_strengths
+      const rawScore = dim ? dim.rank(struct, { subject_intents: subjectIntents }) : 0
+      if (rawScore > 0) {
+        score += Math.min(rawScore, 2.5)
+        const ss = struct.subject_strengths as Record<string, { items?: unknown[]; summary_paragraph_for_chatbot?: unknown } | undefined>
+        // Per-subject signal chips for any subject with ≥2 items.
+        let topSubject:   string | null = null
+        let topCount = 0
+        for (const subject of Array.from(subjectIntents)) {
+          const bucket = ss[subject]
+          const itemCount = Array.isArray(bucket?.items) ? bucket!.items!.length : 0
+          if (itemCount >= 5) {
+            const friendly = subject.replace(/_/g, ' ')
+            signals.push(`strong ${friendly} (${itemCount} items)`)
+          } else if (itemCount >= 2) {
+            const friendly = subject.replace(/_/g, ' ')
+            signals.push(`${friendly} (${itemCount} items)`)
+          }
+          if (itemCount > topCount) {
+            topCount = itemCount
+            topSubject = subject
+          }
+        }
+        // Concrete fact for rationale_seed — Claude-generated summary
+        // of the highest-item-count subject, trimmed for prompt cost.
+        if (topSubject && topCount >= 2) {
+          const bucket = ss[topSubject]
+          const summary = typeof bucket?.summary_paragraph_for_chatbot === 'string'
+            ? (bucket.summary_paragraph_for_chatbot as string).trim()
+            : ''
+          // First sentence only — full paragraphs are too long for the
+          // facts[] array which feeds into the rationale_seed parenthetical.
+          const firstSentence = summary.split(/(?<=[.!?])\s+/, 1)[0] || ''
+          if (firstSentence) facts.push(firstSentence.length > 140 ? firstSentence.slice(0, 137) + '…' : firstSentence)
+        }
+      }
+    }
+
     // ── Phase 1 data-utilization — Ethos match (parent's RC / CofE etc.
     //    vs school's extracted ethos_label). Positive-only — schools with
     //    a non-matching or missing ethos aren't penalised. The 2026-05-19
@@ -784,10 +888,15 @@ export async function scoreForBuildMode(
   // the pastoral-priority parents see structured staffing signal (total
   // staff + ratio) on top of the existing ISI hint. Codex audit showed
   // the column was extracted but never read.
+  // Phase 2 data-utilization (2026-05-21): `subject_strengths` added —
+  // v2.0 polymorphic blob with per-subject items[] + summary paragraph.
+  // Drives subject-intent boost in rankCandidates via the new
+  // DIMENSIONS.subject_strengths dim. Heavy column (~5-15KB per school)
+  // but it's only fetched for the ≤120 candidates post-hard-filter.
   const slugs = (rawCandidates as SchoolRow[]).map(s => s.slug)
   const { data: structRows, error: structErr } = await supabase
     .from('school_structured_data')
-    .select('school_slug, sports_profile, exam_results, university_destinations, student_community, wellbeing_staffing')
+    .select('school_slug, sports_profile, exam_results, university_destinations, student_community, wellbeing_staffing, subject_strengths')
     .in('school_slug', slugs)
   if (structErr) return { candidates: [], reason: 'fetch_failed' }
 

@@ -10,6 +10,7 @@ import {
   type SafeRecentMessage,
 } from './pack-redactors'
 import { loadDimensionEvidencePack } from './dimension-evidence-pack'
+import { projectSubjectStrengths } from './subject-strengths-projection.mjs'
 
 /**
  * research-context-pack.ts — single source of truth for chatbot context.
@@ -171,6 +172,12 @@ const SSD_WHITELIST = [
   'exam_results',
   'university_destinations',
   'sports_profile',
+  // Recommender Phase 2 (2026-05-21): subject_strengths is the v2.0 polymorphic
+  // per-subject blob (maths/biology/.../economics_business, each with items[]
+  // + summary_paragraph_for_chatbot). nana-brain's buildStructuredBlock projects
+  // this to one compact line per subject; full row is dropped first by the pack
+  // reducers if the token budget is hit.
+  'subject_strengths',
   'pastoral_care',
   'pastoral_model',
   'wellbeing_staffing',
@@ -656,6 +663,13 @@ async function fetchSensitive(supabase: SupabaseClient, slugs: string[]) {
   return out
 }
 
+// Recommender Phase 2 (2026-05-21, Codex r1 P1.3): the heavy subject_strengths
+// v2.0 blob is projected down before it lands in the pack. The helper lives
+// in subject-strengths-projection.mjs so it's testable without dragging in
+// .ts dependencies (Node 25 strip-types choked on the existing import-type
+// chain through dimension-evidence-pack.ts). See that module for the full
+// projection rules.
+
 async function fetchSchoolBundle(
   supabase: SupabaseClient,
   slug: string,
@@ -700,6 +714,13 @@ async function fetchSchoolBundle(
   }
 
   const structured: Record<string, unknown> | null = structuredRes.data ? { ...(structuredRes.data as object) } : null
+  // Recommender Phase 2 (Codex r1 P1.3): project the heavy subject_strengths
+  // v2.0 blob down to top-3 subjects + counts BEFORE it lands in the pack,
+  // so a per-school 10-20KB column doesn't bust the token budget and force
+  // the overflow reducer to nuke ALL structured fields.
+  if (structured && 'subject_strengths' in structured) {
+    structured.subject_strengths = projectSubjectStrengths(structured.subject_strengths)
+  }
 
   let projection: Record<string, unknown> | undefined
   let source: PackSchool['source'] = structured ? 'structured' : 'empty'
