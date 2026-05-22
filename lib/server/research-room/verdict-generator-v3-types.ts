@@ -145,6 +145,66 @@ export type CouldntCompareSchool = {
   highest_leverage_action?:   string     // copy for "If Path X is your direction, research this first"
 }
 
+// ── SchoolFactsForUi — UI-ready projection of SchoolFacts (P1 #4 wiring) ────
+//
+// The raw SchoolFacts has numbers and nullable fields the UI would otherwise
+// have to format and conditional-render at every site. Server-side projection
+// gives the renderer pre-composed strings + the inside_filter boolean (which
+// needs uk-regions.regionInBucket against the parent's home_region).
+//
+// All fields nullable — partial-data schools render `--` per slot rather than
+// crashing the layout.
+
+export type SchoolFactsForUi = {
+  slug:           string
+  name:           string
+  // Composed "Worcestershire · co-ed · full boarding · A-level" line under the
+  // school heading. Empty parts get dropped, so a school with city+coed but no
+  // curriculum yields "Worcestershire · co-ed".
+  meta:           string
+  grades: {
+    a_level_label:  string | null       // "61%"
+    gcse_label:     string | null       // "78% at 9-7"
+    ib_label:       string | null       // "64% at 40+"
+  }
+  location: {
+    town:           string | null       // "Bromsgrove, Worcestershire" (city + region) or just city
+    region_label:   string | null       // "West Midlands · outside South West filter" — null if home_region='anywhere'
+    inside_filter:  boolean             // regionInBucket(home_region, school.region)
+    maps_embed:     string | null       // /maps...output=embed when lat/lon present
+    maps_external:  string | null
+    heathrow_miles: number | null       // straight-line miles, not drive time
+  }
+  students: {
+    total_label:         string | null  // "~1,700"
+    boarders_pct_label:  string | null  // "55%"
+    day_pct_label:       string | null
+    intl_pct_label:      string | null
+    boarders_pct:        number | null  // raw 0..100 for bar width
+    day_pct:             number | null
+    intl_pct:            number | null
+  }
+  coed:        string | null            // "Co-ed" | "Girls only" | "Boys only"
+  curriculum:  string | null            // already composed by SchoolFacts.curriculum
+  fees: {
+    annual_label: string | null         // "£11,754 – £54,342" or "£40,000" if single
+    in_budget:    'fits' | 'partial' | 'over' | null    // null when no budget cap
+  }
+}
+
+// ── BriefChip — derived from rubric for the verdict-tab chip strip ────────
+//
+// Server-side derivation so the chip strip stays a dumb renderer. `is_anchor`
+// flags the chips that the parent treats as hard preferences (top_priority,
+// full-boarding, explicit region filter, etc.) — they get the teal anchor
+// style; other chips render in neutral grey.
+
+export type BriefChip = {
+  key:        string
+  value:      string
+  is_anchor?: boolean
+}
+
 // ── ResearchVerdictRankedSchool (v3 — adds two fields) ──────────────────
 
 export type ResearchVerdictRankedSchool = {
@@ -181,6 +241,14 @@ export type ResearchVerdict = {
   brief_tensions?:          BriefTension[]
   same_winner_across_paths?: { winner_slug: string; paths: PathKey[] }
   default_path?:            PathKey | null   // R5-SHOULD-FIX + R6-MUST-5: null when all paths are needs_research; omit when v2 cached
+  // P1 #4 wiring (2026-05-22): server-side projection of the schoolFacts Map,
+  // keyed by school slug. Carries the fact ribbon + map embed + community
+  // shape data the active-path detail panel renders. Optional because the v2
+  // cached records that may still flow through readers don't have it.
+  school_facts?:            Record<string, SchoolFactsForUi>
+  // P1 #4 wiring (2026-05-22): structured chips for the brief strip atop the
+  // verdict tab. Derived server-side from the rubric.
+  brief_chips?:             BriefChip[]
 }
 
 export type ResearchVerdictRecord = {

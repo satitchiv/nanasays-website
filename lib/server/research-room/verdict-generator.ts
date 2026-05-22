@@ -34,6 +34,8 @@ export type ResearchVerdict = {
   brief_tensions?: import('./verdict-generator-v3-types').BriefTension[]
   same_winner_across_paths?: { winner_slug: string; paths: ('A' | 'B' | 'C')[] }
   default_path?: 'A' | 'B' | 'C' | null
+  school_facts?: Record<string, import('./verdict-generator-v3-types').SchoolFactsForUi>
+  brief_chips?: import('./verdict-generator-v3-types').BriefChip[]
 }
 
 export type ResearchVerdictRecord = {
@@ -753,6 +755,47 @@ function decisionFactors(rubric: Rubric): string[] {
   return out.slice(0, 7)
 }
 
+// P1 #4: brief_chips for the verdict-tab chip strip. Same input as decisionFactors
+// (rubric) but structured per-chip instead of prose, with is_anchor flagged on
+// the hard-preference chips so the renderer can highlight them.
+function buildBriefChips(rubric: Rubric): BriefChip[] {
+  const chips: BriefChip[] = []
+  if (rubric.topPriority) {
+    chips.push({ key: 'Top priority', value: titleCase(rubric.topPriority.replace(/-/g, ' ')), is_anchor: true })
+  }
+  if (rubric.boardingPref) {
+    chips.push({
+      key: 'Boarding',
+      value: titleCase(rubric.boardingPref.replace(/-/g, ' ')),
+      is_anchor: rubric.boardingPref.includes('full'),
+    })
+  }
+  if (rubric.homeRegion && rubric.homeRegion !== 'anywhere') {
+    chips.push({ key: 'Location filter', value: formatRegion(rubric.homeRegion), is_anchor: true })
+  }
+  if (rubric.budgetRange) {
+    chips.push({ key: 'Budget', value: formatBudgetRange(rubric.budgetRange) })
+  }
+  if (rubric.curriculumPref) {
+    chips.push({ key: 'Curriculum', value: formatCurriculum(rubric.curriculumPref) })
+  }
+  const yearGender = [
+    rubric.childYear  ? `Year ${rubric.childYear}` : null,
+    rubric.childGender ? titleCase(rubric.childGender) : null,
+  ].filter(Boolean).join(' · ')
+  if (yearGender) {
+    chips.push({ key: 'Year · Gender', value: yearGender })
+  }
+  return chips
+}
+
+function titleCase(s: string): string {
+  return s
+    .split(/\s+/)
+    .map(w => w.length > 0 ? w[0].toUpperCase() + w.slice(1) : w)
+    .join(' ')
+}
+
 function buildSummary(school: ScoredSchool, idx: number, top: ScoredSchool | undefined): string {
   if (idx === 0) {
     return `${school.name} leads on the weighted evidence pool, especially ${topCategoriesText(school)}.`
@@ -971,7 +1014,11 @@ import type {
   PathOverlay,
   CouldntCompareSchool,
   BriefTension,
+  SchoolFacts,
+  SchoolFactsForUi,
+  BriefChip,
 }                              from './verdict-generator-v3-types'
+import { regionInBucket }      from '@/lib/uk-regions'
 
 const COVERAGE_THRESHOLD_PCT = 50
 
@@ -984,6 +1031,7 @@ type V3Overlay = {
   pathWinnerSlugs:          Array<[string, PathKey]>
   belowThresholdSlugs:      Set<string>
   schoolFactsProjection:    unknown
+  schoolFactsForUi:         Record<string, SchoolFactsForUi>
 }
 
 function coveragePctFromScored(s: ScoredSchool): number {
@@ -1143,6 +1191,17 @@ function buildV3Overlay(
       curriculum:            f.curriculum ?? null,
     }])
 
+  // UI projection — pre-formatted strings + inside_filter boolean keyed by
+  // slug. The VerdictTab renderer reads this directly; renderer stays dumb.
+  // Built from facts.entries() so schools without facts get a minimal stub
+  // (slug + name from the comparison schools array, all other fields null)
+  // — keeps the fact ribbon's --/-- shape instead of crashing the layout.
+  const schoolFactsForUi: Record<string, SchoolFactsForUi> = {}
+  for (const compSchool of args.comparisonData.schools) {
+    const f = facts.get(compSchool.slug)
+    schoolFactsForUi[compSchool.slug] = projectSchoolFactsForUi(compSchool.slug, compSchool.name, f, rubric)
+  }
+
   return {
     paths,
     couldnt_compare,
@@ -1152,6 +1211,133 @@ function buildV3Overlay(
     pathWinnerSlugs,
     belowThresholdSlugs,
     schoolFactsProjection,
+    schoolFactsForUi,
+  }
+}
+
+// ── UI projection helper (P1 #4) ─────────────────────────────────────────
+//
+// Server-side formatting so the renderer stays dumb. All output strings
+// nullable — partial-data schools render `--` per slot rather than break.
+
+const REGION_BUCKET_LABELS: Record<string, string> = {
+  'london':         'London',
+  'south-east':     'South East',
+  'south-west':     'South West',
+  'midlands':       'Midlands',
+  'north':          'North',
+  'scotland-wales': 'Scotland / Wales',
+  'overseas':       'Overseas',
+}
+
+function pct(n: number | null | undefined): string | null {
+  if (n == null || !Number.isFinite(n)) return null
+  return `${Math.round(n)}%`
+}
+
+function feeRangeLabel(min: number | null | undefined, max: number | null | undefined): string | null {
+  if (min == null && max == null) return null
+  if (min != null && max != null && min !== max) {
+    return `£${min.toLocaleString('en-GB')} – £${max.toLocaleString('en-GB')}`
+  }
+  const single = max ?? min
+  return single != null ? `£${single.toLocaleString('en-GB')}` : null
+}
+
+function inBudgetStatus(
+  fee_min: number | null | undefined,
+  fee_max: number | null | undefined,
+  cap:     number | null,
+): 'fits' | 'partial' | 'over' | null {
+  if (cap == null) return null
+  if (fee_max == null && fee_min == null) return null
+  const min = fee_min ?? fee_max ?? null
+  const max = fee_max ?? fee_min ?? null
+  if (min == null || max == null) return null
+  if (max <= cap) return 'fits'
+  if (min <= cap) return 'partial'
+  return 'over'
+}
+
+function coedLabel(g: string | null | undefined): string | null {
+  if (!g) return null
+  const lower = g.toLowerCase()
+  if (lower.startsWith('co')) return 'Co-ed'
+  if (lower.startsWith('girl')) return 'Girls only'
+  if (lower.startsWith('boy')) return 'Boys only'
+  return g
+}
+
+function mapsEmbedFor(lat: number | null | undefined, lon: number | null | undefined): string | null {
+  if (lat == null || lon == null) return null
+  return `https://maps.google.com/maps?q=${lat},${lon}&z=13&output=embed`
+}
+
+function mapsExternalFor(lat: number | null | undefined, lon: number | null | undefined): string | null {
+  if (lat == null || lon == null) return null
+  return `https://maps.google.com/?q=${lat},${lon}`
+}
+
+function townLabel(city: string | null | undefined, region: string | null | undefined): string | null {
+  const parts = [city, region].filter((p): p is string => Boolean(p && p.trim()))
+  return parts.length ? parts.join(', ') : null
+}
+
+function regionLabelForUi(schoolRegion: string | null | undefined, homeRegion: string | null, insideFilter: boolean): string | null {
+  if (!schoolRegion) return null
+  if (!homeRegion || homeRegion === 'anywhere' || homeRegion === 'overseas') return schoolRegion
+  const filterLabel = REGION_BUCKET_LABELS[homeRegion] ?? homeRegion
+  return `${schoolRegion} · ${insideFilter ? `inside ${filterLabel} filter` : `outside ${filterLabel} filter`}`
+}
+
+function metaLine(f: SchoolFacts | undefined): string {
+  if (!f) return ''
+  const coed = coedLabel(f.gender_split)
+  const parts = [f.region, coed, f.curriculum].filter((p): p is string => Boolean(p && p.trim()))
+  return parts.join(' · ')
+}
+
+function projectSchoolFactsForUi(
+  slug:   string,
+  name:   string,
+  f:      SchoolFacts | undefined,
+  rubric: Rubric,
+): SchoolFactsForUi {
+  const insideFilter = f?.region && rubric.homeRegion
+    ? regionInBucket(rubric.homeRegion, f.region)
+    : false
+  return {
+    slug,
+    name: f?.name ?? name,
+    meta: metaLine(f),
+    grades: {
+      a_level_label: pct(f?.a_level_a_star_a_pct),
+      gcse_label:    f?.gcse_9_7_pct != null ? `${Math.round(f.gcse_9_7_pct)}% at 9-7` : null,
+      ib_label:      f?.ib_avg_40_plus_pct != null ? `${Math.round(f.ib_avg_40_plus_pct)}% at 40+` : null,
+    },
+    location: {
+      town:           townLabel(f?.city, f?.region),
+      region_label:   regionLabelForUi(f?.region, rubric.homeRegion, insideFilter),
+      inside_filter:  insideFilter,
+      maps_embed:     mapsEmbedFor(f?.latitude, f?.longitude),
+      maps_external:  mapsExternalFor(f?.latitude, f?.longitude),
+      heathrow_miles: f?.heathrow_miles != null && Number.isFinite(f.heathrow_miles) ? Math.round(f.heathrow_miles) : null,
+    },
+    students: {
+      total_label:        f?.total_pupils != null ? `~${f.total_pupils.toLocaleString('en-GB')}` : null,
+      boarders_pct_label: pct(f?.boarder_pct),
+      day_pct_label:      pct(f?.day_pct),
+      intl_pct_label:     pct(f?.international_pct),
+      boarders_pct:       f?.boarder_pct ?? null,
+      day_pct:            f?.day_pct ?? null,
+      intl_pct:           f?.international_pct ?? null,
+    },
+    coed:       coedLabel(f?.gender_split),
+    curriculum: f?.curriculum ?? null,
+    fees: {
+      annual_label: feeRangeLabel(f?.fee_min, f?.fee_max),
+      in_budget:    inBudgetStatus(f?.fee_min, f?.fee_max, rubric.budgetMaxAnnual),
+    },
   }
 }
 
@@ -1236,6 +1422,8 @@ export function buildResearchVerdictDraft(args: BuildArgs): { inputHash: string;
     brief_tensions:           v3Overlay.brief_tensions,
     same_winner_across_paths: v3Overlay.same_winner_across_paths,
     default_path:             v3Overlay.default_path,
+    school_facts:             v3Overlay.schoolFactsForUi,
+    brief_chips:              buildBriefChips(rubric),
   }
 
   // R2-F2 + R4-MUST-2 + R5-MUST-5: hash payload drops lens identity. v3 uses
