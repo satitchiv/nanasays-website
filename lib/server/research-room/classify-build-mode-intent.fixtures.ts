@@ -1,8 +1,15 @@
-// Phase 4 item #2 — Build Mode intent classifier fixture set.
+// Phase 4 item #2 + item #3 — Build Mode intent classifier fixture set.
 //
-// These are the 30+ hard cases Codex surfaced across 12 review rounds
-// while we were (incorrectly) trying to solve this with regex. They form
-// the ground-truth fixture set for the LLM classifier.
+// Item #2: the 30+ hard cases Codex surfaced across 12 regex review rounds
+// before we pivoted to LLM. Ground-truth fixture set for academic_intent +
+// top_uni_intent. DO NOT MODIFY these fixtures — they lock item #2 against
+// regression.
+//
+// Item #3: additional fixtures exercising the 6 new output fields
+// (pastoral_priority, inclusive_priority, small_env_pref,
+// boarding_pref_from_prose, current_school_pain, parent_drill_focus).
+// These fixtures use the 4 new prose inputs (personality_notes,
+// child_wants, went_wrong, drill_down) as the LLM input.
 //
 // Run via:
 //   cd website
@@ -15,13 +22,21 @@
 
 import type { BuildModeIntent } from './classify-build-mode-intent.ts'
 
+// Item #3: fixtures may assert ANY SUBSET of the 8 output fields.
+// classification_version is attached programmatically post-classify, so
+// fixtures don't need to (and shouldn't) assert it. Input fields mirror
+// the classifier's `ClassifyOptions` (5 actual prose fields — went_wrong
+// and drill_down are interview progress targets, not data fields).
 export type IntentFixture = {
-  name:           string
-  academic_notes: string
-  goals_notes:    string
-  expected:       BuildModeIntent
+  name:               string
+  academic_notes?:    string
+  goals_notes?:       string
+  personality_notes?: string
+  child_wants?:       string
+  anchors_notes?:     string
+  expected:           Partial<Omit<BuildModeIntent, 'classification_version'>>
   // Original Codex round that surfaced this case (for traceability)
-  origin:         string
+  origin:             string
 }
 
 export const INTENT_FIXTURES: IntentFixture[] = [
@@ -385,5 +400,311 @@ export const INTENT_FIXTURES: IntentFixture[] = [
     goals_notes:    '',
     expected:       { academic_intent: 'none', top_uni_intent: 'none' },
     origin:         'baseline empty',
+  },
+
+  // ────────────────────────────────────────────────────────────────────
+  // PHASE 4 ITEM #3 FIXTURES (2026-05-22) — 6 new output fields
+  //
+  // Each fixture asserts ONLY the field(s) under test. classifier returns
+  // all 8 fields but the runner only checks asserted keys. This keeps
+  // each fixture focused and lets item #2 fixtures stay locked to their
+  // original 2-field contract.
+  //
+  // Codex parent-harm patterns covered:
+  //   - "Bored" must NOT become 'wants Eton-tier selectivity'
+  //   - "Small schools didn't work" must NOT become small-school boost
+  //   - "Not boarding" must NOT become boarding-school signal
+  //   - LGBTQ concerns must NOT flatten into pastoral
+  //   - Religion mismatch (cultural) without direction → log only, no score
+  //   - Drill-down text classifies to wizard-enum, doesn't invent values
+  // ────────────────────────────────────────────────────────────────────
+
+  // ── pastoral_priority ───────────────────────────────────────────────
+  {
+    name:              'anxious sensitive boy → pastoral high',
+    personality_notes: 'He is a sensitive boy, quite anxious and shy. Lost his confidence after his Year 7 transition.',
+    expected:          { pastoral_priority: 'high' },
+    origin:            'item-3 pastoral',
+  },
+  {
+    name:              'bullied at current school → pastoral high + pain pastoral',
+    personality_notes: 'Bullied badly in Years 7-8. He came home crying many times.',
+    expected:          { pastoral_priority: 'high', current_school_pain: 'pastoral' },
+    origin:            'item-3 pastoral pain reinforcement (rule 10)',
+  },
+  {
+    name:              'resilient outgoing kid → pastoral normal',
+    personality_notes: 'She is outgoing, makes friends easily, very resilient.',
+    expected:          { pastoral_priority: 'normal' },
+    origin:            'item-3 pastoral negative case (resilient → normal per prompt)',
+  },
+  {
+    name:              'no pastoral concerns → normal (double-negation reassurance, rule 3)',
+    personality_notes: 'No pastoral worries — she has been fine emotionally.',
+    expected:          { pastoral_priority: 'normal' },
+    origin:            'item-3 pastoral negation rule 3 (reassurance → normal, NOT high)',
+  },
+
+  // ── inclusive_priority (distinct from pastoral, rule 14) ────────────
+  {
+    name:              'queer child needing inclusion → inclusive high, NOT pastoral',
+    personality_notes: 'Our child is queer and we want a school where that is celebrated rather than tolerated.',
+    expected:          { inclusive_priority: 'high', pastoral_priority: 'none' },
+    origin:            'item-3 inclusive rule 14',
+  },
+  {
+    name:              'non-binary kid → inclusive high',
+    personality_notes: 'They are non-binary; an inclusive culture is critical for us.',
+    expected:          { inclusive_priority: 'high' },
+    origin:            'item-3 inclusive',
+  },
+  {
+    name:              'anxious queer kid → BOTH pastoral high AND inclusive high',
+    personality_notes: 'Anxious queer 13yo; needs nurturing AND an inclusive culture.',
+    expected:          { pastoral_priority: 'high', inclusive_priority: 'high' },
+    origin:            'item-3 inclusive + pastoral overlap rule 14',
+  },
+  {
+    name:              'religion-as-identity → inclusive high (NOT cultural pain)',
+    anchors_notes:     'Practising Muslim family; we want a school where her identity is welcomed.',
+    expected:          { inclusive_priority: 'high' },
+    origin:            'item-3 inclusive religion-as-identity',
+  },
+
+  // ── small_env_pref ──────────────────────────────────────────────────
+  {
+    name:           'wants smaller school → wants',
+    child_wants:    'She wants somewhere smaller, more personal.',
+    expected:       { small_env_pref: 'wants' },
+    origin:         'item-3 small wants',
+  },
+  {
+    name:           'small classes please → wants',
+    anchors_notes:  'Smaller class sizes are important to us — she needs more individual attention.',
+    expected:       { small_env_pref: 'wants' },
+    origin:         'item-3 small wants (anchors)',
+  },
+  {
+    name:           'thrives in big bustling community → rejects',
+    personality_notes: 'She thrives in big bustling communities — small schools feel stifling to her.',
+    expected:       { small_env_pref: 'rejects' },
+    origin:         'item-3 small rejects (Codex harm class)',
+  },
+  {
+    name:              'small schools did not work past → rejects/none (rule 13)',
+    personality_notes: 'Small schools have not worked — she needs more stimulation and more peers.',
+    expected:          { small_env_pref: 'rejects' },
+    origin:            'item-3 small direction rule 13 (Codex parent-harm)',
+  },
+
+  // ── boarding_pref_from_prose ────────────────────────────────────────
+  {
+    name:           'wants full boarding → full',
+    child_wants:    'We want full boarding — 7 days a week, immersive.',
+    expected:       { boarding_pref_from_prose: 'full' },
+    origin:         'item-3 boarding full',
+  },
+  {
+    name:           'weekly boarding suits us → weekly',
+    anchors_notes:  'Weekly boarding — we want her home at weekends.',
+    expected:       { boarding_pref_from_prose: 'weekly' },
+    origin:         'item-3 boarding weekly',
+  },
+  {
+    name:           'not ready for boarding → rejects (rule 12)',
+    child_wants:    'She is not ready for boarding. Day school only.',
+    expected:       { boarding_pref_from_prose: 'rejects' },
+    origin:         'item-3 boarding rejects rule 12 (Codex parent-harm)',
+  },
+  {
+    name:           'no boarding → rejects (must NOT infer wants full)',
+    anchors_notes:  'No boarding under any circumstances.',
+    expected:       { boarding_pref_from_prose: 'rejects' },
+    origin:         'item-3 boarding rejects rule 12',
+  },
+  {
+    name:           'incidental positive boarding mention → none (rule 12: no inferred wants full)',
+    academic_notes: 'She has been attending day school in our local catchment.',
+    anchors_notes:  'We have looked at one or two boarding options as a comparison.',
+    // Tests rule 12 specifically: passing mention of "boarding" must NOT
+    // become 'full'. Defaults to 'none' (no explicit signal).
+    expected:       { boarding_pref_from_prose: 'none' },
+    origin:         'item-3 boarding rule 12 — no inferred wants',
+  },
+
+  // ── current_school_pain ─────────────────────────────────────────────
+  {
+    name:              'bored, ahead of class → academic_bored',
+    academic_notes:    'She is well ahead of her class — the work is too easy and she has switched off.',
+    expected:          { current_school_pain: 'academic_bored' },
+    origin:            'item-3 pain bored',
+  },
+  {
+    name:              'bored ≠ strong academic intent (rule 11)',
+    academic_notes:    'She is bored at her current school.',
+    expected:          { current_school_pain: 'academic_bored', academic_intent: 'none' },
+    origin:            'item-3 pain bored rule 11 (Codex parent-harm)',
+  },
+  {
+    name:              'overwhelmed, falling behind → academic_overwhelmed',
+    academic_notes:    'She is overwhelmed, falling behind in every subject. The pace is too much.',
+    expected:          { current_school_pain: 'academic_overwhelmed', academic_intent: 'struggle' },
+    origin:            'item-3 pain overwhelmed',
+  },
+  {
+    name:              'pastoral pain (lonely) → pain pastoral + pastoral high',
+    personality_notes: 'She has no real friends at her current school. Lonely and miserable.',
+    expected:          { current_school_pain: 'pastoral', pastoral_priority: 'high' },
+    origin:            'item-3 pain pastoral rule 10',
+  },
+  {
+    name:              'logistical (long commute) → logistical',
+    anchors_notes:     'The commute is 90 minutes each way — it is killing her.',
+    expected:          { current_school_pain: 'logistical' },
+    origin:            'item-3 pain logistical',
+  },
+  {
+    name:              'generic dissatisfaction without cause → none',
+    academic_notes:    'We just want a fresh start.',
+    expected:          { current_school_pain: 'none' },
+    origin:            'item-3 pain none (conservative rule 8)',
+  },
+
+  // ── parent_drill_focus (must match wizard enum, rule 9) ─────────────
+  {
+    name:           'parent priority academic → academic',
+    anchors_notes:  'Above all, we want strong academic results and a clear university pathway.',
+    expected:       { parent_drill_focus: 'academic' },
+    origin:         'item-3 drill_focus academic',
+  },
+  {
+    name:           'parent priority pastoral → pastoral',
+    anchors_notes:  'Pastoral care is what matters most to us — her wellbeing first.',
+    expected:       { parent_drill_focus: 'pastoral' },
+    origin:         'item-3 drill_focus pastoral',
+  },
+  {
+    name:           'parent priority sport → sport',
+    anchors_notes:  'Sport is the priority — she trains five days a week.',
+    expected:       { parent_drill_focus: 'sport' },
+    origin:         'item-3 drill_focus sport',
+  },
+  {
+    name:           'all-rounder → all-round',
+    anchors_notes:  'We want a genuine all-rounder — academics, sport, music, the lot.',
+    expected:       { parent_drill_focus: 'all-round' },
+    origin:         'item-3 drill_focus all-round',
+  },
+  {
+    name:           'parent says "cost" (not in wizard enum) → none, rule 9',
+    anchors_notes:  'Honestly, cost is the biggest factor for us. We need value for money.',
+    expected:       { parent_drill_focus: 'none' },
+    origin:         'item-3 drill_focus enum-discipline rule 9',
+  },
+  {
+    name:           'parent says "community" (not in wizard enum) → none, rule 9',
+    anchors_notes:  'The right community matters more than anything.',
+    expected:       { parent_drill_focus: 'none' },
+    origin:         'item-3 drill_focus enum-discipline rule 9',
+  },
+
+  // ── Cross-field interaction (item #2 + item #3 together) ────────────
+  {
+    name:           'struggling kid + Oxbridge hope + bored framing → struggle/wants + overwhelmed (NOT bored)',
+    academic_notes: 'Her grades have been poor; she struggles with the workload.',
+    goals_notes:    'We still hope she can aim for Cambridge one day.',
+    expected:       { academic_intent: 'struggle', top_uni_intent: 'wants', current_school_pain: 'academic_overwhelmed' },
+    origin:         'item-3 cross-field consistency',
+  },
+  {
+    name:              'queer + struggling academically → struggle + inclusive high (identity-only)',
+    academic_notes:    'She is academically behind, year below grade level.',
+    personality_notes: 'LGBTQ-inclusive is critical — she is gay and the current school is hostile to that.',
+    expected:          { academic_intent: 'struggle', inclusive_priority: 'high' },
+    origin:            'item-3 multi-field — identity hostility is inclusive, NOT generic pastoral (rule 14)',
+  },
+  {
+    name:              'queer + lonely AND struggling → academic_overwhelmed wins pain slot (rule 16)',
+    academic_notes:    'She is academically behind, year below grade level. The pace is impossible.',
+    personality_notes: 'She is gay, the school is hostile to LGBTQ, AND she has been miserable and isolated. Bullied for being herself.',
+    // Per rule 16: when both academic and pastoral pain present, academic
+    // takes the single current_school_pain slot. Pastoral signal is still
+    // captured via its own pastoral_priority='high' output.
+    expected:          { academic_intent: 'struggle', inclusive_priority: 'high', pastoral_priority: 'high', current_school_pain: 'academic_overwhelmed' },
+    origin:            'item-3 multi-pain rule 16 + rule 14 + rule 10',
+  },
+
+  // ── Codex r1 review (2026-05-22) fixture additions ──────────────────
+  {
+    name:              'multi-pain: academic overwhelmed + pastoral lonely → overwhelmed wins pain (rule 16)',
+    academic_notes:    'She has been drowning in the workload, falling behind in every subject.',
+    personality_notes: 'She is also very lonely — has not made friends in the year she has been there.',
+    expected:          {
+      academic_intent:     'struggle',
+      current_school_pain: 'academic_overwhelmed',
+      pastoral_priority:   'high',
+    },
+    origin:            'item-3 Codex r1 multi-pain priority rule 16',
+  },
+  {
+    name:              'multi-pain: bored AND lonely → academic_bored wins over pastoral in pain slot',
+    academic_notes:    'She is well ahead — the work is too easy and she has switched off.',
+    personality_notes: 'She is also lonely at school, no real friends.',
+    // Per rule 16: academic > pastoral in current_school_pain. Pastoral
+    // is still captured via pastoral_priority='high'.
+    expected:          {
+      current_school_pain: 'academic_bored',
+      pastoral_priority:   'high',
+    },
+    origin:            'item-3 Codex r1 multi-pain priority rule 16 (bored variant)',
+  },
+  {
+    name:           'ethos-neutral sentinel: religion mention without identity/inclusion signal → none',
+    anchors_notes:  'We are Anglican; faith is part of our family but not a fixed requirement for the school.',
+    // Codex r2 Q6: ensure a benign religion mention doesn't accidentally
+    // fire inclusive_priority='high' or parent_drill_focus='all-round'.
+    // Religion-specific preferences belong in wizard ethos_pref, not here.
+    expected:       {
+      inclusive_priority:  'none',
+      parent_drill_focus:  'none',
+      current_school_pain: 'none',
+    },
+    origin:         'item-3 Codex r2 ethos-neutral sentinel (rule 17)',
+  },
+  {
+    name:           'religion-specific request sentinel: "we want a Catholic school" → no classifier output',
+    anchors_notes:  'We are looking for a Catholic boarding school for our daughter.',
+    // Codex r3 Low #1: rule 17 says religion-specific requests do NOT
+    // encode in any classifier output — they belong in wizard ethos_pref.
+    // parent_drill_focus must NOT become 'all-round' or anything else.
+    // inclusive_priority should NOT fire (this is about wanting a
+    // religious school, not about identity-belonging safety).
+    expected: {
+      inclusive_priority:  'none',
+      parent_drill_focus:  'none',
+      current_school_pain: 'none',
+    },
+    origin: 'item-3 Codex r3 religion-specific request sentinel (rule 17)',
+  },
+  {
+    name:              'all-neutral sentinel: pure factual prose with no signals → all none/normal',
+    academic_notes:    'She is in Year 9 at her current independent school.',
+    goals_notes:       'We are looking for a school for sixth form.',
+    personality_notes: 'She enjoys reading and spending time with her cousins.',
+    child_wants:       'She has not strongly stated what she wants in a new school.',
+    anchors_notes:     'We are open to most options.',
+    // Sentinel for accidental new-field false positives — purely
+    // descriptive prose should never trigger any HIGH/wants signal.
+    expected: {
+      academic_intent:         'none',
+      top_uni_intent:          'none',
+      pastoral_priority:       'none',
+      inclusive_priority:      'none',
+      small_env_pref:          'none',
+      boarding_pref_from_prose: 'none',
+      current_school_pain:     'none',
+      parent_drill_focus:      'none',
+    },
+    origin: 'item-3 Codex r1 all-neutral sentinel',
   },
 ]

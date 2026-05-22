@@ -421,21 +421,28 @@ export async function POST(req: NextRequest) {
   }
 
   // ── Classify build-mode intent from free-text notes ──────────────
-  // Phase 4 item #2 (2026-05-22): the LLM classifier reads
-  // academic_notes + goals_notes and returns structured intent
-  // ({academic_intent, top_uni_intent}). Replaces ~1240 lines of regex
-  // that never converged across 12 Codex review rounds. See memory
-  // `feedback_regex_wrong_tool_for_sentiment`. Classifier never throws
-  // — falls back to {none, none} on any failure, matching the
-  // pre-feature behaviour. Cost: one gpt-5.4-mini call per finalize,
-  // ~256 tokens out. Skipped (no API call) when both fields are empty.
+  // Phase 4 item #2 (2026-05-22): LLM classifier replaces ~1240 lines of
+  // regex (12 Codex rounds, never converged). See memory
+  // `feedback_regex_wrong_tool_for_sentiment`.
+  // Phase 4 item #3 (2026-05-22): extended to read 5 actual prose data
+  // fields (academic + goals + personality + child_wants + anchors_notes)
+  // and returns 8-field structured intent. Closes Codex audit lines
+  // 6289-6290 — note: went_wrong / drill_down are interview PROGRESS
+  // targets, not data fields. Their content is routed by
+  // build-mode-merge.ts into the 5 prose fields above; the OUTPUT
+  // current_school_pain + parent_drill_focus capture what those progress
+  // targets represent. Cost: one gpt-5.4-mini call per finalize, ~512
+  // max tokens out. Skipped (no API call) when ALL 5 prose fields are empty.
+  // Classifier never throws — falls back to all-'none' on any failure,
+  // matching pre-feature behaviour (only wizard dropdowns drive scoring).
+  const strOrNull = (v: unknown): string | null =>
+    typeof v === 'string' ? v : null
   const buildModeIntent = await classifyBuildModeIntent({
-    academic_notes: typeof childProfile?.academic_notes === 'string'
-      ? childProfile.academic_notes
-      : null,
-    goals_notes: typeof childProfile?.goals_notes === 'string'
-      ? childProfile.goals_notes
-      : null,
+    academic_notes:    strOrNull(childProfile?.academic_notes),
+    goals_notes:       strOrNull(childProfile?.goals_notes),
+    personality_notes: strOrNull(childProfile?.personality_notes),
+    child_wants:       strOrNull(childProfile?.child_wants),
+    anchors_notes:     strOrNull(childProfile?.anchors_notes),
   })
 
   // ── Score off-shortlist candidates (Codex r-merge Q4 P1) ──────────
@@ -780,6 +787,31 @@ export async function POST(req: NextRequest) {
             // class of bug is forensically obvious next time.
             school_scorer_reason:  scorerReason,
             candidate_count:       candidates.length,
+            // Phase 4 item #3 Codex r1 review (2026-05-22) — persist the
+            // classified intent + any wizard/prose conflicts so we can
+            // audit how often parents' prose contradicts their dropdown
+            // clicks, and so the intent itself is reconstructable from
+            // logs (needed for future caching, debugging mis-classifications,
+            // and tracking the classifier's effective rollout).
+            intent: {
+              version:                 buildModeIntent.classification_version,
+              academic_intent:         buildModeIntent.academic_intent,
+              top_uni_intent:          buildModeIntent.top_uni_intent,
+              pastoral_priority:       buildModeIntent.pastoral_priority,
+              inclusive_priority:      buildModeIntent.inclusive_priority,
+              small_env_pref:          buildModeIntent.small_env_pref,
+              boarding_pref_from_prose: buildModeIntent.boarding_pref_from_prose,
+              current_school_pain:     buildModeIntent.current_school_pain,
+              parent_drill_focus:      buildModeIntent.parent_drill_focus,
+            },
+            top_priority_conflict: (() => {
+              const wiz   = (briefProfile?.top_priority ?? '').trim()
+              const drill = buildModeIntent.parent_drill_focus
+              if (wiz && drill && drill !== 'none' && wiz !== drill) {
+                return { wizard: wiz, drill, resolution: 'wizard_wins' }
+              }
+              return null
+            })(),
           },
         }
         const shareToken = crypto.randomUUID()

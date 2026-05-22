@@ -190,12 +190,41 @@ const SPORT_LEVEL_DEFAULT = 0.5
 // pastoral (+1.5) combined.
 const SPORT_TOTAL_CAP = 3.0
 
-// Keyword heuristics applied to Build Mode prose fields to infer pastoral /
-// inclusive interest when the onboarding dropdown didn't capture it.
-const PASTORAL_HINT_RE   = /\b(pastoral|wellbeing|well-being|anxiety|anxious|homesick|mental health|counsell|safeguard|nurtur)\b/i
-const INCLUSIVE_HINT_RE  = /\b(inclusiv|diversity|lgbtq|lgbt\b|gay\b|queer|trans\b|gender|belonging|minorit)\b/i
-const FULL_BOARDING_HINT_RE = /\b(full board|full-board|weekly board|boarding school)\b/i
-const SMALL_CLASS_HINT_RE   = /\b(small class|small school|small community|smaller class|low pupil)\b/i
+// Phase 4 item #3 Codex r2 review (2026-05-22): shared boarding-pref
+// resolver. Wizard wins; otherwise prose full/weekly/day/rejects fill the
+// effective boarding preference, with rejects mapped to 'day' (the
+// closest hard-filter equivalent — drops KNOWN_FULL_BOARDING_NAMES). Used
+// by: (a) the hard-filter step below, (b) the in-budget chip in the
+// pure ranker, (c) the wrapper SQL budget-column selection. Without this
+// shared resolver, "weekly boarding suits us" with a null wizard would
+// not filter day-only schools and would not use the boarding fee column
+// for budget checks — a positive-prose-boarding asymmetry Codex r2 caught.
+// No-erase rule preserved: when wizard is set, prose is ignored.
+function resolveBoardingPref(
+  parent: BriefProfile | null,
+  intent: BuildModeIntent | null | undefined,
+): 'full' | 'weekly' | 'flexi' | 'day' | null {
+  const wizard = parent?.boarding_pref
+  if (wizard === 'full' || wizard === 'weekly' || wizard === 'flexi' || wizard === 'day') {
+    return wizard
+  }
+  const prose = intent?.boarding_pref_from_prose
+  if (prose === 'full' || prose === 'weekly' || prose === 'day') return prose
+  if (prose === 'rejects') return 'day'
+  return null
+}
+
+// Phase 4 item #3 (2026-05-22): PASTORAL_HINT_RE / INCLUSIVE_HINT_RE /
+// FULL_BOARDING_HINT_RE / SMALL_CLASS_HINT_RE REMOVED. These were 4
+// direction-sensitive regexes that the LLM classifier now owns. See
+// classify-build-mode-intent.ts fields:
+//   - pastoral_priority      → was PASTORAL_HINT_RE
+//   - inclusive_priority     → was INCLUSIVE_HINT_RE
+//   - boarding_pref_from_prose → was FULL_BOARDING_HINT_RE
+//   - small_env_pref         → was SMALL_CLASS_HINT_RE
+// Codex 2026-05-22 design review flagged regex-OR-LLM as the worst path
+// (regex false positives override better classifier); we replace cleanly.
+// Memory `feedback_regex_wrong_tool_for_sentiment` for the lesson.
 
 // Recommender Phase 4 (2026-05-22): nonnegotiables hard-filter.
 // Codex audit 2026-05-21 (line 6239) flagged that free-text nonnegotiables
@@ -292,6 +321,33 @@ const NONNEG_FILTERS: NonnegFilter[] = [
     name: 'weekly-only',
     pattern: /\b(?:weekly\s+(?:boarding\s+)?only|only\s+weekly\s+boarding|no\s+full[-\s]board(?:ing)?|not?\s+full[-\s]board(?:ing)?|weekly[-\s]?board(?:ing)?\s+(?:school\s+)?only)\b/i,
     predicate: (s) => !KNOWN_FULL_BOARDING_NAMES.has(normalizeSchoolName(s.name)),
+  },
+  // Phase 4 item #3 Codex r3-r5 review (2026-05-22): "no boarding" / "day
+  // school only" as a NONNEG ITEM. Captured separately from prose-derived
+  // boarding_pref_from_prose (which the LLM classifier reads from 5 note
+  // fields). Without this, child.nonnegotiables=["no boarding"] + null
+  // wizard + null prose → KNOWN_FULL_BOARDING_NAMES still surface.
+  //
+  // Codex r5: rewrote as pronoun-independent phrase patterns. The core
+  // negative phrases ("not going/ready/suited to/for board(ing)",
+  // "boarding is not right/suitable/etc.") work regardless of subject —
+  // "he's not", "they're not", "the kid is not", "we're not", etc. all
+  // hit the same phrase. Curly apostrophes (don't / aren't / isn't /
+  // they're) included via the char class.
+  {
+    name: 'no-boarding',
+    pattern: /(?:\bno\s+(?:full[-\s]?)?board(?:ing)?\b|\bnot?\s+(?:any\s+)?board(?:ing)?\b|\bday\s+school\s+only\b|\bday[-\s]?only\b|\bday\s+pupil(?:s)?\s+only\b|\b(?:do(?:es)?\s+not|don['‘’]?t|are\s+not|aren['‘’]?t|is\s+not|isn['‘’]?t)\s+(?:want(?:ing)?|need(?:ing)?|considering)\s+board(?:ing)?\b|\bboard(?:ing)?\s+(?:is\s+not|isn['‘’]?t)\s+(?:right|suitable|appropriate|on\s+the\s+table|for)\b|\b(?:not|isn['‘’]?t|aren['‘’]?t)\s+(?:going|ready|suited)\s+(?:to|for)\s+board(?:ing)?\b|\bnever\s+board(?:ing)?\b|\b(?:we|i|they|he|she)\s+(?:are\s+not|aren['‘’]?t|is\s+not|isn['‘’]?t|am\s+not)\s+board(?:ing)?\b)/i,
+    predicate: (s) => !KNOWN_FULL_BOARDING_NAMES.has(normalizeSchoolName(s.name)),
+  },
+  // Symmetric to 'no-boarding': "full boarding only" / "boarding required"
+  // is a hard rejection of day-only schools. Drops KNOWN_DAY_ONLY_NAMES.
+  // Without this, `nonnegotiables=["full boarding only"]` + null wizard
+  // + null prose → KNOWN_DAY_ONLY_NAMES still surface in the candidate
+  // pool. Symmetric to 'no-boarding' so neither direction has the gap.
+  {
+    name: 'boarding-required',
+    pattern: /\b(?:(?:full[-\s]?)?board(?:ing)?\s+(?:school\s+)?(?:only|required|essential|mandatory)|(?:only|must\s+be|need|needs|require[sd]?)\s+(?:a\s+)?(?:full[-\s]?)?board(?:ing)?(?:\s+school)?|no\s+day\s+(?:school|pupil)|not?\s+a\s+day\s+(?:school|pupil))\b/i,
+    predicate: (s) => !KNOWN_DAY_ONLY_NAMES.has(normalizeSchoolName(s.name)),
   },
   // ── Religion ─────────────────────────────────────────────────────
   // "not religious" / "no religion" / "secular only" / "non-religious"
@@ -466,25 +522,31 @@ async function loadUkEvidenceSlugs(supabase: SupabaseClient): Promise<{ slugs: s
 // `ctx?.parent?.lgbtq_pref` to know whether the parent CARES about a
 // dimension. They short-circuit to 0 when these are null. For Build Mode,
 // the onboarding dropdowns may not have captured pastoral / lgbtq pref, but
-// the interview prose may have. Apply keyword heuristics to upgrade `null`
-// → 'high_priority' / 'important' only when there's clear evidence.
+// the LLM classifier (Phase 4 item #3) may have.
+//
+// Codex 2026-05-22 design GREEN rule: empty prose must NEVER erase or
+// downgrade wizard answers. Upgrade only flows null → 'high_priority' /
+// 'important'. If parent.pastoral_pref is already set ('standard',
+// 'no-preference', etc.), the LLM signal is ignored — the wizard click
+// is authoritative.
+//
+// Reinforcement (Codex r1 design rule 10): current_school_pain='pastoral'
+// upgrades pastoral_priority even if the prose didn't independently flag
+// 'high'. They reinforce — pastoral pain AT the current school is a clear
+// signal the parent wants a stronger pastoral fit at the next school.
 
 function buildScorerCtx(
   parent: BriefProfile | null,
-  child:  BuildModeExtractionHTTP | null,
+  intent: BuildModeIntent | null | undefined,
 ): { parent: { pastoral_pref: string | null; lgbtq_pref: string | null } } {
   let pastoral = parent?.pastoral_pref ?? null
   let lgbtq    = parent?.lgbtq_pref    ?? null
-  const proseFields: (string | null | undefined)[] = [
-    child?.anchors_notes,
-    child?.personality_notes,
-    child?.goals_notes,
-    child?.child_wants,
-    ...(child?.nonnegotiables ?? []),
-  ]
-  const blob = proseFields.filter(Boolean).join(' \n ')
-  if (!pastoral && PASTORAL_HINT_RE.test(blob)) pastoral = 'high_priority'
-  if (!lgbtq    && INCLUSIVE_HINT_RE.test(blob)) lgbtq    = 'important'
+  const pastoralHighFromProse =
+    intent?.pastoral_priority === 'high' ||
+    intent?.current_school_pain === 'pastoral'
+  const inclusiveHighFromProse = intent?.inclusive_priority === 'high'
+  if (!pastoral && pastoralHighFromProse)  pastoral = 'high_priority'
+  if (!lgbtq    && inclusiveHighFromProse) lgbtq    = 'important'
   return { parent: { pastoral_pref: pastoral, lgbtq_pref: lgbtq } }
 }
 
@@ -545,13 +607,18 @@ export function rankCandidates(
     })
   }
 
+  // Phase 4 item #3 Codex r2 review (2026-05-22): use the shared
+  // resolveBoardingPref helper so prose 'full'/'weekly'/'day'/'rejects'
+  // all fill the effective boarding when wizard is null. Wizard wins.
+  // 'rejects' → 'day' (closest hard-filter equivalent).
+  const effectiveBoardingPref = resolveBoardingPref(parent, input.intent)
   if (
-    parent?.boarding_pref === 'full' ||
-    parent?.boarding_pref === 'weekly' ||
-    parent?.boarding_pref === 'flexi'
+    effectiveBoardingPref === 'full' ||
+    effectiveBoardingPref === 'weekly' ||
+    effectiveBoardingPref === 'flexi'
   ) {
     filtered = filtered.filter(s => !KNOWN_DAY_ONLY_NAMES.has(normalizeSchoolName(s.name)))
-  } else if (parent?.boarding_pref === 'day') {
+  } else if (effectiveBoardingPref === 'day') {
     filtered = filtered.filter(s => !KNOWN_FULL_BOARDING_NAMES.has(normalizeSchoolName(s.name)))
   }
 
@@ -570,7 +637,7 @@ export function rankCandidates(
   if (filtered.length === 0) return []
 
   // ── Score ──
-  const ctx = buildScorerCtx(parent, child)
+  const ctx = buildScorerCtx(parent, input.intent)
   const homeRegion = (parent?.home_region ?? '').toLowerCase().trim() as HomeRegion
   const regionBucket = new Set(REGION_BUCKETS[homeRegion] ?? [])
   // Phase 3 Bug #3 (2026-05-21) — `regionBucket.add('England')` removed.
@@ -585,21 +652,38 @@ export function rankCandidates(
     .map(s => ({ raw: s.sport, key: normalizeSportLabel(s.sport), level: s.level }))
     .filter((s): s is { raw: string; key: keyof typeof SPORT_SCORER_BY_LABEL; level: string } => s.key !== null)
   const artsInterest = child?.interests_arts ?? []
-  // Phase 4 item #2 (2026-05-22) — LLM-classified intent from academic_notes
-  // + goals_notes (see classify-build-mode-intent.ts). Replaces ~1240 lines
-  // of regex (12 Codex review rounds, never converged). Three contributions:
+  // Phase 4 item #2 + item #3 (2026-05-22) — LLM-classified intent reading
+  // the 5 actual prose fields (academic_notes / goals_notes /
+  // personality_notes / child_wants / anchors_notes). The interview
+  // PROGRESS targets went_wrong + drill_down are routed by
+  // build-mode-merge.ts INTO those 5 fields; their signal surfaces via
+  // current_school_pain + parent_drill_focus in the classifier output.
+  // See classify-build-mode-intent.ts.
+  //
+  // Item #2 (academic + uni intent):
   //   - hasAcademicPain   → suppresses academic_strength even if the
-  //                         structured goal is university_track (prose
-  //                         "she struggles academically" overrides a
-  //                         hopeful university_track dropdown).
+  //                         structured goal is university_track. Now ALSO
+  //                         fires on current_school_pain='academic_overwhelmed'
+  //                         (item #3) — kid drowning at current school must
+  //                         not be pushed to selective schools.
   //   - wantsAcademicFromProse → fires academic_strength when the parent
   //                              expressed positive academic intent in prose
   //                              without picking university_track.
   //   - wantsTopUni       → as above, plus prioritises the Oxbridge fact
   //                         over A* / Grade 9 in the rationale_seed.
-  // When input.intent is null/absent or both fields are 'none', only
-  // goal_orientation drives academic intent (pre-Phase-4-item-2 behaviour).
+  //
+  // Item #3 SOFTER stretch boost (Codex r1 design rule 11):
+  //   - wantsStretch      → current_school_pain='academic_bored'. Kid
+  //                         under-stretched at current school needs a
+  //                         BETTER FIT, not necessarily the most selective
+  //                         high-pressure school. Gets a softer, capped
+  //                         academic boost — NOT the full wantsAcademic
+  //                         treatment.
+  //
+  // When input.intent is null/absent or all fields are 'none', only
+  // goal_orientation drives academic intent (pre-Phase-4 baseline).
   const hasAcademicPain        = input.intent?.academic_intent === 'struggle'
+                              || input.intent?.current_school_pain === 'academic_overwhelmed'
   const wantsAcademicFromProse = input.intent?.academic_intent === 'strong'
   const wantsTopUni            = input.intent?.top_uni_intent  === 'wants'
   const wantsAcademic =
@@ -608,21 +692,28 @@ export function rankCandidates(
       wantsAcademicFromProse ||
       wantsTopUni
     )
+  // Bored-at-current-school stretch: softer, capped. Fires only when
+  // there's no academic pain AND the full wantsAcademic path didn't
+  // already cover the kid. Codex parent-harm warning: do NOT map 'bored'
+  // 1:1 to 'wants Eton-tier selectivity' — bored ≠ ready for max pressure.
+  const wantsStretch =
+    input.intent?.current_school_pain === 'academic_bored' &&
+    !hasAcademicPain &&
+    !wantsAcademic
   const wantsSportFocus = child?.goal_orientation === 'sport_career'
 
-  // Pastoral + inclusive — derived from ctx (possibly upgraded by prose hints)
+  // Pastoral + inclusive — derived from ctx (possibly upgraded by LLM intent)
   const wantsPastoral  = ctx.parent.pastoral_pref === 'high_priority'
   const wantsInclusive = ctx.parent.lgbtq_pref    === 'important'
 
-  // Anchors / personality / child_wants free-text additions to the scorer
-  const proseBlob = [
-    child?.anchors_notes,
-    child?.personality_notes,
-    child?.child_wants,
-    ...(child?.nonnegotiables ?? []),
-  ].filter(Boolean).join(' \n ')
-  const wantsFullBoardingProse = FULL_BOARDING_HINT_RE.test(proseBlob)
-  const wantsSmallProse        = SMALL_CLASS_HINT_RE.test(proseBlob)
+  // Phase 4 item #3 — small-env + boarding-prose signals now come from
+  // the LLM classifier instead of regex. 'rejects' is captured by the
+  // classifier but intentionally NOT used to downgrade wizard answers
+  // (Codex r1 design rule: empty/contradicting prose never erases wizard).
+  // Same additive-only semantics as the deleted regex hints — they boost
+  // when 'wants', do nothing when 'rejects' or 'none'.
+  const wantsFullBoardingProse = input.intent?.boarding_pref_from_prose === 'full'
+  const wantsSmallProse        = input.intent?.small_env_pref === 'wants'
 
   // Phase 1 data-utilization (2026-05-21): career-intent detection. Reads
   // wider prose blob (goals_notes + academic_notes also matter for career
@@ -651,19 +742,31 @@ export function rankCandidates(
     if (SUBJECT_INTENT_RE[subject].test(careerProseBlob)) subjectIntents.add(subject)
   }
 
-  // Phase 1 data-utilization: arts intent. Fires when the parent's brief
-  // captured an arts interest OR the parent's wizard answer was
-  // top_priority='arts'. Without either, arts_music_drama facts are not
-  // scored (a kid not interested in arts shouldn't get arts-strong school
-  // recommendations purely on data availability).
-  const wantsArts = artsInterest.length > 0 || parent?.top_priority === 'arts'
-
   // Phase 1 data-utilization: parent's top_priority from the 5-question
-  // wizard (academic / sport / pastoral / arts / all-round). Currently
-  // ignored by the scorer (Codex audit 2026-05-21 — biggest single-fix
-  // priority). Used below as a small bonus when a school's existing
-  // signals match the parent's stated priority area.
-  const topPriority = (parent?.top_priority ?? '').trim()
+  // wizard (academic / sport / pastoral / arts / all-round). Used below
+  // as a small bonus when a school's existing signals match the parent's
+  // stated priority area.
+  //
+  // Phase 4 item #3 (2026-05-22) — Fill-when-null from LLM-classified
+  // parent_drill_focus (drill_down prose field). Codex r1 design rule 9:
+  // wizard wins on conflict (explicit > derived). Drill_focus only fills
+  // when wizard genuinely missing. Logged for telemetry below.
+  const wizardTopPriority = (parent?.top_priority ?? '').trim()
+  const drillFocus        = input.intent?.parent_drill_focus
+  const topPriority =
+    wizardTopPriority ||
+    (drillFocus && drillFocus !== 'none' ? drillFocus : '')
+  if (wizardTopPriority && drillFocus && drillFocus !== 'none' && wizardTopPriority !== drillFocus) {
+    // Conflict telemetry — wizard wins, but log so we can audit how often
+    // parents' drill-down text contradicts their earlier dropdown click.
+    console.warn('[score-for-build-mode] top_priority conflict — wizard=%s drill=%s (using wizard)', wizardTopPriority, drillFocus)
+  }
+
+  // Phase 1 data-utilization: arts intent. Fires when the parent's brief
+  // captured an arts interest OR topPriority resolves to 'arts' (wizard
+  // OR drill_focus fallback). Without either, arts_music_drama facts are
+  // not scored.
+  const wantsArts = artsInterest.length > 0 || topPriority === 'arts'
 
   // Phase 1 data-utilization: ethos match (parent's RC / CofE / etc.
   // preference vs school's extracted ethos_label). 'no-preference' or
@@ -714,10 +817,14 @@ export function rankCandidates(
     // than fall back to the day-fee — better silent than false-positive
     // "in budget" on a school whose boarding fee actually exceeds the
     // parent's ceiling.
+    // Phase 4 item #3 Codex r2: use resolved boarding (wizard-or-prose)
+    // so "weekly boarding suits us" with null wizard uses the boarding
+    // fee column, matching the SQL hard filter below.
+    const effectiveForBudget = resolveBoardingPref(parent, input.intent)
     const isBoarderBudget =
-      parent?.boarding_pref === 'full'   ||
-      parent?.boarding_pref === 'weekly' ||
-      parent?.boarding_pref === 'flexi'
+      effectiveForBudget === 'full'   ||
+      effectiveForBudget === 'weekly' ||
+      effectiveForBudget === 'flexi'
     const budgetCheckFee = isBoarderBudget ? s.fees_usd_max : s.fees_usd_min
     if (budgetCeiling != null && budgetCheckFee != null) {
       const ratio = budgetCheckFee / budgetCeiling
@@ -821,6 +928,21 @@ export function rankCandidates(
         } else if (norm >= 1.0) {
           signals.push('academic-strong')
         }
+      }
+    } else if (wantsStretch) {
+      // Phase 4 item #3 (2026-05-22) — softer stretch boost for kids
+      // bored at current school. Codex parent-harm warning: do NOT push
+      // bored kids into max-selectivity high-pressure schools. Use the
+      // same dim but with HALF the cap (1.0 vs 2.0) and no Oxbridge
+      // facts-first reordering. The kid needs a better academic FIT, not
+      // necessarily Eton. Signal chip 'better-fit' lets the LLM rationale
+      // distinguish from 'academic-strong'.
+      const dim = (DIMENSIONS as Record<string, { rank: (row: unknown, ctx: unknown) => number } | undefined>).academic_strength
+      const rawScore = dim ? dim.rank(struct, ctx) : 0
+      if (rawScore > 0) {
+        const norm = Math.min(rawScore / 25, 1.0)
+        score += norm
+        if (norm >= 0.6) signals.push('better-fit')
       }
     }
 
@@ -1153,10 +1275,15 @@ export async function scoreForBuildMode(
   // tolerance).
   const budgetCeiling = BUDGET_CEILING_USD[parent?.budget_range ?? '']
   if (budgetCeiling != null) {
+    // Phase 4 item #3 Codex r2: same resolver as the in-budget chip and
+    // hard filter — keeps SQL column selection consistent with downstream
+    // ranker, so prose-only boarders ("weekly boarding suits us" without
+    // a wizard click) use fees_usd_max for the hard cap.
+    const effectiveForBudgetSql = resolveBoardingPref(parent, input.intent)
     const isBoarderBudget =
-      parent?.boarding_pref === 'full'   ||
-      parent?.boarding_pref === 'weekly' ||
-      parent?.boarding_pref === 'flexi'
+      effectiveForBudgetSql === 'full'   ||
+      effectiveForBudgetSql === 'weekly' ||
+      effectiveForBudgetSql === 'flexi'
     const budgetFilterCol = isBoarderBudget ? 'fees_usd_max' : 'fees_usd_min'
     q = q.or(`${budgetFilterCol}.is.null,${budgetFilterCol}.lte.${Math.round(budgetCeiling * 1.3)}`)
   }
