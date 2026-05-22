@@ -10,6 +10,7 @@ import { DIMENSIONS } from '../server/dimensions.js'
 import { loadDimFactsBundles } from '../server/tools.js'
 import type { BriefProfile } from './brief-predicates.ts'
 import type { BuildModeExtractionHTTP } from '../server/research-room/build-mode-schemas.ts'
+import type { BuildModeIntent } from '../server/research-room/classify-build-mode-intent.ts'
 
 // Slice 8 Build 6 — Build Mode school recommender.
 //
@@ -52,6 +53,14 @@ export type BuildModeScorerInput = {
   excludeSlugs:  string[]
   childGender?:  string | null
   childYear?:    string | null
+  // Phase 4 item #2 (2026-05-22) — LLM-classified intent from
+  // academic_notes + goals_notes. Replaces the failed regex stack
+  // (see memory `feedback_regex_wrong_tool_for_sentiment`). Optional:
+  // when null/absent, only goal_orientation drives academic intent
+  // (matches pre-Phase-4-item-2 behaviour). Classifier lives in
+  // lib/server/research-room/classify-build-mode-intent.ts and is
+  // called by the finalize route before scoreForBuildMode.
+  intent?:       BuildModeIntent | null
 }
 
 export type ScoredCandidate = {
@@ -576,7 +585,29 @@ export function rankCandidates(
     .map(s => ({ raw: s.sport, key: normalizeSportLabel(s.sport), level: s.level }))
     .filter((s): s is { raw: string; key: keyof typeof SPORT_SCORER_BY_LABEL; level: string } => s.key !== null)
   const artsInterest = child?.interests_arts ?? []
-  const wantsAcademic = child?.goal_orientation === 'university_track'
+  // Phase 4 item #2 (2026-05-22) — LLM-classified intent from academic_notes
+  // + goals_notes (see classify-build-mode-intent.ts). Replaces ~1240 lines
+  // of regex (12 Codex review rounds, never converged). Three contributions:
+  //   - hasAcademicPain   → suppresses academic_strength even if the
+  //                         structured goal is university_track (prose
+  //                         "she struggles academically" overrides a
+  //                         hopeful university_track dropdown).
+  //   - wantsAcademicFromProse → fires academic_strength when the parent
+  //                              expressed positive academic intent in prose
+  //                              without picking university_track.
+  //   - wantsTopUni       → as above, plus prioritises the Oxbridge fact
+  //                         over A* / Grade 9 in the rationale_seed.
+  // When input.intent is null/absent or both fields are 'none', only
+  // goal_orientation drives academic intent (pre-Phase-4-item-2 behaviour).
+  const hasAcademicPain        = input.intent?.academic_intent === 'struggle'
+  const wantsAcademicFromProse = input.intent?.academic_intent === 'strong'
+  const wantsTopUni            = input.intent?.top_uni_intent  === 'wants'
+  const wantsAcademic =
+    !hasAcademicPain && (
+      child?.goal_orientation === 'university_track' ||
+      wantsAcademicFromProse ||
+      wantsTopUni
+    )
   const wantsSportFocus = child?.goal_orientation === 'sport_career'
 
   // Pastoral + inclusive — derived from ctx (possibly upgraded by prose hints)
@@ -759,7 +790,12 @@ export function rankCandidates(
       }
     }
 
-    // ── Academic (goal_orientation = university_track) ──────────────
+    // ── Academic (goal_orientation = university_track OR LLM prose intent) ──
+    // Phase 4 item #2 (2026-05-22): wantsAcademic now also fires on
+    // intent.academic_intent='strong' / intent.top_uni_intent='wants' from
+    // the LLM classifier. When wantsTopUni fires, prioritise the Oxbridge
+    // fact over A* / Grade 9 — that's what the parent specifically asked
+    // about. Default fact ordering preserved otherwise.
     if (wantsAcademic) {
       const dim = (DIMENSIONS as Record<string, { rank: (row: unknown, ctx: unknown) => number } | undefined>).academic_strength
       const rawScore = dim ? dim.rank(struct, ctx) : 0
@@ -770,7 +806,10 @@ export function rankCandidates(
         const ex = struct?.exam_results as Record<string, Record<string, number> | undefined> | undefined
         const ud = struct?.university_destinations as Record<string, number | undefined> | undefined
         const oxbridge = (ud?.oxford_count ?? 0) + (ud?.cambridge_count ?? 0)
-        if (ex?.a_level?.pct_a_star != null) {
+        if (wantsTopUni && oxbridge > 0) {
+          facts.push(`${oxbridge} Oxbridge`)
+          signals.push('academic-strong')
+        } else if (ex?.a_level?.pct_a_star != null) {
           facts.push(`${Math.round(ex.a_level.pct_a_star)}% A*`)
           signals.push('academic-strong')
         } else if (ex?.gcse?.pct_9 != null) {

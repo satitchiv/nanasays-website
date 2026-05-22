@@ -45,6 +45,7 @@ import {
   type BuildModeFinalizeMixed,
 } from '@/lib/server/research-room/build-mode-schemas'
 import { scoreForBuildMode, type ScoredCandidate } from '@/lib/research-room/score-for-build-mode'
+import { classifyBuildModeIntent } from '@/lib/server/research-room/classify-build-mode-intent'
 import type { BriefProfile } from '@/lib/research-room/brief-predicates'
 
 export const runtime    = 'nodejs'
@@ -419,6 +420,24 @@ export async function POST(req: NextRequest) {
     console.warn('[build-mode/finalize] existing rows read threw:', e)
   }
 
+  // ── Classify build-mode intent from free-text notes ──────────────
+  // Phase 4 item #2 (2026-05-22): the LLM classifier reads
+  // academic_notes + goals_notes and returns structured intent
+  // ({academic_intent, top_uni_intent}). Replaces ~1240 lines of regex
+  // that never converged across 12 Codex review rounds. See memory
+  // `feedback_regex_wrong_tool_for_sentiment`. Classifier never throws
+  // — falls back to {none, none} on any failure, matching the
+  // pre-feature behaviour. Cost: one gpt-5.4-mini call per finalize,
+  // ~256 tokens out. Skipped (no API call) when both fields are empty.
+  const buildModeIntent = await classifyBuildModeIntent({
+    academic_notes: typeof childProfile?.academic_notes === 'string'
+      ? childProfile.academic_notes
+      : null,
+    goals_notes: typeof childProfile?.goals_notes === 'string'
+      ? childProfile.goals_notes
+      : null,
+  })
+
   // ── Score off-shortlist candidates (Codex r-merge Q4 P1) ──────────
   // Run the Build Mode scorer against the FULL UK directory, excluding
   // the parent's current shortlist. Result feeds the LLM prompt as the
@@ -440,6 +459,7 @@ export async function POST(req: NextRequest) {
         excludeSlugs: shortlistSlugs,
         childGender,
         childYear,
+        intent:       buildModeIntent,
       },
       SCORER_CANDIDATE_LIMIT,
     )
