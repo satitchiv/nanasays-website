@@ -267,8 +267,13 @@ export function detectSameWinnerAcrossPaths(
 // composite (against the brief's full rubric, which the composites already
 // encode). Tie-breaker: alphabetical A → B → C.
 
-export function selectDefaultPath(selection: PathSelectionResult): PathKey {
-  let best: PathKey = 'A'
+// Codex r1 P1 #3 hardening (2026-05-22): return type widened to PathKey | null.
+// The previous PathKey return defaulted to 'A' when every path was skipped (all
+// needs_research or null winners), producing a default_path that pointed at no
+// real winner. The caller now also guards against this case via `noUsablePath`,
+// but returning null here is defense-in-depth for any future caller.
+export function selectDefaultPath(selection: PathSelectionResult): PathKey | null {
+  let best: PathKey | null = null
   let bestScore = -Infinity
   for (const p of ['A', 'B', 'C'] as PathKey[]) {
     if (selection.pathStatus[p] === 'needs_research') continue   // don't auto-select a no-positive-signal path

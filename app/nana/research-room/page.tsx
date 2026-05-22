@@ -5,13 +5,9 @@ import { cookies } from 'next/headers'
 import { isResearchRoomEnabled } from '@/lib/feature-flags'
 import { getUnlockedUser } from '@/lib/paid-status'
 import { supabaseService } from '@/lib/supabase-admin'
-import { loadComparisonData, loadVerdictEvidenceData, type LensKind } from '@/lib/research-comparison'
+import { loadComparisonData, type LensKind } from '@/lib/research-comparison'
 import { loadShortlistContext, seedResearchSession } from '@/lib/research-room/seed-rows'
-import {
-  buildResearchVerdictDraft,
-  loadCachedResearchVerdict,
-  type ResearchVerdictRecord,
-} from '@/lib/server/research-room/verdict-generator'
+import type { ResearchVerdictRecord } from '@/lib/server/research-room/verdict-generator'
 import { loadActiveChildren } from '@/lib/children'
 import { ONBOARDING_FIELDS } from '@/lib/onboarding-fields'
 import ResearchRoom from '@/components/nana/ResearchRoom'
@@ -116,8 +112,13 @@ export default async function ResearchRoomPage({
   let initialBuildModeProgress: unknown = null
   let activeLensId: string | null = null
   let partnerBrief: import('@/components/nana/PartnerBriefTab').PartnerBrief | null = null
-  let researchVerdict: ResearchVerdictRecord | null = null
-  let effectiveLensForVerdict: LensKind = lens
+  // researchVerdict is intentionally hydrated client-side on first Verdict tab
+  // open (POST /api/research-room/verdict). Codex r1 P1 #2: removing the SSR
+  // pre-fetch eliminates a hash-mismatch class of bug — page-load doesn't know
+  // about every v3 hash input (e.g. schoolFacts), so its precomputed lookup
+  // can shadow the route's true v3 row on first paint. Empty initial render
+  // is a tolerable shape since the tab has its own loading affordance.
+  const researchVerdict: ResearchVerdictRecord | null = null
   // Slice 6 close — saved lenses available to the lens picker dropdown.
   // weights are UUID-keyed (resolved by confirm_lens_from_proposal at
   // save time); visible_rows is a UUID array. ResearchRoom maps both
@@ -292,7 +293,6 @@ export default async function ResearchRoomPage({
       ? savedLenses.find(l => l.id === activeLensId) ?? null
       : null
     const effectiveLens: LensKind = activeLens ? activeLens.base_lens_kind : lens
-    effectiveLensForVerdict = effectiveLens
 
     // Lens-aware comparison load. With no session, the loader returns
     // schools but no rows (the seeder hasn't run yet). On error, keep
@@ -314,33 +314,6 @@ export default async function ResearchRoomPage({
     } catch (e) {
       console.error('[research-room loadComparisonData]', e)
       comparisonError = 'Could not load your comparison. Refresh the page; if the problem persists, contact support.'
-    }
-
-    if (initialSession) {
-      const activeChild = children.find(c => c.id === activeChildId) ?? null
-      try {
-        const verdictData = await loadVerdictEvidenceData(svc, user.id, activeChildId, initialSession.id)
-        if (verdictData.schools.length > 0 && verdictData.rows.length > 0) {
-          // R2-F2 + R4-MUST-2: lens-weight + lens-id args dropped in v3.
-          const draft = buildResearchVerdictDraft({
-            comparisonData: verdictData,
-            childName: activeChild?.name ?? null,
-            childProfile: activeChild?.child_profile ?? null,
-            sessionId: initialSession.id,
-            childId: activeChildId,
-          })
-          researchVerdict = await loadCachedResearchVerdict(svc, {
-            sessionId: initialSession.id,
-            childId: activeChildId,
-            lensId: activeLensId,
-            baseLensKind: effectiveLensForVerdict,
-            inputHash: draft.inputHash,
-          })
-        }
-      } catch (e) {
-        // Missing migration / stale cache should not block the Research Room.
-        console.error('[research-room loadCachedResearchVerdict]', e)
-      }
     }
 
     if (initialSession) {

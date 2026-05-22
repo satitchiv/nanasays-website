@@ -53,10 +53,11 @@ type BuildArgs = {
   childId: string
   // R2-F2 + R4-MUST-2 + R6-MUST-2: lens fields removed in v3. Verdict is
   // all-evidence; lens weights/identity no longer drive scoring or cache id.
-  // R5-MUST-5 + R6-MUST-3: optional school facts enrichment for v3 path
-  // overlays. When present, buildResearchVerdictDraft emits v3 path schema
-  // on top of the v2 base. When absent, only the v2 schema is emitted.
-  schoolFacts?: Map<string, import('./verdict-generator-v3-types').SchoolFacts>
+  // R5-MUST-5 + R6-MUST-3 + Codex r1 Delete #2: required. v2 fallback removed
+  // 2026-05-22 — the route always loads facts via loadVerdictSchoolFacts; an
+  // empty Map is acceptable for tests/degenerate cases (yields all-needs_research
+  // paths, but the overlay still builds with v3 shape).
+  schoolFacts: Map<string, import('./verdict-generator-v3-types').SchoolFacts>
 }
 
 type DecisionCategory =
@@ -948,8 +949,10 @@ function buildMarkdown(verdict: ResearchVerdict): string {
 
 // ─── v3 overlay (R5+R6+R7+R8+R9+R10+R11 wiring) ─────────────────────────
 //
-// Built only when args.schoolFacts is provided. Layered on top of the v2
-// emission so back-compat callers (no schoolFacts) still get v2 output.
+// Always built. v2 fallback removed by Codex r1 Delete #2 (2026-05-22).
+// The caller (buildResearchVerdictDraft) constructs the v3 overlay whenever
+// scored has at least one school; with empty/degenerate schoolFacts the
+// overlay still produces a valid v3 shape with needs_research paths.
 
 import {
   buildBriefContext,
@@ -992,8 +995,7 @@ function buildV3Overlay(
   rubric: Rubric,
   scored: ScoredSchool[],
 ): V3Overlay {
-  // schoolFacts is non-null here per the caller's `hasFacts` guard.
-  const facts = args.schoolFacts!
+  const facts = args.schoolFacts
 
   const briefContext = buildBriefContext(rubric, args.childProfile)
 
@@ -1100,9 +1102,16 @@ function buildV3Overlay(
   const paths = { A: overlayFor('A'), B: overlayFor('B'), C: overlayFor('C') }
 
   // same_winner_across_paths + default_path.
+  // Codex r1 P1 #3 fix (2026-05-22): a path may be marked `fallback` while its
+  // winner is null (selectPathWinners' degenerate-path case). Without the
+  // winners-null AND below, default_path could return 'A' (selectDefaultPath's
+  // init value) pointing at no winner. Treat null-winner paths as "no usable
+  // path" alongside explicit needs_research status.
   const sameWinner = detectSameWinnerAcrossPaths(pathSelection)
-  const allNeedsResearch = (['A', 'B', 'C'] as PathKey[]).every(p => pathSelection.pathStatus[p] === 'needs_research')
-  const default_path = allNeedsResearch ? null : selectDefaultPath(pathSelection)
+  const noUsablePath = (['A', 'B', 'C'] as PathKey[]).every(p =>
+    pathSelection.pathStatus[p] === 'needs_research' || pathSelection.winners[p] === null
+  )
+  const default_path = noUsablePath ? null : selectDefaultPath(pathSelection)
 
   // Path-winner annotations for ranked_schools[].
   const pathWinnerSlugs: Array<[string, PathKey]> = []
@@ -1188,16 +1197,16 @@ export function buildResearchVerdictDraft(args: BuildArgs): { inputHash: string;
   const childLabel = args.childName ? `${args.childName}'s` : 'your child\'s'
   const confidence = confidenceFor(args.comparisonData, scored)
 
-  // v3 fields populated only when schoolFacts is supplied. Without facts, the
-  // function emits the v2 schema shape (back-compat). With facts, v3 path
-  // overlays + couldnt_compare + brief_tensions are layered on top.
-  const hasFacts = args.schoolFacts && args.schoolFacts.size > 0
-  let v3Overlay: V3Overlay | null = null
-  if (hasFacts && top) {
-    v3Overlay = buildV3Overlay(args, rubric, scored)
-  }
+  // Codex r1 Delete #2 (2026-05-22): v2 fallback path removed. v3 overlay
+  // always built — with empty/degenerate schoolFacts the overlay still emits
+  // v3 shape (paths default to needs_research, couldnt_compare carries
+  // below-threshold schools, brief_tensions empty).
+  const v3Overlay = buildV3Overlay(args, rubric, scored)
 
   const ranked = scored.map((s, idx) => {
+    const winsPaths = v3Overlay.pathWinnerSlugs
+      .map(([slug, key]) => slug === s.slug ? key : null)
+      .filter((k): k is 'A' | 'B' | 'C' => k !== null)
     const base: ResearchVerdictRankedSchool = {
       slug: s.slug,
       name: s.name,
@@ -1206,19 +1215,14 @@ export function buildResearchVerdictDraft(args: BuildArgs): { inputHash: string;
       strengths: uniqueSignalTexts(s.strengths, 5),
       reservations: uniqueSignalTexts(s.reservations, 5),
     }
-    if (v3Overlay) {
-      const winsPaths = v3Overlay.pathWinnerSlugs
-        .map(([slug, key]) => slug === s.slug ? key : null)
-        .filter((k): k is 'A' | 'B' | 'C' => k !== null)
-      if (winsPaths.length > 0) base.is_path_winner_for = winsPaths
-      if (v3Overlay.belowThresholdSlugs.has(s.slug)) base.coverage_below_threshold = true
-    }
+    if (winsPaths.length > 0) base.is_path_winner_for = winsPaths
+    if (v3Overlay.belowThresholdSlugs.has(s.slug)) base.coverage_below_threshold = true
     return base
   })
 
   const verdict: ResearchVerdict = {
-    format: v3Overlay ? 'research_verdict_v3' : 'research_verdict_v2',
-    decision_model: v3Overlay ? 'paths_v3' : 'evidence_pool_v2',
+    format: 'research_verdict_v3',
+    decision_model: 'paths_v3',
     confidence,
     decision_factors: decisionFactors(rubric),
     headline: top ? `${top.name} is the best current fit for ${args.childName ?? 'this child'}` : 'No verdict yet',
@@ -1227,28 +1231,25 @@ export function buildResearchVerdictDraft(args: BuildArgs): { inputHash: string;
     dissenting_view: dissentingViewLine(top, second),
     evidence_gaps: collectEvidenceGaps(args.comparisonData, scored, rubric),
     sources: collectSources(args.comparisonData),
-    ...(v3Overlay ? {
-      paths:                    v3Overlay.paths,
-      couldnt_compare:          v3Overlay.couldnt_compare,
-      brief_tensions:           v3Overlay.brief_tensions,
-      same_winner_across_paths: v3Overlay.same_winner_across_paths,
-      default_path:             v3Overlay.default_path,
-    } : {}),
+    paths:                    v3Overlay.paths,
+    couldnt_compare:          v3Overlay.couldnt_compare,
+    brief_tensions:           v3Overlay.brief_tensions,
+    same_winner_across_paths: v3Overlay.same_winner_across_paths,
+    default_path:             v3Overlay.default_path,
   }
 
-  // R2-F2 + R4-MUST-2 + R5-MUST-5: hash payload drops lens identity. v3 bumps
-  // version to 4 and includes a stable schoolFacts projection so cached
-  // verdicts re-generate when structured facts change.
+  // R2-F2 + R4-MUST-2 + R5-MUST-5: hash payload drops lens identity. v3 uses
+  // version 4 and includes a stable schoolFacts projection so cached verdicts
+  // re-generate when structured facts change. Codex r1 Delete #2 (2026-05-22):
+  // version always 4 — v2 hash branch removed with the fallback path.
   const hashPayload: Record<string, unknown> = {
-    version: v3Overlay ? 4 : 3,
+    version: 4,
     sessionId: args.sessionId,
     childId: args.childId,
     schools: args.comparisonData.schools,
     rows: args.comparisonData.rows,
     childProfile: args.childProfile ?? {},
-  }
-  if (v3Overlay) {
-    hashPayload.schoolFacts = v3Overlay.schoolFactsProjection
+    schoolFacts: v3Overlay.schoolFactsProjection,
   }
   const inputHash = crypto.createHash('sha256').update(JSON.stringify(stableHashValue(hashPayload))).digest('hex')
   const bodyMarkdown = buildMarkdown(verdict)
