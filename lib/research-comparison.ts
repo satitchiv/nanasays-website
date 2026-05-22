@@ -320,6 +320,10 @@ async function loadVerdictRows(
     label: string
     ids: string[]
     cells: RowCell[]
+    // R7-MUST-5 (verdict v3): track which underlying comparison_rows.id
+    // contributed the current best-evidence cell for each school column.
+    // Aligned with the schools array by index. `undefined` for empty cells.
+    cellOriginIdBySchool: (string | undefined)[]
     firstOrder: number
     group_name: string | null
   }
@@ -334,6 +338,7 @@ async function loadVerdictRows(
         label: row.row_name,
         ids: [row.id],
         cells: incomingCells,
+        cellOriginIdBySchool: incomingCells.map(c => c.kind === 'empty' ? undefined : row.id),
         firstOrder: idx,
         // Slice 8 Step 0.6: first-seen row wins (sorted by lens priority +
         // sort_order, so the highest-priority group_name surfaces).
@@ -343,17 +348,26 @@ async function loadVerdictRows(
     }
 
     current.ids.push(row.id)
-    current.cells = current.cells.map((existing, i) => betterEvidenceCell(existing, incomingCells[i]))
+    for (let i = 0; i < current.cells.length; i++) {
+      const existing = current.cells[i]
+      const incoming = incomingCells[i]
+      const next = betterEvidenceCell(existing, incoming)
+      if (next !== existing) {
+        current.cells[i] = next
+        current.cellOriginIdBySchool[i] = incoming.kind === 'empty' ? undefined : row.id
+      }
+    }
   })
 
   return Array.from(merged.values())
     .sort((a, b) => a.firstOrder - b.firstOrder)
     .map(row => ({
-      id:         `cmp-${row.ids.join('|')}`,
-      label:      row.label,
-      cells:      row.cells,
-      removable:  false,
-      group_name: row.group_name,
+      id:                            `cmp-${row.ids.join('|')}`,
+      label:                         row.label,
+      cells:                         row.cells,
+      removable:                     false,
+      group_name:                    row.group_name,
+      selectedCellOriginIdBySchool:  row.cellOriginIdBySchool,
     }))
 }
 

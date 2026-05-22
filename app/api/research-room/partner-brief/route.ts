@@ -95,9 +95,14 @@ function parseBody(raw: unknown): { body: Body | null; error?: string } {
 
 function buildBriefFromVerdict(verdictJson: unknown): string {
   const v = (verdictJson && typeof verdictJson === 'object') ? verdictJson as any : {}
+  // R3-P1 + R4-MUST-1: hybrid ranked_schools[] contains below-threshold schools
+  // appended at the bottom with `coverage_below_threshold: true`. For top/second
+  // semantics we filter them out so a thin-coverage school doesn't become the
+  // partner-brief headline. Legacy v2 records have no flag — they pass through.
   const ranked = Array.isArray(v.ranked_schools) ? v.ranked_schools : []
-  const top = ranked[0]
-  const second = ranked[1]
+  const eligible = ranked.filter((s: any) => !s?.coverage_below_threshold)
+  const top = eligible[0]
+  const second = eligible[1]
   const topName = typeof top?.name === 'string' ? top.name : 'the current lead'
   const secondName = typeof second?.name === 'string' ? second.name : null
   const headline = typeof v.headline === 'string' ? v.headline : `${topName} is the current lead`

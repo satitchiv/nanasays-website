@@ -11,11 +11,14 @@ export type ResearchVerdictRankedSchool = {
   summary: string
   strengths: string[]
   reservations: string[]
+  // v3 additions (R2 + R4 + R7) — all optional, legacy v2 records pass through unchanged.
+  is_path_winner_for?: ('A' | 'B' | 'C')[]
+  coverage_below_threshold?: boolean
 }
 
 export type ResearchVerdict = {
-  format: 'research_verdict_v1' | 'research_verdict_v2'
-  decision_model?: 'evidence_pool_v2'
+  format: 'research_verdict_v1' | 'research_verdict_v2' | 'research_verdict_v3'
+  decision_model?: 'evidence_pool_v2' | 'paths_v3'
   confidence?: 'low' | 'medium' | 'high'
   decision_factors?: string[]
   headline: string
@@ -24,6 +27,13 @@ export type ResearchVerdict = {
   best_for_child: string
   evidence_gaps: string[]
   sources: Array<{ url: string; label?: string; school_slug?: string }>
+  // v3 path overlay fields — all optional; v2 cached records and code paths
+  // that don't yet wire the v3 generation still produce valid v2 shapes.
+  paths?: { A: import('./verdict-generator-v3-types').PathOverlay; B: import('./verdict-generator-v3-types').PathOverlay; C: import('./verdict-generator-v3-types').PathOverlay }
+  couldnt_compare?: import('./verdict-generator-v3-types').CouldntCompareSchool[]
+  brief_tensions?: import('./verdict-generator-v3-types').BriefTension[]
+  same_winner_across_paths?: { winner_slug: string; paths: ('A' | 'B' | 'C')[] }
+  default_path?: 'A' | 'B' | 'C' | null
 }
 
 export type ResearchVerdictRecord = {
@@ -41,9 +51,12 @@ type BuildArgs = {
   childProfile?: Record<string, unknown> | null
   sessionId: string
   childId: string
-  baseLensKind: 'general' | 'child_fit'
-  activeLensId?: string | null
-  lensWeightsByRowId?: Record<string, number>
+  // R2-F2 + R4-MUST-2 + R6-MUST-2: lens fields removed in v3. Verdict is
+  // all-evidence; lens weights/identity no longer drive scoring or cache id.
+  // R5-MUST-5 + R6-MUST-3: optional school facts enrichment for v3 path
+  // overlays. When present, buildResearchVerdictDraft emits v3 path schema
+  // on top of the v2 base. When absent, only the v2 schema is emitted.
+  schoolFacts?: Map<string, import('./verdict-generator-v3-types').SchoolFacts>
 }
 
 type DecisionCategory =
@@ -408,18 +421,9 @@ function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n))
 }
 
-function lensWeightForRow(row: ComparisonRow, weights: Record<string, number> | undefined): number {
-  if (!weights) return 0
-  const ids = row.id.replace(/^cmp-|^cluster\|/, '').split('|').filter(Boolean)
-  let out = 0
-  for (const id of ids) {
-    const raw = weights[id] ?? weights[`cmp-${id}`]
-    if (typeof raw === 'number' && Number.isFinite(raw)) out = Math.max(out, raw)
-  }
-  return out
-}
+// R2-F2: lensWeightForRow REMOVED. Lens weights no longer drive scoring.
 
-function rowWeight(row: ComparisonRow, category: DecisionCategory, rubric: Rubric, lensWeight: number): number {
+function rowWeight(row: ComparisonRow, category: DecisionCategory, rubric: Rubric): number {
   const l = row.label.toLowerCase()
   let weight = 1
 
@@ -435,7 +439,7 @@ function rowWeight(row: ComparisonRow, category: DecisionCategory, rubric: Rubri
   if (category === 'community') weight = 0.7
   if (/class size/.test(l) && rubric.classSizePref?.includes('no-preference')) weight *= 0.35
 
-  if (lensWeight > 0) weight *= 1 + Math.min(1.25, lensWeight / 5)
+  // R2-F2: lensWeight multiplier REMOVED.
   return clamp(weight, 0.25, 4.25)
 }
 
@@ -533,7 +537,9 @@ function applyEvidenceThinAnnotation(scored: ScoredSchool[]): void {
   }
 }
 
-function scoreSchools(data: ComparisonData, rubric: Rubric, lensWeightsByRowId?: Record<string, number>): ScoredSchool[] {
+// R2-F2: lensWeightsByRowId argument REMOVED. Lens weights no longer drive
+// scoring. Signature is now (data, rubric) only.
+function scoreSchools(data: ComparisonData, rubric: Rubric): ScoredSchool[] {
   const clustered = clusterRows(data.rows)
   const scored: ScoredSchool[] = data.schools.map(s => ({
     slug: s.slug,
@@ -618,7 +624,7 @@ function scoreSchools(data: ComparisonData, rubric: Rubric, lensWeightsByRowId?:
 
       for (const row of groupRows) {
       const direction = rowDirection(row.label)
-      const weight = rowWeight(row, category, rubric, lensWeightForRow(row, lensWeightsByRowId))
+      const weight = rowWeight(row, category, rubric)
       const rowValues = row.cells.map(cellText)
       const numericValues = rowValues.map(value => value ? numericSignal(value, row.label) : null)
       const finiteNumbers = numericValues.filter((n): n is number => n != null && Number.isFinite(n))
@@ -800,7 +806,7 @@ function collectEvidenceGaps(data: ComparisonData, scored: ScoredSchool[], rubri
     const missing = row.cells.filter(c => !isMeaningfulCellText(cellText(c))).length
     if (missing === 0) continue
     const category = rowCategory(row.label)
-    const weight = rowWeight(row, category, rubric, 0)
+    const weight = rowWeight(row, category, rubric)
     const { key, preferredLabel } = clusterKey(row.label)
     const isClustered = !key.startsWith('row:')
     const label = isClustered ? preferredLabel : row.label
@@ -869,7 +875,11 @@ function buildMarkdown(verdict: ResearchVerdict): string {
 
   lines.push('', '## Current ranking')
 
+  // R4 audit + R3-P1: filter coverage_below_threshold from the main ranking
+  // (those schools render in the dedicated couldnt_compare section instead).
+  // Legacy v2 records have no flag — they pass through.
   for (const school of verdict.ranked_schools) {
+    if (school.coverage_below_threshold) continue
     lines.push('', `### ${school.rank}. ${school.name}`, school.summary)
     if (school.strengths.length > 0) {
       lines.push('', 'Strengths:')
@@ -879,6 +889,48 @@ function buildMarkdown(verdict: ResearchVerdict): string {
       lines.push('', 'Reservations:')
       for (const r of school.reservations.slice(0, 3)) lines.push(`- ${r}`)
     }
+    if (school.is_path_winner_for && school.is_path_winner_for.length > 0) {
+      lines.push('', `Wins path${school.is_path_winner_for.length === 1 ? '' : 's'}: ${school.is_path_winner_for.join(', ')}`)
+    }
+  }
+
+  // v3 paths section — emitted when present (back-compat: v2 records have no .paths).
+  if (verdict.paths) {
+    lines.push('', '## Three paths')
+    for (const pk of ['A', 'B', 'C'] as Array<'A' | 'B' | 'C'>) {
+      const p = verdict.paths[pk]
+      const winnerName = verdict.ranked_schools.find(r => r.slug === p.winner_slug)?.name ?? '—'
+      lines.push('', `### Path ${pk} — ${p.framing}`, `**${winnerName}** (${p.path_status})`)
+      if (p.status_note) lines.push('', p.status_note)
+      for (const para of p.reasoning) lines.push('', para)
+      if (p.evidence.length > 0) {
+        lines.push('', '**Evidence:**')
+        for (const e of p.evidence.slice(0, 3)) lines.push(`- ${e.row}: ${e.value}`)
+      }
+      if (p.costs.length > 0) {
+        lines.push('', '**Honest costs:**')
+        for (const c of p.costs) lines.push(`- ${c.label}: ${c.detail}`)
+      }
+    }
+  }
+
+  // v3 couldnt_compare — separate panel for below-threshold schools.
+  if (verdict.couldnt_compare && verdict.couldnt_compare.length > 0) {
+    lines.push('', "## Schools we couldn't compare yet")
+    for (const c of verdict.couldnt_compare) {
+      lines.push(
+        '',
+        `### ${c.name}`,
+        `Coverage: ${c.comparison_rows_filled}/${c.comparison_rows_total} (${c.coverage_pct.toFixed(0)}%)`,
+        c.brief_match_summary,
+      )
+    }
+  }
+
+  // v3 brief tensions surfaced as a dedicated section.
+  if (verdict.brief_tensions && verdict.brief_tensions.length > 0) {
+    lines.push('', '## Brief tensions worth naming')
+    for (const t of verdict.brief_tensions) lines.push(`- ${t.description}`)
   }
 
   lines.push('', '## Dissenting view', verdict.dissenting_view)
@@ -894,6 +946,230 @@ function buildMarkdown(verdict: ResearchVerdict): string {
   return lines.join('\n')
 }
 
+// ─── v3 overlay (R5+R6+R7+R8+R9+R10+R11 wiring) ─────────────────────────
+//
+// Built only when args.schoolFacts is provided. Layered on top of the v2
+// emission so back-compat callers (no schoolFacts) still get v2 output.
+
+import {
+  buildBriefContext,
+  detectTensions,
+}                              from './verdict-generator-v3-brief'
+import {
+  selectPathWinners,
+  detectSameWinnerAcrossPaths,
+  selectDefaultPath,
+}                              from './verdict-generator-v3-paths'
+import {
+  buildPathOverlay,
+}                              from './verdict-generator-v3-narrative'
+import type {
+  PathKey,
+  PathOverlay,
+  CouldntCompareSchool,
+  BriefTension,
+}                              from './verdict-generator-v3-types'
+
+const COVERAGE_THRESHOLD_PCT = 50
+
+type V3Overlay = {
+  paths:                    { A: PathOverlay; B: PathOverlay; C: PathOverlay }
+  couldnt_compare:          CouldntCompareSchool[]
+  brief_tensions:           BriefTension[]
+  same_winner_across_paths?: { winner_slug: string; paths: PathKey[] }
+  default_path:             PathKey | null
+  pathWinnerSlugs:          Array<[string, PathKey]>
+  belowThresholdSlugs:      Set<string>
+  schoolFactsProjection:    unknown
+}
+
+function coveragePctFromScored(s: ScoredSchool): number {
+  return s.totalCells > 0 ? (s.evidenceCells / s.totalCells) * 100 : 0
+}
+
+function buildV3Overlay(
+  args:   BuildArgs,
+  rubric: Rubric,
+  scored: ScoredSchool[],
+): V3Overlay {
+  // schoolFacts is non-null here per the caller's `hasFacts` guard.
+  const facts = args.schoolFacts!
+
+  const briefContext = buildBriefContext(rubric, args.childProfile)
+
+  // Coverage split — eligible vs. below-threshold.
+  const eligible = scored.filter(s => coveragePctFromScored(s) >= COVERAGE_THRESHOLD_PCT)
+  const below    = scored.filter(s => coveragePctFromScored(s) <  COVERAGE_THRESHOLD_PCT)
+  const belowThresholdSlugs = new Set(below.map(s => s.slug))
+
+  // couldnt_compare bucket.
+  const couldnt_compare: CouldntCompareSchool[] = below.map(s => {
+    const f = facts.get(s.slug)
+    return {
+      slug:                    s.slug,
+      name:                    s.name,
+      comparison_rows_filled:  s.evidenceCells,
+      comparison_rows_total:   s.totalCells,
+      coverage_pct:            coveragePctFromScored(s),
+      brief_match_summary:     buildBriefMatchSummary(f),
+      budget_warning:          buildBudgetWarning(f, rubric),
+      critical_missing_rows:   ['A-level results', 'Annual boarding fee', 'Rugby programme strength', 'Pastoral structure'].slice(0, 4),
+      highest_leverage_action: `Fill in 5-8 more comparison rows on ${s.name} and re-run the verdict.`,
+    }
+  })
+
+  // Path selection (operates on eligible only).
+  const pathSelection = selectPathWinners(
+    scored   as unknown as Parameters<typeof selectPathWinners>[0],
+    facts,
+    briefContext,
+    eligible as unknown as Parameters<typeof selectPathWinners>[3],
+  )
+
+  // Tension detection after winners known.
+  const pathWinnersSlugMap: Record<PathKey, string> = {
+    A: pathSelection.winners.A?.slug ?? '',
+    B: pathSelection.winners.B?.slug ?? '',
+    C: pathSelection.winners.C?.slug ?? '',
+  }
+  const pathSchools = {
+    A: pathSelection.winners.A ? facts.get(pathSelection.winners.A.slug) : undefined,
+    B: pathSelection.winners.B ? facts.get(pathSelection.winners.B.slug) : undefined,
+    C: pathSelection.winners.C ? facts.get(pathSelection.winners.C.slug) : undefined,
+  }
+  briefContext.tensions = detectTensions({
+    briefContext,
+    schoolFacts:  facts,
+    pathWinners:  pathWinnersSlugMap,
+    pathSchools,
+    scoredSchools: scored.map(s => ({
+      slug:           s.slug,
+      score:          s.score,
+      categoryScores: s.categoryScores as Record<string, number>,
+    })),
+  })
+
+  // Build rows-with-provenance from the merged comparison data. Each merged
+  // row already carries `selectedCellOriginIdBySchool` (R7-MUST-5 wiring in
+  // loadVerdictRows). contributing_rows[] stays empty here because the
+  // source `cell_data` is collapsed during merge; the narrative layer reads
+  // selectedCellOriginIdBySchool directly for cell-level attribution and
+  // null-safely falls back when contributing_rows is empty.
+  const rowsWithProvenance = args.comparisonData.rows.map(row => ({
+    ...row,
+    selectedCellOriginIdBySchool: row.selectedCellOriginIdBySchool ?? [],
+    contributing_rows:            [],
+    contributing_row_count:       row.id.startsWith('cmp-') ? row.id.slice(4).split('|').length : 1,
+    truncated:                    false,
+  }))
+
+  // Build path overlays. Structure + framing + path_status + cell-level
+  // origin attribution are complete; contributing_rows is empty so
+  // cited_lens_id/cited_lens_kind in evidence falls back to null.
+  function overlayFor(pk: PathKey): PathOverlay {
+    const winner = pathSelection.winners[pk]
+    if (!winner) {
+      // Degenerate case — selectPathWinners returns null winner when
+      // eligible is empty. Emit a needs_research placeholder.
+      return {
+        framing:        pk === 'A' ? 'If sport is the priority'
+                       : pk === 'B' ? 'If you want both, equal weight'
+                       : 'If your location filter is firm',
+        framingLong:    '',
+        winner_slug:    '',
+        path_status:    'needs_research',
+        status_note:    'No school in your shortlist meets the 50% coverage threshold yet.',
+        reasoning:      [`Path ${pk} has no eligible candidate.`],
+        evidence:       [],
+        costs:          [],
+        considerations: [`Add at least 50% comparison-table coverage on at least one shortlisted school.`],
+      }
+    }
+    const winnerFacts = facts.get(winner.slug)
+    return buildPathOverlay({
+      pathKey:            pk,
+      winner:             winner as unknown as Parameters<typeof buildPathOverlay>[0]['winner'],
+      winnerFacts,
+      pathStatus:         pathSelection.pathStatus[pk],
+      briefContext,
+      allEligibleSchools: eligible as unknown as Parameters<typeof buildPathOverlay>[0]['allEligibleSchools'],
+      rowsWithProvenance: rowsWithProvenance as unknown as Parameters<typeof buildPathOverlay>[0]['rowsWithProvenance'],
+      schoolIdx:          args.comparisonData.schools.findIndex(s => s.slug === winner.slug),
+    })
+  }
+  const paths = { A: overlayFor('A'), B: overlayFor('B'), C: overlayFor('C') }
+
+  // same_winner_across_paths + default_path.
+  const sameWinner = detectSameWinnerAcrossPaths(pathSelection)
+  const allNeedsResearch = (['A', 'B', 'C'] as PathKey[]).every(p => pathSelection.pathStatus[p] === 'needs_research')
+  const default_path = allNeedsResearch ? null : selectDefaultPath(pathSelection)
+
+  // Path-winner annotations for ranked_schools[].
+  const pathWinnerSlugs: Array<[string, PathKey]> = []
+  for (const pk of ['A', 'B', 'C'] as PathKey[]) {
+    const slug = pathSelection.winners[pk]?.slug
+    if (slug && pathSelection.pathStatus[pk] === 'winner') pathWinnerSlugs.push([slug, pk])
+  }
+
+  // Hash payload projection (stable, primitive-only).
+  const schoolFactsProjection = Array.from(facts.entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([slug, f]) => [slug, {
+      city:                  f.city ?? null,
+      region:                f.region ?? null,
+      latitude:              f.latitude ?? null,
+      longitude:             f.longitude ?? null,
+      gender_split:          f.gender_split ?? null,
+      a_level_a_star_a_pct:  f.a_level_a_star_a_pct ?? null,
+      gcse_9_7_pct:          f.gcse_9_7_pct ?? null,
+      ib_avg_40_plus_pct:    f.ib_avg_40_plus_pct ?? null,
+      total_pupils:          f.total_pupils ?? null,
+      boarder_pct:           f.boarder_pct ?? null,
+      day_pct:               f.day_pct ?? null,
+      international_pct:     f.international_pct ?? null,
+      fee_min:               f.fee_min ?? null,
+      fee_max:               f.fee_max ?? null,
+      fee_registration:      f.fee_registration ?? null,
+      heathrow_miles:        f.heathrow_miles ?? null,
+      curriculum:            f.curriculum ?? null,
+    }])
+
+  return {
+    paths,
+    couldnt_compare,
+    brief_tensions:           briefContext.tensions,
+    same_winner_across_paths: sameWinner,
+    default_path,
+    pathWinnerSlugs,
+    belowThresholdSlugs,
+    schoolFactsProjection,
+  }
+}
+
+function buildBriefMatchSummary(f: import('./verdict-generator-v3-types').SchoolFacts | undefined): string {
+  if (!f) return 'Brief-match details unavailable.'
+  const parts: string[] = []
+  if (f.region)       parts.push(`Region: ${f.region}`)
+  if (f.gender_split) parts.push(f.gender_split)
+  if (f.curriculum)   parts.push(f.curriculum)
+  return parts.length > 0 ? parts.join(' · ') : 'Brief-match details unavailable.'
+}
+
+function buildBudgetWarning(
+  f:      import('./verdict-generator-v3-types').SchoolFacts | undefined,
+  rubric: Rubric,
+): string | undefined {
+  const cap = rubric.budgetMaxAnnual
+  if (cap == null || !f?.fee_max) return undefined
+  if (f.fee_max > cap) {
+    const overByPct = Math.round(((f.fee_max - cap) / cap) * 100)
+    return `Top of fee range £${Math.round(f.fee_max / 1000)}k — above your cap by ~${overByPct}%.`
+  }
+  return undefined
+}
+
+// ─── End v3 overlay ─────────────────────────────────────────────────────
+
 function stableHashValue(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(stableHashValue)
   if (!value || typeof value !== 'object') return value
@@ -906,24 +1182,43 @@ function stableHashValue(value: unknown): unknown {
 
 export function buildResearchVerdictDraft(args: BuildArgs): { inputHash: string; verdict: ResearchVerdict; bodyMarkdown: string } {
   const rubric = buildRubric(args.childProfile)
-  const scored = scoreSchools(args.comparisonData, rubric, args.lensWeightsByRowId)
+  const scored = scoreSchools(args.comparisonData, rubric)
   const top = scored[0]
   const second = scored[1]
   const childLabel = args.childName ? `${args.childName}'s` : 'your child\'s'
   const confidence = confidenceFor(args.comparisonData, scored)
 
-  const ranked = scored.map((s, idx) => ({
-    slug: s.slug,
-    name: s.name,
-    rank: idx + 1,
-    summary: buildSummary(s, idx, top),
-    strengths: uniqueSignalTexts(s.strengths, 5),
-    reservations: uniqueSignalTexts(s.reservations, 5),
-  }))
+  // v3 fields populated only when schoolFacts is supplied. Without facts, the
+  // function emits the v2 schema shape (back-compat). With facts, v3 path
+  // overlays + couldnt_compare + brief_tensions are layered on top.
+  const hasFacts = args.schoolFacts && args.schoolFacts.size > 0
+  let v3Overlay: V3Overlay | null = null
+  if (hasFacts && top) {
+    v3Overlay = buildV3Overlay(args, rubric, scored)
+  }
+
+  const ranked = scored.map((s, idx) => {
+    const base: ResearchVerdictRankedSchool = {
+      slug: s.slug,
+      name: s.name,
+      rank: idx + 1,
+      summary: buildSummary(s, idx, top),
+      strengths: uniqueSignalTexts(s.strengths, 5),
+      reservations: uniqueSignalTexts(s.reservations, 5),
+    }
+    if (v3Overlay) {
+      const winsPaths = v3Overlay.pathWinnerSlugs
+        .map(([slug, key]) => slug === s.slug ? key : null)
+        .filter((k): k is 'A' | 'B' | 'C' => k !== null)
+      if (winsPaths.length > 0) base.is_path_winner_for = winsPaths
+      if (v3Overlay.belowThresholdSlugs.has(s.slug)) base.coverage_below_threshold = true
+    }
+    return base
+  })
 
   const verdict: ResearchVerdict = {
-    format: 'research_verdict_v2',
-    decision_model: 'evidence_pool_v2',
+    format: v3Overlay ? 'research_verdict_v3' : 'research_verdict_v2',
+    decision_model: v3Overlay ? 'paths_v3' : 'evidence_pool_v2',
     confidence,
     decision_factors: decisionFactors(rubric),
     headline: top ? `${top.name} is the best current fit for ${args.childName ?? 'this child'}` : 'No verdict yet',
@@ -932,81 +1227,89 @@ export function buildResearchVerdictDraft(args: BuildArgs): { inputHash: string;
     dissenting_view: dissentingViewLine(top, second),
     evidence_gaps: collectEvidenceGaps(args.comparisonData, scored, rubric),
     sources: collectSources(args.comparisonData),
+    ...(v3Overlay ? {
+      paths:                    v3Overlay.paths,
+      couldnt_compare:          v3Overlay.couldnt_compare,
+      brief_tensions:           v3Overlay.brief_tensions,
+      same_winner_across_paths: v3Overlay.same_winner_across_paths,
+      default_path:             v3Overlay.default_path,
+    } : {}),
   }
 
-  const hashPayload = {
-    // version 3: Slice 8 Build 4 — topic-grouped scoring (strongest +
-    // and strongest - per (topic, school)). Bumped from 2 so cached
-    // verdicts re-generate against the new algorithm.
-    version: 3,
+  // R2-F2 + R4-MUST-2 + R5-MUST-5: hash payload drops lens identity. v3 bumps
+  // version to 4 and includes a stable schoolFacts projection so cached
+  // verdicts re-generate when structured facts change.
+  const hashPayload: Record<string, unknown> = {
+    version: v3Overlay ? 4 : 3,
     sessionId: args.sessionId,
     childId: args.childId,
-    activeLensId: args.activeLensId ?? null,
-    baseLensKind: args.baseLensKind,
     schools: args.comparisonData.schools,
     rows: args.comparisonData.rows,
     childProfile: args.childProfile ?? {},
-    lensWeightsByRowId: args.lensWeightsByRowId ?? {},
+  }
+  if (v3Overlay) {
+    hashPayload.schoolFacts = v3Overlay.schoolFactsProjection
   }
   const inputHash = crypto.createHash('sha256').update(JSON.stringify(stableHashValue(hashPayload))).digest('hex')
   const bodyMarkdown = buildMarkdown(verdict)
   return { inputHash, verdict, bodyMarkdown }
 }
 
+// R4-MUST-2 + R5-MUST-2: drop lens filtering from BOTH the exact-hash read
+// AND the stale fallback. Cache identity is (session_id, child_id, input_hash)
+// per the migration's new UNIQUE index. Legacy callers passing lensId/baseLensKind
+// have those fields silently ignored (kept in the arg shape for back-compat
+// during transition; new callers omit them).
 export async function loadCachedResearchVerdict(
   supabase: SupabaseClient,
   args: {
     sessionId: string
     childId: string
-    lensId: string | null
-    baseLensKind: 'general' | 'child_fit'
     inputHash: string
+    /** @deprecated lens identity dropped in v3; ignored if supplied */
+    lensId?: string | null
+    /** @deprecated lens identity dropped in v3; ignored if supplied */
+    baseLensKind?: 'general' | 'child_fit'
   },
 ): Promise<ResearchVerdictRecord | null> {
-  let q = supabase
+  // Exact-hash match — lens-agnostic.
+  const { data, error } = await supabase
     .from('research_verdicts')
     .select('id, input_hash, verdict_json, body_markdown, generated_at')
     .eq('session_id', args.sessionId)
     .eq('child_id', args.childId)
     .eq('input_hash', args.inputHash)
-
-  q = args.lensId
-    ? q.eq('lens_id', args.lensId)
-    : q.is('lens_id', null).eq('base_lens_kind', args.baseLensKind)
-
-  const { data, error } = await q.maybeSingle()
+    .maybeSingle()
   if (error) throw new Error(`loadCachedResearchVerdict: ${error.message}`)
-  if (!data) {
-    let fallback = supabase
-      .from('research_verdicts')
-      .select('id, input_hash, verdict_json, body_markdown, generated_at')
-      .eq('session_id', args.sessionId)
-      .eq('child_id', args.childId)
-      .order('generated_at', { ascending: false })
-      .limit(1)
 
-    fallback = args.lensId
-      ? fallback.eq('lens_id', args.lensId)
-      : fallback.is('lens_id', null).eq('base_lens_kind', args.baseLensKind)
-
-    const { data: stale, error: staleError } = await fallback.maybeSingle()
-    if (staleError) throw new Error(`loadCachedResearchVerdict fallback: ${staleError.message}`)
-    if (!stale) return null
+  if (data) {
     return {
-      id: stale.id,
-      input_hash: stale.input_hash,
-      verdict_json: stale.verdict_json as ResearchVerdict,
-      body_markdown: stale.body_markdown,
-      generated_at: stale.generated_at,
-      cache_status: 'stale',
+      id: data.id,
+      input_hash: data.input_hash,
+      verdict_json: data.verdict_json as ResearchVerdict,
+      body_markdown: data.body_markdown,
+      generated_at: data.generated_at,
+      cache_status: 'current',
     }
   }
+
+  // Stale fallback — also lens-agnostic. Most recent for (session, child).
+  const { data: stale, error: staleError } = await supabase
+    .from('research_verdicts')
+    .select('id, input_hash, verdict_json, body_markdown, generated_at')
+    .eq('session_id', args.sessionId)
+    .eq('child_id', args.childId)
+    .order('generated_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+  if (staleError) throw new Error(`loadCachedResearchVerdict fallback: ${staleError.message}`)
+  if (!stale) return null
   return {
-    id: data.id,
-    input_hash: data.input_hash,
-    verdict_json: data.verdict_json as ResearchVerdict,
-    body_markdown: data.body_markdown,
-    generated_at: data.generated_at,
-    cache_status: 'current',
+    id: stale.id,
+    input_hash: stale.input_hash,
+    verdict_json: stale.verdict_json as ResearchVerdict,
+    body_markdown: stale.body_markdown,
+    generated_at: stale.generated_at,
+    cache_status: 'stale',
   }
 }

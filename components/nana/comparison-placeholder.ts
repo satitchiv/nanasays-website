@@ -35,6 +35,11 @@ export type ComparisonRow = {
   // Slice 8 Step 0.6: optional group_name lets ComparisonView render
   // section headers (e.g. "For your child") between groups of rows.
   group_name?: string | null
+  // R7-MUST-5 (verdict v3): when loaded for the Verdict tab, each school
+  // column carries the underlying comparison_rows.id whose cell currently
+  // wins after merge. Used by v3 path overlay narrative to attribute the
+  // exact origin row when citing evidence. UI render tables ignore it.
+  selectedCellOriginIdBySchool?: (string | undefined)[]
 }
 
 export type ComparisonData = {

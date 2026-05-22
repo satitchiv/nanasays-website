@@ -27,20 +27,6 @@ export const metadata: Metadata = {
 // Next 15+; using it here would silently leave the value un-resolved.
 type SearchParams = { lens?: string }
 
-function collectSavedLensWeights(savedLenses: Array<{ weights: Record<string, number>; visible_rows: string[] | null }>): Record<string, number> {
-  const out: Record<string, number> = {}
-  for (const lens of savedLenses) {
-    for (const [rowId, raw] of Object.entries(lens.weights ?? {})) {
-      if (typeof raw !== 'number' || !Number.isFinite(raw)) continue
-      out[rowId] = Math.max(out[rowId] ?? 0, raw)
-    }
-    for (const rowId of lens.visible_rows ?? []) {
-      out[rowId] = Math.max(out[rowId] ?? 0, 1)
-    }
-  }
-  return out
-}
-
 export default async function ResearchRoomPage({
   searchParams,
 }: {
@@ -335,15 +321,13 @@ export default async function ResearchRoomPage({
       try {
         const verdictData = await loadVerdictEvidenceData(svc, user.id, activeChildId, initialSession.id)
         if (verdictData.schools.length > 0 && verdictData.rows.length > 0) {
+          // R2-F2 + R4-MUST-2: lens-weight + lens-id args dropped in v3.
           const draft = buildResearchVerdictDraft({
             comparisonData: verdictData,
             childName: activeChild?.name ?? null,
             childProfile: activeChild?.child_profile ?? null,
             sessionId: initialSession.id,
             childId: activeChildId,
-            baseLensKind: effectiveLensForVerdict,
-            activeLensId,
-            lensWeightsByRowId: collectSavedLensWeights(savedLenses),
           })
           researchVerdict = await loadCachedResearchVerdict(svc, {
             sessionId: initialSession.id,

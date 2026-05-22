@@ -804,7 +804,6 @@ export default function ResearchRoom({
                     <VerdictTab
                       verdict={researchVerdict}
                       sessionId={initialSession?.id ?? null}
-                      baseLensKind={activeLens?.base_lens_kind ?? lens}
                       childName={activeChild?.name ?? null}
                     />
                   ) : t === 'partner' ? (

@@ -5,6 +5,7 @@ import { isResearchRoomEnabled } from '@/lib/feature-flags'
 import { getUnlockedUser } from '@/lib/paid-status'
 import { supabaseService } from '@/lib/supabase-admin'
 import { loadVerdictEvidenceData, type LensKind } from '@/lib/research-comparison'
+import { loadVerdictSchoolFacts } from '@/lib/server/research-room/load-verdict-school-facts'
 import { buildResearchVerdictDraft, type ResearchVerdictRecord } from '@/lib/server/research-room/verdict-generator'
 
 export const runtime = 'nodejs'
@@ -60,22 +61,18 @@ async function loadMatchingCachedVerdict(
   svc: ReturnType<typeof supabaseService>,
   sessionId: string,
   childId: string,
-  lensId: string | null,
-  baseLensKind: LensKind,
   inputHash: string,
 ): Promise<ResearchVerdictRecord | null> {
-  let q = svc
+  // R4-MUST-2 + R5-MUST-2: drop lens filtering. Cache identity is now
+  // (session_id, child_id, input_hash) only — matches the new UNIQUE index
+  // from 2026-05-21-verdict-cache-identity-drop-lens.sql.
+  const { data, error } = await svc
     .from('research_verdicts')
     .select('id, input_hash, verdict_json, body_markdown, generated_at')
     .eq('session_id', sessionId)
     .eq('child_id', childId)
     .eq('input_hash', inputHash)
-
-  q = lensId
-    ? q.eq('lens_id', lensId)
-    : q.is('lens_id', null).eq('base_lens_kind', baseLensKind)
-
-  const { data, error } = await q.maybeSingle()
+    .maybeSingle()
   if (error) throw new Error(`verdict cache read failed: ${error.message}`)
   if (!data) return null
   return {
@@ -87,19 +84,8 @@ async function loadMatchingCachedVerdict(
   }
 }
 
-function collectLensWeights(rows: Array<{ weights: Record<string, unknown> | null; visible_rows: string[] | null }>): Record<string, number> {
-  const out: Record<string, number> = {}
-  for (const row of rows) {
-    for (const [rowId, raw] of Object.entries(row.weights ?? {})) {
-      if (typeof raw !== 'number' || !Number.isFinite(raw)) continue
-      out[rowId] = Math.max(out[rowId] ?? 0, raw)
-    }
-    for (const rowId of row.visible_rows ?? []) {
-      out[rowId] = Math.max(out[rowId] ?? 0, 1)
-    }
-  }
-  return out
-}
+// R2-F2 + R4-MUST-2: `collectLensWeights` deleted in v3. Lens weights no
+// longer drive scoring or cache identity (verdict is all-evidence).
 
 export async function POST(req: NextRequest) {
   if (!isResearchRoomEnabled()) {
@@ -153,24 +139,11 @@ export async function POST(req: NextRequest) {
   }
   if (!child) return NextResponse.json({ ok: false, code: 'not_found' }, { status: 404 })
 
-  let baseLensKind = body.base_lens_kind
-  const lensId = session.active_lens_id
-  if (lensId) {
-    const { data: lens, error: lensErr } = await svc
-      .from('comparison_lenses')
-      .select('id, base_lens_kind')
-      .eq('id', lensId)
-      .eq('session_id', session.id)
-      .eq('user_id', user.id)
-      .maybeSingle<{ id: string; base_lens_kind: LensKind }>()
-    if (lensErr) {
-      console.error('[verdict] lens lookup failed', lensErr)
-      return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
-    }
-    if (lens?.base_lens_kind === 'general' || lens?.base_lens_kind === 'child_fit') {
-      baseLensKind = lens.base_lens_kind
-    }
-  }
+  // R4-MUST-2: active-lens lookup REMOVED in v3. Verdict reads all-evidence
+  // rows regardless of which lens is active. base_lens_kind is no longer
+  // part of cache identity; we write 'general' as an ignored legacy value
+  // when inserting (see upsert below).
+
 
   let comparisonData
   try {
@@ -183,17 +156,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, code: 'empty_comparison' }, { status: 409 })
   }
 
-  let lensWeightsByRowId: Record<string, number> = {}
-  const { data: lensWeightRows, error: lensWeightErr } = await svc
-    .from('comparison_lenses')
-    .select('weights, visible_rows')
-    .eq('session_id', session.id)
-    .eq('user_id', user.id)
-  if (lensWeightErr) {
-    console.error('[verdict] lens weights lookup failed', lensWeightErr)
-  } else {
-    lensWeightsByRowId = collectLensWeights((lensWeightRows ?? []) as Array<{ weights: Record<string, unknown> | null; visible_rows: string[] | null }>)
-  }
+  // R2-F2 + R4-MUST-2: lens-weight collection block REMOVED. Lens weights no
+  // longer drive scoring or cache identity.
+
+  // R5-MUST-5 + R6-MUST-3: enrich the verdict with structured-data facts
+  // (grades, fees, location, students, curriculum) so v3 path overlays +
+  // budget tensions + the fact ribbon have real values.
+  const schoolFacts = await loadVerdictSchoolFacts(
+    svc,
+    comparisonData.schools.map(s => s.slug),
+  )
 
   const draft = buildResearchVerdictDraft({
     comparisonData,
@@ -201,49 +173,45 @@ export async function POST(req: NextRequest) {
     childProfile: child.child_profile,
     sessionId: session.id,
     childId: child.id,
-    baseLensKind,
-    activeLensId: lensId,
-    lensWeightsByRowId,
+    schoolFacts,
   })
 
   try {
-    const cached = await loadMatchingCachedVerdict(svc, session.id, child.id, lensId, baseLensKind, draft.inputHash)
+    const cached = await loadMatchingCachedVerdict(svc, session.id, child.id, draft.inputHash)
     if (cached && !body.force) {
       return NextResponse.json({ ok: true, status: 'cached', verdict: cached }, { status: 200 })
     }
 
-    if (cached) {
-      const { data: updated, error: updateErr } = await svc
-        .from('research_verdicts')
-        .update({
-          verdict_json: draft.verdict,
-          body_markdown: draft.bodyMarkdown,
-          generated_at: new Date().toISOString(),
-        })
-        .eq('id', cached.id)
-        .select('id, input_hash, verdict_json, body_markdown, generated_at')
-        .single()
-      if (updateErr) throw updateErr
-      return NextResponse.json({ ok: true, status: 'refreshed', verdict: updated }, { status: 200 })
-    }
-
-    const { data: inserted, error: insertErr } = await svc
+    // R4-MUST-1: atomic upsert keyed on (session_id, child_id, input_hash) so
+    // two concurrent "Generate verdict" requests don't race on the UNIQUE
+    // index from 2026-05-21-verdict-cache-identity-drop-lens.sql.
+    // R5-MUST-2: base_lens_kind written as 'general' (ignored legacy value)
+    // because the slice-7 schema's NOT NULL + CHECK constraint still applies.
+    const { data: upserted, error: upsertErr } = await svc
       .from('research_verdicts')
-      .insert({
-        user_id: user.id,
-        child_id: child.id,
-        session_id: session.id,
-        lens_id: lensId,
-        base_lens_kind: baseLensKind,
-        input_hash: draft.inputHash,
-        verdict_json: draft.verdict,
-        body_markdown: draft.bodyMarkdown,
-      })
+      .upsert(
+        {
+          user_id:        user.id,
+          child_id:       child.id,
+          session_id:     session.id,
+          lens_id:        null,
+          base_lens_kind: 'general',
+          input_hash:     draft.inputHash,
+          verdict_json:   draft.verdict,
+          body_markdown:  draft.bodyMarkdown,
+          generated_at:   new Date().toISOString(),
+        },
+        { onConflict: 'session_id,child_id,input_hash' },
+      )
       .select('id, input_hash, verdict_json, body_markdown, generated_at')
       .single()
-    if (insertErr) throw insertErr
+    if (upsertErr) throw upsertErr
 
-    return NextResponse.json({ ok: true, status: 'fresh', verdict: inserted }, { status: 201 })
+    return NextResponse.json({
+      ok:      true,
+      status:  cached ? 'refreshed' : 'fresh',
+      verdict: upserted,
+    }, { status: cached ? 200 : 201 })
   } catch (e) {
     if (isMissingMigrationError(e)) {
       return NextResponse.json({ ok: false, code: 'migration_missing' }, { status: 500 })

@@ -20,6 +20,9 @@ type RankedSchool = {
   summary?: string
   strengths?: string[]
   reservations?: string[]
+  // v3 additions (R2 + R4 + R7):
+  is_path_winner_for?: ('A' | 'B' | 'C')[]
+  coverage_below_threshold?: boolean
 }
 
 type VerdictJson = {
@@ -32,12 +35,18 @@ type VerdictJson = {
   dissenting_view?: string
   evidence_gaps?: string[]
   sources?: Array<{ url?: string }>
+  // v3 additions — all optional; v2 cached records pass through unchanged.
+  paths?: Record<'A' | 'B' | 'C', unknown>
+  couldnt_compare?: unknown[]
+  brief_tensions?: unknown[]
+  same_winner_across_paths?: { winner_slug: string; paths: ('A' | 'B' | 'C')[] }
+  default_path?: 'A' | 'B' | 'C' | null   // R7-SHOULD-1 + R9: null when all paths needs_research
 }
 
 type Props = {
   verdict: ResearchVerdictForUi | null
   sessionId?: string | null
-  baseLensKind: 'general' | 'child_fit'
+  // R4-MUST-2 + v3: lens scope dropped from verdict identity. Prop removed.
   childName?: string | null
 }
 
@@ -94,7 +103,7 @@ function confidenceClass(confidence: string | undefined): string {
   return ' is-medium'
 }
 
-export default function VerdictTab({ verdict, sessionId, baseLensKind, childName }: Props) {
+export default function VerdictTab({ verdict, sessionId, childName }: Props) {
   const [localVerdict, setLocalVerdict] = useState<ResearchVerdictForUi | null>(verdict)
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -111,7 +120,7 @@ export default function VerdictTab({ verdict, sessionId, baseLensKind, childName
       const res = await fetch('/api/research-room/verdict', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: sessionId, base_lens_kind: baseLensKind, force }),
+        body: JSON.stringify({ session_id: sessionId, force }),
       })
       const j = await res.json().catch(() => ({}))
       if (!res.ok || !j?.ok) {
@@ -130,7 +139,11 @@ export default function VerdictTab({ verdict, sessionId, baseLensKind, childName
   const body = localVerdict?.body_markdown?.trim() ?? ''
   const generated = formatDate(localVerdict?.generated_at)
   const verdictJson = readVerdictJson(localVerdict?.verdict_json)
-  const rankedSchools = (verdictJson?.ranked_schools ?? []).filter(s => typeof s.name === 'string')
+  const rankedSchools = (verdictJson?.ranked_schools ?? [])
+    .filter(s => typeof s.name === 'string')
+    // R3-P1 + R4 hybrid: below-threshold schools appear in their dedicated panel,
+    // not in the main ranking. Legacy v2 records (no flag) render unchanged.
+    .filter(s => !s.coverage_below_threshold)
   const decisionFactors = (verdictJson?.decision_factors ?? []).filter(f => typeof f === 'string')
   const evidenceGaps = (verdictJson?.evidence_gaps ?? []).filter(g => typeof g === 'string')
   const sourceCount = Array.isArray(verdictJson?.sources) ? verdictJson.sources.length : 0
@@ -225,7 +238,7 @@ export default function VerdictTab({ verdict, sessionId, baseLensKind, childName
             <div className="rr-verdict-confidence">
               <span>Confidence: <strong className={confidenceClass(verdictJson.confidence)}>{verdictJson.confidence ?? 'medium'}</strong></span>
               <span>Sources: <strong>{sourceCount}</strong></span>
-              <span>Lens: <strong>{baseLensKind === 'child_fit' ? 'child fit' : 'general'}</strong></span>
+              {/* v3: lens scope dropped — verdict reads all-evidence rows. */}
               {generated && <span>Updated: <strong>{generated}</strong></span>}
             </div>
           </article>
@@ -233,7 +246,7 @@ export default function VerdictTab({ verdict, sessionId, baseLensKind, childName
       ) : body ? (
         <article className="rr-verdict-card">
           <div className="rr-partner-brief-meta">
-            <span>{baseLensKind === 'child_fit' ? 'child fit' : 'general'}</span>
+            {/* v3: lens scope dropped — verdict reads all-evidence rows. */}
             {generated && <span>{generated}</span>}
           </div>
           <div className="rr-verdict-body">
