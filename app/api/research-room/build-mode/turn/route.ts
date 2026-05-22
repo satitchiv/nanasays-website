@@ -148,6 +148,18 @@ const WRITABLE_PROFILE_KEYS = [
   // build-mode-schemas.ts (which has the matching zod enums).
   'child_gender',
   'child_year',
+  // wizard-inheritance-2026-05-22: 4 family-constant fields a sibling
+  // inherits from parent_profiles. The turn-time LLM extracts the new
+  // value when the parent contradicts an inherited setting in chat
+  // prose; the merge layer queues a pending_confirmation; on the
+  // parent's next-turn confirmation the value is written here. Without
+  // these in the allowlist, the LLM extraction would round-trip to a
+  // PendingConfirmation but never persist a corrected wizard value to
+  // child_profile.
+  'boarding_pref',
+  'home_region',
+  'budget_range',
+  'curriculum_pref',
 ] as const
 
 function extractWritableProfile(profile: Record<string, unknown>): Partial<BuildModeExtractionHTTP> {
@@ -161,17 +173,26 @@ function extractWritableProfile(profile: Record<string, unknown>): Partial<Build
   // Without this fallback, ONE bad enum value (e.g. a hand-edited
   // child_gender='male' from before the 'boy/girl/either' enum was
   // canonical) would empty the entire priorProfile because zod's
-  // strict parse is all-or-nothing. Retry without the new basics
-  // fields so the rest of the captured Build Mode notes flow through;
-  // the sibling_basics opener will re-ask and overwrite with a canonical
-  // value. Codex r2 NIT.1: log issue PATHS (not values, to avoid
-  // dumping the whole child_profile) so Mission Control can see drift.
+  // strict parse is all-or-nothing. Codex r2 NIT.1: log issue PATHS
+  // (not values, to avoid dumping the whole child_profile) so Mission
+  // Control can see drift.
+  //
+  // wizard-inheritance impl r3: drop ALL top-level keys the strict
+  // parse flagged. The earlier shape (`delete fallback.child_gender;
+  // delete fallback.child_year`) was exhaustive for rr-8 but went
+  // stale the moment FIELD_DEFS grew — a legacy bad enum on
+  // boarding_pref / home_region / budget_range / curriculum_pref
+  // would have failed BOTH parses and dropped all notes/basics too.
+  // Reading issue.path[0] is future-proof: any new field added to
+  // FIELD_DEFS is automatically covered without enumerating.
   console.warn('[build-mode/turn] extractWritableProfile schema-drift fallback', {
     issuePaths: parsed.error.issues.map(i => i.path.join('.')),
   })
   const fallback: Record<string, unknown> = { ...filtered }
-  delete fallback.child_gender
-  delete fallback.child_year
+  for (const issue of parsed.error.issues) {
+    const topKey = issue.path[0]
+    if (typeof topKey === 'string') delete fallback[topKey]
+  }
   const fallbackParsed = BuildModeExtractionHTTPSchema.safeParse(fallback)
   if (!fallbackParsed.success) {
     console.warn('[build-mode/turn] extractWritableProfile fallback ALSO failed', {
@@ -254,12 +275,33 @@ export async function POST(req: NextRequest) {
   // null-only path covers them. The sibling_basics opener (pickFocus
   // gate) is the canonical way to fill blanks; the parent_profiles
   // fallback was a safety net that wasn't actually safe.
-  const childGenderRaw = (childProfileRaw as Record<string, unknown>).child_gender
-  const childYearRaw   = (childProfileRaw as Record<string, unknown>).child_year
+  // wizard-inheritance-2026-05-22 (Codex design review Q5): two distinct
+  // read patterns for child_profile vs parent_profiles fallback:
+  //   - pickChildOnly: child_profile value or null. Used for child_gender
+  //     / child_year per Codex r1 P1.1 — falling back to parent_profiles
+  //     re-introduces the sibling-basics bug (sibling inherits the FIRST
+  //     child's gender/year).
+  //   - pickInherited: child_profile value, else parent_profiles fallback.
+  //     Used for the 4 family-constant wizard fields (boarding/region/
+  //     budget/curriculum) so corrections written to child_profile by
+  //     Build Mode flow through to the scorer, while siblings without
+  //     corrections still inherit the family wizard answer.
+  const pickChildOnly = (child: unknown): string | null =>
+    (typeof child === 'string' && child) ? child : null
+  const pickInherited = (child: unknown, parent: unknown): string | null => {
+    if (typeof child  === 'string' && child)  return child
+    if (typeof parent === 'string' && parent) return parent
+    return null
+  }
+  const parentRow = (parentRes.data ?? {}) as Record<string, unknown>
   const brief = {
-    ...(parentRes.data ?? {}),
-    child_gender: (typeof childGenderRaw === 'string' && childGenderRaw) ? childGenderRaw : null,
-    child_year:   (typeof childYearRaw === 'string' && childYearRaw)   ? childYearRaw   : null,
+    ...parentRow,
+    child_gender:    pickChildOnly(childProfileRaw.child_gender),
+    child_year:      pickChildOnly(childProfileRaw.child_year),
+    boarding_pref:   pickInherited(childProfileRaw.boarding_pref,   parentRow.boarding_pref),
+    home_region:     pickInherited(childProfileRaw.home_region,     parentRow.home_region),
+    budget_range:    pickInherited(childProfileRaw.budget_range,    parentRow.budget_range),
+    curriculum_pref: pickInherited(childProfileRaw.curriculum_pref, parentRow.curriculum_pref),
   }
 
   // ── Parse progress with the new shape; fall back to empty on shape

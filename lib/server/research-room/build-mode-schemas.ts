@@ -39,6 +39,16 @@ import { z } from 'zod'
 // to read a consistent vocabulary. Without these, sibling routes were
 // reading gender/year from parent_profiles (the FIRST child's values),
 // producing silently-wrong recommendations.
+//
+// wizard-inheritance-2026-05-22: boarding_pref / home_region / budget_range
+// / curriculum_pref added so the turn-time LLM can capture parent
+// contradictions of the 4 family-constant fields a sibling inherits from
+// parent_profiles. Enums mirror lib/onboarding-fields.ts. Without these,
+// Yoko (sibling) kept her inherited boarding_pref='full' / home_region=
+// 'midlands' even after the parent said "no boarding, London" multiple
+// times in chat. The merge layer queues a pending_confirmation when the
+// LLM extracts a contradicting value with confidence='confirmed'; Nana
+// then asks the parent to confirm next turn before flipping the value.
 const FIELD_DEFS = {
   personality_notes: z.string().max(8000),
   anchors_notes:     z.string().max(8000),
@@ -61,7 +71,26 @@ const FIELD_DEFS = {
   ).max(20),
   child_gender:      z.enum(['boy', 'girl', 'either']),
   child_year:        z.enum(['year-7', 'year-9', 'year-10', 'sixth-form', 'not-sure']),
+  boarding_pref:     z.enum(['full', 'weekly', 'flexi', 'day', 'open']),
+  home_region:       z.enum(['anywhere', 'london', 'south-east', 'south-west', 'midlands', 'north', 'scotland-wales', 'overseas']),
+  budget_range:      z.enum(['under-30k', '30k-40k', '40k-50k', 'over-50k', 'bursary']),
+  curriculum_pref:   z.enum(['a-level', 'ib', 'either', 'no-preference']),
 } as const
+
+// Codex wizard-inheritance design r1: derive CorrectionsSchema and
+// ConfidenceMapSchema shapes from FIELD_DEFS so they cannot silently
+// drift when a new field is added. Previously both were hand-spelled
+// objects — adding a key to FIELD_DEFS without remembering to update
+// both companion schemas would have produced runtime parse errors at
+// best, silently dropped corrections / confidence at worst.
+type MirrorFieldShape<T> = { -readonly [K in keyof typeof FIELD_DEFS]: T }
+function mirrorFieldShape<T>(value: T): MirrorFieldShape<T> {
+  const out = {} as MirrorFieldShape<T>
+  for (const k of Object.keys(FIELD_DEFS) as Array<keyof typeof FIELD_DEFS>) {
+    out[k] = value
+  }
+  return out
+}
 
 export const BUILD_MODE_FIELD_KEYS = Object.keys(FIELD_DEFS) as readonly (keyof typeof FIELD_DEFS)[]
 
@@ -81,6 +110,10 @@ export const BuildModeExtractionLLMSchema = z.object({
   interests_arts:    FIELD_DEFS.interests_arts.nullable(),
   child_gender:      FIELD_DEFS.child_gender.nullable(),
   child_year:        FIELD_DEFS.child_year.nullable(),
+  boarding_pref:     FIELD_DEFS.boarding_pref.nullable(),
+  home_region:       FIELD_DEFS.home_region.nullable(),
+  budget_range:      FIELD_DEFS.budget_range.nullable(),
+  curriculum_pref:   FIELD_DEFS.curriculum_pref.nullable(),
 }).strict()
 
 // ── HTTP-side schema (.optional()) ───────────────────────────────────
@@ -101,6 +134,10 @@ export const BuildModeExtractionHTTPSchema = z.object({
   interests_arts:    FIELD_DEFS.interests_arts.optional(),
   child_gender:      FIELD_DEFS.child_gender.optional(),
   child_year:        FIELD_DEFS.child_year.optional(),
+  boarding_pref:     FIELD_DEFS.boarding_pref.optional(),
+  home_region:       FIELD_DEFS.home_region.optional(),
+  budget_range:      FIELD_DEFS.budget_range.optional(),
+  curriculum_pref:   FIELD_DEFS.curriculum_pref.optional(),
 }).strict()
 
 export type BuildModeExtractionLLM  = z.infer<typeof BuildModeExtractionLLMSchema>
@@ -158,33 +195,14 @@ const ConfidenceFieldSchema = ConfidenceStateEnum.nullable()
 // sets `corrections.goal_orientation = true` when the parent's wording
 // indicates an explicit correction of an earlier statement. Default false
 // (the LLM must emit `false` for every key — the prompt requires it).
-const CorrectionsSchema = z.object({
-  personality_notes: z.boolean(),
-  anchors_notes:     z.boolean(),
-  academic_notes:    z.boolean(),
-  goals_notes:       z.boolean(),
-  child_wants:       z.boolean(),
-  nonnegotiables:    z.boolean(),
-  goal_orientation:  z.boolean(),
-  interests_sports:  z.boolean(),
-  interests_arts:    z.boolean(),
-  child_gender:      z.boolean(),
-  child_year:        z.boolean(),
-}).strict()
+//
+// Codex wizard-inheritance r1: derived from FIELD_DEFS via mirrorFieldShape
+// so a new field added to FIELD_DEFS automatically appears here. Without
+// this, the hand-spelled object silently fell out of sync any time the
+// extraction schema grew.
+const CorrectionsSchema = z.object(mirrorFieldShape(z.boolean())).strict()
 
-const ConfidenceMapSchema = z.object({
-  personality_notes: ConfidenceFieldSchema,
-  anchors_notes:     ConfidenceFieldSchema,
-  academic_notes:    ConfidenceFieldSchema,
-  goals_notes:       ConfidenceFieldSchema,
-  child_wants:       ConfidenceFieldSchema,
-  nonnegotiables:    ConfidenceFieldSchema,
-  goal_orientation:  ConfidenceFieldSchema,
-  interests_sports:  ConfidenceFieldSchema,
-  interests_arts:    ConfidenceFieldSchema,
-  child_gender:      ConfidenceFieldSchema,
-  child_year:        ConfidenceFieldSchema,
-}).strict()
+const ConfidenceMapSchema = z.object(mirrorFieldShape(ConfidenceFieldSchema)).strict()
 
 // Top-level LLM payload. Step 0.1's helper wraps this as
 // `{ prose, extraction: <this> }`, so the full server-side type is

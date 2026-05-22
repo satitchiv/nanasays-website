@@ -346,7 +346,6 @@ export async function POST(req: NextRequest) {
     .select('home_region, child_gender, child_year, boarding_pref, budget_range, curriculum_pref, top_priority, class_size_pref, sen_need, ethos_pref, lgbtq_pref, pastoral_pref')
     .eq('id', user.id)
     .maybeSingle<BriefProfile & { child_gender?: string | null; child_year?: string | null }>()
-  const briefProfile: BriefProfile | null = parentRow ?? null
   // rr-8-build3-sibling-gender-year (2026-05-21): prefer THIS child's
   // captured gender/year over the parent_profiles fallback. For
   // siblings, parent_profiles still carries the FIRST child's values
@@ -366,6 +365,28 @@ export async function POST(req: NextRequest) {
     : null
   const childGender = childGenderOnRow ?? parentRow?.child_gender ?? null
   const childYear   = childYearOnRow   ?? parentRow?.child_year   ?? null
+  // wizard-inheritance-2026-05-22 (Codex design review Q5): the 4
+  // family-constant wizard fields (boarding/region/budget/curriculum)
+  // were silently sourced from parent_profiles ONLY, which holds the
+  // FIRST child's wizard answers and never updates. Build Mode now
+  // writes corrected values to child_profile via the v5 RPC after the
+  // parent confirms a contradiction; this overlay flips the scorer's
+  // `parent.boarding_pref` etc. read to use the corrected child_profile
+  // value when present, falling back to parent_profiles for siblings
+  // whose parent never contradicted. resolveBoardingPref in the scorer
+  // is unchanged — the 'wizard' input now reflects the corrected value.
+  const pickInherited = (child: unknown, parent: unknown): string | null => {
+    if (typeof child  === 'string' && child)  return child
+    if (typeof parent === 'string' && parent) return parent
+    return null
+  }
+  const briefProfile: BriefProfile | null = parentRow == null ? null : {
+    ...parentRow,
+    boarding_pref:   pickInherited(childProfileRaw.boarding_pref,   parentRow.boarding_pref),
+    home_region:     pickInherited(childProfileRaw.home_region,     parentRow.home_region),
+    budget_range:    pickInherited(childProfileRaw.budget_range,    parentRow.budget_range),
+    curriculum_pref: pickInherited(childProfileRaw.curriculum_pref, parentRow.curriculum_pref),
+  } as BriefProfile
 
   let shortlistSlugs: string[] = Array.isArray(body.shortlistSlugs) ? body.shortlistSlugs : []
   if (shortlistSlugs.length === 0) {

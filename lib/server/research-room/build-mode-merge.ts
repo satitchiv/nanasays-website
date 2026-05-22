@@ -68,6 +68,123 @@ const CONFIDENCE_RANK: Readonly<Record<ProgressState, number>> = {
                  // doesn't override a refusal, but a confirmed answer does.
 }
 
+// wizard-inheritance r1: the 4 family-constant wizard fields that may
+// be inherited from parent_profiles onto a sibling's child_profile.
+// When the parent contradicts an inherited value in chat prose, the
+// LLM extracts the new value and the merge layer queues a pending
+// confirmation (only when confidence === 'confirmed'; see
+// mergeContradictionTrackedEnum). Order is intentional: the prompt's
+// batched-confirmation prose iterates this list, so the user-facing
+// confirmation question always lists boarding before region before
+// budget before curriculum.
+const WIZARD_INHERITED_ENUM_FIELDS = [
+  'boarding_pref',
+  'home_region',
+  'budget_range',
+  'curriculum_pref',
+] as const
+type WizardInheritedEnumField = typeof WIZARD_INHERITED_ENUM_FIELDS[number]
+type ContradictionTrackedEnumField = WizardInheritedEnumField | 'goal_orientation'
+
+// Shared contradiction-tracking pattern for enum fields. Returns the
+// pending confirmation to queue (or null if no contradiction this turn).
+// Side effects: writes to nextProfile + diff + reaffirmedFields.
+//
+// Confidence-gating (Codex wizard-inheritance design Q7 + impl r1 #3):
+//   - When `requireConfirmedConfidence` is true, vague/inferred extractions
+//     are ignored entirely (no first-time write, no pending creation). The
+//     LLM has to be "confirmed" on a preference statement before we
+//     materially change a field that drives hard filtering. Used for the
+//     4 family-constant fields whose mis-extraction would silently
+//     mis-target recommendations (e.g. "Eton costs £50k" must NOT become
+//     budget_range='over-50k').
+//   - When false, any non-null incoming value advances state. Used for
+//     goal_orientation to preserve the original Slice 8 Build 3 behavior.
+//
+// Correction bypass (impl r1 #3): a non-zero `correction === true` from
+// the LLM bypasses the confidence gate ONLY in a confirmation context —
+// either the parent is being asked about an existing pending for this
+// field, or currentFocus is 'confirm_contradiction'. Without the narrow,
+// an out-of-context corrections=true on a vague factual mention
+// ("Eton costs £50k" with corrections.budget_range=true) could write
+// through. With the narrow, the LLM cannot accidentally bypass the gate
+// on a regular interview turn — only on the deliberate confirmation
+// turn that the orchestrator routes via pickFocus.
+function mergeContradictionTrackedEnum(
+  field:        ContradictionTrackedEnumField,
+  priorRaw:     unknown,
+  incomingRaw:  unknown,
+  confidence:   'vague' | 'inferred' | 'confirmed' | null,
+  correction:   boolean,
+  nextProfile:  BuildModeExtractionHTTP,
+  diff:         ProfileDiff,
+  reaffirmedFields: Set<string>,
+  turnAt:       string,
+  options:      {
+    requireConfirmedConfidence: boolean
+    inConfirmationContext:      boolean
+  },
+): PendingConfirmation | null {
+  if (incomingRaw == null) return null
+  const incoming = incomingRaw as string
+  const prior    = (priorRaw ?? null) as string | null
+
+  // impl r2 #1 — "correction is allowed to write" is a tighter signal
+  // than raw `correction === true`. For the 4 wizard fields, even with
+  // confidence='confirmed' a corrections=true OUTSIDE a confirmation
+  // context must NOT bypass the pending-confirmation step: an LLM
+  // glitch that emits corrections=true on a first mention would
+  // otherwise skip the safety check entirely. correctionAllowed is the
+  // canonical predicate used in BOTH (a) the confidence-gate bypass
+  // for low-confidence values, AND (b) the write-through branch lower
+  // down. goal_orientation (requireConfirmedConfidence=false) keeps
+  // legacy behavior because correctionAllowed === (correction === true)
+  // in that branch.
+  const correctionAllowed =
+    correction === true &&
+    (!options.requireConfirmedConfidence || options.inConfirmationContext)
+
+  // Confidence-gate. Vague/inferred ignored for first-time writes AND
+  // contradictions; correctionAllowed bypasses ONLY in a confirmation
+  // context for wizard fields.
+  if (options.requireConfirmedConfidence && confidence !== 'confirmed') {
+    if (!correctionAllowed) return null
+  }
+
+  if (prior == null) {
+    ;(nextProfile as Record<string, unknown>)[field] = incoming
+    diff.set.push({ field: field as keyof BuildModeExtractionHTTP, value: incoming })
+    return null
+  }
+  if (prior === incoming) {
+    // Parent re-stated the same value (Codex r3 Q5). Codex r3 Q15b:
+    // clears any pending confirmation for this field because the
+    // parent has just chosen the prior side.
+    reaffirmedFields.add(field)
+    return null
+  }
+  if (correctionAllowed) {
+    // Parent explicitly corrected — write through. Gated by
+    // correctionAllowed so a confirmed+correction OUTSIDE confirmation
+    // context for a wizard field still falls through to the pending
+    // path (impl r2 #1).
+    ;(nextProfile as Record<string, unknown>)[field] = incoming
+    diff.set.push({ field: field as keyof BuildModeExtractionHTTP, value: incoming })
+    return null
+  }
+  // Implicit conflict — preserve prior, queue confirmation. We get here
+  // only after the confidence gate passed (above), so vague/inferred
+  // contradictions on the 4 wizard fields are silently dropped without
+  // a pending entry, which is the intended behavior.
+  diff.contradicted.push({ field: field as keyof BuildModeExtractionHTTP, prior, incoming })
+  return {
+    field,
+    prior,
+    incoming,
+    turn_at:  turnAt,
+  }
+}
+
 function advanceState(current: ProgressState, incoming: ProgressState): ProgressState {
   if (incoming === 'refused') {
     // Codex r3 P2 (Q6/Q7): refusal must not erase existing confirmed
@@ -361,37 +478,66 @@ export function mergeBuildModeTurn(opts: MergeBuildModeTurnOpts): MergeResult {
     diff.set.push({ field: 'child_year', value: resolvedYear })
   }
 
-  // ── goal_orientation (enum, contradiction-tracked) ────────────────
+  // ── Enum fields with contradiction-tracking ──────────────────────
   // Codex r3 Q15b: track when the parent confirms the prior value so
   // pending_confirmations for that field can be cleared deterministically.
-  let pendingForGoal: PendingConfirmation | null = null
+  //
+  // wizard-inheritance r1 (Codex design review Q2 + Q7): factored into
+  // a shared helper so the 4 new family-constant fields (boarding_pref,
+  // home_region, budget_range, curriculum_pref) follow the same
+  // contradiction-tracking dance as goal_orientation. The new fields are
+  // gated on confidence === 'confirmed' for both first-time writes AND
+  // pending creation, because they steer hard filters in the recommender
+  // (resolveBoardingPref, NONNEG no-boarding filter, region-aware fees);
+  // a noisy vague/inferred extraction would silently break recommendation
+  // safety. goal_orientation keeps the looser behavior (any confidence
+  // advances state) per the original Slice 8 Build 3 design.
   const reaffirmedFields = new Set<string>()
-  if (fields.goal_orientation != null) {
-    const prior    = opts.priorProfile.goal_orientation ?? null
-    const incoming = fields.goal_orientation
-    if (prior == null) {
-      nextProfile.goal_orientation = incoming
-      diff.set.push({ field: 'goal_orientation', value: incoming })
-    } else if (prior === incoming) {
-      // Parent re-stated the same value. Codex r3 Q5: this should
-      // still advance progress (re-confirmation strengthens evidence).
-      // Codex r3 Q15b: also clears any pending confirmation for this
-      // field, because the parent has just chosen the prior side.
-      reaffirmedFields.add('goal_orientation')
-    } else if (corrections.goal_orientation === true) {
-      // Parent explicitly corrected.
-      nextProfile.goal_orientation = incoming
-      diff.set.push({ field: 'goal_orientation', value: incoming })
-    } else {
-      // Implicit conflict — preserve prior, surface for confirmation.
-      diff.contradicted.push({ field: 'goal_orientation', prior, incoming })
-      pendingForGoal = {
-        field:    'goal_orientation',
-        prior,
-        incoming,
-        turn_at:  opts.turnAt,
-      }
-    }
+  const pendingConfirmations: PendingConfirmation[] = []
+  // impl r2 #2 — per-field authorization for correction bypass. Codex
+  // narrowed this further: using `currentFocus === 'confirm_contradiction'`
+  // as a SIGNAL was too coarse — if boarding has a pending but budget
+  // does not, a spurious `corrections.budget_range=true` from the LLM
+  // would still be authorized via the focus signal. The per-field
+  // priorPending set is the canonical check: only fields with an
+  // existing pending count as "in confirmation context".
+  const priorPendingFields = new Set(opts.priorProgress.pending_confirmations.map(pc => pc.field))
+  const inConfirmContextFor = (field: string) => priorPendingFields.has(field)
+  {
+    const p = mergeContradictionTrackedEnum(
+      'goal_orientation',
+      opts.priorProfile.goal_orientation,
+      fields.goal_orientation,
+      opts.payload.confidence?.goal_orientation ?? null,
+      corrections.goal_orientation === true,
+      nextProfile,
+      diff,
+      reaffirmedFields,
+      opts.turnAt,
+      {
+        requireConfirmedConfidence: false,
+        inConfirmationContext:      inConfirmContextFor('goal_orientation'),
+      },
+    )
+    if (p) pendingConfirmations.push(p)
+  }
+  for (const f of WIZARD_INHERITED_ENUM_FIELDS) {
+    const p = mergeContradictionTrackedEnum(
+      f,
+      opts.priorProfile[f],
+      fields[f],
+      opts.payload.confidence?.[f] ?? null,
+      corrections[f] === true,
+      nextProfile,
+      diff,
+      reaffirmedFields,
+      opts.turnAt,
+      {
+        requireConfirmedConfidence: true,
+        inConfirmationContext:      inConfirmContextFor(f),
+      },
+    )
+    if (p) pendingConfirmations.push(p)
   }
 
   // ── Progress merge ────────────────────────────────────────────────
@@ -399,7 +545,7 @@ export function mergeBuildModeTurn(opts: MergeBuildModeTurnOpts): MergeResult {
     prior:            opts.priorProgress,
     payload:          opts.payload,
     diff,
-    pending:          pendingForGoal,
+    pending:          pendingConfirmations,
     reaffirmedFields,
     currentFocus:     opts.currentFocus,
     turnAt:           opts.turnAt,
@@ -415,7 +561,15 @@ function mergeProgress(args: {
   prior:            BuildModeProgress
   payload:          BuildModeTurnPayload
   diff:             ProfileDiff
-  pending:          PendingConfirmation | null
+  /**
+   * wizard-inheritance r1: array of pending confirmations queued THIS
+   * turn. Was previously a single optional entry (only goal_orientation
+   * contradicted); now up to 5 fields can contradict in one turn
+   * (goal_orientation + the 4 family-constant fields). Codex design Q2:
+   * the prompt renders these as a single batched confirmation question
+   * rather than one per turn.
+   */
+  pending:          PendingConfirmation[]
   reaffirmedFields: Set<string>
   // rr-8-build3-sibling-gender-year (2026-05-21): 'sibling_basics' kept
   // in the union for type-consistency with mergeBuildModeTurn caller; the
@@ -484,20 +638,44 @@ function mergeProgress(args: {
   const { total, usable_total } = computeTotals(targets as Record<TargetKey, { state: ProgressState; weight: number }>)
 
   // Merge pending_confirmations: keep prior entries unless one of them
-  // is being resolved THIS turn. Three resolution signals:
-  //   1. corrections.<field> === true (parent explicitly corrected)
-  //   2. parent re-stated prior value (reaffirmedFields)
-  //   3. (handled by adding new pending below) implicit conflict
+  // is actually being resolved THIS turn.
+  //
+  // impl r1 finding 1: resolve a pending ONLY when the merge actually
+  // wrote the field or recognised a reaffirmation — not on raw
+  // `payload.corrections[field]=true` from the LLM. The schema allows the
+  // model to emit `corrections.boarding_pref=true` while also leaving
+  // `fields.boarding_pref=null`, in which case the helper writes nothing
+  // and the pending must STAY. The prior logic cleared the pending in
+  // that case, which made Nana fall silent on a "yes/no answered with
+  // nothing concrete" parent turn. diff.set captures every write (helper's
+  // first-time-write path AND correction path), reaffirmedFields captures
+  // the reaffirm path; together they're the canonical "actually resolved"
+  // signal.
   const resolvedFields = new Set<string>()
-  for (const [k, v] of Object.entries(payload.corrections)) {
-    if (v === true) resolvedFields.add(k)
+  for (const entry of diff.set) {
+    resolvedFields.add(String(entry.field))
   }
   reaffirmedFields.forEach(field => resolvedFields.add(field))
 
-  const pendingNext: PendingConfirmation[] = prior.pending_confirmations.filter(
-    pc => !resolvedFields.has(pc.field),
-  )
-  if (pending) pendingNext.push(pending)
+  // impl r1 finding 5/8 — dedupe pendings by field. With up to 5 enum
+  // fields contradiction-tracked, a parent who ignores a confirmation
+  // question multiple turns in a row could accrue duplicate pendings
+  // for the same field. Replace any same-field prior entry with this
+  // turn's new entry; if no new entry, preserve the prior one.
+  const newPendingByField = new Map<string, PendingConfirmation>()
+  for (const p of pending) newPendingByField.set(p.field, p)
+
+  const pendingNext: PendingConfirmation[] = []
+  for (const pc of prior.pending_confirmations) {
+    if (resolvedFields.has(pc.field)) continue        // resolved this turn
+    if (newPendingByField.has(pc.field)) {
+      // Replaced by a fresh entry below — skip the old one to dedupe.
+      continue
+    }
+    pendingNext.push(pc)
+  }
+  // Add this turn's NEW pendings (after dedupe above).
+  pendingNext.push(...Array.from(newPendingByField.values()))
 
   return {
     targets,

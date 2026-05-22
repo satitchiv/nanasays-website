@@ -73,15 +73,17 @@ test('schemas: HTTP extraction schema lists child_gender + child_year as optiona
   assert.match(schemasSrc, /BuildModeExtractionHTTPSchema[\s\S]*?child_year:\s*FIELD_DEFS\.child_year\.optional\(\)/)
 })
 
-test('schemas: ConfidenceMapSchema lists both new fields (strict + all keys present)', () => {
-  // Codex r3 P0 — strict mode requires every key, including the new ones.
-  assert.match(schemasSrc, /ConfidenceMapSchema[\s\S]*?child_gender:\s*ConfidenceFieldSchema/)
-  assert.match(schemasSrc, /ConfidenceMapSchema[\s\S]*?child_year:\s*ConfidenceFieldSchema/)
+test('schemas: ConfidenceMapSchema derives shape from FIELD_DEFS (mirrorFieldShape)', () => {
+  // wizard-inheritance r1 — CorrectionsSchema and ConfidenceMapSchema
+  // were refactored from hand-spelled objects to derive shape from
+  // FIELD_DEFS via mirrorFieldShape(). The pattern check below pins that
+  // refactor; without it, a future hand-edit could silently fall out of
+  // sync with FIELD_DEFS again (the bug Codex flagged in design review).
+  assert.match(schemasSrc, /const ConfidenceMapSchema = z\.object\(mirrorFieldShape\(ConfidenceFieldSchema\)\)\.strict\(\)/)
 })
 
-test('schemas: CorrectionsSchema lists both new fields (strict + all keys present)', () => {
-  assert.match(schemasSrc, /CorrectionsSchema[\s\S]*?child_gender:\s*z\.boolean\(\)/)
-  assert.match(schemasSrc, /CorrectionsSchema[\s\S]*?child_year:\s*z\.boolean\(\)/)
+test('schemas: CorrectionsSchema derives shape from FIELD_DEFS (mirrorFieldShape)', () => {
+  assert.match(schemasSrc, /const CorrectionsSchema = z\.object\(mirrorFieldShape\(z\.boolean\(\)\)\)\.strict\(\)/)
 })
 
 // ── 2. build-mode-merge.ts — scalar overwrite path ───────────────────
@@ -552,19 +554,32 @@ test('turn: brief uses childProfile gender/year ONLY (no parent_profiles fallbac
   // First children's child_profile already mirrors parent_profiles
   // (the wizard copies all 14 fields on first-child create), so the
   // null-only path covers them.
-  assert.match(turnSrc, /const childGenderRaw = \(childProfileRaw as Record<string, unknown>\)\.child_gender/)
-  assert.match(turnSrc, /const childYearRaw\s+= \(childProfileRaw as Record<string, unknown>\)\.child_year/)
-  assert.match(
-    turnSrc,
-    /child_gender:\s*\(typeof childGenderRaw === 'string' && childGenderRaw\)\s*\?\s*childGenderRaw\s*:\s*null/,
-  )
-  assert.match(
-    turnSrc,
-    /child_year:\s+\(typeof childYearRaw === 'string' && childYearRaw\)\s+\?\s*childYearRaw\s+:\s*null/,
-  )
-  // Regression guard: the fallback would re-introduce P1.1 verbatim.
+  //
+  // wizard-inheritance r1 — the brief construction was generalized to
+  // use pickChildOnly (no parent fallback) for child_gender/year, and
+  // pickInherited (child wins, parent fallback) for the 4 new family-
+  // constant wizard fields. The shape changed but the SAFETY property
+  // is identical: gender/year MUST NOT fall back to parent_profiles.
+  assert.match(turnSrc, /const pickChildOnly\s*=\s*\(child:\s*unknown\)/)
+  assert.match(turnSrc, /child_gender:\s*pickChildOnly\(childProfileRaw\.child_gender\)/)
+  assert.match(turnSrc, /child_year:\s+pickChildOnly\(childProfileRaw\.child_year\)/)
+  // Regression guard: the parent fallback would re-introduce P1.1 verbatim.
   assert.doesNotMatch(turnSrc, /child_gender:[^,\n]*parentRes\.data\?\.child_gender/)
   assert.doesNotMatch(turnSrc, /child_year:[^,\n]*parentRes\.data\?\.child_year/)
+  assert.doesNotMatch(turnSrc, /child_gender:\s*pickInherited\(/)
+  assert.doesNotMatch(turnSrc, /child_year:\s*pickInherited\(/)
+})
+
+test('turn: brief uses childProfile-first for 4 wizard family-constant fields (wizard-inheritance r1)', () => {
+  // Inverse safety property — the 4 family-constant fields MUST use
+  // pickInherited (child wins, parent fallback). The bug being closed:
+  // turn route used to read these from parent_profiles ONLY, never
+  // falling back to the child's corrected value.
+  assert.match(turnSrc, /const pickInherited\s*=\s*\(child:\s*unknown,\s*parent:\s*unknown\)/)
+  assert.match(turnSrc, /boarding_pref:\s*pickInherited\(childProfileRaw\.boarding_pref,\s*parentRow\.boarding_pref\)/)
+  assert.match(turnSrc, /home_region:\s*pickInherited\(childProfileRaw\.home_region,\s*parentRow\.home_region\)/)
+  assert.match(turnSrc, /budget_range:\s*pickInherited\(childProfileRaw\.budget_range,\s*parentRow\.budget_range\)/)
+  assert.match(turnSrc, /curriculum_pref:\s*pickInherited\(childProfileRaw\.curriculum_pref,\s*parentRow\.curriculum_pref\)/)
 })
 
 test('turn: post-merge pickFocus receives the union of priorProfile + nextProfile delta', () => {
@@ -590,14 +605,22 @@ test('turn: orchestrator follow-up appendix INCLUDES sibling_basics focus (Codex
   assert.doesNotMatch(turnSrc, /nextFocus !== 'sibling_basics'/)
 })
 
-test('turn: extractWritableProfile has legacy-data fallback for malformed basics (Codex r1 Q11)', () => {
+test('turn: extractWritableProfile has legacy-data fallback driven by parse-issue paths (wizard-inheritance r3)', () => {
   // Without this, a legacy/hand-edited child_gender='male' would empty
   // the entire priorProfile (strict zod parse is all-or-nothing) and
   // wreck the prompt context for Build Mode notes.
-  assert.match(turnSrc, /Codex r1 Q11.*?legacy-data hardening/)
+  //
+  // wizard-inheritance impl r3 (Codex): the fallback was switched from
+  // a hand-spelled `delete fallback.child_gender; delete fallback.child_year`
+  // to a loop over parsed.error.issues that drops every TOP-LEVEL key
+  // the strict parse flagged. This makes the fallback future-proof for
+  // any field added to FIELD_DEFS (the 4 wizard fields would have been
+  // missed by the rr-8 shape and a bad legacy boarding_pref enum would
+  // have dropped all notes).
+  assert.match(turnSrc, /legacy-data hardening/)
   assert.match(turnSrc, /const fallback: Record<string, unknown> = \{\s*\.\.\.filtered\s*\}/)
-  assert.match(turnSrc, /delete fallback\.child_gender/)
-  assert.match(turnSrc, /delete fallback\.child_year/)
+  assert.match(turnSrc, /for \(const issue of parsed\.error\.issues\)/)
+  assert.match(turnSrc, /delete fallback\[topKey\]/)
 })
 
 test('turn: extractWritableProfile logs schema-drift issuePaths (Codex r2 NIT.1)', () => {
