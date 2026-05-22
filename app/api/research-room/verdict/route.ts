@@ -110,12 +110,15 @@ export async function POST(req: NextRequest) {
   if (!isPaid) return NextResponse.json({ ok: false, code: 'payment_required' }, { status: 402 })
 
   const svc = supabaseService()
+  // Codex r1 NIT + r2 carry-forward (2026-05-22): active_lens_id is no longer
+  // used by the v3 verdict — cache identity dropped lens scope. Selecting it
+  // was dead weight.
   const { data: session, error: sessionErr } = await svc
     .from('research_sessions')
-    .select('id, user_id, child_id, active_lens_id')
+    .select('id, user_id, child_id')
     .eq('id', body.session_id)
     .eq('user_id', user.id)
-    .maybeSingle<{ id: string; user_id: string; child_id: string | null; active_lens_id: string | null }>()
+    .maybeSingle<{ id: string; user_id: string; child_id: string | null }>()
 
   if (sessionErr) {
     console.error('[verdict] session lookup failed', sessionErr)

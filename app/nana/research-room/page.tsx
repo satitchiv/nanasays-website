@@ -112,12 +112,14 @@ export default async function ResearchRoomPage({
   let initialBuildModeProgress: unknown = null
   let activeLensId: string | null = null
   let partnerBrief: import('@/components/nana/PartnerBriefTab').PartnerBrief | null = null
-  // researchVerdict is intentionally hydrated client-side on first Verdict tab
-  // open (POST /api/research-room/verdict). Codex r1 P1 #2: removing the SSR
-  // pre-fetch eliminates a hash-mismatch class of bug — page-load doesn't know
-  // about every v3 hash input (e.g. schoolFacts), so its precomputed lookup
-  // can shadow the route's true v3 row on first paint. Empty initial render
-  // is a tolerable shape since the tab has its own loading affordance.
+  // researchVerdict is intentionally null at SSR. Codex r1 P1 #2: removing the
+  // SSR pre-fetch eliminates a hash-mismatch class of bug — page-load doesn't
+  // know about every v3 hash input (e.g. schoolFacts), so its precomputed
+  // lookup could shadow the route's true v3 row on first paint. Codex r2 NIT
+  // clarification: the Verdict tab does NOT auto-hydrate on first open; the
+  // parent clicks the "Generate verdict" button to fire POST /api/research-room/
+  // verdict, which both regenerates and caches. Tolerable shape since the tab's
+  // explicit affordance gives the parent an obvious next step.
   const researchVerdict: ResearchVerdictRecord | null = null
   // Slice 6 close — saved lenses available to the lens picker dropdown.
   // weights are UUID-keyed (resolved by confirm_lens_from_proposal at

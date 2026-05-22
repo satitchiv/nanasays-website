@@ -70,7 +70,9 @@ type SchoolFactsForUi = {
   location?: {
     town?:           string | null
     region_label?:   string | null
-    inside_filter?:  boolean
+    // Codex r2 P2 #1: tri-state (boolean | null) — null when no region filter
+    // in play, so the renderer omits the pill instead of saying "Outside filter".
+    inside_filter?:  boolean | null
     maps_embed?:     string | null
     maps_external?:  string | null
     heathrow_miles?: number | null
@@ -209,10 +211,23 @@ function renderPathDetail(
   const meta       = facts?.meta ?? ''
   const isWinner   = path.path_status === 'winner'
 
-  const boardersPct = facts?.students?.boarders_pct ?? 0
-  const dayPct      = facts?.students?.day_pct ?? Math.max(0, 100 - boardersPct)
-  const intlPct     = facts?.students?.intl_pct ?? 0
-  const ukPct       = Math.max(0, 100 - intlPct)
+  // Codex r2 P2 #2: only synthesize a complement percentage when at least
+  // one side is known. Previously `boarders_pct ?? 0` + `day_pct ?? (100 -
+  // boarders)` produced 100% day when both were missing, fabricating a fact.
+  // Now: if BOTH are null, leave both null and hide the card. If ONE is
+  // known, derive the other as 100 - known. If both are known, use both.
+  const rawBoarders = facts?.students?.boarders_pct ?? null
+  const rawDay      = facts?.students?.day_pct ?? null
+  const knownBoarders = rawBoarders != null ? rawBoarders : (rawDay != null ? 100 - rawDay : null)
+  const knownDay      = rawDay != null      ? rawDay      : (rawBoarders != null ? 100 - rawBoarders : null)
+  const boardersPct   = knownBoarders ?? 0    // for bar width only — gated on `hasBoardingMix` below
+  const dayPct        = knownDay ?? 0
+  const hasBoardingMix = knownBoarders != null || knownDay != null
+
+  const rawIntl = facts?.students?.intl_pct ?? null
+  const intlPct = rawIntl ?? 0                // for bar width only — gated on `hasIntlMix` below
+  const ukPct   = Math.max(0, 100 - intlPct)
+  const hasIntlMix = rawIntl != null
 
   return (
     <article className={`rr-vb3-detail ${accentClass}`}>
@@ -281,7 +296,9 @@ function renderPathDetail(
           <div className="rr-vb3-map-caption">
             {facts.location.town && <strong>{facts.location.town}</strong>}
             {facts.location.region_label && <> · {facts.location.region_label}</>}
-            {facts.location.inside_filter !== undefined && (
+            {/* Codex r2 P2 #1: only render the pill when there IS a region filter.
+                inside_filter is null when home_region is absent / 'anywhere' / 'overseas'. */}
+            {facts.location.inside_filter !== null && facts.location.inside_filter !== undefined && (
               <span className={`rr-vb3-pill ${facts.location.inside_filter ? 'is-inside' : 'is-outside'}`}>
                 {facts.location.inside_filter ? 'Inside filter' : 'Outside filter'}
               </span>
@@ -355,20 +372,25 @@ function renderPathDetail(
         </section>
       )}
 
-      {/* Community shape — only if we have the data */}
-      {facts && (boardersPct > 0 || dayPct > 0 || intlPct > 0) && (
+      {/* Community shape — only render when at least one mix card has real data.
+          Codex r2 P2 #2: previously this section fabricated 100% day when both
+          boarder + day percentages were null. Now gated on hasBoardingMix /
+          hasIntlMix so a school with no community data hides the whole section. */}
+      {facts && (hasBoardingMix || hasIntlMix) && (
         <section className="rr-vb3-section">
           <div className="rr-vb3-section-head">
             <h3>Community shape</h3>
             <span className="rr-vb3-section-sub">Who&apos;s on site</span>
           </div>
           <div className="rr-vb3-mix-grid">
-            {(boardersPct > 0 || dayPct > 0) && (
+            {hasBoardingMix && (
               <div className="rr-vb3-mix-card">
                 <div className="rr-vb3-mix-label">Boarding / day mix</div>
-                <div className="rr-vb3-mix-value">{facts.students?.boarders_pct_label ?? '—'} boarders</div>
+                <div className="rr-vb3-mix-value">
+                  {knownBoarders != null ? `${Math.round(knownBoarders)}%` : '—'} boarders
+                </div>
                 <div className="rr-vb3-mix-detail">
-                  {facts.students?.day_pct_label ?? `${Math.round(dayPct)}%`} day
+                  {knownDay != null ? `${Math.round(knownDay)}%` : '—'} day
                   {facts.students?.total_label && <> · {facts.students.total_label} total pupils</>}
                 </div>
                 <div className="rr-vb3-mix-bar" aria-label="Boarding vs day split">
@@ -377,7 +399,7 @@ function renderPathDetail(
                 </div>
               </div>
             )}
-            {intlPct > 0 && (
+            {hasIntlMix && (
               <div className="rr-vb3-mix-card">
                 <div className="rr-vb3-mix-label">International students</div>
                 <div className="rr-vb3-mix-value">{facts.students?.intl_pct_label ?? '—'} international</div>

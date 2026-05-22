@@ -170,7 +170,11 @@ export type SchoolFactsForUi = {
   location: {
     town:           string | null       // "Bromsgrove, Worcestershire" (city + region) or just city
     region_label:   string | null       // "West Midlands · outside South West filter" — null if home_region='anywhere'
-    inside_filter:  boolean             // regionInBucket(home_region, school.region)
+    // Codex r2 P2 #1: tri-state. boolean when a real filter is in play
+    // (home_region is a concrete UK bucket); null when home_region is absent
+    // / 'anywhere' / 'overseas' so the UI can omit the pill entirely instead
+    // of always rendering "Outside filter" for parents with no filter.
+    inside_filter:  boolean | null
     maps_embed:     string | null       // /maps...output=embed when lat/lon present
     maps_external:  string | null
     heathrow_miles: number | null       // straight-line miles, not drive time

@@ -293,6 +293,12 @@
   background: var(--rr-white);
 }
 .rr-vb3-section.is-evidence {
+  /* Codex r2 NIT (2026-05-22): solid fallback for browsers without CSS L4
+     color-mix() support (pre-Safari 16.4 / Chrome 111 / Firefox 113). The
+     fallback uses the accent at full opacity over off-white — readable
+     even if the tinted background never resolves. */
+  background: var(--rr-off);
+  border: 2px solid var(--rr-border);
   background: color-mix(in srgb, var(--rr-detail-accent) 4%, var(--rr-white));
   border: 2px solid color-mix(in srgb, var(--rr-detail-accent) 26%, transparent);
 }
@@ -306,13 +312,19 @@
 }
 .rr-vb3-section.is-narrative {
   background: var(--rr-white);
+  /* Codex r2 NIT (2026-05-22): solid fallback for pre-color-mix browsers.
+     The transparent variant is the preferred styling when supported. */
+  border: 2.5px solid var(--rr-border);
   border: 2.5px solid color-mix(in srgb, var(--rr-detail-accent) 40%, transparent);
   box-shadow: 0 6px 22px var(--rr-shadow-lg);
   padding: 24px 28px;
 }
-.is-narrative .rr-vb3-section-icon { background: var(--rr-detail-accent); }
-.is-narrative .rr-vb3-section-head h3 { font-size: 22px; letter-spacing: -0.3px; }
-.is-narrative .rr-vb3-narrative { font-size: 16.5px; line-height: 1.75; }
+/* Codex r2 NIT (2026-05-22): scope .is-* modifiers to .rr-vb3-section to
+   prevent global selector leakage. The non-prefixed selectors below were
+   matching any descendant with these classes, anywhere on the page. */
+.rr-vb3-section.is-narrative .rr-vb3-section-icon { background: var(--rr-detail-accent); }
+.rr-vb3-section.is-narrative .rr-vb3-section-head h3 { font-size: 22px; letter-spacing: -0.3px; }
+.rr-vb3-section.is-narrative .rr-vb3-narrative { font-size: 16.5px; line-height: 1.75; }
 
 .rr-vb3-section-head {
   display: flex; align-items: baseline; gap: 10px;
@@ -325,8 +337,8 @@
   font-family: var(--rr-display); font-weight: 900;
   font-size: 14px;
 }
-.is-cost .rr-vb3-section-icon { background: var(--rr-amber); }
-.is-consider .rr-vb3-section-icon { background: var(--rr-teal-dk); }
+.rr-vb3-section.is-cost .rr-vb3-section-icon { background: var(--rr-amber); }
+.rr-vb3-section.is-consider .rr-vb3-section-icon { background: var(--rr-teal-dk); }
 .rr-vb3-section-head h3 {
   font-family: var(--rr-display);
   font-size: 19px; font-weight: 900;

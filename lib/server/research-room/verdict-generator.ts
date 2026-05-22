@@ -1283,9 +1283,9 @@ function townLabel(city: string | null | undefined, region: string | null | unde
   return parts.length ? parts.join(', ') : null
 }
 
-function regionLabelForUi(schoolRegion: string | null | undefined, homeRegion: string | null, insideFilter: boolean): string | null {
+function regionLabelForUi(schoolRegion: string | null | undefined, homeRegion: string | null, insideFilter: boolean | null): string | null {
   if (!schoolRegion) return null
-  if (!homeRegion || homeRegion === 'anywhere' || homeRegion === 'overseas') return schoolRegion
+  if (!homeRegion || homeRegion === 'anywhere' || homeRegion === 'overseas' || insideFilter === null) return schoolRegion
   const filterLabel = REGION_BUCKET_LABELS[homeRegion] ?? homeRegion
   return `${schoolRegion} · ${insideFilter ? `inside ${filterLabel} filter` : `outside ${filterLabel} filter`}`
 }
@@ -1303,9 +1303,15 @@ function projectSchoolFactsForUi(
   f:      SchoolFacts | undefined,
   rubric: Rubric,
 ): SchoolFactsForUi {
-  const insideFilter = f?.region && rubric.homeRegion
+  // Codex r2 P2 #1: only emit boolean when a real filter is in play. Parents
+  // with no region preference (or 'anywhere' / 'overseas') get null so the UI
+  // can omit the pill instead of always rendering "Outside filter".
+  const hasActiveFilter = !!rubric.homeRegion
+    && rubric.homeRegion !== 'anywhere'
+    && rubric.homeRegion !== 'overseas'
+  const insideFilter: boolean | null = hasActiveFilter && f?.region
     ? regionInBucket(rubric.homeRegion, f.region)
-    : false
+    : (hasActiveFilter ? false : null)
   return {
     slug,
     name: f?.name ?? name,
