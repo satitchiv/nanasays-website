@@ -12,8 +12,68 @@ import type {
   ComparisonRowWithProvenance,
 } from './verdict-generator-v3-types'
 
-import { PATH_FRAMING, framingForPath, statusNoteFor, type PathSelectionResult } from './verdict-generator-v3-paths'
+import { PATH_FRAMING, framingForPath, statusNoteFor, pathAModeForRubric, type PathSelectionResult } from './verdict-generator-v3-paths'
 import { schoolMatchesRegion } from './verdict-generator-v3-brief'   // R7-MUST-1: shared region matcher
+
+// UX iteration Phase 1.5 (2026-05-23): Path A narrative adaptation.
+//
+// All Path A prose flexes with `rubric.topPriority` via pathAModeForRubric().
+// Replaces hardcoded "sport-led Path A" copy that Codex r1 + r2 flagged at 8
+// sites (lines 205/290/297/299/312/331/344/399-401 of the pre-fix file). The
+// fix-mechanism is the same everywhere: read the mode once, branch copy on
+// mode.compositeKind or mode.anchor.
+
+// Phrase used INLINE when one path references another's framing — e.g. Path B
+// opener saying "Path A leads by leaning hard on X". Returns the short noun
+// phrase, not the full "If X is the priority" framing.
+function pathADescriptorForMode(mode: ReturnType<typeof pathAModeForRubric>): string {
+  switch (mode.compositeKind) {
+    case 'sport':    return 'sport'
+    case 'academic': return 'academic results'
+    case 'pastoral': return 'pastoral care'
+    case 'balanced':
+      // 'balanced' compositeKind covers arts / all-round / null. Choose the
+      // phrasing that makes "Path A leads by leaning hard on ___" read right
+      // — none of these say "lean hard on", so use a generic phrasing instead.
+      if (mode.anchor === 'arts')      return 'arts coverage'
+      if (mode.anchor === 'all-round') return 'all-round fit'
+      return 'overall fit'
+  }
+}
+
+// Path-A opener prose per mode. Real-winner case only (not fallback /
+// needs_research, which are handled separately further down).
+function pathAOpenerForMode(mode: ReturnType<typeof pathAModeForRubric>, schoolName: string): string {
+  switch (mode.compositeKind) {
+    case 'sport':
+      return `${schoolName} leads Path A because your brief named sport as the top priority and ${schoolName} has the strongest sport signal among the schools we can compare fairly. The other anchors in your brief (academic results, boarding preference) are honoured below; the trade-offs are named in the costs.`
+    case 'academic':
+      return `${schoolName} leads Path A because your brief named academic results as the top priority and ${schoolName} has the strongest academic signal among the schools we can compare fairly. The other anchors in your brief (sport, boarding preference) are honoured below; the trade-offs are named in the costs.`
+    case 'pastoral':
+      return `${schoolName} leads Path A because your brief named pastoral care as the top priority and ${schoolName} has the strongest pastoral signal among the schools we can compare fairly. The other anchors in your brief (academic results, boarding preference) are honoured below; the trade-offs are named in the costs.`
+    case 'balanced':
+      if (mode.anchor === 'arts') {
+        return `${schoolName} leads Path A as the best fit for an arts-led brief. There's no separate arts category in the comparison evidence today, so this is the highest-scoring school on the balanced rubric — read it as a sensible default while arts coverage catches up.`
+      }
+      if (mode.anchor === 'all-round') {
+        return `${schoolName} leads Path A because your brief asks for a genuine all-rounder and ${schoolName} scores well across academics, sport, pastoral, and community at the same time — closer to your stated balance than any single-anchor pick.`
+      }
+      // anchor === 'overall' / unknown — null priority case
+      return `${schoolName} leads Path A as the best overall fit: highest-scoring school across all dimensions of your brief, with no single anchor weighted up. Use this as a default reading until you set a top priority on the Child brief page.`
+  }
+}
+
+// Path-A anchor list for evidence walking. Was a static array entry in
+// PATH_ANCHOR_CATEGORIES; now a function that returns the priority-order list
+// for Path A based on the mode.
+function pathAEvidenceCategoriesForMode(mode: ReturnType<typeof pathAModeForRubric>): DecisionCategory[] {
+  switch (mode.compositeKind) {
+    case 'sport':    return ['sport', 'scholarship', 'community', 'boarding', 'academics']
+    case 'academic': return ['academics', 'sport', 'scholarship', 'community', 'boarding']
+    case 'pastoral': return ['pastoral', 'community', 'scholarship', 'boarding', 'academics']
+    case 'balanced': return ['academics', 'sport', 'boarding', 'pastoral', 'community']
+  }
+}
 
 type DecisionCategory =
   | 'sport' | 'boarding' | 'pastoral' | 'academics' | 'fees'
@@ -203,7 +263,14 @@ export function generateHonestCosts(
   }
 
   // Academic cost — for Path A or C (where academics aren't the dominant signal).
-  if ((pathKey === 'A' || pathKey === 'C') && schoolFacts?.a_level_a_star_a_pct != null && schoolFacts.a_level_a_star_a_pct < 50) {
+  // UX iteration Phase 1.5 (2026-05-23): when Path A IS academic-led, academics
+  // ARE the dominant signal — skip the cost.
+  const pathAMode = pathAModeForRubric(briefContext.rubric)
+  const academicsAreDominantOnA = pathKey === 'A' && pathAMode.compositeKind === 'academic'
+  if ((pathKey === 'A' || pathKey === 'C')
+      && !academicsAreDominantOnA
+      && schoolFacts?.a_level_a_star_a_pct != null
+      && schoolFacts.a_level_a_star_a_pct < 50) {
     costs.push({
       label:  'Academic base',
       detail: `A-level A*-A sits at ${schoolFacts.a_level_a_star_a_pct}% — below the strongest in your shortlist.`,
@@ -283,20 +350,27 @@ function buildReasoningParagraphs(input: BuildPathInput): string[] {
 // R5-MUST-7: status-aware opener. Fallback and needs_research paths must NOT
 // say "wins Path X" — they're not real wins. Use status-specific framings.
 function buildOpeningParagraph({ pathKey, winner, pathStatus, briefContext }: BuildPathInput): string {
+  // UX iteration Phase 1.5 (2026-05-23): read Path A mode once at the top so
+  // every Path A reference in this function flexes with rubric.topPriority.
+  const pathAMode = pathAModeForRubric(briefContext.rubric)
+  const pathADescriptor = pathADescriptorForMode(pathAMode)
+
   // Real winner — confident framing.
   if (pathStatus === 'winner') {
     switch (pathKey) {
       case 'A':
-        return `${winner.name} leads Path A because your brief named sport as the top priority and ${winner.name} has the strongest sport signal among the schools we can compare fairly. The other anchors in your brief (academic 5-year picture, boarding preference) are honoured below; the trade-offs are named in the costs.`
+        return pathAOpenerForMode(pathAMode, winner.name)
       case 'B': {
         // R9-MUST-2: Path B opener references Path C "leads by leaning hard on
         // location" — wrong when Path C is neutralised by anywhere/overseas.
+        // Phase 1.5: "leads by leaning hard on sport" — wrong when Path A's
+        // anchor isn't sport. Use pathADescriptor for the flexed phrasing.
         const homeRegion = briefContext.rubric.homeRegion
         const pathCNeutralised = !homeRegion || homeRegion === 'anywhere' || homeRegion === 'overseas'
         if (pathCNeutralised) {
-          return `${winner.name} leads Path B because it scores well across academics, sport, and boarding at the same time — closest to the balance the brief actually describes. Path A leads by leaning hard on sport; Path C is neutralised because no UK region was specified in your brief, so this is effectively a choice between Path A and Path B.`
+          return `${winner.name} leads Path B because it scores well across academics, sport, and boarding at the same time — closest to the balance the brief actually describes. Path A leads by leaning hard on ${pathADescriptor}; Path C is neutralised because no UK region was specified in your brief, so this is effectively a choice between Path A and Path B.`
         }
-        return `${winner.name} leads Path B because it scores well across academics, sport, and boarding at the same time — closest to the balance the brief actually describes. Where ${otherPathName('A')} leads by leaning hard on sport and ${otherPathName('C')} leads by leaning hard on location, this is the path that compromises least on what you wrote — except for one thing (named in the costs).`
+        return `${winner.name} leads Path B because it scores well across academics, sport, and boarding at the same time — closest to the balance the brief actually describes. Where ${otherPathName('A', briefContext.rubric)} leads by leaning hard on ${pathADescriptor} and ${otherPathName('C', briefContext.rubric)} leads by leaning hard on location, this is the path that compromises least on what you wrote — except for one thing (named in the costs).`
       }
       case 'C':
         return `${winner.name} leads Path C because location is the strongest signal on the comparison evidence — closest to your stated region filter. If location is a firm requirement rather than a soft preference, this is the path to consider first, with the costs honestly named below.`
@@ -308,8 +382,9 @@ function buildOpeningParagraph({ pathKey, winner, pathStatus, briefContext }: Bu
   // (prep school for senior years). NO "hard sport/location/balance criteria"
   // exists today — soft penalties are all that gate path C / sport / balance.
   // Copy now reflects the actual V1 reality.
+  // Phase 1.5: anchor for Path A flexes with mode.
   if (pathStatus === 'fallback') {
-    const anchor = PATH_FRAMING[pathKey].anchor
+    const anchor = pathKey === 'A' ? pathAMode.anchor : PATH_FRAMING[pathKey].anchor
     return `${winner.name} is shown as a FALLBACK for Path ${pathKey}. No school in your shortlist passes the brief's hard constraints (gender single-sex or year-stage match) for this reading; ${winner.name} is the closest broader fit. See "schools we couldn't compare yet" below — ${anchor}-matching candidates may be there and need more research.`
   }
 
@@ -327,13 +402,20 @@ function buildOpeningParagraph({ pathKey, winner, pathStatus, briefContext }: Bu
   return `Path ${pathKey} doesn't have enough positive evidence in the comparison table to declare a winner yet. ${winner.name} is the highest-ranked candidate, but the path's composite signal is too thin to call. Add more comparison rows on the schools that match this anchor and re-run the verdict.`
 }
 
-function otherPathName(p: PathKey): string {
-  return PATH_FRAMING[p].framing.toLowerCase()
+// UX iteration Phase 1.5 (2026-05-23): now takes rubric so Path A's framing
+// flexes with topPriority instead of always reading the static "if sport is
+// the priority" entry from PATH_FRAMING.
+function otherPathName(p: PathKey, rubric: BuildPathInput['briefContext']['rubric']): string {
+  return framingForPath(p, rubric).framing.toLowerCase()
 }
 
 function buildEvidenceParagraph({ winner, winnerFacts, briefContext, allEligibleSchools, pathKey }: BuildPathInput): string {
   const facts = winnerFacts
   const parts: string[] = []
+  // UX iteration Phase 1.5 (2026-05-23): read Path A mode so the "top priority"
+  // claim flexes with rubric.topPriority. Previously this hardcoded "the
+  // brief's top priority" sport claim regardless of the actual priority.
+  const pathAMode = pathAModeForRubric(briefContext.rubric)
 
   if (pathKey === 'A' || pathKey === 'B') {
     if (facts?.a_level_a_star_a_pct != null) {
@@ -341,9 +423,25 @@ function buildEvidenceParagraph({ winner, winnerFacts, briefContext, allEligible
       parts.push(`Academically, **${facts.a_level_a_star_a_pct}% A-level A\\*-A** — ${formatCategoryComparison(winner, 'academics', allEligibleSchools)}.`)
     }
   }
-  if (pathKey === 'A' || pathKey === 'B') {
+  // Sport claim — only meaningful when Path A or B leans on sport. Path A
+  // only counts if its mode is sport; Path B is balanced so sport is always
+  // a relevant signal.
+  const sportSlotIsLive = pathKey === 'B' || (pathKey === 'A' && pathAMode.compositeKind === 'sport')
+  if (sportSlotIsLive) {
     if (compareCategoryRank(winner, 'sport', allEligibleSchools) === 'strongest') {
       parts.push(`On sport, ${winner.name} reads as the strongest in the shortlist — a genuine fit for the brief's top priority.`)
+    }
+  }
+  // Phase 1.5 — analogous claims for academic/pastoral-led Path A so the
+  // evidence paragraph reinforces the actual top priority, not always sport.
+  if (pathKey === 'A' && pathAMode.compositeKind === 'academic') {
+    if (compareCategoryRank(winner, 'academics', allEligibleSchools) === 'strongest') {
+      parts.push(`On academics, ${winner.name} reads as the strongest in the shortlist — a genuine fit for the brief's top priority.`)
+    }
+  }
+  if (pathKey === 'A' && pathAMode.compositeKind === 'pastoral') {
+    if (compareCategoryRank(winner, 'pastoral', allEligibleSchools) === 'strongest') {
+      parts.push(`On pastoral care, ${winner.name} reads as the strongest in the shortlist — a genuine fit for the brief's top priority.`)
     }
   }
   if (pathKey === 'C' && facts?.region) {
@@ -396,9 +494,12 @@ function buildBalanceParagraph({ winner, winnerFacts, briefContext, pathKey }: B
 // strongest matching row per anchor via findStrongestEvidence(). This is
 // the function that was implemented in v2 but never called.
 
-const PATH_ANCHOR_CATEGORIES: Record<PathKey, DecisionCategory[]> = {
-  // Sport-led path: sport first, then scholarship/community (mirrors sportComposite weights)
-  A: ['sport', 'scholarship', 'community', 'boarding', 'academics'],
+// Path B and Path C anchor lists are static; Path A's list flexes with mode
+// via pathAEvidenceCategoriesForMode() defined at the top of this file.
+// UX iteration Phase 1.5 (2026-05-23): Path A was previously hardcoded to
+// the sport-led category order — meant Academic-led Path A still cited sport
+// evidence first.
+const PATH_ANCHOR_CATEGORIES_BC: Record<'B' | 'C', DecisionCategory[]> = {
   // Balanced path: spread across all major categories, brief-rubric-led
   B: ['academics', 'sport', 'boarding', 'pastoral', 'fees'],
   // Location-led path: location/boarding first, then pastoral/academics
@@ -406,14 +507,19 @@ const PATH_ANCHOR_CATEGORIES: Record<PathKey, DecisionCategory[]> = {
 }
 
 function buildEvidenceList(input: BuildPathInput): PathEvidenceItem[] {
-  const { winner, rowsWithProvenance, schoolIdx, pathKey } = input
+  const { winner, rowsWithProvenance, schoolIdx, pathKey, briefContext } = input
   const out: PathEvidenceItem[] = []
   const usedRowLabels = new Set<string>()
+
+  // Pick the right anchor category list: Path A flexes with mode, B/C are static.
+  const categories: DecisionCategory[] = pathKey === 'A'
+    ? pathAEvidenceCategoriesForMode(pathAModeForRubric(briefContext.rubric))
+    : PATH_ANCHOR_CATEGORIES_BC[pathKey]
 
   // Walk path-relevant categories first. findStrongestEvidence picks the
   // highest-scoring (URL-bearing, sub-text-rich, long-primary) cell for this
   // school in that category.
-  for (const category of PATH_ANCHOR_CATEGORIES[pathKey]) {
+  for (const category of categories) {
     if (out.length >= 5) break
     const hit = findStrongestEvidence(winner, category, rowsWithProvenance, schoolIdx)
     if (!hit) continue
