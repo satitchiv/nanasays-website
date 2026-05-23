@@ -105,43 +105,100 @@ export function sportComposite(
        + 0.25 * norm(s, 'community', rubric)
 }
 
-// UX iteration Phase 1 (2026-05-23): Path A composite is adaptive to the
-// parent's stated top_priority. Previously Path A was hardcoded to
-// sportComposite, which surfaced "If sport is the priority — School X" as a
-// hypothetical framing even for parents who never stated sport as a priority.
-// Now Path A flexes:
-//   - topPriority='sport' → sportComposite (unchanged from before)
-//   - topPriority='academic' / 'academics' → academic-weighted composite
-//   - topPriority='pastoral' → pastoral-weighted composite
-//   - topPriority=null/empty/unknown value → balancedComposite (best overall fit)
-// The framing string updates in lockstep via pathAFraming() below.
+// UX iteration Phase 1 (2026-05-23) + Codex r1 centralization fix.
+//
+// Path A is adaptive to the parent's stated `top_priority`. Previously Path A
+// was hardcoded to sportComposite + "If sport is the priority" — surfacing a
+// sport-led winner even for parents who never stated sport as a priority.
+//
+// Codex r1 P1 flagged that math and framing diverged for canonical values
+// 'arts' and 'all-round' (onboarding-fields.ts:122-123): pathAComposite fell
+// through to balancedComposite for those, but framingForPath would render
+// them as "If arts is the priority" — math-label mismatch. Fix: ONE central
+// `pathAModeForRubric()` helper that returns the matched (composite, framing,
+// status anchor) tuple. Every site downstream (composite, framing,
+// statusNoteFor) reads from this single source of truth.
+//
+// Canonical top_priority values from onboarding-fields.ts:
+//   'sport'     → sport composite + sport framing
+//   'academic'  → academic composite + academic framing
+//   'pastoral'  → pastoral composite + pastoral framing
+//   'arts'      → balanced math (no arts category in scorer) + arts framing
+//   'all-round' → balanced math + all-round framing
+//   null/other  → balanced math + "Best overall fit" framing
 //
 // Phase 2 (deferred): LLM-classified top-3 priorities → all 3 paths adaptive
-// (A=#1, B=#2, C=#3) instead of just Path A.
+// (A=#1, B=#2, C=#3) instead of just Path A. Also: narrative-layer prose
+// (verdict-generator-v3-narrative.ts:205/290/297/344/399) still has hardcoded
+// "sport is the priority" copy that needs to flex with this mode — filed.
+
+type PathAMode = {
+  compositeKind: 'sport' | 'academic' | 'pastoral' | 'balanced'
+  framing:       string
+  framingLong:   string
+  anchor:        string
+}
+
+export function pathAModeForRubric(rubric: BriefContext['rubric']): PathAMode {
+  const tp = rubric.topPriority?.toLowerCase().trim()
+  switch (tp) {
+    case 'sport':
+      return { compositeKind: 'sport',     framing: 'If sport is the priority',           framingLong: '…the brief says sport is top priority',                anchor: 'sport' }
+    case 'academic':
+    case 'academics':
+      return { compositeKind: 'academic',  framing: 'If academic results are the priority', framingLong: '…the brief says academic results are top priority', anchor: 'academic' }
+    case 'pastoral':
+      return { compositeKind: 'pastoral',  framing: 'If pastoral care is the priority',  framingLong: '…the brief says pastoral care is top priority',       anchor: 'pastoral' }
+    case 'arts':
+      // No arts category exists in the scorer (no separate arts/music/drama
+      // category in DecisionCategory). Honest framing: surface the best
+      // balanced school + a framingLong note about coverage. Don't pretend
+      // we're optimizing for arts when we can't.
+      return { compositeKind: 'balanced',  framing: 'Best fit for an arts-led brief',    framingLong: '…arts coverage in the comparison is limited; balanced math used', anchor: 'arts' }
+    case 'all-round':
+      return { compositeKind: 'balanced',  framing: 'Best all-round fit',                 framingLong: '…the brief asks for a genuine all-rounder',            anchor: 'all-round' }
+    default:
+      // null / empty / any value not in the canonical set
+      return { compositeKind: 'balanced',  framing: 'Best overall fit',                   framingLong: '…highest-scoring school across all dimensions of your brief', anchor: 'overall' }
+  }
+}
+
 export function pathAComposite(
   s: ScoredSchool, rubric: BriefContext['rubric'],
 ): number {
-  const tp = rubric.topPriority?.toLowerCase().trim()
-  if (!tp) {
-    // No stated priority → "Best overall fit" semantics. balancedComposite
-    // returns score / sumOfCaps, the same ranking the scorer's top would use.
-    return balancedComposite(s, rubric)
+  const mode = pathAModeForRubric(rubric)
+  switch (mode.compositeKind) {
+    case 'sport':
+      return sportComposite(s, rubric)
+    case 'academic':
+      return 0.55 * norm(s, 'academics', rubric)
+           + 0.20 * norm(s, 'scholarship', rubric)
+           + 0.25 * norm(s, 'community', rubric)
+    case 'pastoral':
+      return 0.55 * norm(s, 'pastoral', rubric)
+           + 0.25 * norm(s, 'community', rubric)
+           + 0.20 * norm(s, 'scholarship', rubric)
+    case 'balanced':
+      return balancedComposite(s, rubric)
   }
-  if (tp === 'sport') {
-    return sportComposite(s, rubric)
-  }
-  if (tp === 'academic' || tp === 'academics') {
-    return 0.55 * norm(s, 'academics', rubric)
-         + 0.20 * norm(s, 'scholarship', rubric)
-         + 0.25 * norm(s, 'community', rubric)
-  }
-  if (tp === 'pastoral') {
-    return 0.55 * norm(s, 'pastoral', rubric)
-         + 0.25 * norm(s, 'community', rubric)
-         + 0.20 * norm(s, 'scholarship', rubric)
-  }
-  // Unknown topPriority value → balanced fallback
-  return balancedComposite(s, rubric)
+}
+
+// Anchor → friendly noun phrase used in status notes ("No eligible {noun} ...").
+// Codex r1 P2: "overall-led winner" reads awkwardly when topPriority is null.
+// This map keeps copy natural for each anchor flavour.
+const ANCHOR_NOUN: Record<string, string> = {
+  sport:       'sport-led winner',
+  academic:    'academic-led winner',
+  pastoral:    'pastoral-led winner',
+  arts:        'arts-led winner',
+  'all-round': 'all-round winner',
+  overall:     'best-fit winner',
+  location:    'location-led winner',
+  balance:     'balanced winner',
+}
+
+function anchorNoun(anchor: string): string {
+  return ANCHOR_NOUN[anchor] ?? `${anchor}-led winner`
 }
 
 export function balancedComposite(
@@ -376,28 +433,19 @@ export const PATH_C_NEUTRALISED_FRAMING = {
 // UX iteration Phase 1 (2026-05-23): signature widened from (pathKey, homeRegion)
 // to (pathKey, rubric) so Path A's framing can adapt to the parent's
 // topPriority. Path C's homeRegion-neutralisation behaviour preserved unchanged;
-// Path B unchanged. Backward-compat shim: callers passing JUST a homeRegion
-// string (old signature) won't compile, surfacing the migration explicitly.
+// Path B unchanged.
+//
+// Codex r1 centralization: Path A's (framing, framingLong, anchor) now reads
+// from pathAModeForRubric() — single source of truth shared with pathAComposite
+// + statusNoteFor. This closes the math-vs-framing divergence for canonical
+// values 'arts' and 'all-round' that the original Phase 1 commit had.
 export function framingForPath(
   pathKey: PathKey,
   rubric: BriefContext['rubric'],
 ): { framing: string; framingLong: string; anchor: string } {
-  // Path A adapts to rubric.topPriority. Best-overall-fit fallback when null.
   if (pathKey === 'A') {
-    const tp = rubric.topPriority?.toLowerCase().trim()
-    if (!tp) {
-      return {
-        framing:     'Best overall fit',
-        framingLong: '…highest-scoring school across all dimensions of your brief',
-        anchor:      'overall',
-      }
-    }
-    const labelLower = tp.replace(/-/g, ' ')
-    return {
-      framing:     `If ${labelLower} is the priority`,
-      framingLong: `…the brief says ${labelLower} is top priority`,
-      anchor:      tp,
-    }
+    const m = pathAModeForRubric(rubric)
+    return { framing: m.framing, framingLong: m.framingLong, anchor: m.anchor }
   }
 
   const base = PATH_FRAMING[pathKey]
@@ -429,12 +477,15 @@ export function statusNoteFor(
 
   // Anchor comes from framingForPath when we have rubric (dynamic Path A), else
   // falls back to PATH_FRAMING's static anchor (legacy callers).
+  // Codex r1 P2: route through anchorNoun() so "overall-led winner" becomes
+  // "best-fit winner" (and other awkward combinations get natural phrasing).
   const anchor = rubric
     ? framingForPath(pathKey, rubric).anchor
     : PATH_FRAMING[pathKey].anchor
+  const noun = anchorNoun(anchor)
 
   if (pathStatus === 'fallback') {
-    return `No eligible ${anchor}-led winner passes the brief's hard constraints (gender single-sex or year-stage match). The closest broader fit is shown as a fallback; below-threshold schools that match this anchor are listed under "couldn't compare yet."`
+    return `No eligible ${noun} passes the brief's hard constraints (gender single-sex or year-stage match). The closest broader fit is shown as a fallback; below-threshold schools that match this anchor are listed under "couldn't compare yet."`
   }
 
   // R9-MUST-2: needs_research with Path C + no UK region target = neutralised,
@@ -447,5 +498,5 @@ export function statusNoteFor(
     return `Path C is neutralised because your brief didn't specify a UK region (you chose "${homeRegion === 'overseas' ? 'overseas' : 'anywhere in the UK'}"). There's no region target to compare against — Path A and Path B remain the meaningful readings.`
   }
 
-  return `Comparison evidence is too thin to declare a clear ${anchor}-led winner here. The top candidate is shown but verdict confidence is low — fill in more comparison rows and re-run.`
+  return `Comparison evidence is too thin to declare a clear ${noun} here. The top candidate is shown but verdict confidence is low — fill in more comparison rows and re-run.`
 }

@@ -760,31 +760,17 @@ function decisionFactors(rubric: Rubric): string[] {
   return out.slice(0, 7)
 }
 
-// UX iteration Phase 1 (2026-05-23): goals_quote for the expanded brief callout.
-//
-// Reads childProfile.goals_notes (the parent's free-text "in their own words"
-// field on the Child brief page), trims whitespace, and caps at GOALS_QUOTE_MAX
-// chars so the verdict JSON payload stays bounded. Null when the parent left
-// the field empty or it's not a string.
-//
-// Sanitization: we ONLY trim + length-cap. No HTML stripping needed because the
-// renderer puts this in a <blockquote> via React (text is escaped automatically;
-// no dangerouslySetInnerHTML).
-const GOALS_QUOTE_MAX = 600
-
+// UX iteration Phase 1 (2026-05-23) — Codex r1 fix: reuse the existing
+// `quoteBriefGoal` sanitizer from verdict-generator-v3-brief.ts. It already
+// strips control chars + zero-width whitespace, redacts emails + phone-like
+// sequences, collapses whitespace, and truncates at 320 chars with
+// sentence-boundary preference. Avoids drift between two sanitization paths
+// for the same `goals_notes` source.
 function extractGoalsQuote(childProfile: Record<string, unknown> | null | undefined): string | null {
   if (!childProfile) return null
   const raw = childProfile.goals_notes
   if (typeof raw !== 'string') return null
-  const trimmed = raw.trim()
-  if (!trimmed) return null
-  if (trimmed.length <= GOALS_QUOTE_MAX) return trimmed
-  // Truncate at the nearest whitespace boundary before GOALS_QUOTE_MAX so we
-  // don't cut mid-word. Append an ellipsis to signal truncation.
-  const cut = trimmed.slice(0, GOALS_QUOTE_MAX)
-  const lastBreak = cut.lastIndexOf(' ')
-  const at = lastBreak > GOALS_QUOTE_MAX * 0.7 ? lastBreak : GOALS_QUOTE_MAX
-  return `${trimmed.slice(0, at).trimEnd()}…`
+  return quoteBriefGoal(raw)
 }
 
 // P1 #4: brief_chips for the verdict-tab chip strip. Same input as decisionFactors
@@ -1032,6 +1018,7 @@ function buildMarkdown(verdict: ResearchVerdict): string {
 import {
   buildBriefContext,
   detectTensions,
+  quoteBriefGoal,
 }                              from './verdict-generator-v3-brief'
 import {
   selectPathWinners,
