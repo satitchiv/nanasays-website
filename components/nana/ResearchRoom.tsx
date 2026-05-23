@@ -801,7 +801,15 @@ export default function ResearchRoom({
                       onShortlistRefreshed={handleShortlistRefreshed}
                     />
                   ) : t === 'verdict' ? (
+                    // Codex r5 P1 (2026-05-23): key on sessionId forces a full
+                    // remount when the active child/session changes. Without
+                    // it, VerdictTab's autoHydrateAttemptedRef would stay set
+                    // across session swaps — leaving the previous child's
+                    // verdict visible under the new child name and skipping
+                    // auto-hydration for the new session. Remount-on-key
+                    // guarantees fresh state for each (session, child) pair.
                     <VerdictTab
+                      key={initialSession?.id ?? 'no-session'}
                       verdict={researchVerdict}
                       sessionId={initialSession?.id ?? null}
                       childName={activeChild?.name ?? null}
