@@ -49,7 +49,13 @@ export const MAX_CONTRIBUTING_ROWS_PER_CLUSTER = 24
 // ── Brief context (replaces a bare Rubric for narrative/tension passes) ─
 
 export type BriefAnchor = {
-  kind:    'sport' | 'academic' | 'boarding' | 'location' | 'budget' | 'curriculum'
+  // 'pastoral' added 2026-05-24 (Codex Phase 1.5 r1 carry-forward). Previously
+  // when rubric.topPriority='pastoral' the extractAnchors helper mapped it to
+  // kind='boarding' as a workaround — losing the semantic distinction between
+  // "parent wants boarding" and "parent wants pastoral support specifically".
+  // The pastoral anchor preserves the parent's actual intent for downstream
+  // narrative/scoring logic.
+  kind:    'sport' | 'academic' | 'boarding' | 'location' | 'budget' | 'curriculum' | 'pastoral'
   source:  string                  // brief field name this anchor came from
   weight:  number                  // 0..1 — derived from the rubric
   quote?:  string                  // parent's exact phrase if applicable (e.g. goals_notes excerpt)

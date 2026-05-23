@@ -135,6 +135,11 @@ function crossRefBrief(anchor: BriefAnchor, schoolName: string, evidenceValue: s
       return `You set a budget. ${schoolName} ${evidenceValue}.`
     case 'curriculum':
       return `You said curriculum is ${formatRegion(anchor.source)}. ${schoolName} ${evidenceValue}.`
+    case 'pastoral':
+      // Phase 2.5 (Codex Phase 1.5 r1 carry-forward, 2026-05-24): pastoral
+      // added to BriefAnchor.kind union. Templated similarly to other
+      // top-priority cases so the cross-ref sentence reads naturally.
+      return `You said pastoral support is the top priority. ${schoolName} ${evidenceValue}.`
   }
 }
 
