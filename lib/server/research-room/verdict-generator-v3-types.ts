@@ -114,6 +114,14 @@ export type PathOverlay = {
   considerations: string[]
   // status copy for non-winner statuses
   status_note?:   string                 // e.g. "No proven south-west winner yet"
+  // UX iteration Phase 2 (2026-05-23): LLM-generated 3-5 paragraph advisor
+  // round-up. Populated by enrichVerdictWithAdvisorRoundups() in the verdict
+  // route between draft + DB upsert. Optional because (a) LLM may fail
+  // (fail-open) and (b) cached verdicts predating this slice don't have it.
+  // VerdictTab renders advisor_roundup ?? reasoning so the panel always
+  // shows advisor-voice prose. No version-tracking field — when prompts
+  // change meaningfully, users can hit Regenerate to force a fresh build.
+  advisor_roundup?: string[]
 }
 
 export type PathEvidenceItem = {

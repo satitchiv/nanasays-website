@@ -7,6 +7,7 @@ import { supabaseService } from '@/lib/supabase-admin'
 import { loadVerdictEvidenceData, type LensKind } from '@/lib/research-comparison'
 import { loadVerdictSchoolFacts } from '@/lib/server/research-room/load-verdict-school-facts'
 import { buildResearchVerdictDraft, type ResearchVerdictRecord } from '@/lib/server/research-room/verdict-generator'
+import { enrichVerdictWithAdvisorRoundups } from '@/lib/server/research-room/verdict-generator-v3-advisor'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -183,6 +184,27 @@ export async function POST(req: NextRequest) {
     const cached = await loadMatchingCachedVerdict(svc, session.id, child.id, draft.inputHash)
     if (cached && !body.force) {
       return NextResponse.json({ ok: true, status: 'cached', verdict: cached }, { status: 200 })
+    }
+
+    // UX iteration Phase 2 (2026-05-24): enrich the fresh draft with LLM
+    // advisor roundups before persistence. Fail-open — if OpenAI is
+    // unavailable, advisor_roundup stays undefined and the UI falls back to
+    // deterministic reasoning[] (no regression vs today). Parent can hit
+    // Regenerate (force: true) to retry the LLM call. req.signal so client
+    // disconnects cancel in-flight OpenAI calls rather than running to
+    // 12s timeout per Codex r5 P3 #2.
+    if (draft.verdict.paths) {
+      try {
+        await enrichVerdictWithAdvisorRoundups({
+          paths:             draft.verdict.paths,
+          schoolFactsBySlug: schoolFacts,
+          briefContext:      draft.briefContext,
+          signal:            req.signal,
+        })
+      } catch (err) {
+        console.warn('[verdict] advisor enrichment failed (using fallback prose):',
+          err instanceof Error ? err.message : String(err))
+      }
     }
 
     // R4-MUST-1: atomic upsert keyed on (session_id, child_id, input_hash) so

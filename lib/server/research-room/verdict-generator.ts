@@ -1037,6 +1037,7 @@ import type {
   SchoolFacts,
   SchoolFactsForUi,
   BriefChip,
+  BriefContext,
 }                              from './verdict-generator-v3-types'
 import { regionInBucket }      from '@/lib/uk-regions'
 
@@ -1052,6 +1053,10 @@ type V3Overlay = {
   belowThresholdSlugs:      Set<string>
   schoolFactsProjection:    unknown
   schoolFactsForUi:         Record<string, SchoolFactsForUi>
+  // UX iteration Phase 2 (2026-05-24): surfaces the briefContext built inside
+  // buildV3Overlay() so the outer buildResearchVerdictDraft can return it to
+  // the route, which uses it for the async advisor-roundup LLM call.
+  briefContext:             BriefContext
 }
 
 function coveragePctFromScored(s: ScoredSchool): number {
@@ -1240,6 +1245,7 @@ function buildV3Overlay(
     belowThresholdSlugs,
     schoolFactsProjection,
     schoolFactsForUi,
+    briefContext,
   }
 }
 
@@ -1460,7 +1466,7 @@ function stableHashValue(value: unknown): unknown {
   return out
 }
 
-export function buildResearchVerdictDraft(args: BuildArgs): { inputHash: string; verdict: ResearchVerdict; bodyMarkdown: string } {
+export function buildResearchVerdictDraft(args: BuildArgs): { inputHash: string; verdict: ResearchVerdict; bodyMarkdown: string; briefContext: BriefContext } {
   const rubric = buildRubric(args.childProfile)
   const scored = scoreSchools(args.comparisonData, rubric)
   const top = scored[0]
@@ -1527,7 +1533,7 @@ export function buildResearchVerdictDraft(args: BuildArgs): { inputHash: string;
   }
   const inputHash = crypto.createHash('sha256').update(JSON.stringify(stableHashValue(hashPayload))).digest('hex')
   const bodyMarkdown = buildMarkdown(verdict)
-  return { inputHash, verdict, bodyMarkdown }
+  return { inputHash, verdict, bodyMarkdown, briefContext: v3Overlay.briefContext }
 }
 
 // R4-MUST-2 + R5-MUST-2: drop lens filtering from BOTH the exact-hash read

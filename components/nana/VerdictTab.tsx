@@ -38,6 +38,11 @@ type PathOverlay = {
   costs?:          PathCostItem[]
   considerations?: string[]
   status_note?:    string
+  // UX iteration Phase 2 (2026-05-24): LLM-generated round-up paragraphs.
+  // Mirror of the server type's optional field. Rendered by the panel
+  // below, falls back to `reasoning` when absent (LLM failure or pre-
+  // Phase-2 cached verdicts).
+  advisor_roundup?: string[]
 }
 
 type CouldntCompareSchool = {
@@ -313,19 +318,28 @@ function renderPathDetail(
         </div>
       )}
 
-      {/* Narrative — promoted panel */}
-      {(path.reasoning?.length ?? 0) > 0 && (
-        <section className="rr-vb3-section is-narrative">
-          <div className="rr-vb3-section-head">
-            <span className="rr-vb3-section-icon">★</span>
-            <h3>Why this fits {childName ? `${childName}'s` : `your child's`} brief</h3>
-            <span className="rr-vb3-section-sub">advisor&apos;s take</span>
-          </div>
-          <div className="rr-vb3-narrative">
-            {path.reasoning!.map((p, i) => <p key={i}>{renderMd(p)}</p>)}
-          </div>
-        </section>
-      )}
+      {/* Advisor's full take — LLM-generated round-up (UX iteration Phase 2,
+          2026-05-24). Falls back to deterministic reasoning[] when LLM call
+          failed or hadn't run yet (cached verdicts predating this slice). */}
+      {(() => {
+        const paragraphs = path.advisor_roundup ?? path.reasoning ?? []
+        if (paragraphs.length === 0) return null
+        const isLlmRoundup = (path.advisor_roundup?.length ?? 0) > 0
+        return (
+          <section className="rr-vb3-section is-narrative">
+            <div className="rr-vb3-section-head">
+              <span className="rr-vb3-section-icon">★</span>
+              <h3>{isLlmRoundup
+                ? `Advisor's full take on ${childName ? `${childName}'s` : `your child's`} fit`
+                : `Why this fits ${childName ? `${childName}'s` : `your child's`} brief`}</h3>
+              <span className="rr-vb3-section-sub">{isLlmRoundup ? 'long-form' : 'advisor’s take'}</span>
+            </div>
+            <div className="rr-vb3-narrative">
+              {paragraphs.map((p, i) => <p key={i}>{renderMd(p)}</p>)}
+            </div>
+          </section>
+        )
+      })()}
 
       {/* Evidence */}
       {(path.evidence?.length ?? 0) > 0 && (
