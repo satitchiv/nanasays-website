@@ -200,10 +200,20 @@ const SPORT_TOTAL_CAP = 3.0
 // not filter day-only schools and would not use the boarding fee column
 // for budget checks — a positive-prose-boarding asymmetry Codex r2 caught.
 // No-erase rule preserved: when wizard is set, prose is ignored.
-function resolveBoardingPref(
+// 2026-05-24 Yoko slice — exported for unit testing. firedNonneg param added
+// so explicit nonneg directives ("day school only", "boarding required")
+// override stale inherited wizard values. Closes Yoko-pattern 0-candidates
+// bug where contradiction between inherited boarding_pref='full' and nonneg
+// "day school only" caused both filter directions to apply.
+export function resolveBoardingPref(
   parent: BriefProfile | null,
   intent: BuildModeIntent | null | undefined,
+  firedNonneg: NonnegFilter[],
 ): 'full' | 'weekly' | 'flexi' | 'day' | null {
+  // Explicit nonneg directives win over wizard + prose.
+  if (firedNonneg.some(f => f.name === 'no-boarding'))       return 'day'
+  if (firedNonneg.some(f => f.name === 'boarding-required')) return 'full'
+
   const wizard = parent?.boarding_pref
   if (wizard === 'full' || wizard === 'weekly' || wizard === 'flexi' || wizard === 'day') {
     return wizard
@@ -211,6 +221,39 @@ function resolveBoardingPref(
   const prose = intent?.boarding_pref_from_prose
   if (prose === 'full' || prose === 'weekly' || prose === 'day') return prose
   if (prose === 'rejects') return 'day'
+  return null
+}
+
+// 2026-05-24 Yoko slice — exported. When 'must-be-london' nonneg fires,
+// override stale parent.home_region. When 'no-london' fires, return null
+// so the no-london predicate (not the region hard filter) owns the
+// London-exclusion — avoids stale-region pool collapse where
+// parent.home_region='london' + nonneg "no London" would keep only
+// London schools then drop them.
+export function resolveHomeRegion(
+  parent: BriefProfile | null,
+  firedNonneg: NonnegFilter[],
+): HomeRegion | null {
+  if (firedNonneg.some(f => f.name === 'no-london')) return null
+  if (firedNonneg.some(f => f.name === 'must-be-london')) return 'london'
+
+  const raw = (parent?.home_region ?? '').toLowerCase().trim()
+  if (!raw || raw === 'anywhere' || raw === 'overseas') return null
+  if (!Object.hasOwn(REGION_BUCKETS, raw)) return null
+  return raw as HomeRegion
+}
+
+// 2026-05-24 Yoko slice — exported. When 'any-curriculum' nonneg fires,
+// relax the curriculum hard filter regardless of wizard. Lets parents
+// who explicitly typed "any curriculum" or "either curriculum" override
+// a stale inherited curriculum_pref.
+export function resolveCurriculumPref(
+  parent: BriefProfile | null,
+  firedNonneg: NonnegFilter[],
+): 'ib' | 'a-level' | 'either' | null {
+  if (firedNonneg.some(f => f.name === 'any-curriculum')) return 'either'
+  const pref = parent?.curriculum_pref
+  if (pref === 'ib' || pref === 'a-level' || pref === 'either') return pref
   return null
 }
 
@@ -269,7 +312,8 @@ type NonnegFilter = {
   predicate: (s: SchoolRow, struct: StructRow | null) => boolean
 }
 
-const NONNEG_FILTERS: NonnegFilter[] = [
+// 2026-05-24 Yoko slice — exported for unit testing.
+export const NONNEG_FILTERS: NonnegFilter[] = [
   // ── Gender ───────────────────────────────────────────────────────
   // "must be co-ed" / "co-ed only" / "coed only" / "mixed only"
   {
@@ -303,13 +347,31 @@ const NONNEG_FILTERS: NonnegFilter[] = [
   },
   // ── Location ─────────────────────────────────────────────────────
   // "no London" / "not London" / "outside London" / "away from London"
+  // 2026-05-24 Yoko slice — pattern expanded with school-noun bridge for
+  // "no school in London" / "no day school in London" / etc. Predicate
+  // upgraded to use regionInBucket so London-bucket aliases (Wimbledon,
+  // Wandsworth, Richmond, Hammersmith, E10) are correctly dropped.
   {
     name: 'no-london',
-    pattern: /\b(?:no\s+london|not\s+(?:in\s+)?london|outside\s+(?:of\s+)?london|away\s+from\s+london|anywhere\s+but\s+london|excluding\s+london|avoid(?:ing)?\s+london)\b/i,
+    pattern: /\b(?:no\s+london|not\s+(?:in|near|within|around)?\s*london|outside\s+(?:of\s+)?london|away\s+from\s+london|anywhere\s+but\s+london|excluding\s+london|avoid(?:ing)?\s+london|no\s+(?:school|day\s+school|boarding(?:\s+school)?|independent(?:\s+school)?|prep(?:\s+school)?|college|academy|sixth\s+form)(?:\s+\w+)?\s+(?:in|near|within|around)\s+london)\b/i,
     predicate: (s) => {
-      const r = (s.region ?? '').trim().toLowerCase()
+      const r = (s.region ?? '').trim()
       if (!r) return true
-      return !/london/.test(r)
+      if (r.toLowerCase() === 'england') return true   // country-level tolerance
+      return !regionInBucket('london', r)              // alias-aware
+    },
+  },
+  // 2026-05-24 Yoko slice — positive London directive. Symmetric to no-london.
+  // Negative-context safety handled via mutual exclusion + hasLondonNegativeContext
+  // helper in matchedNonnegFilters below.
+  {
+    name: 'must-be-london',
+    pattern: /\b(?:london\s+(?:zone|area|borough|catchment|or\s+(?:nearby|outskirts|commute|surrounds))|must\s+be\s+(?:in\s+)?london|need(?:s)?\s+london|(?:in|within|near)\s+london(?:\s+only)?|london\s+day\s+school|day\s+school\s+in\s+london|commutable\s+(?:from|to)\s+london|london\s+only)\b/i,
+    predicate: (s) => {
+      const r = (s.region ?? '').trim()
+      if (!r) return true
+      if (r.toLowerCase() === 'england') return true
+      return regionInBucket('london', r)
     },
   },
   // ── Boarding ─────────────────────────────────────────────────────
@@ -349,6 +411,15 @@ const NONNEG_FILTERS: NonnegFilter[] = [
     pattern: /\b(?:(?:full[-\s]?)?board(?:ing)?\s+(?:school\s+)?(?:only|required|essential|mandatory)|(?:only|must\s+be|need|needs|require[sd]?)\s+(?:a\s+)?(?:full[-\s]?)?board(?:ing)?(?:\s+school)?|no\s+day\s+(?:school|pupil)|not?\s+a\s+day\s+(?:school|pupil))\b/i,
     predicate: (s) => !KNOWN_DAY_ONLY_NAMES.has(normalizeSchoolName(s.name)),
   },
+  // 2026-05-24 Yoko slice — curriculum relaxer. "any curriculum" / "either
+  // curriculum" / "no curriculum preference" — opts the parent OUT of the
+  // curriculum hard filter. Predicate is a no-op; actual unblocking happens
+  // in resolveCurriculumPref when it sees this filter name in firedNonneg.
+  {
+    name: 'any-curriculum',
+    pattern: /\b(?:any\s+curriculum|curriculum\s+(?:doesn['‘’]?t|does\s+not)\s+matter|either\s+curriculum|no\s+(?:strong\s+)?(?:curriculum|qualification)\s+(?:preference|preferred)|open\s+to\s+(?:either\s+)?(?:ib\s+or\s+a[-\s]level|a[-\s]level\s+or\s+ib))\b/i,
+    predicate: () => true,
+  },
   // ── Religion ─────────────────────────────────────────────────────
   // "not religious" / "no religion" / "secular only" / "non-religious"
   // — drops schools whose ethos_label is one of the religious-affiliated
@@ -364,18 +435,51 @@ const NONNEG_FILTERS: NonnegFilter[] = [
   },
 ]
 
+// 2026-05-24 Yoko slice — helper for structural London-negative-context
+// detection that the no-london regex can't capture. Used inside
+// matchedNonnegFilters to suppress must-be-london and force no-london on
+// phrases like "not looking in London" / "not a London day school" /
+// "not considering London".
+const LONDON_NEGATIVE_PATTERNS: RegExp[] = [
+  /\bnot\s+(?:a|an)\s+\w+(?:\s+\w+)?\s+(?:in|near|within|around)\s+london\b/i,
+  /\bnot\s+(?:a|an)\s+london\s+\w+/i,
+  /\bnot\s+(?:looking|interested|considering|wanting|moving|going)\s+(?:in|near|at|towards?|to)?\s*london\b/i,
+]
+function hasLondonNegativeContext(entry: string): boolean {
+  if (!/\blondon\b/i.test(entry)) return false
+  return LONDON_NEGATIVE_PATTERNS.some(p => p.test(entry))
+}
+
 // Returns the set of NonnegFilter entries that any nonneg string in the
 // parent's list triggers. Each entry is scanned independently so e.g.
 // "girls only" + "no London" → both filters fire; a single entry with
 // "boys only or co-ed" would only fire whichever matches its own regex
 // (not both, avoiding contradiction).
-function matchedNonnegFilters(nonnegs: string[] | null | undefined): NonnegFilter[] {
+//
+// 2026-05-24 Yoko slice — exported for unit testing. London negative-
+// context safety added: when no-london fires OR hasLondonNegativeContext
+// returns true, suppress must-be-london and force no-london ON. Helper
+// is authoritative (Codex r5 — not gated by must-be-london firing) so
+// verb-form negatives like "not considering London" are correctly handled.
+export function matchedNonnegFilters(nonnegs: string[] | null | undefined): NonnegFilter[] {
   if (!Array.isArray(nonnegs) || nonnegs.length === 0) return []
   const fired = new Map<string, NonnegFilter>()
   for (const entry of nonnegs) {
     if (typeof entry !== 'string' || !entry.trim()) continue
+    const entryFired = new Set<string>()
     for (const f of NONNEG_FILTERS) {
-      if (f.pattern.test(entry)) fired.set(f.name, f)
+      if (f.pattern.test(entry)) entryFired.add(f.name)
+    }
+    // London negative-context safety: helper is authoritative — applies
+    // regardless of whether must-be-london regex actually fired.
+    const negCtx = hasLondonNegativeContext(entry)
+    if (entryFired.has('no-london') || negCtx) {
+      entryFired.delete('must-be-london')
+      entryFired.add('no-london')
+    }
+    for (const name of Array.from(entryFired)) {
+      const f = NONNEG_FILTERS.find(x => x.name === name)
+      if (f) fired.set(name, f)
     }
   }
   return Array.from(fired.values())
@@ -594,21 +698,18 @@ export function rankCandidates(
 ): ScoredCandidate[] {
   const { parent, child, childGender } = input
 
-  // Bug #3 (2026-05-22) — Normalize home_region ONCE and derive
-  // explicitHomeRegion for BOTH the hard filter (below the NONNEG block)
-  // AND the scoring branch (lower down). Codex r2-r3 caught that the
-  // declaration must precede first use. Lowercase + trim catches legacy
-  // capitalised values like 'London' or ' London '. Object.hasOwn
-  // excludes prototype keys (toString etc.) — tighter than `!= null`.
-  // Defensive skip on unknown bucket prevents drop-all on typo/legacy.
-  const homeRegionRaw = (parent?.home_region ?? '').toLowerCase().trim()
-  const explicitHomeRegion: HomeRegion | null =
-    homeRegionRaw &&
-    homeRegionRaw !== 'anywhere' &&
-    homeRegionRaw !== 'overseas' &&
-    Object.hasOwn(REGION_BUCKETS, homeRegionRaw)
-      ? (homeRegionRaw as HomeRegion)
-      : null
+  // 2026-05-24 Yoko slice — compute firedNonneg ONCE near the top so the
+  // resolver helpers (resolveBoardingPref / resolveHomeRegion /
+  // resolveCurriculumPref) can use it. Existing nonneg-predicate filter
+  // block below reuses this same set.
+  const firedNonnegFilters = matchedNonnegFilters(child?.nonnegotiables)
+
+  // Bug #3 (2026-05-22) + Yoko slice 2026-05-24 — explicitHomeRegion now
+  // delegated to resolveHomeRegion which handles the nonneg precedence:
+  //   - 'no-london' fires → null (region filter skipped; predicate owns drop)
+  //   - 'must-be-london' fires → 'london' (overrides stale parent.home_region)
+  //   - else → parent.home_region (with anywhere/overseas/unknown → null)
+  const explicitHomeRegion: HomeRegion | null = resolveHomeRegion(parent, firedNonnegFilters)
 
   // ── JS-level hard filters: gender + boarding via name overrides ──
   let filtered = schools
@@ -627,7 +728,7 @@ export function rankCandidates(
   // resolveBoardingPref helper so prose 'full'/'weekly'/'day'/'rejects'
   // all fill the effective boarding when wizard is null. Wizard wins.
   // 'rejects' → 'day' (closest hard-filter equivalent).
-  const effectiveBoardingPref = resolveBoardingPref(parent, input.intent)
+  const effectiveBoardingPref = resolveBoardingPref(parent, input.intent, firedNonnegFilters)
   if (
     effectiveBoardingPref === 'full' ||
     effectiveBoardingPref === 'weekly' ||
@@ -642,7 +743,7 @@ export function rankCandidates(
   // violate parent free-text constraints (must-be-coed / girls-only /
   // boys-only / no-london / weekly-only / not-religious). See
   // NONNEG_FILTERS for the full pattern table + predicates.
-  const firedNonnegFilters = matchedNonnegFilters(input.child?.nonnegotiables)
+  // firedNonnegFilters already computed near top of function (line ~700).
   if (firedNonnegFilters.length > 0) {
     filtered = filtered.filter(s => {
       const struct = structBySlug.get(s.slug) ?? null
@@ -780,13 +881,21 @@ export function rankCandidates(
   // when wizard genuinely missing. Logged for telemetry below.
   const wizardTopPriority = (parent?.top_priority ?? '').trim()
   const drillFocus        = input.intent?.parent_drill_focus
+  // 2026-05-24 Yoko slice (Codex r1 Q7) — drill_focus wins over wizard
+  // when non-'none'. drill_focus is child-specific (read from THIS child's
+  // prose); wizard top_priority is parent-account-shared. Reversing the
+  // precedence avoids contaminating siblings (e.g. Sam getting Rugby's
+  // sport-priority bonus because his parent's wizard says 'sport' even
+  // though Sam's notes say academic+pastoral). Only affects the +0.5
+  // soft nudge below; no hard-filter impact.
   const topPriority =
-    wizardTopPriority ||
-    (drillFocus && drillFocus !== 'none' ? drillFocus : '')
+    (drillFocus && drillFocus !== 'none')
+      ? drillFocus
+      : wizardTopPriority || ''
   if (wizardTopPriority && drillFocus && drillFocus !== 'none' && wizardTopPriority !== drillFocus) {
     // Conflict telemetry — wizard wins, but log so we can audit how often
     // parents' drill-down text contradicts their earlier dropdown click.
-    console.warn('[score-for-build-mode] top_priority conflict — wizard=%s drill=%s (using wizard)', wizardTopPriority, drillFocus)
+    console.warn('[score-for-build-mode] top_priority conflict — wizard=%s drill=%s (using drill_focus, Codex r1 Q7)', wizardTopPriority, drillFocus)
   }
 
   // Phase 1 data-utilization: arts intent. Fires when the parent's brief
@@ -843,7 +952,7 @@ export function rankCandidates(
     // Phase 4 item #3 Codex r2: use resolved boarding (wizard-or-prose)
     // so "weekly boarding suits us" with null wizard uses the boarding
     // fee column, matching the SQL hard filter below.
-    const effectiveForBudget = resolveBoardingPref(parent, input.intent)
+    const effectiveForBudget = resolveBoardingPref(parent, input.intent, firedNonnegFilters)
     const isBoarderBudget =
       effectiveForBudget === 'full'   ||
       effectiveForBudget === 'weekly' ||
@@ -1213,6 +1322,31 @@ export function rankCandidates(
       }
     }
 
+    // 2026-05-24 Yoko slice commit 2 — A* soft pressure penalty.
+    // When the LLM classifier identifies high pastoral priority (parent has
+    // anxious child OR explicit anti-pressure nonneg), apply a small demotion
+    // to schools with very high A*-A. Caveats (per Codex r1-r5 review):
+    //   - SOFT penalty only (Codex r1 Q10 — no hard filter on A*)
+    //   - Cap at 1.0 (Codex r1 Q6 — A* is a PROXY not direct measure)
+    //   - Only surface signal if school has positive signals (Codex r2 C2 —
+    //     prevents school surfacing past line-1337 filter with only a
+    //     negative signal)
+    //   - Signal text disclaims confidence (Codex r1 Q7)
+    // Net for Sam's current Midlands pool: all 5 schools have A*-A ≤ 60%
+    // → penalty fires on zero schools today. Future-proofing for when
+    // pool expands beyond Midlands-IB.
+    if (input.intent?.pastoral_priority === 'high') {
+      const ex = struct?.exam_results as Record<string, Record<string, number> | undefined> | undefined
+      const pctAstarA = ex?.a_level?.pct_a_star_a as number | undefined
+      if (typeof pctAstarA === 'number' && pctAstarA > 60) {
+        const penalty = Math.min(1.0, (pctAstarA - 60) / 30)
+        score -= penalty
+        if (penalty > 0.4 && signals.length > 0) {
+          signals.push(`possible pressure proxy (${Math.round(pctAstarA)}% A*-A)`)
+        }
+      }
+    }
+
     return { school: s, struct, score, signals, facts }
   })
 
@@ -1256,6 +1390,12 @@ export async function scoreForBuildMode(
   const { parent, excludeSlugs, childYear } = input
   const exclude = new Set(excludeSlugs)
 
+  // 2026-05-24 Yoko slice — compute firedNonneg in this wrapper's scope
+  // so the SQL curriculum filter + SQL budget column selector can honor
+  // nonneg overrides (any-curriculum / no-boarding / boarding-required).
+  // rankCandidates (called below) recomputes for its own scope.
+  const firedNonneg = matchedNonnegFilters(input.child?.nonnegotiables)
+
   // 1. UK evidence slug allowlist
   const ukResult = await loadUkEvidenceSlugs(supabase)
   if (ukResult.error) return { candidates: [], reason: 'fetch_failed' }
@@ -1273,13 +1413,16 @@ export async function scoreForBuildMode(
   q = q.or('fees_usd_min.is.null,fees_usd_min.gte.5000') // drop extraction-bug zero fees
 
   // 2026-05-19 Bug 1 fix — curriculum filter parity with Picker #1.
-  // Without this, an IB-preferring parent could get A-Level-only schools
-  // (Eton has curriculum=NULL → no IB, but used to slip through here).
-  if (parent?.curriculum_pref === 'ib') {
+  // 2026-05-24 Yoko slice — delegated to resolveCurriculumPref which
+  // returns 'either' (no filter) when nonneg 'any-curriculum' fires,
+  // letting parents who typed "any curriculum" override stale wizard.
+  const effectiveCurric = resolveCurriculumPref(parent, firedNonneg)
+  if (effectiveCurric === 'ib') {
     q = q.overlaps('curriculum', IB_VARIANTS)
-  } else if (parent?.curriculum_pref === 'a-level') {
+  } else if (effectiveCurric === 'a-level') {
     q = q.or(`curriculum.ov.{${ALEVEL_VARIANTS.join(',')}},curriculum.is.null`)
   }
+  // effectiveCurric === 'either' or null → no curriculum filter
 
   // Min-confidence floor (parity with recommend-shortlist.ts 2026-05-18).
   // The conf=0 cohort in schools_status is dominated by state primary
@@ -1302,7 +1445,7 @@ export async function scoreForBuildMode(
     // hard filter — keeps SQL column selection consistent with downstream
     // ranker, so prose-only boarders ("weekly boarding suits us" without
     // a wizard click) use fees_usd_max for the hard cap.
-    const effectiveForBudgetSql = resolveBoardingPref(parent, input.intent)
+    const effectiveForBudgetSql = resolveBoardingPref(parent, input.intent, firedNonneg)
     const isBoarderBudget =
       effectiveForBudgetSql === 'full'   ||
       effectiveForBudgetSql === 'weekly' ||

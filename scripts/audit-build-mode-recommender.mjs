@@ -79,6 +79,16 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_KEY, {
 
 const { scoreForBuildMode } = await import('../lib/research-room/score-for-build-mode.ts')
 
+// 2026-05-24 Codex r1 finding #1 — harness parity with production finalize.
+// Optionally call the same LLM classifier production calls at finalize:461.
+// Default OFF (keeps the "no LLM" promise in the original header). Opt-in
+// via AUDIT_USE_CLASSIFIER=1 to see real production behaviour including
+// parent_drill_focus / pastoral_priority / small_env_pref / boarding-from-prose.
+let classifyBuildModeIntent = null
+if (process.env.AUDIT_USE_CLASSIFIER === '1') {
+  ;({ classifyBuildModeIntent } = await import('../lib/server/research-room/classify-build-mode-intent.ts'))
+}
+
 // ── 1. Load the child + parent profile from DB ─────────────────────
 
 const { data: childRows, error: childErr } = await supabase
@@ -117,6 +127,27 @@ const childYear = (typeof childProfileRaw.child_year === 'string' && childProfil
   ? childProfileRaw.child_year
   : (briefRaw.child_year ?? null)
 
+// 2026-05-24 Codex r1 finding #1 — child-profile overlay for family constants.
+// Mirrors production finalize at app/api/research-room/build-mode/finalize/route.ts:383-389.
+// pickInherited: child value when present, else parent value.
+const pickInherited = (childVal, parentVal) => {
+  if (typeof childVal  === 'string' && childVal)  return childVal
+  if (typeof parentVal === 'string' && parentVal) return parentVal
+  return null
+}
+if (parentRow != null) {
+  briefRaw.boarding_pref   = pickInherited(childProfileRaw.boarding_pref,   briefRaw.boarding_pref)
+  briefRaw.home_region     = pickInherited(childProfileRaw.home_region,     briefRaw.home_region)
+  briefRaw.budget_range    = pickInherited(childProfileRaw.budget_range,    briefRaw.budget_range)
+  briefRaw.curriculum_pref = pickInherited(childProfileRaw.curriculum_pref, briefRaw.curriculum_pref)
+}
+const overlayApplied = parentRow != null && (
+  (typeof childProfileRaw.boarding_pref   === 'string' && childProfileRaw.boarding_pref)   ||
+  (typeof childProfileRaw.home_region     === 'string' && childProfileRaw.home_region)     ||
+  (typeof childProfileRaw.budget_range    === 'string' && childProfileRaw.budget_range)    ||
+  (typeof childProfileRaw.curriculum_pref === 'string' && childProfileRaw.curriculum_pref)
+)
+
 // Variation: AUDIT_HOME_REGION=anywhere
 let overrideHomeRegion = null
 if (process.env.AUDIT_HOME_REGION) {
@@ -152,6 +183,7 @@ for (const k of ['home_region', 'boarding_pref', 'budget_range', 'curriculum_pre
   console.log(`  ${k.padEnd(22)} ${briefRaw[k] ?? '(none)'}`)
 }
 if (overrideHomeRegion) console.log(`  [OVERRIDE: home_region=${overrideHomeRegion}]`)
+if (overlayApplied) console.log(`  [overlay: child_profile family-constant fields applied]`)
 console.log('─'.repeat(80))
 console.log('Build Mode child_profile (interview output):')
 console.log(`  goal_orientation       ${childProfileRaw.goal_orientation ?? '(none)'}`)
@@ -181,6 +213,38 @@ for (const k of WRITABLE) {
   if (childProfileRaw[k] != null) childInput[k] = childProfileRaw[k]
 }
 
+// 2026-05-24 Codex r1 finding #1 — intent passing parity with production.
+// Production finalize classifies and passes `intent` (route.ts:461 + :490).
+// In the harness we either:
+//   - skip (legacy "no LLM" mode, default) → intent=null
+//   - call classifier with 5 prose fields → real production intent
+//   - read mocked intent from AUDIT_FAKE_INTENT env (JSON) for deterministic tests
+let buildModeIntent = null
+const strOrNull = (v) => typeof v === 'string' ? v : null
+if (process.env.AUDIT_FAKE_INTENT) {
+  try {
+    buildModeIntent = JSON.parse(process.env.AUDIT_FAKE_INTENT)
+  } catch (e) {
+    console.warn('AUDIT_FAKE_INTENT JSON parse failed — proceeding with intent=null:', e.message)
+  }
+} else if (classifyBuildModeIntent != null) {
+  console.log('Calling classifyBuildModeIntent (AUDIT_USE_CLASSIFIER=1)…')
+  const tIntent = Date.now()
+  buildModeIntent = await classifyBuildModeIntent({
+    academic_notes:    strOrNull(childProfileRaw.academic_notes),
+    goals_notes:       strOrNull(childProfileRaw.goals_notes),
+    personality_notes: strOrNull(childProfileRaw.personality_notes),
+    child_wants:       strOrNull(childProfileRaw.child_wants),
+    anchors_notes:     strOrNull(childProfileRaw.anchors_notes),
+  })
+  console.log(`Intent classified in ${Date.now() - tIntent} ms:`)
+  for (const k of Object.keys(buildModeIntent ?? {})) {
+    if (k === 'classification_version') continue
+    console.log(`  ${k.padEnd(28)} ${buildModeIntent[k]}`)
+  }
+  console.log('─'.repeat(80))
+}
+
 const t0 = Date.now()
 const result = await scoreForBuildMode(supabase, {
   parent:       briefProfile,
@@ -188,6 +252,7 @@ const result = await scoreForBuildMode(supabase, {
   excludeSlugs: [],     // empty so we see what WOULD have been recommended fresh
   childGender,
   childYear,
+  intent:       buildModeIntent,
 }, limit)
 const elapsed = Date.now() - t0
 
