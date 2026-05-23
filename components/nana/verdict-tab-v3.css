@@ -101,7 +101,7 @@
    Initial Path C pick was #3DA460 which only hit 3.14:1 — Codex r5 P1 fix. */
 .rr-verdict-tile.is-tile-a { --rr-tile-accent: #0F3E29; --rr-tile-bg: rgba(15, 62, 41, 0.07);  }
 .rr-verdict-tile.is-tile-b { --rr-tile-accent: #1F6B43; --rr-tile-bg: rgba(31, 107, 67, 0.07); }
-.rr-verdict-tile.is-tile-c { --rr-tile-accent: #2F8056; --rr-tile-bg: rgba(47, 128, 86, 0.08); }
+.rr-verdict-tile.is-tile-c { --rr-tile-accent: #2F8056; --rr-tile-bg: rgba(47, 128, 86, 0.05); }   /* Codex r6 P1: 0.08 → 0.05 to preserve 4.5:1 contrast for accent text on the tinted active background */
 .rr-verdict-tile.is-active.is-tile-a,
 .rr-verdict-tile.is-active.is-tile-b,
 .rr-verdict-tile.is-active.is-tile-c { background: var(--rr-tile-bg); }

@@ -801,19 +801,37 @@ export default function ResearchRoom({
                       onShortlistRefreshed={handleShortlistRefreshed}
                     />
                   ) : t === 'verdict' ? (
-                    // Codex r5 P1 (2026-05-23): key on sessionId forces a full
-                    // remount when the active child/session changes. Without
-                    // it, VerdictTab's autoHydrateAttemptedRef would stay set
-                    // across session swaps — leaving the previous child's
-                    // verdict visible under the new child name and skipping
-                    // auto-hydration for the new session. Remount-on-key
-                    // guarantees fresh state for each (session, child) pair.
-                    <VerdictTab
-                      key={initialSession?.id ?? 'no-session'}
-                      verdict={researchVerdict}
-                      sessionId={initialSession?.id ?? null}
-                      childName={activeChild?.name ?? null}
-                    />
+                    // Codex r5 P1 + r6 P2 (2026-05-23):
+                    //
+                    // r5: key on sessionId forces a full remount when the
+                    // active child/session changes — without it, VerdictTab's
+                    // autoHydrateAttemptedRef would stay set across session
+                    // swaps and leave previous child's verdict visible.
+                    //
+                    // r6: but `activeChildId` flips immediately on child
+                    // switch, while `initialSession` lags until router.refresh
+                    // delivers new server props. During that window, the OLD
+                    // session.child_id !== the NEW activeChildId, so old
+                    // verdict would render under new child name. Gate via
+                    // verdictReady — when child_id mismatches activeChildId,
+                    // pass sessionId=null + verdict=null so VerdictTab shows
+                    // its loading placeholder instead of the stale verdict.
+                    (() => {
+                      // The Session type doesn't expose child_id, but we can
+                      // detect the optimistic transition via the gap between
+                      // client `activeChildId` (flips immediately) and the
+                      // SSR-supplied `initialActiveChildId` (only updates
+                      // after router.refresh delivers new server props).
+                      const verdictReady = activeChildId === initialActiveChildId
+                      return (
+                        <VerdictTab
+                          key={initialSession?.id ?? 'no-session'}
+                          verdict={verdictReady ? researchVerdict : null}
+                          sessionId={verdictReady ? (initialSession?.id ?? null) : null}
+                          childName={activeChild?.name ?? null}
+                        />
+                      )
+                    })()
                   ) : t === 'partner' ? (
                     <PartnerBriefTab
                       brief={partnerBrief}
