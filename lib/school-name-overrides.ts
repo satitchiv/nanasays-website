@@ -54,6 +54,7 @@ export const KNOWN_DAY_ONLY_NAMES: ReadonlySet<string> = new Set<string>([
   'westminster', 'st pauls', 'st pauls girls', 'dulwich',
   'highgate', 'alleyns', 'kings wimbledon', 'haberdashers boys',
   'city of london', 'whitgift', 'jeannine manuel', 'dwight london',
+  'warwick',
 ])
 
 // Defensive UUID check — server-side helpers accept an arbitrary

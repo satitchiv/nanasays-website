@@ -41,7 +41,7 @@ const GBP_TO_USD = 1.27
 // so the recommender's filter and the match-reasons gate share one map.
 // REGION_BUCKETS is re-exported here as a mutable string[][] to preserve
 // the historical signature used inside this file (e.g. .concat() patterns).
-import { REGION_BUCKETS as SHARED_REGION_BUCKETS } from './uk-regions'
+import { REGION_BUCKETS as SHARED_REGION_BUCKETS, regionInBucket } from './uk-regions'
 const REGION_BUCKETS: Record<string, readonly string[]> = SHARED_REGION_BUCKETS
 
 const BUDGET_CEILING_USD: Record<string, number | null> = {
@@ -389,10 +389,21 @@ export async function pickTopSchoolSlugs(
   }
 
   // 6. Score soft signals
-  const regionBucket = new Set(REGION_BUCKETS[profile.home_region ?? ''] ?? [])
-  // 'England' is treated as a regional fallback — schools tagged at the
-  // country level only, not penalized for being outside any bucket.
-  regionBucket.add('England')
+  // Bug #3 parity (2026-05-22) — normalize home_region once and reuse
+  // explicitHomeRegion. Object.hasOwn excludes prototype-key false-
+  // positives (toString etc.). 'England' handled inline in the scoring
+  // branch below (parity with score-for-build-mode.ts hard-filter
+  // predicate). Onboarding picker keeps the soft -2.0 penalty (no
+  // hard filter here — Codex r1 explicitly deferred onboarding hard
+  // filter to a separate slice).
+  const homeRegionRaw = (profile.home_region ?? '').toLowerCase().trim()
+  const explicitHomeRegion =
+    homeRegionRaw &&
+    homeRegionRaw !== 'anywhere' &&
+    homeRegionRaw !== 'overseas' &&
+    Object.hasOwn(REGION_BUCKETS, homeRegionRaw)
+      ? homeRegionRaw
+      : null
 
   const scored = filtered.map(s => {
     let score = (s.confidence_score ?? 0) / 100  // 0..1 base
@@ -405,10 +416,12 @@ export async function pickTopSchoolSlugs(
     // 2026-05-19 — also skip when home_region='anywhere' (parents who
     // pick "Anywhere in the UK / no preference" shouldn't have any
     // region influence their ranking).
-    if (profile.home_region && profile.home_region !== 'overseas' && profile.home_region !== 'anywhere') {
-      if (s.region == null) {
-        // neutral
-      } else if (regionBucket.has(s.region)) {
+    if (explicitHomeRegion) {
+      const broadEngland =
+        typeof s.region === 'string' && s.region.trim().toLowerCase() === 'england'
+      if (s.region == null || broadEngland) {
+        // neutral — null OR broad country-level tag
+      } else if (regionInBucket(explicitHomeRegion, s.region)) {
         score += 0.6
       } else {
         score -= 2.0

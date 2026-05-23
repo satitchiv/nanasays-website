@@ -145,6 +145,40 @@ Extract a contradicting value into the matching field ONLY when:
     If the parent says "small London suburb" → \`home_region: "london"\`;
     do not invent values.
 
+For \`home_region\` specifically, the following parent phrasings ARE
+direct confirmed preferences — emit \`home_region: "anywhere"\` with
+\`confidence: "confirmed"\`. The wording sounds conversational but the
+parent IS making a definitive preference statement (no regional
+restriction):
+  - "anywhere in the UK"           → home_region: "anywhere"
+  - "open across the UK"           → home_region: "anywhere"
+  - "open to anywhere"             → home_region: "anywhere"
+  - "not tied to <region>"         → home_region: "anywhere"
+  - "not stuck to <region>"        → home_region: "anywhere"
+  - "we'd look nationally"         → home_region: "anywhere"
+  - "happy to consider any UK region" → home_region: "anywhere"
+  - "no regional preference"       → home_region: "anywhere"
+
+These extractions apply ONLY when the parent is expressing a forward-
+looking preference for THIS child's search. Do NOT emit
+\`home_region: "anywhere"\` when the parent is describing HISTORY,
+CURRENT SEARCH STATE, or a HYPOTHETICAL rather than preference for
+the search going forward:
+  BAD: "we've been looking nationally for years" → factual history,
+       NOT a preference statement. Leave home_region unchanged.
+  BAD: "we looked nationally before, but now want London" → the
+       trailing clause sets the actual preference (\`home_region:
+       "london"\` with confidence="confirmed"); the "looked nationally"
+       part is historic. Do NOT emit "anywhere".
+  BAD: "in theory we'd consider anywhere, but realistically London" →
+       the trailing clause sets the actual preference (\`home_region:
+       "london"\`); the "in theory anywhere" part is hypothetical
+       concession. Do NOT emit "anywhere".
+
+When the parent explicitly relaxes the regional constraint using the
+GOOD phrasings above, treat it as confirmed anywhere. The signal is
+the explicit relaxation, not parent emotional tone.
+
 Do NOT preemptively set \`corrections: true\` for these fields. The
 orchestrator will queue a pending confirmation and ask the parent to
 confirm next turn; on that next turn, set \`corrections.<field>: true\`

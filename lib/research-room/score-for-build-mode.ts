@@ -1,6 +1,6 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { REGION_BUCKETS, type HomeRegion } from '../uk-regions.ts'
+import { REGION_BUCKETS, regionInBucket, type HomeRegion } from '../uk-regions.ts'
 import {
   KNOWN_DAY_ONLY_NAMES,
   KNOWN_FULL_BOARDING_NAMES,
@@ -594,6 +594,22 @@ export function rankCandidates(
 ): ScoredCandidate[] {
   const { parent, child, childGender } = input
 
+  // Bug #3 (2026-05-22) — Normalize home_region ONCE and derive
+  // explicitHomeRegion for BOTH the hard filter (below the NONNEG block)
+  // AND the scoring branch (lower down). Codex r2-r3 caught that the
+  // declaration must precede first use. Lowercase + trim catches legacy
+  // capitalised values like 'London' or ' London '. Object.hasOwn
+  // excludes prototype keys (toString etc.) — tighter than `!= null`.
+  // Defensive skip on unknown bucket prevents drop-all on typo/legacy.
+  const homeRegionRaw = (parent?.home_region ?? '').toLowerCase().trim()
+  const explicitHomeRegion: HomeRegion | null =
+    homeRegionRaw &&
+    homeRegionRaw !== 'anywhere' &&
+    homeRegionRaw !== 'overseas' &&
+    Object.hasOwn(REGION_BUCKETS, homeRegionRaw)
+      ? (homeRegionRaw as HomeRegion)
+      : null
+
   // ── JS-level hard filters: gender + boarding via name overrides ──
   let filtered = schools
   const genderAllow =
@@ -634,18 +650,29 @@ export function rankCandidates(
     })
   }
 
+  // Bug #3 (2026-05-22) — Region hard filter when parent stated an
+  // explicit home_region. Soft -2.0 penalty was insufficient: London-
+  // clicking parents could see 0 London schools when sport/academic/
+  // pastoral dimensions outranked the penalty. Drops schools where
+  // region is known AND known to be in a different bucket. Keeps
+  // NULL-region schools (could be undocumented London — Bug #4 backfill)
+  // and broad 'England'-tagged schools (country-level, not bucket-
+  // disqualifying). Skipped when explicitHomeRegion is null (anywhere /
+  // overseas / unknown bucket / parent didn't answer).
+  if (explicitHomeRegion) {
+    filtered = filtered.filter(s => {
+      const r = s.region
+      if (r == null) return true
+      const lc = r.trim().toLowerCase()
+      if (lc === 'england') return true
+      return regionInBucket(explicitHomeRegion, r)
+    })
+  }
+
   if (filtered.length === 0) return []
 
   // ── Score ──
   const ctx = buildScorerCtx(parent, input.intent)
-  const homeRegion = (parent?.home_region ?? '').toLowerCase().trim() as HomeRegion
-  const regionBucket = new Set(REGION_BUCKETS[homeRegion] ?? [])
-  // Phase 3 Bug #3 (2026-05-21) — `regionBucket.add('England')` removed.
-  // Before: schools tagged `region='England'` (a broad / country-level tag,
-  // not a narrow city/county) earned a +0.6 regional chip + boost for every
-  // UK home_region. After: they're treated neutrally below (no boost AND
-  // no -2.0 wrong-bucket penalty), matching the existing `s.region == null`
-  // path.
   const budgetCeiling = BUDGET_CEILING_USD[parent?.budget_range ?? '']
 
   const sportsInterest = (child?.interests_sports ?? [])
@@ -789,24 +816,20 @@ export function rankCandidates(
     let score = (s.confidence_score ?? 0) / 100  // 0..1 base
 
     // ── Region ──────────────────────────────────────────────────────
-    // Wrong-bucket penalty bumped to -2.0 (parity with recommend-shortlist.ts
-    // 2026-05-18). The prior -1.0 was being overpowered by confidence_score=100
-    // / 100 = 1.0 base + sport boosts, letting Wellington-Berkshire win
-    // south-west queries. Build Mode finalize is the recommender that
-    // matters once Commit C lands, so this needs to be at least as tight.
-    // 2026-05-19 — also skip the region scoring when the parent picked
-    // 'anywhere' (added to the dropdown to let parents say "no preference"
-    // instead of inheriting an inherited home_region from parent_profiles).
-    if (parent?.home_region && parent.home_region !== 'overseas' && parent.home_region !== 'anywhere') {
+    // Bug #3 (2026-05-22) — wrong-bucket schools are dropped by the
+    // hard filter above, so the -2.0 else branch is unreachable and
+    // removed. Reuses `explicitHomeRegion` from the hoisted block at
+    // function top so the filter and scoring agree case-insensitively
+    // (regionInBucket handles the case folding).
+    if (explicitHomeRegion) {
       const broadEngland = typeof s.region === 'string' && s.region.trim().toLowerCase() === 'england'
       if (s.region == null || broadEngland) {
         // neutral — null OR broad country-level tag ('England')
-      } else if (regionBucket.has(s.region)) {
+      } else if (regionInBucket(explicitHomeRegion, s.region)) {
         score += 0.6
         signals.push(`${s.region.toLowerCase()} region`)
-      } else {
-        score -= 2.0
       }
+      // else: wrong-bucket — already dropped by hard filter above.
     }
 
     // ── Budget closeness ────────────────────────────────────────────
