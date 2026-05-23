@@ -470,7 +470,9 @@ function buildEvidenceParagraph({ winner, winnerFacts, briefContext, allEligible
   if (pathKey === 'A' || pathKey === 'B') {
     if (facts?.a_level_a_star_a_pct != null) {
       const rank = compareCategoryRank(winner, 'academics', allEligibleSchools)
-      parts.push(`Academically, **${facts.a_level_a_star_a_pct}% A-level A\\*-A** — ${formatCategoryComparison(winner, 'academics', allEligibleSchools)}.`)
+      // No `\\*` escape needed — parseInlineBold's non-greedy regex now
+      // handles single `*` inside bold content (Codex r1 P1 finding 2026-05-24).
+      parts.push(`Academically, **${facts.a_level_a_star_a_pct}% A-level A*-A** — ${formatCategoryComparison(winner, 'academics', allEligibleSchools)}.`)
     }
   }
   // Sport claim — Path A: only when mode is sport. Path B: always, but the

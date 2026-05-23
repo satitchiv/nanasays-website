@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import type { ResearchMessage, StreamFormat, ProposedAction } from '@/lib/nana/types'
+// parseInlineBold extracted to ./nana-bubble-md.ts so it's unit-testable
+// without a JSX runtime (node test runner can import .ts but not .tsx).
+import { parseInlineBold } from './nana-bubble-md'
 // The bubble's classNames (dh-msg-nana, dh-msg-nana-prose, etc.) live in
 // nana-bubble.css. Importing it here means anywhere NanaBubble is mounted
 // gets the styles automatically — Research Room's right rail can embed
@@ -94,16 +97,17 @@ export function renderMd(text: unknown): React.ReactNode[] {
     str = ''
   }
   if (!str) return []
-  return str.split('\n').map((line, i) => {
-    const parts = line.split(/(\*\*[^*]+\*\*)/g)
+  const lines = str.split('\n')
+  return lines.map((line, i) => {
+    const segments = parseInlineBold(line)
     return (
       <span key={i}>
-        {parts.map((p, j) =>
-          p.startsWith('**') && p.endsWith('**')
-            ? <strong key={j}>{p.slice(2, -2)}</strong>
-            : <span key={j}>{p}</span>
+        {segments.map((seg, j) =>
+          seg.bold
+            ? <strong key={j}>{seg.text}</strong>
+            : <span key={j}>{seg.text}</span>,
         )}
-        {i < str.split('\n').length - 1 && <br />}
+        {i < lines.length - 1 && <br />}
       </span>
     )
   })
