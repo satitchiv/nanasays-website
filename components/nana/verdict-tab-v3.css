@@ -93,9 +93,14 @@
   height: 3px;
   background: var(--rr-tile-accent);
 }
-.rr-verdict-tile.is-tile-a { --rr-tile-accent: var(--rr-rust);    --rr-tile-bg: rgba(220, 79, 42, 0.06); }
-.rr-verdict-tile.is-tile-b { --rr-tile-accent: var(--rr-teal-dk); --rr-tile-bg: var(--rr-teal-bg);       }
-.rr-verdict-tile.is-tile-c { --rr-tile-accent: var(--rr-moss);    --rr-tile-bg: rgba(47, 128, 86, 0.06); }
+/* Path accent colours — three shades of green, dark→light A→C (user pick,
+   2026-05-23). Previously: A=rust, B=teal-dk, C=moss (three different hues).
+   Now: monochromatic green ramp so the three paths feel like related framings,
+   not competing alternatives. Hex codes chosen to give >=4.5:1 contrast for
+   white letter-pill text. */
+.rr-verdict-tile.is-tile-a { --rr-tile-accent: #0F3E29; --rr-tile-bg: rgba(15, 62, 41, 0.07);  }
+.rr-verdict-tile.is-tile-b { --rr-tile-accent: #1F6B43; --rr-tile-bg: rgba(31, 107, 67, 0.07); }
+.rr-verdict-tile.is-tile-c { --rr-tile-accent: #3DA460; --rr-tile-bg: rgba(61, 164, 96, 0.08); }
 .rr-verdict-tile.is-active.is-tile-a,
 .rr-verdict-tile.is-active.is-tile-b,
 .rr-verdict-tile.is-active.is-tile-c { background: var(--rr-tile-bg); }
@@ -162,6 +167,51 @@
   margin-top: 6px;
 }
 
+/* "Also wins Path X" inline note inside a tile — consolidates the
+   same-winner-across-paths signal at the tile level so parents see the
+   consensus without having to compare school names across tiles. */
+.rr-verdict-tile-also {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--rr-tile-accent);
+  margin: -2px 0 8px;
+}
+
+/* Consensus banner above the three tiles — fires when same_winner_across_paths
+   is set, surfaces the strong-fit signal at section level. */
+.rr-verdict-consensus {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: rgba(31, 107, 67, 0.08);
+  border: 1px solid rgba(31, 107, 67, 0.25);
+  border-radius: var(--rr-r-md);
+  margin: 14px 0 6px;
+  font-family: var(--rr-sans);
+}
+.rr-verdict-consensus-badge {
+  display: inline-block;
+  background: #1F6B43;
+  color: var(--rr-white);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.rr-verdict-consensus-body {
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--rr-body);
+}
+.rr-verdict-consensus-body strong { color: var(--rr-navy); font-weight: 800; }
+
 /* ── DETAIL PANEL — B3 layout (.rr-vb3-*) ─────────────────────────────── */
 .rr-vb3-detail {
   position: relative;
@@ -177,9 +227,11 @@
   content: ""; position: absolute; top: 0; left: 0; bottom: 0;
   width: 5px; background: var(--rr-detail-accent, var(--rr-teal-dk));
 }
-.rr-vb3-detail.is-path-a { --rr-detail-accent: var(--rr-rust); }
-.rr-vb3-detail.is-path-b { --rr-detail-accent: var(--rr-teal-dk); }
-.rr-vb3-detail.is-path-c { --rr-detail-accent: var(--rr-moss); }
+/* Detail-panel accent (the 5px left stripe + section icons + evidence ticks)
+   matches the tile colour ramp above. */
+.rr-vb3-detail.is-path-a { --rr-detail-accent: #0F3E29; }
+.rr-vb3-detail.is-path-b { --rr-detail-accent: #1F6B43; }
+.rr-vb3-detail.is-path-c { --rr-detail-accent: #3DA460; }
 
 .rr-vb3-eyebrow {
   font-family: var(--rr-sans);

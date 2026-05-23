@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { renderMd } from './NanaBubble'
 import './verdict-tab-v3.css'
@@ -489,6 +489,15 @@ export default function VerdictTab({ verdict, sessionId, childName }: Props) {
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedPath, setSelectedPath] = useState<PathKey | null>(null)
+  // Codex r1 P1 #2 follow-up (2026-05-23): SSR pre-fetch was removed to fix a
+  // hash-mismatch class of bug. That meant on refresh, the cached verdict from
+  // the DB wasn't auto-loaded — parents had to click Generate to see their
+  // own existing verdict. This client-side hydration on mount fires POST
+  // `force: false`, which the route handles as cache-first: returns the
+  // cached row if hash matches, regenerates only if missing or stale. Fast on
+  // cache hit; slower only when there's genuinely no cached verdict yet.
+  // Guarded with autoHydrateAttemptedRef so it fires exactly once per mount.
+  const autoHydrateAttemptedRef = useRef(false)
 
   useEffect(() => {
     setLocalVerdict(verdict)
@@ -501,6 +510,20 @@ export default function VerdictTab({ verdict, sessionId, childName }: Props) {
     if (verdictJson?.paths) setSelectedPath(pickInitialPath(verdictJson))
     else setSelectedPath(null)
   }, [verdictJson])
+
+  // Auto-hydrate from cache on mount when there's no verdict already loaded.
+  // See autoHydrateAttemptedRef comment above. Fires once per mount, only
+  // when sessionId is present and we don't already have a verdict in state.
+  useEffect(() => {
+    if (autoHydrateAttemptedRef.current) return
+    if (!sessionId || localVerdict) return
+    autoHydrateAttemptedRef.current = true
+    generate(false)
+    // generate() is intentionally invoked here without being in the dep list —
+    // it's a stable closure over sessionId/generating; we want exactly one
+    // hydration attempt per mount, not on every re-render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId])
 
   async function generate(force = false) {
     if (!sessionId || generating) return
@@ -582,6 +605,25 @@ export default function VerdictTab({ verdict, sessionId, childName }: Props) {
           )}
 
           {/* Selector tiles */}
+          {/* Consensus banner: when the same school wins multiple paths, surface
+              it as a positive signal above the tiles (Codex r4 follow-up — the
+              same_winner_across_paths field was populated server-side but not
+              rendered, making the duplicate look like UI redundancy instead of
+              the strong-fit signal it actually is). */}
+          {verdictJson.same_winner_across_paths && verdictJson.same_winner_across_paths.paths.length >= 2 && (() => {
+            const slug = verdictJson.same_winner_across_paths.winner_slug
+            const name = verdictJson.school_facts?.[slug]?.name ?? slug
+            const paths = verdictJson.same_winner_across_paths.paths.join(' + ')
+            return (
+              <div className="rr-verdict-consensus" role="status">
+                <span className="rr-verdict-consensus-badge">Strong consensus</span>
+                <span className="rr-verdict-consensus-body">
+                  <strong>{name}</strong> wins paths <strong>{paths}</strong> — same school satisfies multiple framings.
+                </span>
+              </div>
+            )
+          })()}
+
           <div className="rr-verdict-selector" role="tablist" aria-label="Verdict paths">
             {(['A', 'B', 'C'] as PathKey[]).map(letter => {
               const path = verdictJson.paths![letter]
@@ -591,6 +633,14 @@ export default function VerdictTab({ verdict, sessionId, childName }: Props) {
                 ?? winnerSlug
                 ?? '—'
               const isNeedsResearch = path?.path_status === 'needs_research'
+              // Same-winner consolidation: list of OTHER paths whose winner is
+              // the same school as this tile's winner. Surfaced as a small
+              // "Also Path X" line in the tile, so parents see the consensus
+              // signal at the tile level too (the consensus banner above the
+              // tiles repeats this at the section level).
+              const alsoPaths: PathKey[] = (winnerSlug && verdictJson.same_winner_across_paths?.winner_slug === winnerSlug)
+                ? verdictJson.same_winner_across_paths.paths.filter(p => p !== letter)
+                : []
               return (
                 <button
                   key={letter}
@@ -611,6 +661,9 @@ export default function VerdictTab({ verdict, sessionId, childName }: Props) {
                     <span className="rr-verdict-tile-frame">{path?.framing ?? TILE_TAGLINE_FALLBACKS[letter]}</span>
                   </div>
                   <div className="rr-verdict-tile-school">{isNeedsResearch ? 'Not enough evidence yet' : winnerName}</div>
+                  {alsoPaths.length > 0 && (
+                    <div className="rr-verdict-tile-also">Also wins Path {alsoPaths.join(' + Path ')}</div>
+                  )}
                   {isNeedsResearch && path?.status_note
                     ? <p className="rr-verdict-tile-stub">{path.status_note}</p>
                     : path?.framingLong
