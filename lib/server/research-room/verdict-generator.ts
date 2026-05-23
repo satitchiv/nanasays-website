@@ -1307,15 +1307,19 @@ function projectSchoolFactsForUi(
   f:      SchoolFacts | undefined,
   rubric: Rubric,
 ): SchoolFactsForUi {
-  // Codex r2 P2 #1: only emit boolean when a real filter is in play. Parents
-  // with no region preference (or 'anywhere' / 'overseas') get null so the UI
-  // can omit the pill instead of always rendering "Outside filter".
+  // Codex r2 P2 #1 + r3 NIT (2026-05-23): tri-state.
+  // - null when there's no filter in play (home_region absent / 'anywhere' /
+  //   'overseas') — UI hides the pill.
+  // - null ALSO when the filter is active but the school's region is absent —
+  //   the truth is "we don't know", not "outside." Previously emitted false
+  //   here, which the UI rendered as "Outside filter" — fabricated certainty.
+  // - true/false only when we have both an active filter AND a school region.
   const hasActiveFilter = !!rubric.homeRegion
     && rubric.homeRegion !== 'anywhere'
     && rubric.homeRegion !== 'overseas'
   const insideFilter: boolean | null = hasActiveFilter && f?.region
     ? regionInBucket(rubric.homeRegion, f.region)
-    : (hasActiveFilter ? false : null)
+    : null
   return {
     slug,
     name: f?.name ?? name,
@@ -1373,19 +1377,19 @@ function buildBudgetWarning(
   return undefined
 }
 
-// Codex r2 P2 #3 fix (2026-05-23): derive critical_missing_rows per school.
+// Codex r2 P2 #3 fix (2026-05-23) + Codex r3 P2 refinement.
 //
-// The previous behaviour emitted a hardcoded 4-string list ("A-level results,
-// Annual boarding fee, Rugby programme strength, Pastoral structure") for
-// EVERY school in couldnt_compare regardless of which rows were actually
-// empty for that school. The UI surfaces these as the parent's "fix these to
-// unlock this school" list, so the hardcoded copy was actively misleading.
+// The previous behaviour emitted a hardcoded 4-string list for EVERY school
+// in couldnt_compare. r2 fix walked raw `comparisonData.rows` and grouped
+// by cluster — but that mis-flagged clusters where ANY raw duplicate was
+// empty, even if a SIBLING row in the same cluster had usable evidence.
 //
-// New shape: walk the comparisonData rows; for each row, check the cell at
-// THIS school's column index; if empty, score the row by rubric-weighted
-// importance; cluster near-duplicate row labels (rugby/SOCS/fees) so we
-// don't surface 4 variants of the same gap; return the top 4 distinct
-// cluster labels in priority order.
+// r3 P2 fix: use the same `clusterRows()` pipeline the scorer uses. After
+// clustering, each cluster carries a single "best" cell per school (via
+// pickBetterCell). A cluster is genuinely missing for this school only when
+// its merged cell is empty OR its text fails `isMeaningfulCellText` (same
+// "No usable data"/"N/A" predicate the scorer uses for coverage). Returns
+// the top 4 distinct cluster labels by rubric-weighted impact.
 function deriveCriticalMissingRows(
   s:              ScoredSchool,
   comparisonData: ComparisonData,
@@ -1394,25 +1398,22 @@ function deriveCriticalMissingRows(
   const schoolIdx = comparisonData.schools.findIndex(c => c.slug === s.slug)
   if (schoolIdx < 0) return []
 
-  // Walk rows, score the empty ones, group by cluster.
+  // Walk CLUSTERED rows (post-merge). Each cluster carries the best-of cell
+  // for this school across all source duplicates, so an empty cell here means
+  // the cluster is genuinely unfilled — not just one of N duplicates empty.
+  const clusters = clusterRows(comparisonData.rows)
   type Candidate = { label: string; weight: number }
-  const byCluster = new Map<string, Candidate>()
-  for (const row of comparisonData.rows) {
-    const cell = row.cells[schoolIdx]
-    if (!cell || cell.kind !== 'empty') continue
-    const category = rowCategory(row.label)
-    const weight   = rowWeight(row, category, rubric)
-    const { key, preferredLabel } = clusterKey(row.label)
-    const existing = byCluster.get(key)
-    // For each cluster, keep the highest-weighted member; on tie, preserve
-    // the first row's label (stable order).
-    if (!existing || weight > existing.weight) {
-      byCluster.set(key, { label: preferredLabel ?? row.label, weight })
-    }
+  const candidates: Candidate[] = []
+  for (const cluster of clusters) {
+    const cell = cluster.cells[schoolIdx]
+    if (cell && cell.kind !== 'empty' && isMeaningfulCellText(cellText(cell))) continue
+    const category = rowCategory(cluster.label)
+    const weight   = rowWeight(cluster, category, rubric)
+    candidates.push({ label: cluster.label, weight })
   }
 
-  // Sort by weight desc, take top 4 distinct cluster labels.
-  return Array.from(byCluster.values())
+  // Sort by weight desc, take top 4. Clustering already deduplicated labels.
+  return candidates
     .sort((a, b) => b.weight - a.weight)
     .slice(0, 4)
     .map(c => c.label)
