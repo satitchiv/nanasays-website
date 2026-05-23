@@ -341,6 +341,21 @@ export async function pickTopSchoolSlugs(
     return { slugs: [], reason: 'no_matches' }
   }
 
+  // Bug #3 (2026-05-22 picker-followup) — Normalize home_region ONCE
+  // and derive explicitHomeRegion for BOTH the hard filter (5c below)
+  // AND the scoring branch (further down). Lowercase + trim catches
+  // legacy capitalised values; Object.hasOwn excludes prototype-key
+  // false-positives. Defensive skip on unknown bucket prevents
+  // drop-all on typo/legacy.
+  const homeRegionRaw = (profile.home_region ?? '').toLowerCase().trim()
+  const explicitHomeRegion =
+    homeRegionRaw &&
+    homeRegionRaw !== 'anywhere' &&
+    homeRegionRaw !== 'overseas' &&
+    Object.hasOwn(REGION_BUCKETS, homeRegionRaw)
+      ? homeRegionRaw
+      : null
+
   // 5. Gender filter in JS (case-normalize)
   const genderAllow =
     profile.child_gender === 'boy'  ? BOY_COMPAT  :
@@ -369,6 +384,24 @@ export async function pickTopSchoolSlugs(
     filtered = filtered.filter(s => !KNOWN_FULL_BOARDING_NAMES.has(normalizeSchoolName(s.name)))
   }
 
+  // 5c. Bug #3 region HARD filter (picker-followup 2026-05-23 — undoes
+  // Codex r1 Q8 deferral after the parent-visible smoke test on
+  // Lily-test showed Surrey/Oxfordshire/Somerset schools still
+  // surfacing under home_region='london'. The soft -2.0 penalty was
+  // insufficient — same parent-harm pattern as the Build Mode finalize
+  // path. Drops schools whose region is known AND not in the bucket.
+  // Keeps NULL-region and 'England' for the same reasons as the
+  // Build Mode hard filter.
+  if (explicitHomeRegion) {
+    filtered = filtered.filter(s => {
+      const r = s.region
+      if (r == null) return true
+      const lc = r.trim().toLowerCase()
+      if (lc === 'england') return true
+      return regionInBucket(explicitHomeRegion, r)
+    })
+  }
+
   if (filtered.length === 0) {
     return { slugs: [], reason: 'no_matches' }
   }
@@ -389,33 +422,15 @@ export async function pickTopSchoolSlugs(
   }
 
   // 6. Score soft signals
-  // Bug #3 parity (2026-05-22) — normalize home_region once and reuse
-  // explicitHomeRegion. Object.hasOwn excludes prototype-key false-
-  // positives (toString etc.). 'England' handled inline in the scoring
-  // branch below (parity with score-for-build-mode.ts hard-filter
-  // predicate). Onboarding picker keeps the soft -2.0 penalty (no
-  // hard filter here — Codex r1 explicitly deferred onboarding hard
-  // filter to a separate slice).
-  const homeRegionRaw = (profile.home_region ?? '').toLowerCase().trim()
-  const explicitHomeRegion =
-    homeRegionRaw &&
-    homeRegionRaw !== 'anywhere' &&
-    homeRegionRaw !== 'overseas' &&
-    Object.hasOwn(REGION_BUCKETS, homeRegionRaw)
-      ? homeRegionRaw
-      : null
+  // explicitHomeRegion + hard filter live above (block 5c) so picker
+  // matches Build Mode finalize behavior. The -2.0 wrong-bucket
+  // penalty is unreachable here (hard filter pre-screens), removed.
 
   const scored = filtered.map(s => {
     let score = (s.confidence_score ?? 0) / 100  // 0..1 base
 
-    // Region match: in bucket → +0.6, NULL → 0 (neutral, common for
-    // famous schools), wrong bucket → -2.0 (was -1.0; bumped 2026-05-18
-    // after Maya's south-west query returned 5/7 schools outside the
-    // south-west bucket — confidence_score=100 + sport boost was still
-    // overcoming the -1.0 penalty for Wellington-Berkshire et al.).
-    // 2026-05-19 — also skip when home_region='anywhere' (parents who
-    // pick "Anywhere in the UK / no preference" shouldn't have any
-    // region influence their ranking).
+    // Region match: in bucket → +0.6, NULL / 'England' → neutral.
+    // Wrong-bucket schools were dropped by the hard filter above.
     if (explicitHomeRegion) {
       const broadEngland =
         typeof s.region === 'string' && s.region.trim().toLowerCase() === 'england'
@@ -423,9 +438,8 @@ export async function pickTopSchoolSlugs(
         // neutral — null OR broad country-level tag
       } else if (regionInBucket(explicitHomeRegion, s.region)) {
         score += 0.6
-      } else {
-        score -= 2.0
       }
+      // else: unreachable — hard filter pre-screens
     }
 
     // Budget closeness
