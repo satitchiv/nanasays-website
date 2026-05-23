@@ -1053,6 +1053,10 @@ function buildV3Overlay(
   const belowThresholdSlugs = new Set(below.map(s => s.slug))
 
   // couldnt_compare bucket.
+  // Codex r2 P2 #3 (2026-05-23): critical_missing_rows previously emitted a
+  // hardcoded 4-string slice for EVERY school. Now derived per-school from
+  // each school's actual empty cells, ranked by rubric-weighted impact +
+  // clustered to avoid surfacing 5 variants of the same missing row.
   const couldnt_compare: CouldntCompareSchool[] = below.map(s => {
     const f = facts.get(s.slug)
     return {
@@ -1063,7 +1067,7 @@ function buildV3Overlay(
       coverage_pct:            coveragePctFromScored(s),
       brief_match_summary:     buildBriefMatchSummary(f),
       budget_warning:          buildBudgetWarning(f, rubric),
-      critical_missing_rows:   ['A-level results', 'Annual boarding fee', 'Rugby programme strength', 'Pastoral structure'].slice(0, 4),
+      critical_missing_rows:   deriveCriticalMissingRows(s, args.comparisonData, rubric),
       highest_leverage_action: `Fill in 5-8 more comparison rows on ${s.name} and re-run the verdict.`,
     }
   })
@@ -1367,6 +1371,51 @@ function buildBudgetWarning(
     return `Top of fee range £${Math.round(f.fee_max / 1000)}k — above your cap by ~${overByPct}%.`
   }
   return undefined
+}
+
+// Codex r2 P2 #3 fix (2026-05-23): derive critical_missing_rows per school.
+//
+// The previous behaviour emitted a hardcoded 4-string list ("A-level results,
+// Annual boarding fee, Rugby programme strength, Pastoral structure") for
+// EVERY school in couldnt_compare regardless of which rows were actually
+// empty for that school. The UI surfaces these as the parent's "fix these to
+// unlock this school" list, so the hardcoded copy was actively misleading.
+//
+// New shape: walk the comparisonData rows; for each row, check the cell at
+// THIS school's column index; if empty, score the row by rubric-weighted
+// importance; cluster near-duplicate row labels (rugby/SOCS/fees) so we
+// don't surface 4 variants of the same gap; return the top 4 distinct
+// cluster labels in priority order.
+function deriveCriticalMissingRows(
+  s:              ScoredSchool,
+  comparisonData: ComparisonData,
+  rubric:         Rubric,
+): string[] {
+  const schoolIdx = comparisonData.schools.findIndex(c => c.slug === s.slug)
+  if (schoolIdx < 0) return []
+
+  // Walk rows, score the empty ones, group by cluster.
+  type Candidate = { label: string; weight: number }
+  const byCluster = new Map<string, Candidate>()
+  for (const row of comparisonData.rows) {
+    const cell = row.cells[schoolIdx]
+    if (!cell || cell.kind !== 'empty') continue
+    const category = rowCategory(row.label)
+    const weight   = rowWeight(row, category, rubric)
+    const { key, preferredLabel } = clusterKey(row.label)
+    const existing = byCluster.get(key)
+    // For each cluster, keep the highest-weighted member; on tie, preserve
+    // the first row's label (stable order).
+    if (!existing || weight > existing.weight) {
+      byCluster.set(key, { label: preferredLabel ?? row.label, weight })
+    }
+  }
+
+  // Sort by weight desc, take top 4 distinct cluster labels.
+  return Array.from(byCluster.values())
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, 4)
+    .map(c => c.label)
 }
 
 // ─── End v3 overlay ─────────────────────────────────────────────────────

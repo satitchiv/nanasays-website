@@ -128,16 +128,35 @@ export async function loadVerdictSchoolFacts(
 
     // Heathrow distance — prefer SSD location_profile.airports if present,
     // otherwise compute haversine. Falls through to undefined if neither.
+    //
+    // Codex r2 P2 #4 fix (2026-05-23): the loader previously matched on
+    // `{ code | iata | id } === 'LHR'` + `distance_miles`, but the real
+    // extractor (`scripts/extract-location-profile.js:208-218`) writes
+    // `{ name, distance_km, drive_time_min_estimate }`. So the structured
+    // lookup never matched and EVERY school fell through to the haversine
+    // fallback — accurate for schools with coords, null for schools without.
+    // Match the real shape now (name regex + km→miles), keep the legacy
+    // code/iata path as back-compat so any pre-shape-change rows still hit.
     let heathrow_miles: number | undefined = pickNum(ssd?.location_profile, 'heathrow_miles')
     if (heathrow_miles == null) {
       const airports = (ssd?.location_profile as Record<string, unknown> | undefined)?.airports
       if (Array.isArray(airports)) {
         const lhr = (airports as Array<Record<string, unknown>>).find(a => {
+          const name = a.name
+          if (typeof name === 'string' && /heathrow/i.test(name)) return true
           const code = a.code ?? a.iata ?? a.id
           return typeof code === 'string' && code.toUpperCase() === 'LHR'
         })
-        const miles = lhr?.distance_miles
-        if (typeof miles === 'number' && Number.isFinite(miles)) heathrow_miles = Math.round(miles)
+        if (lhr) {
+          const directMiles = lhr.distance_miles
+          const km          = lhr.distance_km
+          if (typeof directMiles === 'number' && Number.isFinite(directMiles)) {
+            heathrow_miles = Math.round(directMiles)
+          } else if (typeof km === 'number' && Number.isFinite(km)) {
+            // 1 km = 0.621371 miles
+            heathrow_miles = Math.round(km * 0.621371)
+          }
+        }
       }
     }
     if (heathrow_miles == null && school.latitude != null && school.longitude != null) {
