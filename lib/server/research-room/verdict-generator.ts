@@ -1024,6 +1024,7 @@ import {
   selectPathWinners,
   detectSameWinnerAcrossPaths,
   selectDefaultPath,
+  framingForPath,
 }                              from './verdict-generator-v3-paths'
 import {
   buildPathOverlay,
@@ -1144,10 +1145,14 @@ function buildV3Overlay(
     if (!winner) {
       // Degenerate case — selectPathWinners returns null winner when
       // eligible is empty. Emit a needs_research placeholder.
+      //
+      // Codex r2 P2 (2026-05-23): use framingForPath(pk, rubric) so Path A's
+      // framing flexes with topPriority even in this no-eligible branch.
+      // Without this, a parent with topPriority='academic' + every school
+      // below 50% coverage would see "If sport is the priority" placeholder.
+      const framing = framingForPath(pk, briefContext.rubric)
       return {
-        framing:        pk === 'A' ? 'If sport is the priority'
-                       : pk === 'B' ? 'If you want both, equal weight'
-                       : 'If your location filter is firm',
+        framing:        framing.framing,
         framingLong:    '',
         winner_slug:    '',
         path_status:    'needs_research',
