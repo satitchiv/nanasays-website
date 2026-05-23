@@ -817,15 +817,30 @@ export default function ResearchRoom({
                     // pass sessionId=null + verdict=null so VerdictTab shows
                     // its loading placeholder instead of the stale verdict.
                     (() => {
-                      // The Session type doesn't expose child_id, but we can
-                      // detect the optimistic transition via the gap between
-                      // client `activeChildId` (flips immediately) and the
-                      // SSR-supplied `initialActiveChildId` (only updates
-                      // after router.refresh delivers new server props).
+                      // Codex r6 P2 + r7 P1 (2026-05-23):
+                      //
+                      // r6: detect optimistic child-switch via
+                      //   verdictReady = activeChildId === initialActiveChildId
+                      // (client vs SSR prop). r7 then surfaced that gating the
+                      // verdict/sessionId props to null isn't enough — VerdictTab
+                      // holds its own `localVerdict` state populated by
+                      // auto-hydrate, and `useEffect([verdict])` only clears it
+                      // when the prop CHANGES. If researchVerdict is already
+                      // null going into the switch, the prop doesn't change,
+                      // localVerdict stays populated, old verdict renders under
+                      // new child name.
+                      //
+                      // Fix: include activeChildId in the key. When the client
+                      // flips activeChildId, the key changes immediately,
+                      // VerdictTab unmounts + remounts with fresh state
+                      // (including a fresh autoHydrateAttemptedRef). When
+                      // router.refresh later delivers the new session id, the
+                      // key changes again and we remount once more — two
+                      // remounts per switch, but neither shows stale data.
                       const verdictReady = activeChildId === initialActiveChildId
                       return (
                         <VerdictTab
-                          key={initialSession?.id ?? 'no-session'}
+                          key={`${activeChildId ?? 'no-child'}:${initialSession?.id ?? 'no-session'}`}
                           verdict={verdictReady ? researchVerdict : null}
                           sessionId={verdictReady ? (initialSession?.id ?? null) : null}
                           childName={activeChild?.name ?? null}
