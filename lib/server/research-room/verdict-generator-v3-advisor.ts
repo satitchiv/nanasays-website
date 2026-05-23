@@ -134,10 +134,49 @@ export type AdvisorInput = {
   signal?:        AbortSignal
 }
 
-export async function generateAdvisorRoundupForPath(input: AdvisorInput): Promise<string[] | null> {
-  if (!input.schoolName || !input.schoolName.trim()) return null
-  if (!input.evidence.length && !input.costs.length && !input.considerations.length) return null
+// Phase 2.5 cost tracking (2026-05-24): structured telemetry per LLM call.
+// Returned alongside the paragraphs so the caller (route) can fire-and-forget
+// an INSERT into nana_chat_logs. Pure helper — module stays free of Supabase
+// imports for testability.
+export type AdvisorCallTelemetry = {
+  pathKey:        PathKey
+  schoolSlug:     string         // path.winner_slug — for nana_chat_logs.school_slug
+  schoolName:     string
+  model:          string         // ADVISOR_MODEL ID
+  inputTokens:   number | null
+  outputTokens:  number | null
+  cachedInputTokens: number | null   // OpenAI's prompt_tokens_details.cached_tokens
+  latencyMs:     number
+  paragraphCount: number          // 0 when LLM failed / returned null
+  errorMessage?: string           // populated on failure (timeout, parse, network)
+}
 
+export type AdvisorCallResult = {
+  paragraphs: string[] | null
+  telemetry:  AdvisorCallTelemetry
+}
+
+export async function generateAdvisorRoundupForPath(input: AdvisorInput): Promise<AdvisorCallResult> {
+  const baseTelemetry = {
+    pathKey:           input.pathKey,
+    schoolSlug:        input.schoolFacts?.slug ?? '',
+    schoolName:        input.schoolName,
+    model:             ADVISOR_MODEL,
+    inputTokens:       null as number | null,
+    outputTokens:      null as number | null,
+    cachedInputTokens: null as number | null,
+    latencyMs:         0,
+    paragraphCount:    0,
+  }
+
+  if (!input.schoolName || !input.schoolName.trim()) {
+    return { paragraphs: null, telemetry: { ...baseTelemetry, errorMessage: 'empty schoolName' } }
+  }
+  if (!input.evidence.length && !input.costs.length && !input.considerations.length) {
+    return { paragraphs: null, telemetry: { ...baseTelemetry, errorMessage: 'empty evidence/costs/considerations' } }
+  }
+
+  const startedAt = Date.now()
   try {
     const client = getClient()
     const completion = await client.chat.completions.parse({
@@ -157,20 +196,31 @@ export async function generateAdvisorRoundupForPath(input: AdvisorInput): Promis
       maxRetries: 0,
     })
 
+    const latencyMs    = Date.now() - startedAt
+    const usage        = completion.usage as { prompt_tokens?: number; completion_tokens?: number; prompt_tokens_details?: { cached_tokens?: number } } | undefined
+    const inputTokens  = usage?.prompt_tokens ?? null
+    const outputTokens = usage?.completion_tokens ?? null
+    const cachedInputTokens = usage?.prompt_tokens_details?.cached_tokens ?? null
+
     const parsed = completion.choices[0]?.message?.parsed
     if (!parsed || !Array.isArray(parsed.paragraphs) || parsed.paragraphs.length < 3) {
       console.warn(`[verdict-advisor] Path ${input.pathKey} ${input.schoolName}: parsed missing or under-length, falling back`)
-      return null
+      return {
+        paragraphs: null,
+        telemetry: { ...baseTelemetry, latencyMs, inputTokens, outputTokens, cachedInputTokens, errorMessage: 'parsed missing or under-length' },
+      }
     }
-    return parsed.paragraphs
+    return {
+      paragraphs: parsed.paragraphs,
+      telemetry: { ...baseTelemetry, latencyMs, inputTokens, outputTokens, cachedInputTokens, paragraphCount: parsed.paragraphs.length },
+    }
   } catch (err) {
     // Catches timeout (>12s), network errors, schema-mismatch parse throws.
     // Fail-open: never let the verdict pipeline die because of LLM issues.
-    console.warn(
-      `[verdict-advisor] Path ${input.pathKey} ${input.schoolName} failed, falling back:`,
-      err instanceof Error ? err.message : String(err),
-    )
-    return null
+    const latencyMs = Date.now() - startedAt
+    const msg = err instanceof Error ? err.message : String(err)
+    console.warn(`[verdict-advisor] Path ${input.pathKey} ${input.schoolName} failed, falling back:`, msg)
+    return { paragraphs: null, telemetry: { ...baseTelemetry, latencyMs, errorMessage: msg } }
   }
 }
 
@@ -188,6 +238,11 @@ export async function enrichVerdictWithAdvisorRoundups(args: {
   schoolFactsBySlug: Map<string, SchoolFacts>
   briefContext:      BriefContext
   signal?:           AbortSignal
+  // Phase 2.5 cost tracking (2026-05-24): optional callback fires after each
+  // path's LLM call (success OR failure) with structured telemetry. Route
+  // uses this to insert into nana_chat_logs fire-and-forget. Module stays
+  // free of Supabase imports for testability — caller owns the side-effect.
+  onCallTelemetry?:  (t: AdvisorCallTelemetry) => void
 }): Promise<void> {
   const pathKeys: PathKey[] = ['A', 'B', 'C']
   const pathsToEnrich = pathKeys.filter(pk => shouldHaveAdvisorRoundup(args.paths[pk]))
@@ -197,7 +252,7 @@ export async function enrichVerdictWithAdvisorRoundups(args: {
     pathsToEnrich.map(async (pk) => {
       const path = args.paths[pk]
       const schoolFacts = args.schoolFactsBySlug.get(path.winner_slug)
-      const roundup = await generateAdvisorRoundupForPath({
+      const result = await generateAdvisorRoundupForPath({
         pathKey:        pk,
         framing:        path.framing,
         framingLong:    path.framingLong,
@@ -210,13 +265,19 @@ export async function enrichVerdictWithAdvisorRoundups(args: {
         briefContext:   args.briefContext,
         signal:         args.signal,
       })
-      return { pk, roundup }
+      // Fire telemetry callback regardless of success/failure so the route
+      // can log spend even for failed calls (tokens are still billed).
+      if (args.onCallTelemetry) {
+        try { args.onCallTelemetry(result.telemetry) }
+        catch (err) { console.warn('[verdict-advisor] telemetry callback threw:', err) }
+      }
+      return { pk, paragraphs: result.paragraphs }
     })
   )
 
   for (const result of results) {
-    if (result.status === 'fulfilled' && result.value.roundup) {
-      args.paths[result.value.pk].advisor_roundup = result.value.roundup
+    if (result.status === 'fulfilled' && result.value.paragraphs) {
+      args.paths[result.value.pk].advisor_roundup = result.value.paragraphs
     }
     // Per-path failure: leave advisor_roundup undefined; UI falls back to
     // deterministic reasoning[]. Parent can hit Regenerate to retry.

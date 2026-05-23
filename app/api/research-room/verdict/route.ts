@@ -7,7 +7,8 @@ import { supabaseService } from '@/lib/supabase-admin'
 import { loadVerdictEvidenceData, type LensKind } from '@/lib/research-comparison'
 import { loadVerdictSchoolFacts } from '@/lib/server/research-room/load-verdict-school-facts'
 import { buildResearchVerdictDraft, type ResearchVerdictRecord } from '@/lib/server/research-room/verdict-generator'
-import { enrichVerdictWithAdvisorRoundups } from '@/lib/server/research-room/verdict-generator-v3-advisor'
+import { enrichVerdictWithAdvisorRoundups, type AdvisorCallTelemetry } from '@/lib/server/research-room/verdict-generator-v3-advisor'
+import { computeCostUSD } from '@/lib/server/nana-brain.js'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -28,6 +29,62 @@ function parseBody(raw: unknown): { body: Body | null; error?: string } {
   }
   const baseLensKind: LensKind = o.base_lens_kind === 'child_fit' ? 'child_fit' : 'general'
   return { body: { session_id: o.session_id, base_lens_kind: baseLensKind, force: o.force === true } }
+}
+
+// Phase 2.5 cost tracking (2026-05-24): per-advisor-call INSERT to
+// nana_chat_logs so Mission Control sees verdict-advisor spend. computeCostUSD
+// is shared with Build Mode + chat — it expects Anthropic-style usage keys, so
+// we map OpenAI's prompt_tokens / completion_tokens / cached_tokens into that
+// shape. Returns null cost when model isn't in the PRICING_PER_MTOK table
+// (gpt-5-4-mini IS in the table — see nana-brain.js:1843).
+async function logAdvisorCall(svc: ReturnType<typeof supabaseService>, t: AdvisorCallTelemetry): Promise<void> {
+  // Map OpenAI usage → Anthropic-style for computeCostUSD lookup. OpenAI's
+  // model id 'gpt-5.4-mini' normalises to 'gpt-5-4-mini' inside computeCostUSD.
+  const cachedIn = t.cachedInputTokens ?? 0
+  const rawIn    = t.inputTokens ?? 0
+  // OpenAI's prompt_tokens INCLUDES cached_tokens, so split into uncached + cached.
+  const uncachedIn = Math.max(0, rawIn - cachedIn)
+  const cost = computeCostUSD({
+    input_tokens:                 uncachedIn,
+    cache_creation_input_tokens:  0,
+    cache_read_input_tokens:      cachedIn,
+    output_tokens:                t.outputTokens ?? 0,
+  }, t.model)
+  // Codex r1 #1 add-on: warn if we got tokens but no cost — means
+  // VERDICT_ADVISOR_MODEL was overridden to an unknown model and the spend is
+  // being logged with null costs. Mission Control won't catch the silent gap.
+  if (!cost && (uncachedIn > 0 || (t.outputTokens ?? 0) > 0)) {
+    console.warn(`[verdict-advisor] cost=null for model="${t.model}" with tokens — add it to PRICING_PER_MTOK or set VERDICT_ADVISOR_MODEL back to gpt-5.4-mini`)
+  }
+  // Codex r1 #1 (2026-05-24): Supabase .insert() does NOT reject on DB errors —
+  // it resolves with { error }. The previous `.catch()` at the call site only
+  // caught network/throws. Surface { error } explicitly so failed inserts hit
+  // the console (matches build-mode/turn/route.ts:646 pattern).
+  const { error } = await svc.from('nana_chat_logs').insert({
+    school_slug:          t.schoolSlug || null,
+    question:             `verdict-advisor path ${t.pathKey}: ${t.schoolName}`.slice(0, 2000),
+    answer_preview:       t.errorMessage ? `[FAIL] ${t.errorMessage}`.slice(0, 500) : `[OK] ${t.paragraphCount} paragraphs`,
+    tokens_in:            uncachedIn,
+    tokens_cache_write:   null,
+    tokens_cache_read:    cachedIn,
+    tokens_out:           t.outputTokens ?? null,
+    cost_input_usd:       cost?.cost_input ?? null,
+    cost_cache_write_usd: null,
+    cost_cache_read_usd:  cost?.cost_cache_read ?? null,
+    cost_output_usd:      cost?.cost_output ?? null,
+    cost_total_usd:       cost?.total_usd ?? null,
+    cache_hit_pct:        cost?.cache_hit_pct ?? null,
+    chunk_count:          null,
+    sensitive_count:      null,
+    backend:              'verdict-advisor',
+    model:                t.model,
+    confidence:           t.errorMessage ? 'low' : 'high',
+    claude_ms:            null,
+    total_ms:             t.latencyMs,
+  })
+  if (error) {
+    console.error('[verdict] advisor nana_chat_logs insert returned error:', error.message)
+  }
 }
 
 function isMissingMigrationError(e: unknown): boolean {
@@ -200,6 +257,12 @@ export async function POST(req: NextRequest) {
           schoolFactsBySlug: schoolFacts,
           briefContext:      draft.briefContext,
           signal:            req.signal,
+          // Phase 2.5 cost tracking: fire-and-forget INSERT into nana_chat_logs
+          // per LLM call so Mission Control sees verdict-advisor spend alongside
+          // Build Mode + chat spend. Matches the pattern in
+          // app/api/research-room/build-mode/turn/route.ts:621.
+          onCallTelemetry:   (t) => logAdvisorCall(svc, t).catch(err =>
+            console.error('[verdict] advisor nana_chat_logs insert failed', err)),
         })
       } catch (err) {
         console.warn('[verdict] advisor enrichment failed (using fallback prose):',
