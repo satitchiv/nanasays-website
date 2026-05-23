@@ -1317,8 +1317,13 @@ function projectSchoolFactsForUi(
   const hasActiveFilter = !!rubric.homeRegion
     && rubric.homeRegion !== 'anywhere'
     && rubric.homeRegion !== 'overseas'
-  const insideFilter: boolean | null = hasActiveFilter && f?.region
-    ? regionInBucket(rubric.homeRegion, f.region)
+  // Codex r4 NIT (2026-05-23): trim school.region before the truthiness check,
+  // so a whitespace-only region string ('  ') doesn't slip past as truthy and
+  // then fail the bucket match — that would emit `false` (= "outside filter")
+  // for a school whose region is structurally blank.
+  const schoolRegionTrimmed = f?.region?.trim() ?? ''
+  const insideFilter: boolean | null = hasActiveFilter && schoolRegionTrimmed
+    ? regionInBucket(rubric.homeRegion, schoolRegionTrimmed)
     : null
   return {
     slug,
