@@ -124,6 +124,9 @@ type VerdictJson = {
   default_path?: PathKey | null
   school_facts?: Record<string, SchoolFactsForUi>
   brief_chips?: BriefChip[]
+  // UX iteration Phase 1 (2026-05-23): parent's free-text quote, trimmed +
+  // length-capped server-side. Null when goals_notes was empty.
+  goals_quote?: string | null
 }
 
 type Props = {
@@ -562,7 +565,12 @@ export default function VerdictTab({ verdict, sessionId, childName }: Props) {
           <div className="rr-view-eyebrow">Verdict</div>
           <h1 className="rr-view-title">
             {isV3
-              ? <>Three honest paths, <em>pick the one that fits.</em></>
+              // 3.1 (2026-05-23): child name in title when known, so the verdict
+              // page anchors the parent in WHO this is about. Falls back to the
+              // generic "pick the one that fits" framing if no childName prop.
+              ? (childName
+                  ? <>Three honest paths for <em>{childName}</em></>
+                  : <>Three honest paths, <em>pick the one that fits.</em></>)
               : <>The decision, <em>with tradeoffs.</em></>}
           </h1>
           <p className="rr-view-meta">
@@ -586,21 +594,39 @@ export default function VerdictTab({ verdict, sessionId, childName }: Props) {
 
       {isV3 && verdictJson && selectedPath ? (
         <>
-          {/* Brief chip strip */}
-          {(verdictJson.brief_chips?.length ?? 0) > 0 && (
-            <section className="rr-verdict-brief-strip" aria-label={`${childName ?? 'Child'}'s brief`}>
-              <div className="rr-verdict-brief-strip-head">Brief that drives this verdict</div>
-              <div className="rr-verdict-brief-chips">
-                {verdictJson.brief_chips!.map((chip, idx) => (
-                  <span
-                    key={idx}
-                    className={`rr-verdict-brief-chip${chip.is_anchor ? ' is-anchor' : ''}`}
-                  >
-                    <span className="rr-verdict-brief-chip-k">{chip.key}</span>
-                    <span className="rr-verdict-brief-chip-v">{chip.value}</span>
-                  </span>
-                ))}
+          {/* 3.2 (2026-05-23): Expanded brief callout — replaces the small
+              chip strip with a richer card showing eyebrow + meta line + chip
+              grid + the parent's goals_notes quote (when present). Renderer
+              still consumes brief_chips[] + goals_quote from the verdict JSON
+              so the data contract is unchanged; only the wrapper structure
+              changed. */}
+          {((verdictJson.brief_chips?.length ?? 0) > 0 || verdictJson.goals_quote) && (
+            <section className="rr-verdict-brief-strip rr-verdict-brief-expanded" aria-label={`${childName ?? 'Child'}'s brief`}>
+              <div className="rr-verdict-brief-expanded-head">
+                <span className="rr-verdict-brief-strip-head">Brief that drives this verdict</span>
+                {childName && (
+                  <span className="rr-verdict-brief-expanded-meta">{childName}&apos;s brief</span>
+                )}
               </div>
+              {(verdictJson.brief_chips?.length ?? 0) > 0 && (
+                <div className="rr-verdict-brief-chips">
+                  {verdictJson.brief_chips!.map((chip, idx) => (
+                    <span
+                      key={idx}
+                      className={`rr-verdict-brief-chip${chip.is_anchor ? ' is-anchor' : ''}`}
+                    >
+                      <span className="rr-verdict-brief-chip-k">{chip.key}</span>
+                      <span className="rr-verdict-brief-chip-v">{chip.value}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+              {verdictJson.goals_quote && (
+                <blockquote className="rr-verdict-brief-quote">
+                  <span className="rr-verdict-brief-quote-mark" aria-hidden="true">&ldquo;</span>
+                  <p>{verdictJson.goals_quote}</p>
+                </blockquote>
+              )}
             </section>
           )}
 

@@ -56,6 +56,58 @@
 .rr-verdict-brief-chip.is-anchor { background: var(--rr-teal-bg); border-color: rgba(35, 156, 128, 0.3); }
 .rr-verdict-brief-chip.is-anchor .rr-verdict-brief-chip-k { color: var(--rr-teal-dk); }
 
+/* UX iteration Phase 1 (2026-05-23): expanded brief callout — adds an eyebrow
+   row with the child label and a goals_notes quote blockquote below the chip
+   strip. The base .rr-verdict-brief-strip styles still apply (background,
+   border, radius, padding); these selectors layer the new pieces on top. */
+.rr-verdict-brief-expanded {
+  padding: 18px 22px;
+}
+.rr-verdict-brief-expanded-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--rr-border);
+}
+.rr-verdict-brief-expanded-head .rr-verdict-brief-strip-head {
+  margin-bottom: 0;
+}
+.rr-verdict-brief-expanded-meta {
+  font-family: var(--rr-sans);
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--rr-muted);
+}
+.rr-verdict-brief-quote {
+  display: flex;
+  gap: 12px;
+  margin: 14px 0 0;
+  padding: 12px 16px;
+  background: rgba(35, 156, 128, 0.06);
+  border-left: 3px solid var(--rr-teal-dk);
+  border-radius: 0 var(--rr-r-sm) var(--rr-r-sm) 0;
+}
+.rr-verdict-brief-quote-mark {
+  font-family: var(--rr-display);
+  font-size: 32px;
+  font-weight: 900;
+  line-height: 0.8;
+  color: var(--rr-teal-dk);
+  flex-shrink: 0;
+}
+.rr-verdict-brief-quote p {
+  font-family: var(--rr-sans);
+  font-style: italic;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--rr-body);
+  margin: 0;
+}
+
 /* ── SELECTOR TILES (3 paths, clickable) ──────────────────────────────── */
 .rr-verdict-selector {
   display: grid;

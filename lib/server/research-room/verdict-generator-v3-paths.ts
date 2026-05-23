@@ -105,6 +105,45 @@ export function sportComposite(
        + 0.25 * norm(s, 'community', rubric)
 }
 
+// UX iteration Phase 1 (2026-05-23): Path A composite is adaptive to the
+// parent's stated top_priority. Previously Path A was hardcoded to
+// sportComposite, which surfaced "If sport is the priority — School X" as a
+// hypothetical framing even for parents who never stated sport as a priority.
+// Now Path A flexes:
+//   - topPriority='sport' → sportComposite (unchanged from before)
+//   - topPriority='academic' / 'academics' → academic-weighted composite
+//   - topPriority='pastoral' → pastoral-weighted composite
+//   - topPriority=null/empty/unknown value → balancedComposite (best overall fit)
+// The framing string updates in lockstep via pathAFraming() below.
+//
+// Phase 2 (deferred): LLM-classified top-3 priorities → all 3 paths adaptive
+// (A=#1, B=#2, C=#3) instead of just Path A.
+export function pathAComposite(
+  s: ScoredSchool, rubric: BriefContext['rubric'],
+): number {
+  const tp = rubric.topPriority?.toLowerCase().trim()
+  if (!tp) {
+    // No stated priority → "Best overall fit" semantics. balancedComposite
+    // returns score / sumOfCaps, the same ranking the scorer's top would use.
+    return balancedComposite(s, rubric)
+  }
+  if (tp === 'sport') {
+    return sportComposite(s, rubric)
+  }
+  if (tp === 'academic' || tp === 'academics') {
+    return 0.55 * norm(s, 'academics', rubric)
+         + 0.20 * norm(s, 'scholarship', rubric)
+         + 0.25 * norm(s, 'community', rubric)
+  }
+  if (tp === 'pastoral') {
+    return 0.55 * norm(s, 'pastoral', rubric)
+         + 0.25 * norm(s, 'community', rubric)
+         + 0.20 * norm(s, 'scholarship', rubric)
+  }
+  // Unknown topPriority value → balanced fallback
+  return balancedComposite(s, rubric)
+}
+
 export function balancedComposite(
   s: ScoredSchool, rubric: BriefContext['rubric'],
 ): number {
@@ -173,9 +212,11 @@ export function selectPathWinners(
   const rubric = briefContext.rubric
 
   // Compute composites for ALL eligible schools.
+  // UX iteration Phase 1 (2026-05-23): Path A now uses pathAComposite which
+  // adapts to rubric.topPriority (sport / academic / pastoral / balanced).
   for (const school of eligibleOnly) {
     const facts = schoolFactsBySlug.get(school.slug)
-    composites.A.set(school.slug, sportComposite(school, rubric))
+    composites.A.set(school.slug, pathAComposite(school, rubric))
     composites.B.set(school.slug, balancedComposite(school, rubric))
     composites.C.set(school.slug, locationComposite(school, rubric, facts))
   }
@@ -332,12 +373,35 @@ export const PATH_C_NEUTRALISED_FRAMING = {
   framingLong: '…no UK region target was specified in your brief',
 } as const
 
+// UX iteration Phase 1 (2026-05-23): signature widened from (pathKey, homeRegion)
+// to (pathKey, rubric) so Path A's framing can adapt to the parent's
+// topPriority. Path C's homeRegion-neutralisation behaviour preserved unchanged;
+// Path B unchanged. Backward-compat shim: callers passing JUST a homeRegion
+// string (old signature) won't compile, surfacing the migration explicitly.
 export function framingForPath(
   pathKey: PathKey,
-  homeRegion: string | null | undefined,
+  rubric: BriefContext['rubric'],
 ): { framing: string; framingLong: string; anchor: string } {
+  // Path A adapts to rubric.topPriority. Best-overall-fit fallback when null.
+  if (pathKey === 'A') {
+    const tp = rubric.topPriority?.toLowerCase().trim()
+    if (!tp) {
+      return {
+        framing:     'Best overall fit',
+        framingLong: '…highest-scoring school across all dimensions of your brief',
+        anchor:      'overall',
+      }
+    }
+    const labelLower = tp.replace(/-/g, ' ')
+    return {
+      framing:     `If ${labelLower} is the priority`,
+      framingLong: `…the brief says ${labelLower} is top priority`,
+      anchor:      tp,
+    }
+  }
+
   const base = PATH_FRAMING[pathKey]
-  if (pathKey === 'C' && (!homeRegion || homeRegion === 'anywhere' || homeRegion === 'overseas')) {
+  if (pathKey === 'C' && (!rubric.homeRegion || rubric.homeRegion === 'anywhere' || rubric.homeRegion === 'overseas')) {
     return { ...base, ...PATH_C_NEUTRALISED_FRAMING }
   }
   return base
@@ -352,13 +416,22 @@ export function framingForPath(
 // neutralised by anywhere/overseas (in which case the cause isn't "evidence
 // too thin", it's "no UK region was specified"). Takes an optional homeRegion
 // arg — callers that don't pass it get the legacy generic copy.
+// UX iteration Phase 1 (2026-05-23): signature widened to take rubric so the
+// anchor used in copy can be dynamic (Path A's anchor flexes with
+// rubric.topPriority — e.g. 'academic'-led winner instead of always 'sport'-led).
+// Path C's neutralisation copy still keys off rubric.homeRegion. Path B unchanged.
 export function statusNoteFor(
   pathStatus: PathStatus,
   pathKey:    PathKey,
-  homeRegion?: string | null,
+  rubric?:    BriefContext['rubric'] | null,
 ): string | undefined {
   if (pathStatus === 'winner') return undefined
-  const anchor = PATH_FRAMING[pathKey].anchor
+
+  // Anchor comes from framingForPath when we have rubric (dynamic Path A), else
+  // falls back to PATH_FRAMING's static anchor (legacy callers).
+  const anchor = rubric
+    ? framingForPath(pathKey, rubric).anchor
+    : PATH_FRAMING[pathKey].anchor
 
   if (pathStatus === 'fallback') {
     return `No eligible ${anchor}-led winner passes the brief's hard constraints (gender single-sex or year-stage match). The closest broader fit is shown as a fallback; below-threshold schools that match this anchor are listed under "couldn't compare yet."`
@@ -366,6 +439,7 @@ export function statusNoteFor(
 
   // R9-MUST-2: needs_research with Path C + no UK region target = neutralised,
   // not evidence-thin.
+  const homeRegion = rubric?.homeRegion
   if (
     pathKey === 'C' &&
     (!homeRegion || homeRegion === 'anywhere' || homeRegion === 'overseas')

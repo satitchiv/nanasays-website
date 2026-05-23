@@ -241,14 +241,16 @@ export function buildPathOverlay(input: BuildPathInput): PathOverlay {
   const { pathKey, winner, winnerFacts, pathStatus, briefContext } = input
   // R10-SHOULD-1: framing comes from framingForPath(), which returns the
   // neutralised override for Path C when home_region is anywhere/overseas.
-  const framing = framingForPath(pathKey, briefContext.rubric.homeRegion)
+  // UX iteration Phase 1 (2026-05-23): framingForPath signature widened to
+  // take the full rubric so Path A can adapt to rubric.topPriority.
+  const framing = framingForPath(pathKey, briefContext.rubric)
 
   return {
     framing:        framing.framing,
     framingLong:    framing.framingLong,
     winner_slug:    winner.slug,
     path_status:    pathStatus,
-    status_note:    statusNoteFor(pathStatus, pathKey, briefContext.rubric.homeRegion),
+    status_note:    statusNoteFor(pathStatus, pathKey, briefContext.rubric),
     reasoning:      buildReasoningParagraphs(input),
     evidence:       buildEvidenceList(input),
     costs:          generateHonestCosts(briefContext, winnerFacts, pathKey),

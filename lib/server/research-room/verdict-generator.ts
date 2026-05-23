@@ -36,6 +36,11 @@ export type ResearchVerdict = {
   default_path?: 'A' | 'B' | 'C' | null
   school_facts?: Record<string, import('./verdict-generator-v3-types').SchoolFactsForUi>
   brief_chips?: import('./verdict-generator-v3-types').BriefChip[]
+  // UX iteration Phase 1 (2026-05-23): the parent's goals_notes free text from
+  // child_profile, trimmed + length-capped to ~600 chars for safe rendering as
+  // a blockquote inside the expanded brief callout. Null when the parent left
+  // goals_notes empty.
+  goals_quote?: string | null
 }
 
 export type ResearchVerdictRecord = {
@@ -753,6 +758,33 @@ function decisionFactors(rubric: Rubric): string[] {
   if (rubric.curriculumPref) out.push(`Curriculum preference considered: ${formatCurriculum(rubric.curriculumPref)}.`)
   if (rubric.childYear)      out.push(`School-stage check applied for Year ${rubric.childYear}.`)
   return out.slice(0, 7)
+}
+
+// UX iteration Phase 1 (2026-05-23): goals_quote for the expanded brief callout.
+//
+// Reads childProfile.goals_notes (the parent's free-text "in their own words"
+// field on the Child brief page), trims whitespace, and caps at GOALS_QUOTE_MAX
+// chars so the verdict JSON payload stays bounded. Null when the parent left
+// the field empty or it's not a string.
+//
+// Sanitization: we ONLY trim + length-cap. No HTML stripping needed because the
+// renderer puts this in a <blockquote> via React (text is escaped automatically;
+// no dangerouslySetInnerHTML).
+const GOALS_QUOTE_MAX = 600
+
+function extractGoalsQuote(childProfile: Record<string, unknown> | null | undefined): string | null {
+  if (!childProfile) return null
+  const raw = childProfile.goals_notes
+  if (typeof raw !== 'string') return null
+  const trimmed = raw.trim()
+  if (!trimmed) return null
+  if (trimmed.length <= GOALS_QUOTE_MAX) return trimmed
+  // Truncate at the nearest whitespace boundary before GOALS_QUOTE_MAX so we
+  // don't cut mid-word. Append an ellipsis to signal truncation.
+  const cut = trimmed.slice(0, GOALS_QUOTE_MAX)
+  const lastBreak = cut.lastIndexOf(' ')
+  const at = lastBreak > GOALS_QUOTE_MAX * 0.7 ? lastBreak : GOALS_QUOTE_MAX
+  return `${trimmed.slice(0, at).trimEnd()}…`
 }
 
 // P1 #4: brief_chips for the verdict-tab chip strip. Same input as decisionFactors
@@ -1485,6 +1517,7 @@ export function buildResearchVerdictDraft(args: BuildArgs): { inputHash: string;
     default_path:             v3Overlay.default_path,
     school_facts:             v3Overlay.schoolFactsForUi,
     brief_chips:              buildBriefChips(rubric),
+    goals_quote:              extractGoalsQuote(args.childProfile),
   }
 
   // R2-F2 + R4-MUST-2 + R5-MUST-5: hash payload drops lens identity. v3 uses
