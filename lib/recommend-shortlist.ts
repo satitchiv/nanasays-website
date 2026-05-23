@@ -334,7 +334,15 @@ export async function pickTopSchoolSlugs(
     q = q.or('sen_support.is.null,sen_support.eq.true')
   }
 
-  q = q.order('confidence_score', { ascending: false }).limit(80)
+  // 2026-05-23 picker-followup #2 — raised from 80 to 250 (parity with
+  // score-for-build-mode.ts Phase 3 Bug #5). The 80-cap was too tight:
+  // ~140 UK-evidence-with-chunks schools today, and lower-confidence
+  // London schools (Latymer Upper, Highgate, Alleyn's, UCS confidence
+  // 57-71) were being clipped before the JS filters ran. Lily-test
+  // smoke 2026-05-23 surfaced this: hard filter dropped 27/29 leaving
+  // only Dulwich + Dwight because the other 7 London co-eds didn't
+  // make the top-80 SQL cut. 250 fits the full corpus with headroom.
+  q = q.order('confidence_score', { ascending: false }).limit(250)
 
   const { data: candidates, error } = await q
   if (error || !candidates || candidates.length === 0) {
