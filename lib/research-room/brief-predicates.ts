@@ -11,6 +11,8 @@
 // No DB access. No side effects. No `server-only` import (called from both
 // server components and the shortlist API route on the server side).
 
+import { effectiveTopPriority, type IntentFocusCache } from './effective-top-priority.ts'
+
 export type BriefProfile = {
   home_region?:     string | null
   child_gender?:    string | null
@@ -25,22 +27,35 @@ export type BriefProfile = {
   lgbtq_pref?:      string | null
   pastoral_pref?:   string | null
   onboarding_complete?: boolean | null
+  // Sport-gate fix (2026-05-24): the 5 prose fields the classifier reads.
+  // Surfaced here so callers that cast child_profile → BriefProfile get them
+  // for free. effectiveTopPriority uses them to hash-check cache freshness.
+  academic_notes?:    string | null
+  goals_notes?:       string | null
+  personality_notes?: string | null
+  child_wants?:       string | null
+  anchors_notes?:     string | null
+  // Cached parent_drill_focus from the LLM classifier (set by finalize +
+  // refresh-recommendations routes). When fresh (hash + version match),
+  // the cached drill_focus wins over wizard top_priority per the scorer
+  // precedent at score-for-build-mode.ts:891.
+  intent_focus_cache?: IntentFocusCache | null
 }
 
 export function isSportPriority(p: BriefProfile | null): boolean {
-  return p?.top_priority === 'sport'
+  return effectiveTopPriority(p) === 'sport'
 }
 
 export function isArtsPriority(p: BriefProfile | null): boolean {
-  return p?.top_priority === 'arts'
+  return effectiveTopPriority(p) === 'arts'
 }
 
 export function isPastoralPriority(p: BriefProfile | null): boolean {
-  return p?.top_priority === 'pastoral'
+  return effectiveTopPriority(p) === 'pastoral'
 }
 
 export function isAcademicPriority(p: BriefProfile | null): boolean {
-  return p?.top_priority === 'academic'
+  return effectiveTopPriority(p) === 'academic'
 }
 
 export function isFullOrWeeklyBoarding(p: BriefProfile | null): boolean {

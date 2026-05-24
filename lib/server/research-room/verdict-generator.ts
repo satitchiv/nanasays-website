@@ -1,5 +1,6 @@
 import 'server-only'
 import crypto from 'node:crypto'
+import { effectiveTopPriority, type EffectiveTopPriorityProfile } from '@/lib/research-room/effective-top-priority'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ComparisonData, ComparisonRow, RowCell } from '@/components/nana/comparison-placeholder'
 import { rowTopic, type RowTopic } from './row-topic'
@@ -171,8 +172,16 @@ function parseChildYear(raw: string | null): number | null {
 
 function buildRubric(childProfile: Record<string, unknown> | null | undefined): Rubric {
   const budgetRange = profileString(childProfile, ['budget_range', 'budget'])
+  // Sport-gate fix (2026-05-24): topPriority resolves via effectiveTopPriority
+  // FIRST — picks up the LLM-classified parent_drill_focus when the parent
+  // expressed intent through prose rather than the wizard dropdown. Without
+  // this, Path A framing + scoring + advisor's full take prompt would all
+  // think there's no sport priority even when seeded sport rows fire.
+  // v5 (Codex r4 P2 #3): preserves the legacy `'priority'` alias fallback
+  // for any older child_profile rows using that key.
+  const effective = effectiveTopPriority(childProfile as EffectiveTopPriorityProfile | null)
   return {
-    topPriority:      profileString(childProfile, ['top_priority', 'priority']),
+    topPriority:      effective || profileString(childProfile, ['priority']),
     boardingPref:     profileString(childProfile, ['boarding_pref', 'boarding']),
     homeRegion:       profileString(childProfile, ['home_region', 'region']),
     budgetRange,

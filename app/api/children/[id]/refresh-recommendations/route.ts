@@ -24,7 +24,8 @@ import type { BriefProfile } from '@/lib/research-room/brief-predicates'
 // what Build Mode finalize uses. Mirrors the overlay + classifier flow
 // in app/api/research-room/build-mode/finalize/route.ts:378-490.
 import { scoreForBuildMode } from '@/lib/research-room/score-for-build-mode'
-import { classifyBuildModeIntent } from '@/lib/server/research-room/classify-build-mode-intent'
+import { classifyBuildModeIntent, CLASSIFICATION_VERSION, FALLBACK_INTENT } from '@/lib/server/research-room/classify-build-mode-intent'
+import { writeIntentFocusCacheIfChanged } from '@/lib/research-room/intent-cache-writer'
 // Codex r1 finding 3 — schema-validate child_profile via the same zod
 // schema finalize uses, so malformed interests_sports / nonnegotiables /
 // etc. can't sneak past into the scorer.
@@ -252,6 +253,21 @@ export async function POST(
     anchors_notes:     strOrNull(profile.anchors_notes),
   })
 
+  // Sport-gate fix (2026-05-24, Codex r3 P2): mirror finalize's cache-write
+  // so editing prose + clicking Refresh updates the cached drill_focus too.
+  // Without this, the next page-load seed would read stale/missing cache and
+  // fall back to wizard → sport rows soft-delete. Skip write on classifier
+  // fallback (Codex r5 P1).
+  const intentCacheable = buildModeIntent !== FALLBACK_INTENT
+  const { updatedProfile: profileWithCache } = await writeIntentFocusCacheIfChanged({
+    svc,
+    childId:         id,
+    rawChildProfile: profile as Record<string, unknown>,
+    drillFocus:      buildModeIntent.parent_drill_focus,
+    version:         CLASSIFICATION_VERSION,
+    cacheable:       intentCacheable,
+  })
+
   // 6) Score with the rich Picker #2. excludeSlugs=[] because the Refresh
   //    button is an atomic replace; no need to exclude the current list.
   let pickResult: Awaited<ReturnType<typeof scoreForBuildMode>>
@@ -307,7 +323,9 @@ export async function POST(
   // a reason-less upsert.
   let reasonsBySlug: Map<string, MatchReasonsRecord> = new Map()
   try {
-    reasonsBySlug = await loadMatchReasonsBatch(svc, profile as BriefProfile, pick.slugs)
+    // Codex r4 P2 #2 (2026-05-24): thread the cache-merged profile so match
+    // reasons see the freshly cached drill_focus.
+    reasonsBySlug = await loadMatchReasonsBatch(svc, profileWithCache as BriefProfile, pick.slugs)
   } catch (e) {
     console.warn('[refresh-recommendations] match_reasons compute failed:', e)
   }

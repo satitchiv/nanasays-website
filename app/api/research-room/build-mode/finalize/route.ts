@@ -45,7 +45,8 @@ import {
   type BuildModeFinalizeMixed,
 } from '@/lib/server/research-room/build-mode-schemas'
 import { scoreForBuildMode, type ScoredCandidate } from '@/lib/research-room/score-for-build-mode'
-import { classifyBuildModeIntent } from '@/lib/server/research-room/classify-build-mode-intent'
+import { classifyBuildModeIntent, CLASSIFICATION_VERSION, FALLBACK_INTENT } from '@/lib/server/research-room/classify-build-mode-intent'
+import { writeIntentFocusCacheIfChanged } from '@/lib/research-room/intent-cache-writer'
 import type { BriefProfile } from '@/lib/research-room/brief-predicates'
 
 export const runtime    = 'nodejs'
@@ -466,6 +467,24 @@ export async function POST(req: NextRequest) {
     anchors_notes:     strOrNull(childProfile?.anchors_notes),
   })
 
+  // Sport-gate fix (2026-05-24): cache parent_drill_focus on
+  // children.child_profile.intent_focus_cache so the page-load + write-action
+  // seeders pick the same effective priority without re-running the classifier.
+  // Uses RAW child.child_profile (NOT the filtered childProfile from
+  // extractWritableProfile) so non-allowlist keys aren't dropped (Codex r1 P0).
+  // Skips write on classifier fallback to avoid poisoning prior cache with
+  // FALLBACK_INTENT's 'none' (Codex r5 P1).
+  const rawChildProfile = (child.child_profile ?? {}) as Record<string, unknown>
+  const intentCacheable = buildModeIntent !== FALLBACK_INTENT
+  const { updatedProfile: childProfileWithCache } = await writeIntentFocusCacheIfChanged({
+    svc,
+    childId:         sess.child_id,
+    rawChildProfile,
+    drillFocus:      buildModeIntent.parent_drill_focus,
+    version:         CLASSIFICATION_VERSION,
+    cacheable:       intentCacheable,
+  })
+
   // ── Score off-shortlist candidates (Codex r-merge Q4 P1) ──────────
   // Run the Build Mode scorer against the FULL UK directory, excluding
   // the parent's current shortlist. Result feeds the LLM prompt as the
@@ -829,7 +848,11 @@ export async function POST(req: NextRequest) {
               const wiz   = (briefProfile?.top_priority ?? '').trim()
               const drill = buildModeIntent.parent_drill_focus
               if (wiz && drill && drill !== 'none' && wiz !== drill) {
-                return { wizard: wiz, drill, resolution: 'wizard_wins' }
+                // Sport-gate fix (2026-05-24): scorer + brief-predicates BOTH
+                // resolve drill_focus over wizard when non-'none'. Metadata
+                // previously claimed 'wizard_wins' which contradicted actual
+                // behaviour.
+                return { wizard: wiz, drill, resolution: 'drill_wins' }
               }
               return null
             })(),
@@ -981,7 +1004,11 @@ export async function POST(req: NextRequest) {
               const { loadShortlistContext, seedResearchSession } =
                 await import('@/lib/research-room/seed-rows')
               const ctx = await loadShortlistContext(svc, user.id, sess.child_id)
-              const briefProfile = (child.child_profile ?? null) as
+              // Sport-gate fix (2026-05-24): pass the cache-merged profile so
+              // the seeder's gate predicates see the LLM-classified drill_focus
+              // (sport rows seed for rugby-in-prose parents who didn't pick
+              // 'sport' in the wizard).
+              const briefProfile = childProfileWithCache as
                 | import('@/lib/research-room/brief-predicates').BriefProfile
                 | null
               await seedResearchSession(svc, user.id, body.sessionId, ctx, briefProfile)
