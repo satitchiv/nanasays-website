@@ -4008,26 +4008,42 @@
 .rr-cb-panel { scroll-margin-top: 80px; }
 
 /* ── The sidebar itself ──────────────────────────────────────────────────
-   Phase 3 smoke fix (2026-05-24): flex column with the LIST scrolling
-   internally — head + foot stay pinned so "+ Add child" never disappears
-   when many children push the list past viewport height. Previous design
-   put overflow-y on the whole sidebar and the foot scrolled out of view.
+   Phase 3 smoke fix r3 (Codex 2026-05-24): r1 + r2 attempts both failed
+   because the sticky context is `.rr-view-page` (overflow-y: auto at
+   line 251), NOT the window. `top: 80px` was relative to the scroller,
+   not the viewport. And `height: calc(100vh - 100px)` was viewport-
+   relative — overshot by the top nav + .rr-view-page's own offset,
+   pushing the foot off-screen by ~40px on a 1118px viewport.
+   Codex Option A-prime: account for the real scroll container, flex
+   column with the LIST as the scroll surface (not the sidebar itself).
    ────────────────────────────────────────────────────────────────────── */
 .rr-cb-sidebar {
+  /* CSS variables for the top + bottom gaps inside the scroll container.
+     Tweakable in one place if the nav height ever changes.
+     Bottom gap raised 24 → 60 (2026-05-24 smoke r4) per user feedback —
+     24px below the "+ Add child" button felt cramped against the
+     viewport bottom; 60px gives the sidebar visible breathing room. */
+  --rr-cb-sidebar-top:        24px;
+  --rr-cb-sidebar-bottom-gap: 60px;
   position: sticky;
-  top: 80px;
+  /* top relative to .rr-view-page scroll context (24px sits below the
+     content padding rather than chasing the absolute viewport nav). */
+  top: var(--rr-cb-sidebar-top);
   align-self: start;
+  display: flex;
+  flex-direction: column;
   background: var(--rr-white);
   border: 1px solid var(--rr-border);
   border-radius: var(--rr-r-lg, 14px);
-  padding: 16px 12px;
+  padding: 0;
   box-shadow: 0 2px 12px var(--rr-shadow, rgba(27,50,82,0.06));
-  /* No max-height on the sidebar itself — let it claim space; the list inside
-     handles overflow. Pinned to viewport via sticky top: 80. */
-  max-height: calc(100vh - 100px);
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
+  /* 100dvh > 100vh for mobile chrome stability. Subtract the .rr-top
+     nav (~60px) + sidebar offsets so the sidebar fits in the visible
+     scroll area. Both height + max-height set for defensive sizing. */
+  height:     calc(100dvh - 60px - var(--rr-cb-sidebar-top) - var(--rr-cb-sidebar-bottom-gap));
+  max-height: calc(100dvh - 60px - var(--rr-cb-sidebar-top) - var(--rr-cb-sidebar-bottom-gap));
+  /* Sidebar is the visible chrome — list inside is what scrolls. */
+  overflow: hidden;
 }
 .rr-cb-sidebar-head {
   font-family: var(--rr-sans);
@@ -4036,21 +4052,26 @@
   letter-spacing: 1.4px;
   text-transform: uppercase;
   color: var(--rr-teal-dk);
-  margin: 0 4px 12px;
-  padding-bottom: 10px;
+  /* r3 (Codex A-prime 2026-05-24): naturally pinned by the parent flex
+     column — no sticky needed. flex-shrink: 0 keeps it from collapsing. */
+  flex: 0 0 auto;
+  background: var(--rr-white);
+  margin: 0;
+  padding: 16px 16px 10px;
   border-bottom: 1px solid var(--rr-border);
 }
 .rr-cb-sidebar-list {
   list-style: none;
-  padding: 0;
+  /* r3 (Codex A-prime 2026-05-24): the LIST is the scroll surface. Flex
+     grow with min-height: 0 lets it shrink below intrinsic content height
+     so overflow-y: auto activates instead of pushing siblings off-screen.
+     overscroll-behavior: contain prevents wheel scroll from chaining to
+     the parent (.rr-view-page) once the list bounds are reached. */
+  padding: 8px 12px;
   margin: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  /* Phase 3 smoke fix (2026-05-24): list scrolls inside the flex sidebar so
-     head + foot stay visible. min-height: 0 lets the flex item shrink below
-     its intrinsic content height. overscroll-behavior: contain prevents
-     scroll-chaining to the page when reaching list bounds. */
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
@@ -4115,18 +4136,15 @@
 .rr-cb-sidebar-pill.is-archived { background: rgba(27, 50, 82, 0.08); color: var(--rr-muted); }
 
 .rr-cb-sidebar-foot {
-  margin-top: 10px;
-  padding-top: 10px;
+  /* r3 (Codex A-prime 2026-05-24): naturally pinned at the bottom of the
+     parent flex column — no sticky needed. The list above takes flex
+     room; foot stays at the end. flex-shrink: 0 keeps it visible when
+     the list overflows. */
+  flex: 0 0 auto;
+  background: var(--rr-white);
+  margin: 0;
+  padding: 10px 12px 12px;
   border-top: 1px solid var(--rr-border);
-  /* Phase 3 smoke fix (2026-05-24): pinned at the bottom of the sidebar
-     so + Add child stays visible regardless of how many children scroll
-     above. The .rr-cb-sidebar-list takes the flex room above; foot is
-     flex-shrink: 0 so it never collapses. */
-  flex-shrink: 0;
-}
-.rr-cb-sidebar-head {
-  /* matching pin-at-top so the "Jump to child" label stays visible. */
-  flex-shrink: 0;
 }
 .rr-cb-sidebar-add {
   width: 100%;
@@ -4209,9 +4227,13 @@
   .rr-brief-wrap.has-sidebar {
     grid-template-columns: 1fr;
   }
+  /* r3 (Codex A-prime 2026-05-24): reset all the desktop sizing so the
+     sidebar flows naturally above the cards as a stacked block. */
   .rr-cb-sidebar {
     position: static;
+    height: auto;
     max-height: none;
+    overflow: visible;
     order: -1;             /* sit above cards on narrow viewports */
   }
   /* Restore the name + sub + pill that the 1000px rules hid. */
@@ -4224,10 +4246,13 @@
   .rr-cb-sidebar-item::before { content: none; }
   .rr-cb-sidebar-item::after  { content: none; }
   /* Horizontal list to save vertical space on phones — 1 item per row
-     would consume too much above-the-fold. */
+     would consume too much above-the-fold. List shouldn't try to be a
+     scroll surface on mobile (no horizontal viewport room for that). */
   .rr-cb-sidebar-list {
     flex-direction: row;
     flex-wrap: wrap;
+    overflow: visible;
+    min-height: 0;
   }
   .rr-cb-sidebar-list > li { flex: 1 1 calc(50% - 2px); min-width: 0; }
 }
