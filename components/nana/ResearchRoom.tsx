@@ -799,6 +799,13 @@ export default function ResearchRoom({
                       onActiveChildChange={handleActiveChildChange}
                       onChildAdded={handleChildAdded}
                       onShortlistRefreshed={handleShortlistRefreshed}
+                      // Phase 3 sidebar smoke fix r1 #3 (Codex 2026-05-24):
+                      // guard auto-scroll so it only fires when this tab is
+                      // the active view (the pager renders all tabs but only
+                      // one is visible). Otherwise switching child via the
+                      // top-right dropdown while on Verdict could scroll
+                      // inside the hidden Brief panel.
+                      isActiveTab={activeTab === 'brief'}
                     />
                   ) : t === 'verdict' ? (
                     // Codex r5 P1 + r6 P2 (2026-05-23):

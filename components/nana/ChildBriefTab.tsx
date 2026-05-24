@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ONBOARDING_FIELDS,
@@ -27,6 +27,13 @@ type Props = {
   activeChildId: string | null
   familyPreferences?: FamilyPreferences
   onActiveChildChange?: (id: string) => void
+  // Phase 3 smoke fix r1 #3 (Codex 2026-05-24): only auto-scroll when this
+  // tab is the active view in ResearchRoom's horizontal pager. Without this
+  // guard, switching child via the top-right dropdown while on Verdict tab
+  // would trigger scrollIntoView inside the hidden Brief tab and could leak
+  // to ancestor scroll containers. Defaults to true for back-compat with
+  // callers that mount ChildBriefTab as the only view.
+  isActiveTab?: boolean
   // Slice 8 Build 7 Phase C followup: parent (ResearchRoom) owns the
   // activeChildId useState. Server-side /api/children POST already wrote
   // active_child_id, but router.refresh() doesn't reset useState — so
@@ -90,11 +97,51 @@ export default function ChildBriefTab({
   onActiveChildChange,
   onChildAdded,
   onShortlistRefreshed,
+  isActiveTab = true,
 }: Props) {
   const [adding, setAdding] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+
+  // Phase 3 sidebar (r1 Codex smoke fix #1): hooks MUST run on every render —
+  // moved ABOVE the children.length === 0 early-return. Putting them after
+  // would violate Rules of Hooks when the user adds their first child
+  // (zero-child render: 4 hooks → first-child render: 5 hooks → "Rendered
+  // more hooks than during the previous render" error).
+  const showSidebar = children.length >= 2
+
+  // Phase 3 sidebar auto-scroll (r1 Codex smoke fix #2): track the child id
+  // we LAST auto-scrolled to. Initialised to current activeChildId so:
+  // (a) the first render doesn't trigger a scroll (no mismatch), and
+  // (b) React 18 StrictMode's double-mount is harmless — both invocations
+  //     see ref.current === activeChildId and skip. Replaces the brittle
+  //     useRef(true)-then-flip pattern.
+  const lastAutoScrolledChildId = useRef<string | null>(activeChildId)
+
+  // r2 Codex smoke fix #1 (2026-05-24): `children.length` in deps would miss
+  // a same-length swap (one archived, one added). `activeChildIsRendered`
+  // flips precisely when the anchor for the current activeChildId is ready
+  // — narrower + semantically correct retry signal.
+  const activeChildIsRendered = !!activeChildId && children.some(c => c.id === activeChildId)
+
+  useEffect(() => {
+    // r1 Codex smoke fix #3: skip when this tab isn't the active view.
+    if (!isActiveTab) return
+    if (!activeChildId || !showSidebar) return
+    // r1 Codex smoke fix #2: only scroll when the id has actually CHANGED
+    // from what we last scrolled to. StrictMode-safe + dedupes re-renders.
+    if (lastAutoScrolledChildId.current === activeChildId) return
+    // r1 Codex smoke fix #4: anchor may not be in the DOM yet when the
+    // parent just set a new activeChildId before router.refresh delivered
+    // the new children prop. Don't update the ref on miss — the effect
+    // re-runs when activeChildIsRendered flips (next render with new
+    // children prop) and tries again.
+    const el = document.getElementById(`child-brief-${activeChildId}`)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    lastAutoScrolledChildId.current = activeChildId
+  }, [activeChildId, showSidebar, isActiveTab, activeChildIsRendered])
 
   async function addChild(name: string, dob: string) {
     setBusy(true); setError(null)
@@ -139,10 +186,8 @@ export default function ChildBriefTab({
     )
   }
 
-  // Phase 3 (Verdict v3 UX iteration, 2026-05-24): jump-to-child sidebar
-  // becomes useful at 2+ children — single-child households would see an
-  // empty rail. Hidden via the .has-sidebar class toggle below.
-  const showSidebar = children.length >= 2
+  // (Phase 3 sidebar showSidebar + useEffect moved ABOVE the early-return —
+  //  see top of function. Codex r1 #1 Rules of Hooks fix.)
 
   return (
     <div className={`rr-brief-wrap${showSidebar ? ' rr-cb-sidebar-layout has-sidebar' : ''}`}>
@@ -196,6 +241,13 @@ export default function ChildBriefTab({
           activeChildId={activeChildId}
           onJumpToChild={(id) => {
             onActiveChildChange?.(id)
+            // r2 Codex smoke fix #2 (2026-05-24): direct scroll on EVERY
+            // sidebar click so clicking the already-selected child still
+            // re-jumps to its panel. The useEffect above handles EXTERNAL
+            // activeChildId changes (top-right dropdown); the inline scroll
+            // here covers the click case where activeChildId may or may not
+            // change. Both paths are smooth-scrolling to the same anchor —
+            // if both fire (id actually changed), the second is a no-op.
             document.getElementById(`child-brief-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
           }}
           onAddChild={() => { setAdding(true); setError(null) }}

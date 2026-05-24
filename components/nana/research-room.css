@@ -4007,7 +4007,12 @@
    smooth-scroll lands the card heading below the nav. */
 .rr-cb-panel { scroll-margin-top: 80px; }
 
-/* ── The sidebar itself ────────────────────────────────────────────────── */
+/* ── The sidebar itself ──────────────────────────────────────────────────
+   Phase 3 smoke fix (2026-05-24): flex column with the LIST scrolling
+   internally — head + foot stay pinned so "+ Add child" never disappears
+   when many children push the list past viewport height. Previous design
+   put overflow-y on the whole sidebar and the foot scrolled out of view.
+   ────────────────────────────────────────────────────────────────────── */
 .rr-cb-sidebar {
   position: sticky;
   top: 80px;
@@ -4017,9 +4022,12 @@
   border-radius: var(--rr-r-lg, 14px);
   padding: 16px 12px;
   box-shadow: 0 2px 12px var(--rr-shadow, rgba(27,50,82,0.06));
-  height: fit-content;
+  /* No max-height on the sidebar itself — let it claim space; the list inside
+     handles overflow. Pinned to viewport via sticky top: 80. */
   max-height: calc(100vh - 100px);
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 .rr-cb-sidebar-head {
   font-family: var(--rr-sans);
@@ -4039,6 +4047,14 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+  /* Phase 3 smoke fix (2026-05-24): list scrolls inside the flex sidebar so
+     head + foot stay visible. min-height: 0 lets the flex item shrink below
+     its intrinsic content height. overscroll-behavior: contain prevents
+     scroll-chaining to the page when reaching list bounds. */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .rr-cb-sidebar-item {
   display: flex;
@@ -4102,6 +4118,15 @@
   margin-top: 10px;
   padding-top: 10px;
   border-top: 1px solid var(--rr-border);
+  /* Phase 3 smoke fix (2026-05-24): pinned at the bottom of the sidebar
+     so + Add child stays visible regardless of how many children scroll
+     above. The .rr-cb-sidebar-list takes the flex room above; foot is
+     flex-shrink: 0 so it never collapses. */
+  flex-shrink: 0;
+}
+.rr-cb-sidebar-head {
+  /* matching pin-at-top so the "Jump to child" label stays visible. */
+  flex-shrink: 0;
 }
 .rr-cb-sidebar-add {
   width: 100%;
