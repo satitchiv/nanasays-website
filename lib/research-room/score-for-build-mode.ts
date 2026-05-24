@@ -106,14 +106,10 @@ const GIRL_COMPAT = new Set(['girls', 'girls only', 'co-ed', 'co-educational', '
 // schools (most UK independents teach A-Level by default but don't
 // always tag it). Before this fix, Picker #2 returned Eton (curriculum
 // NULL = no IB) for IB-preferring parents.
-const IB_VARIANTS = [
-  'IB',
-  'IB Diploma',
-  'IB Diploma Programme',
-  'IB Middle Years Programme',
-  'IB Primary Years Programme',
-]
-const ALEVEL_VARIANTS = ['A-Level']
+// 2026-05-24 Slice A — IB_VARIANTS / ALEVEL_VARIANTS removed. Used to back
+// the SQL `overlaps('curriculum', ...)` hard filter which trusted the
+// legacy schools.curriculum column. Replaced by matchesCurriculumPreference
+// (row-time, prefers extracted ssd.curriculum). See helper definition above.
 
 // Per-sport DIMENSIONS keys. The Build Mode interview captures free-text
 // `interests_sports[].sport` (e.g. "football", "rugby", "tennis"); we map
@@ -593,6 +589,47 @@ type StructRow = {
   // blob. Per-subject {items[], summary_paragraph_for_chatbot}. Consumed by
   // DIMENSIONS.subject_strengths.rank() when ctx.subject_intents is non-empty.
   subject_strengths:       Record<string, unknown> | null
+  // 2026-05-24 Slice A — extracted curriculum (truth) for the curriculum
+  // hard filter via matchesCurriculumPreference. Replaces the SQL filter
+  // that trusted the legacy schools.curriculum column (Charterhouse drift).
+  curriculum:              string[] | null
+}
+
+// 2026-05-24 Slice A — Codex Q1 verdict. Row-time curriculum resolver
+// that PREFERS school_structured_data.curriculum (extracted truth) over
+// the legacy schools.curriculum column (manual rot — see Charterhouse).
+//
+// For pref='ib': require SSD to list IB. If SSD missing/empty, reject —
+// don't trust the legacy column. Fixes Charterhouse (schools=["IB"] but
+// ssd=NULL → had no IB in real life).
+//
+// For pref='a-level': permissive UK default. SSD A-Level passes; missing
+// also passes since country='United Kingdom' + UK-evidence gating means
+// the candidate is almost certainly UK-A-Level by default.
+//
+// For 'either'/null: no filter.
+const IB_PATTERN     = /\b(?:IB(?:\s+Diploma(?:\s+(?:Programme|Program))?|DP)?|International\s+Baccalaureate(?:\s+Diploma(?:\s+(?:Programme|Program))?)?)\b/i
+const ALEVEL_PATTERN = /\bA[-\s]?Level(?:s)?\b/i
+export function matchesCurriculumPreference(args: {
+  schoolsCurriculum: string[] | null,
+  ssdCurriculum:     string[] | null,
+  pref:              'ib' | 'a-level' | 'either' | null,
+}): boolean {
+  const { ssdCurriculum, pref } = args
+  if (!pref || pref === 'either') return true
+  if (pref === 'ib') {
+    if (ssdCurriculum && ssdCurriculum.length > 0) {
+      return ssdCurriculum.some(c => IB_PATTERN.test(c))
+    }
+    return false  // SSD missing → reject (fixes Charterhouse)
+  }
+  if (pref === 'a-level') {
+    if (ssdCurriculum && ssdCurriculum.length > 0) {
+      return ssdCurriculum.some(c => ALEVEL_PATTERN.test(c))
+    }
+    return true  // SSD missing → UK default permissive
+  }
+  return true
 }
 
 // ── UK evidence slugs (paginated; mirrors recommend-shortlist private helper) ──
@@ -1412,17 +1449,13 @@ export async function scoreForBuildMode(
 
   q = q.or('fees_usd_min.is.null,fees_usd_min.gte.5000') // drop extraction-bug zero fees
 
-  // 2026-05-19 Bug 1 fix — curriculum filter parity with Picker #1.
-  // 2026-05-24 Yoko slice — delegated to resolveCurriculumPref which
-  // returns 'either' (no filter) when nonneg 'any-curriculum' fires,
-  // letting parents who typed "any curriculum" override stale wizard.
+  // 2026-05-24 Slice A — SQL curriculum hard filter REMOVED. Moved to
+  // row-time matchesCurriculumPreference helper (post-fetch JS filter)
+  // which prefers school_structured_data.curriculum over legacy
+  // schools.curriculum. See Charterhouse case: schools.curriculum=["IB"]
+  // but Charterhouse doesn't offer IB in real life — SQL filter let it
+  // through wrongly. Resolver now requires SSD-IB for IB-pref parents.
   const effectiveCurric = resolveCurriculumPref(parent, firedNonneg)
-  if (effectiveCurric === 'ib') {
-    q = q.overlaps('curriculum', IB_VARIANTS)
-  } else if (effectiveCurric === 'a-level') {
-    q = q.or(`curriculum.ov.{${ALEVEL_VARIANTS.join(',')}},curriculum.is.null`)
-  }
-  // effectiveCurric === 'either' or null → no curriculum filter
 
   // Min-confidence floor (parity with recommend-shortlist.ts 2026-05-18).
   // The conf=0 cohort in schools_status is dominated by state primary
@@ -1492,12 +1525,33 @@ export async function scoreForBuildMode(
   // DIMENSIONS.subject_strengths dim. Heavy column (~5-15KB per school)
   // but it's only fetched for the ≤250 candidates post-hard-filter (Phase
   // 3 Bug #5 raised the cap from 120; Codex r1 NIT corrected the comment).
+  // 2026-05-24 Slice A — fetch curriculum from SSD so the row-time
+  // matchesCurriculumPreference helper can apply post-fetch.
   const slugs = (rawCandidates as SchoolRow[]).map(s => s.slug)
   const { data: structRows, error: structErr } = await supabase
     .from('school_structured_data')
-    .select('school_slug, sports_profile, exam_results, university_destinations, student_community, wellbeing_staffing, subject_strengths')
+    .select('school_slug, sports_profile, exam_results, university_destinations, student_community, wellbeing_staffing, subject_strengths, curriculum')
     .in('school_slug', slugs)
   if (structErr) return { candidates: [], reason: 'fetch_failed' }
+
+  // 2026-05-24 Slice A — curriculum row-time filter (Codex Q1 verdict).
+  // Apply matchesCurriculumPreference to drop schools whose extracted
+  // curriculum (from SSD) doesn't match parent's pref. For 'ib': require
+  // SSD to list IB (NULL ssd → reject; fixes Charterhouse). For 'a-level':
+  // SSD A-Level passes OR missing passes (UK default permissive).
+  let filteredCandidates = rawCandidates as SchoolRow[]
+  if (effectiveCurric === 'ib' || effectiveCurric === 'a-level') {
+    const ssdCurricBySlug = new Map<string, string[] | null>()
+    for (const r of structRows ?? []) {
+      const row = r as { school_slug: string; curriculum: unknown }
+      ssdCurricBySlug.set(row.school_slug, Array.isArray(row.curriculum) ? row.curriculum as string[] : null)
+    }
+    filteredCandidates = filteredCandidates.filter(s => matchesCurriculumPreference({
+      schoolsCurriculum: null,  // intentionally ignore legacy column per Codex Q1
+      ssdCurriculum:     ssdCurricBySlug.get(s.slug) ?? null,
+      pref:              effectiveCurric,
+    }))
+  }
 
   // Slice 8 Build 6 hotfix (2026-05-15) — `isi_deep_facts` is NOT a
   // column on `school_structured_data`; it's a bundle assembled from
@@ -1539,6 +1593,7 @@ export async function scoreForBuildMode(
       student_community:       r?.student_community ?? null,
       wellbeing_staffing:      r?.wellbeing_staffing ?? null,
       subject_strengths:       r?.subject_strengths ?? null,
+      curriculum:              (r as { curriculum?: string[] | null } | undefined)?.curriculum ?? null,
       isi_deep_facts: (factsBundles.get(slug)?.isi_deep_facts as Record<string, unknown> | undefined) ?? null,
       ethos_facts:    (factsBundles.get(slug)?.ethos_facts    as Record<string, unknown> | undefined) ?? null,
     })
@@ -1592,8 +1647,8 @@ export async function scoreForBuildMode(
     artsCountBySlug.set(slug, keys.size)
   }
 
-  // 4. Pure ranker
-  const candidates = rankCandidates(rawCandidates as SchoolRow[], structBySlug, input, limit, artsCountBySlug)
+  // 4. Pure ranker — passes the curriculum-filtered candidate list (2026-05-24 Slice A)
+  const candidates = rankCandidates(filteredCandidates, structBySlug, input, limit, artsCountBySlug)
   if (candidates.length === 0) return { candidates: [], reason: 'no_candidates' }
   return { candidates, reason: 'ok' }
 }

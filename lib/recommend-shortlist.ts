@@ -28,6 +28,7 @@ import {
   resolveBoardingPref,
   resolveHomeRegion,
   resolveCurriculumPref,
+  matchesCurriculumPreference,
   NONNEG_FILTERS,
 } from './research-room/score-for-build-mode'
 
@@ -78,18 +79,11 @@ const YEAR_TO_ENTRY_AGE: Record<string, number | null> = {
 const BOY_COMPAT  = new Set(['boys', 'boys only', 'co-ed', 'co-educational', 'mixed'])
 const GIRL_COMPAT = new Set(['girls', 'girls only', 'co-ed', 'co-educational', 'mixed'])
 
-// Curriculum overlaps. IB shows up in the data under 5 different labels;
-// match any of them. A-Level is mostly a single label but rarely tagged
-// because it's the UK default — so a lot of A-Level schools have
-// curriculum=NULL or just []. We accept either explicit or empty/null.
-const IB_VARIANTS = [
-  'IB',
-  'IB Diploma',
-  'IB Diploma Programme',
-  'IB Middle Years Programme',
-  'IB Primary Years Programme',
-]
-const ALEVEL_VARIANTS = ['A-Level']
+// 2026-05-24 Slice A — IB_VARIANTS / ALEVEL_VARIANTS removed. Used to back
+// the SQL `overlaps('curriculum', ...)` hard filter which trusted the
+// legacy schools.curriculum column. Replaced by matchesCurriculumPreference
+// (imported from research-room/score-for-build-mode; prefers extracted
+// ssd.curriculum which is the actual source of truth).
 
 // Boarding/day classification + name normalization moved to
 // lib/school-name-overrides.ts to share with research-comparison.ts.
@@ -323,16 +317,12 @@ export async function pickTopSchoolSlugs(
   const nonnegEntries = Array.isArray(profile.nonnegotiables) ? profile.nonnegotiables as string[] : null
   const firedNonneg = matchedNonnegFilters(nonnegEntries)
 
-  // Curriculum filter — delegated to resolveCurriculumPref which returns
-  // 'either' (no filter) when nonneg 'any-curriculum' fires. Otherwise
-  // mirrors prior behavior.
+  // 2026-05-24 Slice A — SQL curriculum hard filter REMOVED. Moved to
+  // row-time matchesCurriculumPreference helper (post-fetch JS filter)
+  // which prefers school_structured_data.curriculum over legacy
+  // schools.curriculum (manual rot — Charterhouse case). Filter applied
+  // after the structured-data fetch below.
   const effectiveCurric = resolveCurriculumPref(profile as unknown as BriefProfile, firedNonneg)
-  if (effectiveCurric === 'ib') {
-    q = q.overlaps('curriculum', IB_VARIANTS)
-  } else if (effectiveCurric === 'a-level') {
-    q = q.or(`curriculum.ov.{${ALEVEL_VARIANTS.join(',')}},curriculum.is.null`)
-  }
-  // effectiveCurric === 'either' or null → no curriculum filter
 
   // Drop obvious data errors: positive fees under $5,000 are extraction
   // bugs (ACS Cobham at $419, etc.). NULL is fine — means unknown, not
@@ -446,17 +436,37 @@ export async function pickTopSchoolSlugs(
 
   // 5c. Pull structured data for the surviving candidates (for class size +
   // sport quality scoring). Single batch query; map by slug for lookups.
+  // 2026-05-24 Slice A — also fetch curriculum here for the post-fetch
+  // matchesCurriculumPreference filter (replaces the SQL hard filter
+  // that trusted the legacy schools.curriculum column).
   const slugs = filtered.map(s => s.slug)
   const { data: structRows } = await supabase
     .from('school_structured_data')
-    .select('school_slug, sports_profile, student_community')
+    .select('school_slug, sports_profile, student_community, curriculum')
     .in('school_slug', slugs)
   const structMap = new Map<string, { sports_profile: any; student_community: any }>()
+  const ssdCurricBySlug = new Map<string, string[] | null>()
   for (const row of (structRows ?? [])) {
     structMap.set(row.school_slug, {
       sports_profile: row.sports_profile,
       student_community: row.student_community,
     })
+    ssdCurricBySlug.set(row.school_slug, Array.isArray((row as any).curriculum) ? (row as any).curriculum as string[] : null)
+  }
+
+  // 2026-05-24 Slice A — curriculum row-time filter (Codex Q1 verdict).
+  // Drop schools whose SSD curriculum doesn't match parent's pref. For
+  // 'ib': require SSD-IB (NULL ssd → reject, fixes Charterhouse). For
+  // 'a-level': SSD A-Level passes OR missing passes (UK default permissive).
+  if (effectiveCurric === 'ib' || effectiveCurric === 'a-level') {
+    filtered = filtered.filter(s => matchesCurriculumPreference({
+      schoolsCurriculum: null,  // intentionally ignore legacy column per Codex Q1
+      ssdCurriculum:     ssdCurricBySlug.get(s.slug) ?? null,
+      pref:              effectiveCurric,
+    }))
+  }
+  if (filtered.length === 0) {
+    return { slugs: [], reason: 'no_matches' }
   }
 
   // 6. Score soft signals
