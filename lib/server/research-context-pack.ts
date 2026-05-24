@@ -11,6 +11,14 @@ import {
 } from './pack-redactors'
 import { loadDimensionEvidencePack } from './dimension-evidence-pack'
 import { projectSubjectStrengths } from './subject-strengths-projection.mjs'
+// Notion-sidecar wiring slice (2026-05-24). The projector enforces:
+// - whitelist of allowed fields (drops fees + unknown keys)
+// - SSD-wins on overlapping fields (total_pupils, boarders, intl, boarding_pct,
+//   GCSE / A-Level %, lowest_boarding_entry)
+// - unit normalisation (decimal boarding ratios → percent)
+// Running it at the fetch boundary stops raw `parsed` from leaking into any
+// downstream surface (Codex r1 P1.1).
+import { projectNotionBackfill } from './nana-brain.js'
 
 /**
  * research-context-pack.ts — single source of truth for chatbot context.
@@ -91,6 +99,16 @@ export type PackSchool = {
   }
   /** Whitelisted SSD fields (per plan §6.1). Object shape varies by school. */
   structured: Record<string, unknown> | null
+  /**
+   * Hand-curated UK school facts from school_notion_backfill (Phase 1 sidecar,
+   * Phase 1.5 promotion 2026-05-18). Only `parsed` (cleaned values) for `clean`
+   * rows surfaces here — `raw_properties`, `rejected`, `flagged_review` are
+   * never selected. Fields parents ask about that SSD doesn't cover today:
+   * class_size, total_pupils, boarder_count, intl_count, boarding_pct,
+   * gcse_pct (+ gcse_pct_alt_band), a_level_pct, lowest_boarding_entry,
+   * heathrow_distance (miles). Dropped by reducer when pack is over hard cap.
+   */
+  notion_backfill?: Record<string, unknown> | null
   /** Optional: regulatory rows (only when intent fires). */
   sensitive?: Array<{ type: string; date: string | null; severity: string | null; title: string; summary: string | null }>
   /** Optional: atomic facts where present. */
@@ -193,6 +211,10 @@ const SSD_WHITELIST = [
   'languages',
   'grade_levels',
   'accreditations',
+  // 2026-05-24 (Notion-sidecar wiring slice, Codex r1 bonus): `boarding_options`
+  // was rendered by buildStructuredBlock but never in the whitelist, so it was
+  // silently absent from the pack. Adding it closes the dead path.
+  'boarding_options',
   'policies_summary',
   'report_verdict',
   'report_parent_fit',
@@ -392,6 +414,16 @@ export async function assembleResearchContextPack(
     {
       name: 'truncated_recent_messages_to_3',
       reduce: () => { if (pack.recent_messages.length > 3) pack.recent_messages = pack.recent_messages.slice(-3) },
+    },
+    {
+      // Notion sidecar (2026-05-24 wiring slice). Per Codex r1: do NOT rely on
+      // the implicit reducer chain to shed Notion data. Drop notion_backfill
+      // BEFORE facts because facts are higher-signal (atomic, dimension-tagged,
+      // citation-bearing). Notion duplicates parent-facing facts (class size,
+      // pupil counts) that are also nice-to-have but lower-priority than the
+      // citation-bearing facts the recommender depends on.
+      name: 'dropped_notion_backfill',
+      reduce: () => { for (const slug of Object.keys(pack.schools)) pack.schools[slug].notion_backfill = null },
     },
     {
       name: 'dropped_facts',
@@ -680,7 +712,7 @@ async function fetchSchoolBundle(
   // T4.17: rugby projection now goes through loadDimensionEvidencePack which
   // filters on the trusted projection_version. Non-rugby dimensions still
   // return null (no entry in KNOWN_PROJECTION_VERSIONS yet).
-  const [metaRes, structuredRes, projectionPack, factsRes] = await Promise.all([
+  const [metaRes, structuredRes, projectionPack, factsRes, notionRes] = await Promise.all([
     supabase
       .from('schools')
       .select('slug, name, country, boarding_type, gender_split, fees_usd_min, fees_usd_max, is_international')
@@ -699,6 +731,18 @@ async function fetchSchoolBundle(
       .eq('school_slug', slug)
       .eq('status', 'active')
       .limit(80),
+    // Notion sidecar (Phase 1, 2026-05-24 wiring slice). Only clean rows; only
+    // safe columns — never `raw_properties` / `rejected` / `flagged_review`
+    // (Codex r1 RLS guidance).
+    supabase
+      .from('school_notion_backfill')
+      .select('school_slug, status, parsed')
+      .eq('school_slug', slug)
+      // Codex r3 P1: accept both `clean` (post-Phase 1.5 promotion) and
+      // `matched` (pure-write rows from the original sync). See retrieve.js
+      // for the live-status-distribution rationale.
+      .in('status', ['clean', 'matched'])
+      .maybeSingle(),
   ])
   const metaRow: any = metaRes.data
   if (!metaRow) return null
@@ -763,10 +807,19 @@ async function fetchSchoolBundle(
     }
   }
 
+  const notionRow: any = notionRes.data
+  const rawNotionParsed: Record<string, unknown> | null =
+    notionRow && notionRow.parsed && typeof notionRow.parsed === 'object'
+      ? (notionRow.parsed as Record<string, unknown>)
+      : null
+  const notion_backfill: Record<string, unknown> | null =
+    projectNotionBackfill(rawNotionParsed, structured) as Record<string, unknown> | null
+
   return {
     slug,
     meta,
     structured,
+    notion_backfill,
     facts: facts.length > 0 ? facts : undefined,
     projection,
     source,

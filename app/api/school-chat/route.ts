@@ -3,7 +3,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai'
 import { createClient } from '@supabase/supabase-js'
 import crypto from 'node:crypto'
 import { isPaidModeOn } from '@/lib/paid-mode'
-import { buildStructuredBlock as buildStructuredBlockShared } from '@/lib/server/nana-brain.js'
+import { buildStructuredBlock as buildStructuredBlockShared, projectNotionBackfill } from '@/lib/server/nana-brain.js'
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
 
@@ -766,12 +766,35 @@ async function retrieve(slug: string, question: string) {
       .sort((a, b) => b.score - a.score)
   }
 
-  // Fetch structured data
-  const { data: structured } = await supabase
-    .from('school_structured_data')
-    .select('*')
-    .eq('school_slug', slug)
-    .single()
+  // Fetch structured data + Notion sidecar (hand-curated UK school facts;
+  // wired 2026-05-24 via Notion-sidecar chat-wiring slice).
+  // Only clean rows are surfaced; service-role selects only the safe columns
+  // — `raw_properties`, `rejected`, `flagged_review` are never returned to the
+  // chat surface (Codex r1 RLS guidance).
+  const [
+    { data: structured },
+    { data: notionRow },
+  ] = await Promise.all([
+    supabase
+      .from('school_structured_data')
+      .select('*')
+      .eq('school_slug', slug)
+      .single(),
+    supabase
+      .from('school_notion_backfill')
+      .select('school_slug, status, parsed')
+      .eq('school_slug', slug)
+      // Codex r3 P1: accept both `clean` + `matched` (see retrieve.js).
+      .in('status', ['clean', 'matched'])
+      .maybeSingle(),
+  ])
+  // Project at the fetch boundary (Codex r1 P1.1) so the raw `parsed` blob —
+  // which contains boarding_fee_term / boarding_fee_year and raw Notion
+  // property shapes — never reaches the prompt or any downstream surface.
+  const notion_backfill = projectNotionBackfill(
+    notionRow && notionRow.parsed ? notionRow.parsed : null,
+    structured || null,
+  )
 
   // Build final chunk list: profile first, then candidates up to word budget
   const selected: any[] = []
@@ -811,7 +834,7 @@ async function retrieve(slug: string, question: string) {
     totalWords += usedWords
   }
 
-  return { chunks: selected, structured: structured || null }
+  return { chunks: selected, structured: structured || null, notion_backfill }
 }
 
 // ── School location (for geo-filtering news) ──────────────────────────────────
@@ -896,14 +919,17 @@ function sourceLabel(row: any): string {
   return `school website — ${row.category} page`
 }
 
-function buildStructuredBlock(structured: any): string {
-  if (!structured) return ''
+function buildStructuredBlock(structured: any, notionBackfill: any = null): string {
+  if (!structured && !notionBackfill) return ''
   // Delegate to the shared canonical-key renderer (nana-brain.js) so the
   // portal assistant surfaces the same sports profile (tier, DMT, coaching
   // staff, cup history, programmes) that /dev/nana-test sees. The shared
   // helper returns the literal '(no structured data)' sentinel when the
-  // input is empty — treat that as the empty-block case.
-  const block = buildStructuredBlockShared(structured)
+  // input is empty — treat that as the empty-block case. Notion sidecar
+  // (hand-curated UK facts) is passed through so the school chat surfaces
+  // the same class-size / pupil-count / Heathrow-distance lines that the
+  // deep-report Nana panel sees.
+  const block = buildStructuredBlockShared(structured, notionBackfill)
   if (!block || block === '(no structured data)') return ''
   return `\nVERIFIED STRUCTURED FACTS (extracted from school data — treat as authoritative):\n${block}\n`
 }
@@ -915,10 +941,11 @@ function buildPrompt(
   contacts: any[],
   question: string,
   newsChunks: { education: any[]; area: any[] } = { education: [], area: [] },
-  cardType: CardType = 'general'
+  cardType: CardType = 'general',
+  notionBackfill: any = null,
 ): string {
   const isSensitive    = chunks.some(c => SENSITIVE_CATEGORIES.has(c.category))
-  const structuredBlock = buildStructuredBlock(structured)
+  const structuredBlock = buildStructuredBlock(structured, notionBackfill)
   const contactsBlock   = buildContactsBlock(contacts)
   const newsBlock       = buildNewsBlock(newsChunks)
   const hasNews         = newsChunks.education.length > 0 || newsChunks.area.length > 0
@@ -1362,7 +1389,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Standard path — fetch school data, contacts, location in parallel
-    const [{ chunks, structured }, contacts, location] = await Promise.all([
+    const [{ chunks, structured, notion_backfill }, contacts, location] = await Promise.all([
       retrieve(slug, question),
       getContacts(slug),
       getSchoolLocation(slug),
@@ -1395,7 +1422,7 @@ export async function POST(req: NextRequest) {
       ? await retrieveNews(question, location.country, intent)
       : { education: [], area: [] }
 
-    const prompt = buildPrompt(schoolName, chunks, structured, contacts, question, newsChunks, cardType)
+    const prompt = buildPrompt(schoolName, chunks, structured, contacts, question, newsChunks, cardType, notion_backfill)
 
     const model  = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
     const result = await model.generateContent(prompt)
