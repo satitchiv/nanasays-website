@@ -18,6 +18,18 @@ import { notesHash, type NotesInput } from './interpret-child-notes'
 // most.
 import { loadMatchReasonsBatch, type MatchReasonsRecord } from './research-room/match-reasons'
 import type { BriefProfile } from './research-room/brief-predicates'
+// 2026-05-24 Yoko slice — parity import. These exported helpers from the
+// Build Mode scorer let nonneg directives ("day school only" / "London or
+// nearby" / "any curriculum") override stale inherited wizard fields.
+// Without this import, the Refresh-recommendations button (which lands
+// here) ignores nonneg overrides and reproduces the Yoko 0-candidates bug.
+import {
+  matchedNonnegFilters,
+  resolveBoardingPref,
+  resolveHomeRegion,
+  resolveCurriculumPref,
+  NONNEG_FILTERS,
+} from './research-room/score-for-build-mode'
 
 // Auto-recommend shortlist after onboarding completes.
 //
@@ -123,6 +135,11 @@ type Profile = {
   class_size_pref: string | null
   sen_need:        string | null
   onboarding_complete: boolean | null
+  // 2026-05-24 Yoko slice — child_profile.nonnegotiables (string[]) flows
+  // through via the JSONB spread. Used by the resolver helpers to honor
+  // explicit nonneg directives ("day school only" / "London or nearby" /
+  // "any curriculum") over stale inherited wizard values.
+  nonnegotiables?: unknown
 }
 
 // Slice 4d preview: structured signals the refresh-recommendations endpoint
@@ -299,11 +316,23 @@ export async function pickTopSchoolSlugs(
   // null. Schools with curriculum=NULL/[] still pass for IB? No — we
   // require explicit IB tag. For A-Level we accept NULL too because most
   // UK independents teach A-Level by default but don't tag it.
-  if (profile.curriculum_pref === 'ib') {
+  // 2026-05-24 Yoko slice — compute firedNonneg here so it can drive the
+  // SQL curriculum filter AND the JS-side region/boarding/predicate filters
+  // below. Without this, nonneg "any curriculum" / "London or nearby" /
+  // "day school only" have NO effect on the Refresh-recommendations button.
+  const nonnegEntries = Array.isArray(profile.nonnegotiables) ? profile.nonnegotiables as string[] : null
+  const firedNonneg = matchedNonnegFilters(nonnegEntries)
+
+  // Curriculum filter — delegated to resolveCurriculumPref which returns
+  // 'either' (no filter) when nonneg 'any-curriculum' fires. Otherwise
+  // mirrors prior behavior.
+  const effectiveCurric = resolveCurriculumPref(profile as unknown as BriefProfile, firedNonneg)
+  if (effectiveCurric === 'ib') {
     q = q.overlaps('curriculum', IB_VARIANTS)
-  } else if (profile.curriculum_pref === 'a-level') {
+  } else if (effectiveCurric === 'a-level') {
     q = q.or(`curriculum.ov.{${ALEVEL_VARIANTS.join(',')}},curriculum.is.null`)
   }
+  // effectiveCurric === 'either' or null → no curriculum filter
 
   // Drop obvious data errors: positive fees under $5,000 are extraction
   // bugs (ACS Cobham at $419, etc.). NULL is fine — means unknown, not
@@ -349,20 +378,11 @@ export async function pickTopSchoolSlugs(
     return { slugs: [], reason: 'no_matches' }
   }
 
-  // Bug #3 (2026-05-22 picker-followup) — Normalize home_region ONCE
-  // and derive explicitHomeRegion for BOTH the hard filter (5c below)
-  // AND the scoring branch (further down). Lowercase + trim catches
-  // legacy capitalised values; Object.hasOwn excludes prototype-key
-  // false-positives. Defensive skip on unknown bucket prevents
-  // drop-all on typo/legacy.
-  const homeRegionRaw = (profile.home_region ?? '').toLowerCase().trim()
-  const explicitHomeRegion =
-    homeRegionRaw &&
-    homeRegionRaw !== 'anywhere' &&
-    homeRegionRaw !== 'overseas' &&
-    Object.hasOwn(REGION_BUCKETS, homeRegionRaw)
-      ? homeRegionRaw
-      : null
+  // Bug #3 (2026-05-22 picker-followup) + 2026-05-24 Yoko slice —
+  // explicitHomeRegion now delegated to resolveHomeRegion which honors
+  // nonneg precedence: 'no-london' → null (predicate owns drop),
+  // 'must-be-london' → 'london' (overrides stale wizard), else parent value.
+  const explicitHomeRegion = resolveHomeRegion(profile as unknown as BriefProfile, firedNonneg)
 
   // 5. Gender filter in JS (case-normalize)
   const genderAllow =
@@ -379,17 +399,27 @@ export async function pickTopSchoolSlugs(
     })
   }
 
-  // 5b. Boarding workaround filter — match by normalized name (slug
-  // duplicates would leak through a slug-keyed lookup, so we collapse on
-  // the human name and match against canonical sets above).
+  // 5b. Boarding workaround filter — 2026-05-24 Yoko slice delegates to
+  // resolveBoardingPref so nonneg "day school only" overrides inherited
+  // wizard 'full'. recommend-shortlist has no intent so pass null.
+  const effectiveBoarding = resolveBoardingPref(profile as unknown as BriefProfile, null, firedNonneg)
   if (
-    profile.boarding_pref === 'full' ||
-    profile.boarding_pref === 'weekly' ||
-    profile.boarding_pref === 'flexi'
+    effectiveBoarding === 'full' ||
+    effectiveBoarding === 'weekly' ||
+    effectiveBoarding === 'flexi'
   ) {
     filtered = filtered.filter(s => !KNOWN_DAY_ONLY_NAMES.has(normalizeSchoolName(s.name)))
-  } else if (profile.boarding_pref === 'day') {
+  } else if (effectiveBoarding === 'day') {
     filtered = filtered.filter(s => !KNOWN_FULL_BOARDING_NAMES.has(normalizeSchoolName(s.name)))
+  }
+
+  // 5b.i NONNEG predicate filter — 2026-05-24 Yoko slice. Apply each fired
+  // nonneg filter's predicate (must-be-london drops non-London regions;
+  // any-curriculum no-op; etc). Mirrors score-for-build-mode.ts:750 logic.
+  if (firedNonneg.length > 0) {
+    filtered = filtered.filter(s =>
+      firedNonneg.every(f => f.predicate(s as any, null)),
+    )
   }
 
   // 5c. Bug #3 region HARD filter (picker-followup 2026-05-23 — undoes
