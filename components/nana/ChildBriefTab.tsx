@@ -139,50 +139,150 @@ export default function ChildBriefTab({
     )
   }
 
+  // Phase 3 (Verdict v3 UX iteration, 2026-05-24): jump-to-child sidebar
+  // becomes useful at 2+ children — single-child households would see an
+  // empty rail. Hidden via the .has-sidebar class toggle below.
+  const showSidebar = children.length >= 2
+
   return (
-    <div className="rr-brief-wrap">
-      <header className="rr-brief-tab-head">
-        <div className="rr-brief-eyebrow">Child brief · the lens for everything</div>
-        <p className="rr-brief-tab-meta">
-          Each child has their own answers. Edit any field — the recommender re-runs for that child.
-        </p>
-      </header>
+    <div className={`rr-brief-wrap${showSidebar ? ' rr-cb-sidebar-layout has-sidebar' : ''}`}>
+      <div className="rr-cb-cards-col">
+        <header className="rr-brief-tab-head">
+          <div className="rr-brief-eyebrow">Child brief · the lens for everything</div>
+          <p className="rr-brief-tab-meta">
+            Each child has their own answers. Edit any field — the recommender re-runs for that child.
+          </p>
+        </header>
 
-      {error && <div className="rr-brief-error" role="alert">{error}</div>}
+        {error && <div className="rr-brief-error" role="alert">{error}</div>}
 
-      {children.map(c => (
-        <ChildPanel
-          key={c.id}
-          child={c}
-          isActive={c.id === activeChildId}
-          busy={busy}
-          setBusy={setBusy}
-          setError={setError}
-          onSetActive={() => onActiveChildChange?.(c.id)}
-          onShortlistRefreshed={onShortlistRefreshed}
+        {children.map(c => (
+          <ChildPanel
+            key={c.id}
+            child={c}
+            isActive={c.id === activeChildId}
+            busy={busy}
+            setBusy={setBusy}
+            setError={setError}
+            onSetActive={() => onActiveChildChange?.(c.id)}
+            onShortlistRefreshed={onShortlistRefreshed}
+          />
+        ))}
+
+        {adding ? (
+          <ChildMetaForm
+            initialName=""
+            initialDob=""
+            busy={busy}
+            submitLabel="Add child"
+            onCancel={() => { setAdding(false); setError(null) }}
+            onSave={addChild}
+          />
+        ) : (
+          <button
+            type="button"
+            className="rr-brief-add-btn"
+            onClick={() => { setAdding(true); setError(null) }}
+            disabled={busy}
+          >
+            + Add child
+          </button>
+        )}
+      </div>
+
+      {showSidebar && (
+        <ChildBriefSidebar
+          children={children}
+          activeChildId={activeChildId}
+          onJumpToChild={(id) => {
+            onActiveChildChange?.(id)
+            document.getElementById(`child-brief-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }}
+          onAddChild={() => { setAdding(true); setError(null) }}
+          addDisabled={busy || adding}
         />
-      ))}
+      )}
+    </div>
+  )
+}
 
-      {adding ? (
-        <ChildMetaForm
-          initialName=""
-          initialDob=""
-          busy={busy}
-          submitLabel="Add child"
-          onCancel={() => { setAdding(false); setError(null) }}
-          onSave={addChild}
-        />
-      ) : (
+// ─── Sidebar — Phase 3 (2026-05-24) ──────────────────────────────────────
+//
+// Sticky middle column. Lists every child with name + year + status pill,
+// click to scroll-into-view + set active. At 1300px viewport collapses to
+// name + status dot (drops year sub-label + pill). At 1000px collapses to
+// initials-only rail. Hidden entirely for single-child households (see
+// `showSidebar` gate above).
+
+function ChildBriefSidebar({
+  children,
+  activeChildId,
+  onJumpToChild,
+  onAddChild,
+  addDisabled,
+}: {
+  children:      ChildSummary[]
+  activeChildId: string | null
+  onJumpToChild: (childId: string) => void
+  onAddChild:    () => void
+  addDisabled:   boolean
+}) {
+  return (
+    <aside className="rr-cb-sidebar" aria-label="Jump to child">
+      <div className="rr-cb-sidebar-head">Jump to child</div>
+      <ul className="rr-cb-sidebar-list">
+        {children.map(c => {
+          // FunnelState values: 'onboarding' | 'interview' | 'comparison'.
+          // 'comparison' means the child has cleared interview + reached the
+          // research/comparison stage (likely has a usable shortlist + verdict),
+          // so it's the "active" state in sidebar terms.
+          const status: 'active' | 'draft' | 'archived' =
+            c.is_archived ? 'archived'
+            : c.funnel_state === 'comparison' ? 'active'
+            : 'draft'
+          const initials = c.name.split(/[\s-]+/).map(p => p[0] ?? '').join('').slice(0, 2).toUpperCase() || '?'
+          // Codex r1 #3: reuse existing ageFromDOB helper — handles invalid
+          // and future dates safely (returns null instead of NaN/negative).
+          const ageYears = ageFromDOB(c.date_of_birth)
+          // Codex r1 #1: 'is-active' previously collided between status='active'
+          // (every comparison-stage child) and "this is the selected child"
+          // (activeChildId === c.id). Rename the selected modifier to
+          // 'is-selected' so non-selected active-status children don't get the
+          // selected styling.
+          const isSelected = activeChildId === c.id
+          return (
+            <li key={c.id}>
+              <button
+                type="button"
+                className={`rr-cb-sidebar-item is-status-${status}${isSelected ? ' is-selected' : ''}`}
+                onClick={() => onJumpToChild(c.id)}
+                data-initials={initials}
+                title={c.name}
+                // Codex r1 #2: initials-only mode (1000px) hides the visible
+                // name. aria-label keeps the button announceable to screen
+                // readers regardless of viewport.
+                aria-label={c.name}
+                aria-current={isSelected ? 'true' : undefined}
+              >
+                <span className="rr-cb-sidebar-name">{c.name}</span>
+                {ageYears != null && <span className="rr-cb-sidebar-sub">age {ageYears}</span>}
+                <span className={`rr-cb-sidebar-pill is-${status}`}>{status}</span>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+      <div className="rr-cb-sidebar-foot">
         <button
           type="button"
-          className="rr-brief-add-btn"
-          onClick={() => { setAdding(true); setError(null) }}
-          disabled={busy}
+          className="rr-cb-sidebar-add"
+          onClick={onAddChild}
+          disabled={addDisabled}
         >
           + Add child
         </button>
-      )}
-    </div>
+      </div>
+    </aside>
   )
 }
 
@@ -306,7 +406,10 @@ function ChildPanel({
   }
 
   return (
-    <section className={`rr-cb-panel${isActive ? ' is-active' : ''}`}>
+    // id used by Phase 3 sidebar's scrollIntoView (2026-05-24). scroll-margin
+    // is set on .rr-cb-panel in research-room.css so the sticky top nav
+    // doesn't cover the header on smooth-scroll.
+    <section id={`child-brief-${child.id}`} className={`rr-cb-panel${isActive ? ' is-active' : ''}`}>
       <header className="rr-cb-head">
         <div className="rr-cb-head-main">
           {editingMeta ? (

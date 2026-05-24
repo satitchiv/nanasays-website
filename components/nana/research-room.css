@@ -3979,3 +3979,230 @@
   margin: 4px 0 0;
   max-width: 60ch;
 }
+
+/* ════════════════════════════════════════════════════════════════════════════
+   Child Brief Sidebar (Phase 3 — Verdict v3 UX iteration, 2026-05-24)
+   Sticky middle column with click-name-to-scroll between children. Visible
+   only with 2+ children (single-child households see the old single-column
+   layout via .rr-brief-wrap without .has-sidebar).
+   ════════════════════════════════════════════════════════════════════════════ */
+
+.rr-brief-wrap.has-sidebar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 24px;
+  max-width: none;          /* override the 720px single-col cap */
+  align-items: start;
+}
+.rr-brief-wrap.has-sidebar .rr-cb-cards-col {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+  max-width: 720px;         /* keep cards readable even in wide viewports */
+}
+
+/* Sticky offset so the sticky top nav doesn't cover the card header on
+   scrollIntoView. Applied unconditionally to .rr-cb-panel so the sidebar
+   smooth-scroll lands the card heading below the nav. */
+.rr-cb-panel { scroll-margin-top: 80px; }
+
+/* ── The sidebar itself ────────────────────────────────────────────────── */
+.rr-cb-sidebar {
+  position: sticky;
+  top: 80px;
+  align-self: start;
+  background: var(--rr-white);
+  border: 1px solid var(--rr-border);
+  border-radius: var(--rr-r-lg, 14px);
+  padding: 16px 12px;
+  box-shadow: 0 2px 12px var(--rr-shadow, rgba(27,50,82,0.06));
+  height: fit-content;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+}
+.rr-cb-sidebar-head {
+  font-family: var(--rr-sans);
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--rr-teal-dk);
+  margin: 0 4px 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--rr-border);
+}
+.rr-cb-sidebar-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rr-cb-sidebar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--rr-r-sm, 6px);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.rr-cb-sidebar-item:hover {
+  background: var(--rr-off);
+  border-color: var(--rr-border);
+}
+/* Codex r1 #1 (2026-05-24): selection state class is is-selected. Previously
+   used is-active which collided with is-status-active for comparison-stage
+   children — every comparison-stage child got the selected styling. */
+.rr-cb-sidebar-item.is-selected {
+  background: var(--rr-teal-bg);
+  border-color: rgba(35, 156, 128, 0.32);
+}
+.rr-cb-sidebar-item:focus-visible {
+  outline: 2px solid var(--rr-teal);
+  outline-offset: 2px;
+}
+.rr-cb-sidebar-name {
+  font-family: var(--rr-display);
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--rr-navy);
+  letter-spacing: -0.2px;
+}
+.rr-cb-sidebar-sub {
+  font-family: var(--rr-sans);
+  font-size: 11.5px;
+  color: var(--rr-muted);
+  font-weight: 600;
+}
+.rr-cb-sidebar-pill {
+  align-self: flex-start;
+  font-family: var(--rr-sans);
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  padding: 1px 7px;
+  border-radius: 999px;
+  margin-top: 4px;
+}
+.rr-cb-sidebar-pill.is-active   { background: rgba(35, 156, 128, 0.14); color: var(--rr-teal-dk); }
+.rr-cb-sidebar-pill.is-draft    { background: rgba(245, 166, 35, 0.16); color: #8A5A00; }
+.rr-cb-sidebar-pill.is-archived { background: rgba(27, 50, 82, 0.08); color: var(--rr-muted); }
+
+.rr-cb-sidebar-foot {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--rr-border);
+}
+.rr-cb-sidebar-add {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--rr-teal-bg);
+  border: 1px dashed rgba(35, 156, 128, 0.4);
+  border-radius: var(--rr-r-sm, 6px);
+  color: var(--rr-teal-dk);
+  font-family: var(--rr-sans);
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.rr-cb-sidebar-add:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Responsive collapse ───────────────────────────────────────────────────
+   Note: this matches viewport width, not chat-open state. The mock spec uses
+   chat-open as the trigger; since the chat rail in production lives outside
+   ChildBriefTab and we don't drill the open state down, viewport-width is a
+   reasonable proxy — narrow viewports are where space is tightest regardless
+   of chat state. Phase 3.5 can wire chat-open if real-world smoke shows the
+   viewport heuristic falls short.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* 1300px and below: drop the age sub-label and the status pill;
+   status becomes a coloured dot in the top-right of each item. */
+@media (max-width: 1300px) {
+  .rr-brief-wrap.has-sidebar { grid-template-columns: minmax(0, 1fr) 150px; }
+  .rr-cb-sidebar-sub,
+  .rr-cb-sidebar-pill { display: none; }
+  .rr-cb-sidebar-item { position: relative; padding: 10px 10px; }
+  .rr-cb-sidebar-item::after {
+    content: '';
+    position: absolute;
+    top: 10px;
+    right: 8px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--rr-muted);
+  }
+  /* Status dots match is-status-{active|draft|archived}; selected
+     children get the surrounding teal background (above) instead. */
+  .rr-cb-sidebar-item.is-status-active::after   { background: var(--rr-teal-dk); }
+  .rr-cb-sidebar-item.is-status-draft::after    { background: #F5A623; }
+  .rr-cb-sidebar-item.is-status-archived::after { background: var(--rr-muted); }
+}
+
+/* 1000px and below: collapse to initials-only rail. */
+@media (max-width: 1000px) {
+  .rr-brief-wrap.has-sidebar { grid-template-columns: minmax(0, 1fr) 56px; }
+  .rr-cb-sidebar-name,
+  .rr-cb-sidebar-head,
+  .rr-cb-sidebar-foot { display: none; }
+  .rr-cb-sidebar-item { align-items: center; padding: 10px 0; }
+  .rr-cb-sidebar-item::before {
+    content: attr(data-initials);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--rr-teal-bg);
+    color: var(--rr-teal-dk);
+    font-family: var(--rr-display);
+    font-weight: 900;
+    font-size: 13px;
+  }
+}
+
+/* 720px and below: single column stack — sidebar above cards. Restore the
+   full name/sub/pill view since stacked layout has horizontal room again
+   (Codex r1 #2 2026-05-24 — the 1000px initials-only rules above were
+   chat-rail-side-by-side assumptions that don't apply when stacked). */
+@media (max-width: 720px) {
+  .rr-brief-wrap.has-sidebar {
+    grid-template-columns: 1fr;
+  }
+  .rr-cb-sidebar {
+    position: static;
+    max-height: none;
+    order: -1;             /* sit above cards on narrow viewports */
+  }
+  /* Restore the name + sub + pill that the 1000px rules hid. */
+  .rr-cb-sidebar-name { display: inline; }
+  .rr-cb-sidebar-sub,
+  .rr-cb-sidebar-pill { display: inline-block; }
+  .rr-cb-sidebar-head,
+  .rr-cb-sidebar-foot { display: block; }
+  .rr-cb-sidebar-item { align-items: flex-start; padding: 10px 12px; }
+  .rr-cb-sidebar-item::before { content: none; }
+  .rr-cb-sidebar-item::after  { content: none; }
+  /* Horizontal list to save vertical space on phones — 1 item per row
+     would consume too much above-the-fold. */
+  .rr-cb-sidebar-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .rr-cb-sidebar-list > li { flex: 1 1 calc(50% - 2px); min-width: 0; }
+}
