@@ -109,6 +109,37 @@ export type PackSchool = {
    * heathrow_distance (miles). Dropped by reducer when pack is over hard cap.
    */
   notion_backfill?: Record<string, unknown> | null
+  /**
+   * Curated supplementary facts from the `schools` table (Tab A Step 3,
+   * 2026-05-25). Compact scalars/short text parents ask about that SSD
+   * doesn't carry: head + tenure, houses, EAL, Thai community, open day,
+   * prospectus URL, bus, food, USP. Reducer-friendly — `dropped_curated_meta`
+   * nulls this whole object when pack is over hard cap.
+   */
+  curated_meta?: {
+    eal_support: boolean | null
+    eal_hours_per_week: number | null
+    eal_cost_usd: number | null
+    thai_students: number | null
+    thai_community: string | null
+    open_day_text: string | null
+    open_day_url: string | null
+    prospectus_url: string | null
+    head_of_school: string | null
+    head_tenure_start: string | null
+    house_system: string | null
+    house_names: string[] | null
+    /** Pre-cap count of house_names. Renderer uses this so schools with
+     * many houses (e.g. Eton's 25) don't get mis-reported as the capped
+     * length. */
+    house_count: number | null
+    food_options: string | null
+    /** true when the school runs a bus service; null otherwise (false
+     * collapses to null at projection time — false doesn't render, no
+     * point bloating the JSON). */
+    bus_service: true | null
+    unique_selling_points: string | null
+  } | null
   /** Optional: regulatory rows (only when intent fires). */
   sensitive?: Array<{ type: string; date: string | null; severity: string | null; title: string; summary: string | null }>
   /** Optional: atomic facts where present. */
@@ -416,6 +447,15 @@ export async function assembleResearchContextPack(
       reduce: () => { if (pack.recent_messages.length > 3) pack.recent_messages = pack.recent_messages.slice(-3) },
     },
     {
+      // Tab A Step 3 (2026-05-25). Drop curated_meta BEFORE notion_backfill —
+      // Notion carries higher-impact quant facts (class size, pupil counts,
+      // GCSE / A-Level %) that parents ask about more than head_of_school /
+      // food_options / USP / etc. that live in curated_meta. Both are
+      // supplementary to the citation-bearing facts.
+      name: 'dropped_curated_meta',
+      reduce: () => { for (const slug of Object.keys(pack.schools)) pack.schools[slug].curated_meta = null },
+    },
+    {
       // Notion sidecar (2026-05-24 wiring slice). Per Codex r1: do NOT rely on
       // the implicit reducer chain to shed Notion data. Drop notion_backfill
       // BEFORE facts because facts are higher-signal (atomic, dimension-tagged,
@@ -715,7 +755,16 @@ async function fetchSchoolBundle(
   const [metaRes, structuredRes, projectionPack, factsRes, notionRes] = await Promise.all([
     supabase
       .from('schools')
-      .select('slug, name, country, boarding_type, gender_split, fees_usd_min, fees_usd_max, is_international')
+      .select(
+        'slug, name, country, boarding_type, gender_split, fees_usd_min, fees_usd_max, is_international,' +
+        // Tab A Step 3 curated_meta fields (2026-05-25):
+        ' eal_support, eal_hours_per_week, eal_cost_usd,' +
+        ' thai_students, thai_community,' +
+        ' open_day_text, open_day_url, prospectus_url,' +
+        ' head_of_school, head_tenure_start,' +
+        ' house_system, house_names,' +
+        ' food_options, bus_service, unique_selling_points',
+      )
       .eq('slug', slug)
       .maybeSingle(),
     supabase
@@ -756,6 +805,49 @@ async function fetchSchoolBundle(
     fees_max_gbp: metaRow.fees_usd_max ?? null,
     is_uk: metaRow.country === 'United Kingdom',
   }
+
+  // Tab A Step 3 (2026-05-25): project the 15 curated `schools` columns into
+  // a compact object. Free-text fields are capped at 120 chars (USP / food /
+  // open-day blurb can be long). Array (house_names) capped at 12. If every
+  // field is null, the whole object becomes null so the reducer doesn't have
+  // to walk it later.
+  const CURATED_TEXT_CAP = 120
+  const clipText = (s: unknown): string | null => {
+    if (s == null) return null
+    const t = String(s).trim()
+    if (!t) return null
+    return t.length > CURATED_TEXT_CAP ? t.slice(0, CURATED_TEXT_CAP - 1).trimEnd() + '…' : t
+  }
+  // Codex r1 P7: preserve the pre-cap house count so the renderer can show
+  // "houses (25): name1…name6" instead of mis-reporting 12 (the projection
+  // cap) as the school's house count.
+  const houseNamesRaw = Array.isArray(metaRow.house_names) ? (metaRow.house_names as unknown[]) : null
+  const houseNamesCount = houseNamesRaw ? houseNamesRaw.length : null
+  const curatedMetaRaw = {
+    eal_support: typeof metaRow.eal_support === 'boolean' ? metaRow.eal_support : null,
+    eal_hours_per_week: typeof metaRow.eal_hours_per_week === 'number' ? metaRow.eal_hours_per_week : null,
+    eal_cost_usd: typeof metaRow.eal_cost_usd === 'number' ? metaRow.eal_cost_usd : null,
+    thai_students: typeof metaRow.thai_students === 'number' ? metaRow.thai_students : null,
+    thai_community: clipText(metaRow.thai_community),
+    open_day_text: clipText(metaRow.open_day_text),
+    open_day_url: typeof metaRow.open_day_url === 'string' && metaRow.open_day_url ? metaRow.open_day_url : null,
+    prospectus_url: typeof metaRow.prospectus_url === 'string' && metaRow.prospectus_url ? metaRow.prospectus_url : null,
+    head_of_school: typeof metaRow.head_of_school === 'string' && metaRow.head_of_school ? metaRow.head_of_school : null,
+    head_tenure_start: typeof metaRow.head_tenure_start === 'string' && metaRow.head_tenure_start ? metaRow.head_tenure_start : null,
+    house_system: clipText(metaRow.house_system),
+    house_names: houseNamesRaw && houseNamesRaw.length > 0
+      ? houseNamesRaw.slice(0, 12).map((x) => String(x))
+      : null,
+    house_count: houseNamesCount,
+    food_options: clipText(metaRow.food_options),
+    // Codex r1 P8: collapse false → null. false produces no rendering
+    // anyway (positive-only line, like `bus service: yes`); storing the
+    // raw false would just bloat the JSON.
+    bus_service: metaRow.bus_service === true ? (true as const) : null,
+    unique_selling_points: clipText(metaRow.unique_selling_points),
+  }
+  const curated_meta: PackSchool['curated_meta'] =
+    Object.values(curatedMetaRaw).every((v) => v === null) ? null : curatedMetaRaw
 
   const structured: Record<string, unknown> | null = structuredRes.data ? { ...(structuredRes.data as object) } : null
   // Recommender Phase 2 (Codex r1 P1.3): project the heavy subject_strengths
@@ -820,6 +912,7 @@ async function fetchSchoolBundle(
     meta,
     structured,
     notion_backfill,
+    curated_meta,
     facts: facts.length > 0 ? facts : undefined,
     projection,
     source,
