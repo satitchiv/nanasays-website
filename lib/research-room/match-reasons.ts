@@ -22,6 +22,10 @@ import {
   isSportPriority,
   regionMatches,
 } from './brief-predicates.ts'
+import {
+  effectiveSportFocus,
+  type EffectiveTopPriorityProfile,
+} from './effective-top-priority.ts'
 
 export type SchoolForReasons = {
   slug:        string
@@ -83,6 +87,30 @@ function strongestSport(struct: StructForReasons | null): { sport: SportKey, tie
   return { sport: best.sport, tier: best.tier }
 }
 
+// Phase 2.8 (Codex r1 Q7) — prefer the brief's sport over the school's
+// loudest. When the brief names a sport but the school has no signal
+// for it, return NULL so no chip is emitted — citing the school's
+// loudest other sport (today's strongestSport fallback) is misleading
+// for a brief that's specifically about a different sport. Only fall
+// back to strongestSport when the brief has NO sport_focus at all.
+const BRIEF_SPORT_KEYS = new Set<SportKey>(['rugby', 'tennis', 'cricket', 'hockey', 'football'])
+function briefRelevantSport(
+  profile: BriefProfile | null,
+  struct:  StructForReasons | null,
+): { sport: SportKey, tier: string } | null {
+  const focus = effectiveSportFocus(profile as unknown as EffectiveTopPriorityProfile)
+  if (focus && BRIEF_SPORT_KEYS.has(focus as SportKey)) {
+    const tier = sportTier(struct, focus as SportKey)
+    if (tier && TIER_STRENGTH[tier] != null) {
+      return { sport: focus as SportKey, tier }
+    }
+    // Focused but no signal — DON'T fall back to a different sport.
+    return null
+  }
+  // No focused sport at all → fall back to school's strongest.
+  return strongestSport(struct)
+}
+
 // 2026-05-19 Bug 2 fix — verify IB from the authoritative `schools.curriculum`
 // column. The IB Diploma label appears in the data in five variants; match any.
 // The exam_results.ib JSONB path is unreliable (over-populated by the
@@ -125,13 +153,13 @@ export function buildMatchReasons(
     out.push('boarding school')
   }
 
-  // Top priority: sport — flag the strongest sport this school is known
-  // for. r3 P2 fix: dropped the 'your sport priority' fallback when no
-  // strong sport tier is found. That string was profile-only with no
-  // school evidence, same class as the pastoral/inclusive reasons we
-  // dropped in r2.
+  // Top priority: sport — flag the brief-relevant sport (if focused) or
+  // school's strongest sport (if not). r3 P2: dropped 'your sport
+  // priority' fallback (profile-only, no school evidence).
+  // Phase 2.8 (Codex r1 Q7): briefRelevantSport returns NULL when brief
+  // says "tennis" but school has no tennis signal — no wrong-sport chip.
   if (isSportPriority(profile)) {
-    const strongest = strongestSport(struct)
+    const strongest = briefRelevantSport(profile, struct)
     if (strongest) out.push(`strong ${strongest.sport}`)
   }
 

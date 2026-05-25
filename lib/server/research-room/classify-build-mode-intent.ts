@@ -61,7 +61,10 @@ const MAX_TOKENS    = 512  // 8-field JSON output is still tiny; raised from 256
 // Versioned for future cache invalidation (Codex r1 design recommendation).
 // Bump when the prompt or schema changes meaningfully. Cache keys should
 // include this so a prompt revision invalidates stored intents.
-export const CLASSIFICATION_VERSION = 'phase-4-item-3-v1'
+// Phase 2.8 (2026-05-25): added sport_focus enum — bumped from
+// phase-4-item-3-v1 → phase-2-8-sport-focus-v1. Keep in lockstep with
+// effective-top-priority.ts DEFAULT_EXPECTED_VERSION.
+export const CLASSIFICATION_VERSION = 'phase-2-8-sport-focus-v1'
 
 // ── Schema ──────────────────────────────────────────────────────────
 //
@@ -86,6 +89,10 @@ export const BuildModeIntentLlmSchema = z.object({
   // (likely as a sub-direction field, e.g. cultural_pain_direction).
   current_school_pain:      z.enum(['academic_bored', 'academic_overwhelmed', 'pastoral', 'logistical', 'none']),
   parent_drill_focus:       z.enum(['academic', 'sport', 'pastoral', 'arts', 'all-round', 'none']),
+  // Phase 2.8 (2026-05-25) — concrete sport mentioned in prose as a
+  // school-search driver. Routes recommender + verdict to the right
+  // DIMENSIONS.<sport>_strength scorer.
+  sport_focus:              z.enum(['tennis', 'rugby', 'cricket', 'football', 'hockey', 'none']),
 }).strict()
 
 export type BuildModeIntentLlm = z.infer<typeof BuildModeIntentLlmSchema>
@@ -103,6 +110,7 @@ export const FALLBACK_INTENT: BuildModeIntent = {
   boarding_pref_from_prose: 'none',
   current_school_pain:      'none',
   parent_drill_focus:       'none',
+  sport_focus:              'none',
   classification_version:   CLASSIFICATION_VERSION,
 }
 
@@ -159,6 +167,14 @@ const SYSTEM_PROMPT = `You classify a parent's free-text notes about their child
 - "all-round" — explicit balance / all-rounder / "we want a bit of everything".
 - "none" — no clear focus stated.
 
+**sport_focus** (Phase 2.8)
+- "tennis" — parent indicates child plays / wants tennis specifically as a school-search driver. Examples: "tennis pathway", "wants tennis academy", "she's a county tennis player", "LTA-rated", "wants Wimbledon route", "national tennis player".
+- "rugby" — child plays / wants rugby specifically. Examples: "rugby player wants 1st XV", "DMT", "wants Premiership academy", "school rugby tour", "loves rugby and wants to develop it".
+- "cricket" — Examples: "cricketer", "1st XI cricket", "MCC pathway", "county cricket", "wants test cricket".
+- "football" — Examples: "footballer", "ISFA", "ESFA", "academy football", "wants Premiership football pathway", "1st XI soccer".
+- "hockey" — Examples: "hockey player", "ISHC", "England hockey", "GB hockey", "1st XI hockey", "wants astro hockey programme".
+- "none" — no specific sport named as a school-search driver, OR child plays multiple sports without a clear priority (recommender uses generic sport breadth fallback), OR the sport is mentioned only as a hobby (see rule 18 below).
+
 ## Critical disambiguation rules
 
 1. **Direction matters.** "academically strong" = strong. "not academically strong" = struggle. "no longer struggling" = none (was struggle, now not). "doesn't love studying" = none-to-struggle.
@@ -195,7 +211,12 @@ const SYSTEM_PROMPT = `You classify a parent's free-text notes about their child
 
 16. **Multi-pain priority (Codex r1 implementation review 2026-05-22).** \`current_school_pain\` is a single enum so it must pick one when multiple pains coexist. Apply this priority order: \`academic_overwhelmed\` > \`academic_bored\` > \`pastoral\` > \`logistical\` > \`none\`. WHY: academic pain (especially overwhelmed) is the bigger scoring harm — it triggers \`hasAcademicPain\` which suppresses selective-school boosts. If the prose says BOTH "she's overwhelmed academically" AND "she's lonely", set \`current_school_pain='academic_overwhelmed'\` AND \`pastoral_priority='high'\` — the pastoral signal is still captured via its own output field. NEVER let pastoral pain hide academic pain in the \`current_school_pain\` slot.
 
-17. **Cultural / religion-mismatch pain.** There is no \`cultural\` enum value (intentionally dropped — direction is too ambiguous to score safely). If parent describes religion/values mismatch at current school: do NOT use \`current_school_pain\` for it. Instead, if the family has a clear identity-belonging concern (e.g. "we want a school where our Muslim/Jewish/etc. identity is welcomed"), set \`inclusive_priority='high'\`. If they want a religion-specific school (e.g. "we want a Catholic school"), do NOT encode it in any classifier output — that belongs in the wizard \`ethos_pref\` field. \`parent_drill_focus\` is a priority taxonomy (academic/sport/pastoral/arts/all-round), NOT an ethos field — never put religion there.`
+17. **Cultural / religion-mismatch pain.** There is no \`cultural\` enum value (intentionally dropped — direction is too ambiguous to score safely). If parent describes religion/values mismatch at current school: do NOT use \`current_school_pain\` for it. Instead, if the family has a clear identity-belonging concern (e.g. "we want a school where our Muslim/Jewish/etc. identity is welcomed"), set \`inclusive_priority='high'\`. If they want a religion-specific school (e.g. "we want a Catholic school"), do NOT encode it in any classifier output — that belongs in the wizard \`ethos_pref\` field. \`parent_drill_focus\` is a priority taxonomy (academic/sport/pastoral/arts/all-round), NOT an ethos field — never put religion there.
+
+18. **Sport_focus is independent of parent_drill_focus (Phase 2.8).** Emit a non-"none" sport_focus whenever the parent's prose names a specific sport AS A SCHOOL-SEARCH DRIVER — i.e. the sport is part of why the parent is searching. Do NOT emit a sport_focus for hobby mentions ("she plays tennis on weekends", "they happen to offer tennis"). Examples that SHOULD emit sport_focus regardless of drill_focus:
+   - "she's an all-rounder but rugby is her standout sport" → parent_drill_focus="all-round", sport_focus="rugby"
+   - "he wants academic stretch AND a tennis pathway" → parent_drill_focus="academic", sport_focus="tennis"
+   The downstream scorer decides whether to apply sport-specific scoring based on the full intent picture; your job is to classify the prose literally.`
 
 function buildUserMessage(args: {
   academic_notes:    string

@@ -11,6 +11,7 @@ import { loadDimFactsBundles } from '../server/tools.js'
 import type { BriefProfile } from './brief-predicates.ts'
 import type { BuildModeExtractionHTTP } from '../server/research-room/build-mode-schemas.ts'
 import type { BuildModeIntent } from '../server/research-room/classify-build-mode-intent.ts'
+import { resolveSportFocus } from './resolve-sport-focus.ts'
 
 // Slice 8 Build 6 — Build Mode school recommender.
 //
@@ -164,6 +165,12 @@ const SPORT_LEVEL_MULTIPLIER: Record<string, number> = {
   'county-regional':    0.7,
   'county-level':       0.7,
   'regional-level':     0.7,
+  // Phase 2.8 — synthetic level applied when sport_focus comes from
+  // the LLM prose classifier instead of the structured interests_sports
+  // field. Multiplier matches county/regional (0.7) — solid signal but
+  // not a confirmed national-level commitment. Distinct label so logs
+  // and tests don't pretend the child literally plays at county level.
+  'inferred-prose':     0.7,
   'school-team':        0.4,
   school:               0.4,
   'school team':        0.4,
@@ -813,9 +820,40 @@ export function rankCandidates(
   const ctx = buildScorerCtx(parent, input.intent)
   const budgetCeiling = BUDGET_CEILING_USD[parent?.budget_range ?? '']
 
-  const sportsInterest = (child?.interests_sports ?? [])
+  // Phase 2.8 (2026-05-25) — resolveSportFocus picks the effective sport
+  // from explicit structured interests > fresh classifier intent > cache.
+  // When structured interests_sports is empty but the LLM classified a
+  // sport from prose, inject one synthetic entry so the per-sport loop
+  // below fires DIMENSIONS.<sport>_strength scoring. Without this, prose-
+  // only parents (Refresh button after editing brief) get no sport-
+  // specific re-ranking and the recommender returns sport-breadth schools
+  // (Harrow/Eton) instead of sport-specialists (Reed's/Queenswood for tennis).
+  //
+  // Codex r3 fix: synthetic entry key = sport LABEL ('tennis'), NOT the
+  // scorer key ('tennis_strength'). The loop maps key → scorer via
+  // SPORT_SCORER_BY_LABEL[sp.key].
+  const focusResolution = resolveSportFocus({
+    interestsSports: child?.interests_sports ?? null,
+    intent:          input.intent ?? null,
+    // NOTE: profile arg intentionally omitted — Refresh and finalize routes
+    // always pass fresh `intent` so the cache fallback is unnecessary here.
+    // The cache-only path lives in recommend-shortlist.ts (pickTopSchoolSlugs).
+  })
+  if (focusResolution.conflict) {
+    console.info('[scoreForBuildMode] sport_focus conflict', {
+      structured: child?.interests_sports?.map(s => s.sport),
+      llm:        input.intent?.sport_focus,
+      resolved:   focusResolution.sport,
+    })
+  }
+  const structuredSportsInterest = (child?.interests_sports ?? [])
     .map(s => ({ raw: s.sport, key: normalizeSportLabel(s.sport), level: s.level }))
     .filter((s): s is { raw: string; key: keyof typeof SPORT_SCORER_BY_LABEL; level: string } => s.key !== null)
+  const sportsInterest = structuredSportsInterest.length > 0
+    ? structuredSportsInterest
+    : (focusResolution.sport
+        ? [{ raw: focusResolution.sport, key: focusResolution.sport, level: 'inferred-prose' }]
+        : [])
   const artsInterest = child?.interests_arts ?? []
   // Phase 4 item #2 + item #3 (2026-05-22) — LLM-classified intent reading
   // the 5 actual prose fields (academic_notes / goals_notes /
@@ -1462,7 +1500,19 @@ export async function scoreForBuildMode(
   // schools (Gladstone Primary, City of London Freemen's etc.) and a
   // `reeds-school-uk` duplicate — none of which belong in a Build Mode
   // proposal. NULL confidence is preserved (unknown, don't punish).
-  q = q.or('confidence_score.is.null,confidence_score.gte.10')
+  // Phase 2.8 (2026-05-25) — confidence_score floor REMOVED.
+  // Live-DB audit (Supabase MCP, project ckofdbjfbxoxxxtedmqa) showed the
+  // floor dropped 13 canonical 100%-complete schools (St Paul's,
+  // Westminster, Reed's, Cheltenham College, King's Canterbury, Stowe,
+  // Headington, Haberdashers' Boys', Ashville, Ashford, MPW Birmingham,
+  // MPW Cambridge, Handcross Park) whose canonical row has conf=0 because
+  // conf was scored on a stale shell row (e.g. `reeds-school` empty shell
+  // with conf=64 vs `reeds-school-uk` canonical with 185 chunks + conf=0).
+  // The schools_status.has_substantial_chunks filter via loadUkEvidenceSlugs
+  // already drops the 23,960 conf<10 empty primaries the floor was meant
+  // to catch — verified live — so the floor is redundant for its stated
+  // purpose and actively harmful for the 13 entries it does affect.
+  // (Same comment + removal mirrored in recommend-shortlist.ts.)
 
   // Phase 3 Bug #7 (Codex r1 P1): the SQL HARD filter must use the same
   // fee column as the in-budget chip below. For full/weekly/flexi boarders,

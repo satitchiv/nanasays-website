@@ -30,11 +30,17 @@ import { createHash } from 'node:crypto'
 // importable from both server + client/test contexts).
 export type IntentLike = {
   parent_drill_focus?: 'academic' | 'sport' | 'pastoral' | 'arts' | 'all-round' | 'none' | null | undefined
+  // Phase 2.8 — concrete sport from the LLM classifier prose parse.
+  sport_focus?:        'tennis' | 'rugby' | 'cricket' | 'football' | 'hockey' | 'none' | null | undefined
 }
 
 // Cache shape: persisted to children.child_profile.intent_focus_cache.
+// Phase 2.8 — `sport_focus` added alongside `value`. Old caches without
+// sport_focus become stale after the version bump and fall back to
+// wizard via the version-mismatch check below.
 export type IntentFocusCache = {
   value:       string                       // the classifier's parent_drill_focus value
+  sport_focus: string                       // tennis|rugby|cricket|football|hockey|none
   source_hash: string                       // sha256 over the 5 prose fields
   version:     string                       // expected to match CLASSIFICATION_VERSION
   computed_at: string                       // ISO timestamp
@@ -44,7 +50,14 @@ export type IntentFocusCache = {
 // CLASSIFICATION_VERSION. Hardcoded here (vs imported from server) so this
 // module stays free of 'server-only' deps. Keep these two strings in
 // lockstep when bumping the classifier prompt/schema.
-export const DEFAULT_EXPECTED_VERSION = 'phase-4-item-3-v1'
+export const DEFAULT_EXPECTED_VERSION = 'phase-2-8-sport-focus-v1'
+
+// Phase 2.8 — sport_focus enum (mirrors classify-build-mode-intent.ts
+// BuildModeIntentLlmSchema). Lives here so brief-predicates and consumers
+// can use it without server-only imports.
+export const SPORT_FOCUS_WHITELIST: ReadonlySet<string> = new Set([
+  'tennis', 'rugby', 'cricket', 'football', 'hockey',
+])
 
 // Profile shape used by the helper. BriefProfile in brief-predicates.ts
 // extends this. EVERY string-shaped field typed `unknown` to reflect that
@@ -85,11 +98,13 @@ export function hashProseSnapshot(p: EffectiveTopPriorityProfile | null): string
 
 export function buildIntentFocusCache(args: {
   drillFocus:  IntentLike['parent_drill_focus']
+  sportFocus:  IntentLike['sport_focus']
   profile:     EffectiveTopPriorityProfile
   version:     string
 }): IntentFocusCache {
   return {
     value:       args.drillFocus ?? 'none',
+    sport_focus: args.sportFocus ?? 'none',
     source_hash: hashProseSnapshot(args.profile),
     version:     args.version,
     computed_at: new Date().toISOString(),
@@ -106,7 +121,8 @@ export function cacheNeedsRefresh(
 ): boolean {
   if (!existing) return true
   return (
-    safeString(existing.value)       !== safeString(candidate.value) ||
+    safeString(existing.value)       !== safeString(candidate.value)       ||
+    safeString(existing.sport_focus) !== safeString(candidate.sport_focus) ||
     safeString(existing.source_hash) !== safeString(candidate.source_hash) ||
     safeString(existing.version)     !== safeString(candidate.version)
   )
@@ -135,4 +151,32 @@ export function effectiveTopPriority(
   }
 
   return safeString(profile.top_priority).toLowerCase()
+}
+
+// Phase 2.8 — returns the cached sport_focus when present + valid (hash
+// matches current prose + version matches expected + value is in the
+// sport whitelist). Otherwise returns ''.
+//
+// Whitelist (Codex r3 P1): cache.sport_focus is arbitrary JSON; a
+// malformed value like 'unknown' / 'hockey ' / 123 must NOT slip into
+// the recommender's sport-specific branch. We trim + lowercase + check
+// SPORT_FOCUS_WHITELIST before returning.
+//
+// Wizard has no sport field — so this is cache-only (no fallback to a
+// wizard equivalent of top_priority). Returns '' when there's no valid
+// cached sport, leaving callers to use their existing non-sport logic.
+export function effectiveSportFocus(
+  profile: EffectiveTopPriorityProfile | null,
+  expectedVersion: string = DEFAULT_EXPECTED_VERSION,
+): string {
+  if (!profile) return ''
+  const cache = profile.intent_focus_cache
+  if (!cache) return ''
+  if (safeString(cache.version) !== expectedVersion) return ''
+  const currentHash = hashProseSnapshot(profile)
+  if (safeString(cache.source_hash) !== currentHash) return ''
+  const sport = safeString(cache.sport_focus).toLowerCase()
+  if (!sport || sport === 'none') return ''
+  if (!SPORT_FOCUS_WHITELIST.has(sport)) return ''
+  return sport
 }

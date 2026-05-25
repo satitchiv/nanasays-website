@@ -481,6 +481,7 @@ export async function POST(req: NextRequest) {
     childId:         sess.child_id,
     rawChildProfile,
     drillFocus:      buildModeIntent.parent_drill_focus,
+    sportFocus:      buildModeIntent.sport_focus,
     version:         CLASSIFICATION_VERSION,
     cacheable:       intentCacheable,
   })

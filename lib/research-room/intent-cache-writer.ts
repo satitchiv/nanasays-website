@@ -46,6 +46,8 @@ export async function writeIntentFocusCacheIfChanged(args: {
   /** Caller's snapshot of child_profile (must match what classifyBuildModeIntent saw). */
   rawChildProfile: Record<string, unknown>
   drillFocus:      IntentLike['parent_drill_focus']
+  /** Phase 2.8 — concrete sport from classifier prose parse. */
+  sportFocus:      IntentLike['sport_focus']
   version:         string
   /** Codex r5 P1: pass false when intent came from FALLBACK_INTENT
    *  (transient classifier failure). Skips persistence to avoid poisoning
@@ -54,6 +56,7 @@ export async function writeIntentFocusCacheIfChanged(args: {
 }): Promise<WriteResult> {
   const newCache = buildIntentFocusCache({
     drillFocus: args.drillFocus,
+    sportFocus: args.sportFocus,
     profile:    args.rawChildProfile as EffectiveTopPriorityProfile,
     version:    args.version,
   })

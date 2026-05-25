@@ -264,6 +264,7 @@ export async function POST(
     childId:         id,
     rawChildProfile: profile as Record<string, unknown>,
     drillFocus:      buildModeIntent.parent_drill_focus,
+    sportFocus:      buildModeIntent.sport_focus,
     version:         CLASSIFICATION_VERSION,
     cacheable:       intentCacheable,
   })

@@ -31,6 +31,14 @@ import {
   matchesCurriculumPreference,
   NONNEG_FILTERS,
 } from './research-room/score-for-build-mode'
+// Phase 2.8 (2026-05-25) — sport-specific scoring. effectiveSportFocus
+// reads cache (Refresh-recommendations clears + re-classifies the cache
+// before calling pickTopSchoolSlugs). DIMENSIONS gives per-sport rank().
+import {
+  effectiveSportFocus,
+  type EffectiveTopPriorityProfile,
+} from './research-room/effective-top-priority'
+import { DIMENSIONS } from './server/dimensions.js'
 
 // Auto-recommend shortlist after onboarding completes.
 //
@@ -99,6 +107,54 @@ function scoreCompetitiveTier(tier: string | null | undefined): number {
   if (/regional|county/.test(lc)) return 0.3
   if (/local|school.level|recreational|inter.house/.test(lc)) return 0.1
   return 0.3
+}
+
+// Phase 2.8 — per-sport empirical caps for normalizing dimensions.rank()
+// output to <=1.5 to match the existing `Math.min(sportQ, 1.5)` cap on
+// generic sport scoring. CALIBRATED to the actual rank() output ranges
+// from `lib/server/dimensions.js`:
+//   TIER_SCORE                   = elite 50, strong 25, mid 18, regional 10
+//   tennis cup max               = ~10 (national bonus 2× on Youll/Aberdare)
+//   tennis alumni cap            = 8  (pro ATP/WTA/Wimbledon)
+//   tennis teams cap             = 3
+//   rugby RUGBY_TIER_SCORE       = elite 22, strong 16, national 11
+//   rugby DMT/SOCS/cup/depth/... = max ~94 total (Phase 2 design doc)
+// At national-elite the rank() for tennis/football/cricket/hockey lands
+// ~50-70 once cups/alumni/teams fire; rugby tops out higher (~94). Caps
+// set so a top-3 school normalizes to ~1.5 and a regional school sits
+// ~0.25 (re-rankable but not dominant). (Codex r2 corrected v1 caps of
+// {24} which saturated every national-tier school at 1.5.)
+const SPORT_RAW_CAPS: Record<string, number> = {
+  tennis:   60,
+  rugby:    70,
+  cricket:  62,
+  football: 60,
+  hockey:   63,
+}
+const DIMENSION_BY_SPORT: Record<string, keyof typeof DIMENSIONS> = {
+  tennis:   'tennis_strength',
+  rugby:    'rugby_standing',
+  cricket:  'cricket_strength',
+  football: 'football_strength',
+  hockey:   'hockey_strength',
+}
+function scoreSportSpecific(
+  sport:         string,
+  schoolSlug:    string,
+  sportsProfile: Record<string, unknown> | undefined,
+): number {
+  const dimKey = DIMENSION_BY_SPORT[sport]
+  if (!dimKey || !sportsProfile) return 0
+  const dim = DIMENSIONS[dimKey] as { rank?: (row: { school_slug: string; sports_profile: Record<string, unknown> }) => number } | undefined
+  if (!dim || typeof dim.rank !== 'function') return 0
+  try {
+    const raw = dim.rank({ school_slug: schoolSlug, sports_profile: sportsProfile })
+    const cap = SPORT_RAW_CAPS[sport] ?? 24
+    if (!Number.isFinite(raw) || raw <= 0) return 0
+    return Math.min((raw / cap) * 1.5, 1.5)
+  } catch {
+    return 0
+  }
 }
 
 // team_count_approx is stored as a JSON-string-inside-JSONB:
@@ -289,12 +345,25 @@ export async function pickTopSchoolSlugs(
   // have is_international=NULL despite being substantial UK independents.
   // The schools_status filter (is_uk_evidence) is already a stricter
   // quality gate, so this was double-filtering and hiding famous schools.
+  //
+  // Phase 2.8 (2026-05-25) — `confidence_score IS NULL OR >= 10` floor
+  // REMOVED. Live-DB audit (Supabase MCP) showed the floor dropped 13
+  // canonical 100%-complete schools (St Paul's, Westminster, Reed's,
+  // Cheltenham College, King's Canterbury, Stowe, Headington,
+  // Haberdashers' Boys', Ashville, Ashford, MPW Birmingham, MPW Cambridge,
+  // Handcross Park) whose canonical row has conf=0 because conf was
+  // scored on a stale shell row (e.g. `reeds-school` empty shell with
+  // conf=64 vs `reeds-school-uk` canonical with 185 chunks + conf=0).
+  // The schools_status.has_substantial_chunks filter via loadUkEvidenceSlugs
+  // already drops the 23,960 conf<10 empty primaries the floor was meant
+  // to catch — so the floor is redundant for its stated purpose and
+  // actively harmful for the 13 entries it does affect.
+  // (Same removal mirrored in score-for-build-mode.ts.)
   let q = supabase
     .from('schools')
     .select('slug, name, gender_split, boarding, fees_usd_min, sen_support, strengths, confidence_score, age_min, age_max, region')
     .in('slug', ukSlugs)
     .eq('country', 'United Kingdom')
-    .or('confidence_score.is.null,confidence_score.gte.10')
 
   // Region: moved to JS scoring (not a hard SQL filter). Many famous
   // schools have region=NULL (Westminster, St Paul's, Dulwich) and would
@@ -497,13 +566,34 @@ export async function pickTopSchoolSlugs(
       else if (ratio <= 1.2) score += 0.2
     }
 
-    // Sport quality (top_priority=sport) — combine prose-keyword tier
-    // score, team count, and signature-sport breadth from sports_profile
-    // JSONB. Fall back to strengths-tag match when the school has no
-    // structured sport data (~20% of UK-evidence schools).
+    // Sport quality (top_priority=sport) — Phase 2.8 (2026-05-25):
+    //   - When effectiveSportFocus(profile) returns a concrete sport,
+    //     route to DIMENSIONS.<sport>_strength.rank() for tier-aware
+    //     per-sport scoring (Reed's tennis-elite > Harrow tennis-zero).
+    //   - When sport_focus is '' (no focus / stale cache), fall through
+    //     to today's generic breadth scoring (no regression on the path
+    //     that's been live since slice 4d).
+    //
+    // effectiveSportFocus reads `intent_focus_cache.sport_focus`. The
+    // Refresh-recommendations route re-classifies + re-caches BEFORE
+    // calling pickTopSchoolSlugs, so this branch sees fresh classifier
+    // output. effectiveSportFocus internally whitelists the value so a
+    // malformed cache can't enter this branch.
     const struct = structMap.get(s.slug)
     const strengthsLc = (s.strengths ?? []).map(x => x.toLowerCase())
-    if (profile.top_priority === 'sport') {
+    const effectiveSport = effectiveSportFocus(profile as unknown as EffectiveTopPriorityProfile)
+    if (profile.top_priority === 'sport' && effectiveSport) {
+      const sp = struct?.sports_profile as Record<string, unknown> | undefined
+      const sportQ = scoreSportSpecific(effectiveSport, s.slug, sp)
+      // Tag fallback only if dim returned 0 AND strengths-tag mentions
+      // the SPECIFIC sport (not generic 'sport'). Weight 0.18 — weak
+      // evidence, stays below the structured-regional floor so it can't
+      // outrank a real tier-evidenced school. (Codex r1 Q6: v1 had 0.3
+      // which was over-weighting tags.)
+      const fallback = (sportQ === 0 && strengthsLc.some(t => t.includes(effectiveSport))) ? 0.18 : 0
+      score += sportQ > 0 ? sportQ : fallback
+    } else if (profile.top_priority === 'sport') {
+      // Generic sport breadth — unchanged from pre-Phase-2.8 behaviour.
       const sp = struct?.sports_profile as Record<string, unknown> | undefined
       let sportQ = 0
       if (sp) {

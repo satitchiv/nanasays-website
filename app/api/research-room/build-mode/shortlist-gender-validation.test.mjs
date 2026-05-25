@@ -103,15 +103,18 @@ test('route: /api/research-room/write-action surfaces rejected_gender_mismatch a
 
 // ── 5. recommend-shortlist.ts quality knobs ─────────────────────────
 
-test('recommend-shortlist: min-confidence floor (>=10 or NULL) on candidate query', () => {
+test('Phase 2.8 (2026-05-25): recommend-shortlist.ts conf-floor REMOVED (dropped 13 canonical schools when present)', () => {
   const src = readFile('lib/recommend-shortlist.ts')
-  assert.match(src, /\.or\('confidence_score\.is\.null,confidence_score\.gte\.10'\)/)
+  assert.doesNotMatch(src, /\.or\('confidence_score\.is\.null,confidence_score\.gte\.10'\)/,
+    'conf-floor must stay removed — has_substantial_chunks via loadUkEvidenceSlugs is the sole gate now')
 })
 
-test('recommend-shortlist: wrong-region penalty bumped to -2.0', () => {
+test('Region penalty MIGRATED to hard filter (was: score -= 2.0)', () => {
   const src = readFile('lib/recommend-shortlist.ts')
-  // Penalty subtracted from score on wrong-bucket region
-  assert.match(src, /score -= 2\.0/)
+  // The score -= 2.0 soft penalty was replaced by a hard filter that drops
+  // wrong-bucket schools entirely (Bug #3 picker-followup 2026-05-23).
+  assert.doesNotMatch(src, /score -= 2\.0/,
+    'wrong-region soft penalty must stay migrated to hard filter')
   // Old -1.0 region penalty is gone (still allowed elsewhere — bound it)
   assert.doesNotMatch(src, /score -= 1\.0\s*\n\s*\}\s*\n\s*\}/)
 })
