@@ -6,6 +6,14 @@ import type { ResearchMessage, StreamFormat, ProposedAction } from '@/lib/nana/t
 // parseInlineBold extracted to ./nana-bubble-md.ts so it's unit-testable
 // without a JSX runtime (node test runner can import .ts but not .tsx).
 import { parseInlineBold } from './nana-bubble-md'
+// 2026-05-25 PM streaming-flash fix: lax citation scrubber. The server
+// already strips `[source](https://rankSchools)` from the final prose, but
+// the bubble renders streamBuf live as it arrives — so parents saw the
+// fake citation flash for ~1s before the final payload replaced it. The
+// shared client-safe scrubber drops tool-name hosts on every render of
+// streamBuf so the flash never reaches the screen. STRICT allow-list
+// enforcement stays server-side (allowedUrls not yet known mid-stream).
+import { scrubForbiddenCitations, scrubInvalidCitations } from '@/lib/prose-citation-scrubber'
 // The bubble's classNames (dh-msg-nana, dh-msg-nana-prose, etc.) live in
 // nana-bubble.css. Importing it here means anywhere NanaBubble is mounted
 // gets the styles automatically — Research Room's right rail can embed
@@ -197,11 +205,19 @@ export function NanaMsgBubble({
     // (not HTML), so the comment opener would otherwise be visible mid-stream
     // until the closing --> arrives. After final, parsed.prose is the
     // already-cleaned text from the runner.
+    //
+    // 2026-05-25 PM: ALSO scrub forbidden-host citations (rankSchools,
+    // getSchoolFacts, etc.) on every streamBuf render so fake URLs don't
+    // flash on screen mid-stream. Server-side strict scrub still runs on
+    // the final payload — this client scrub only catches the cases we KNOW
+    // are bogus regardless of the final allow-list.
     const rawProse = isStreaming
       ? (streamBuf || '')
       : (parsed?.prose || msg?.rawText || '')
     const proseText = isStreaming
-      ? rawProse.replace(/<!--\s*nana-meta[\s\S]*$/i, '').trimEnd()
+      ? scrubForbiddenCitations(
+          rawProse.replace(/<!--\s*nana-meta[\s\S]*$/i, '').trimEnd()
+        )
       : rawProse
     const citations: string[] = Array.isArray(parsed?.citations) ? parsed.citations : []
 
@@ -282,9 +298,18 @@ export function NanaMsgBubble({
 
   // Fallback: if parsing failed entirely, or sections are empty, render raw text so the
   // user always sees Nana's actual answer instead of a blank bubble.
+  //
+  // 2026-05-25 PM (Codex r1 P2 + r2 strictness): this path is FINAL — there
+  // is no later server-side strict scrub to clean it up. So use the strict
+  // scrubber here with `parsed.citations` (when present) as the allow-list,
+  // empty array otherwise. Strict empty-list semantics: when there are no
+  // known-good citations, ALL inline `[source](X)` markdown is stripped.
+  // Lax mode would only catch tool-name hosts; hallucinated-but-real-looking
+  // URLs would still survive into the rendered bubble.
   const renderedAnySection = !!(shortAnswer || confirmedFacts || whatThisMeans || tradeoff || whatWeDontKnow)
+  const fallbackAllowed = Array.isArray(parsed?.citations) ? parsed.citations : []
   const fallbackText = !isStreaming && !renderedAnySection
-    ? (parsed?.answer_markdown || msg?.rawText || '')
+    ? scrubInvalidCitations(parsed?.answer_markdown || msg?.rawText || '', fallbackAllowed)
     : ''
 
   return (
