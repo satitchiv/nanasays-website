@@ -26,6 +26,16 @@ import {
   effectiveSportFocus,
   type EffectiveTopPriorityProfile,
 } from './effective-top-priority.ts'
+// Phase 2.8.3 (2026-05-25, Codex regression-audit r1) — boarding-chip
+// emission must use the same KNOWN_FULL_BOARDING_NAMES override the
+// scorer uses (school.boarding column lies for several famous schools;
+// Eton/Harrow/Wycombe Abbey all incorrectly marked boarding=false).
+// Without this, Lancing/Merchiston/Harrow get no boarding chip even
+// though the scorer correctly counts them as boarding.
+import {
+  KNOWN_FULL_BOARDING_NAMES,
+  normalizeSchoolName,
+} from '../school-name-overrides.ts'
 
 export type SchoolForReasons = {
   slug:        string
@@ -54,12 +64,22 @@ type SportKey = 'rugby' | 'tennis' | 'cricket' | 'hockey' | 'football' | 'netbal
 // the tier is in this map AND ranks above all the school's other sports
 // by `tier_strength`. Anything below `regional` (local, recreational,
 // unknown) doesn't qualify as a strong-sport claim.
+//
+// Phase 2.8.3 (2026-05-25, Codex regression-audit r1 confirmed): the
+// "strong <sport>" chip is the parent-facing claim, and live smoke
+// surfaced Harrow tagged "strong tennis" on a merely regional tier.
+// Tightened to require >= national for the chip to fire. Lower tiers
+// stay in TIER_STRENGTH for internal ordering (strongestSport/
+// briefRelevantSport tie-breaks) but don't trigger a parent-visible
+// chip. Schools with tennis at regional+below get no sport chip, not
+// the wrong sport, not a misleading "strong" claim.
 const TIER_STRENGTH: Record<string, number> = {
   'national-elite':  4,
   'national-strong': 3,
   'national':        2,
   'regional':        1,
 }
+const STRONG_CHIP_MIN_STRENGTH = TIER_STRENGTH['national']  // 2 — Phase 2.8.3
 
 function sportTier(struct: StructForReasons | null, sport: SportKey): string | null {
   const s = (struct?.sports_profile as Record<string, unknown> | null | undefined)?.[sport]
@@ -71,6 +91,7 @@ function sportTier(struct: StructForReasons | null, sport: SportKey): string | n
 // r3 P3 fix: was first-match in array order (rugby > tennis > ...), which
 // could pick a regional rugby over a national-elite tennis. Now ranks
 // across all sports by tier strength and returns the highest one.
+// Phase 2.8.3 (2026-05-25): chip-qualifying tier raised to >= national.
 function strongestSport(struct: StructForReasons | null): { sport: SportKey, tier: string } | null {
   const candidates: SportKey[] = ['rugby', 'tennis', 'cricket', 'hockey', 'football', 'netball']
   let best: { sport: SportKey, tier: string, strength: number } | null = null
@@ -78,7 +99,8 @@ function strongestSport(struct: StructForReasons | null): { sport: SportKey, tie
     const tier = sportTier(struct, sport)
     if (!tier) continue
     const strength = TIER_STRENGTH[tier]
-    if (strength == null) continue  // weaker than regional → skip
+    if (strength == null) continue
+    if (strength < STRONG_CHIP_MIN_STRENGTH) continue  // Phase 2.8.3: regional doesn't qualify for "strong" chip
     if (best == null || strength > best.strength) {
       best = { sport, tier, strength }
     }
@@ -101,10 +123,13 @@ function briefRelevantSport(
   const focus = effectiveSportFocus(profile as unknown as EffectiveTopPriorityProfile)
   if (focus && BRIEF_SPORT_KEYS.has(focus as SportKey)) {
     const tier = sportTier(struct, focus as SportKey)
-    if (tier && TIER_STRENGTH[tier] != null) {
+    const strength = tier ? TIER_STRENGTH[tier] : undefined
+    if (tier && strength != null && strength >= STRONG_CHIP_MIN_STRENGTH) {
       return { sport: focus as SportKey, tier }
     }
-    // Focused but no signal — DON'T fall back to a different sport.
+    // Focused but no signal (or only regional/below) — DON'T fall back
+    // to a different sport. Phase 2.8.3: regional tier no longer counts
+    // as "strong" — chip suppressed instead of misleading.
     return null
   }
   // No focused sport at all → fall back to school's strongest.
@@ -149,8 +174,19 @@ export function buildMatchReasons(
   }
 
   // Boarding intent.
-  if (isFullOrWeeklyBoarding(profile) && school.boarding === true) {
-    out.push('boarding school')
+  // Phase 2.8.3 (Codex regression-audit r1): emit chip on EITHER
+  // schools.boarding=true OR known-name override match. The DB
+  // `boarding` column lies for several famous schools (Eton, Harrow,
+  // Wycombe Abbey all marked false); the scorer relies on
+  // KNOWN_FULL_BOARDING_NAMES as backup. Match-reasons did not, which
+  // is why Lancing/Merchiston/Harrow weren't getting the boarding chip
+  // even when boarding-pref parents added them. Mirror the scorer's
+  // override here so the chip is honest.
+  if (isFullOrWeeklyBoarding(profile)) {
+    const nameMatches = KNOWN_FULL_BOARDING_NAMES.has(normalizeSchoolName(school.name))
+    if (school.boarding === true || nameMatches) {
+      out.push('boarding school')
+    }
   }
 
   // Top priority: sport — flag the brief-relevant sport (if focused) or
@@ -215,10 +251,23 @@ export function packMatchReasons(reasons: string[]): MatchReasonsRecord {
  * and the in-room add route. Best-effort: returns empty Map on any read
  * error so callers can proceed without reasons.
  */
+export type LoadMatchReasonsBatchOptions = {
+  /** Phase 2.8.5 (Codex r1 chip-bundle P1): when true, return entries
+   *  for ALL requested slugs — including those whose computed reasons
+   *  array is empty after tier-threshold filtering. Default false
+   *  preserves the legacy contract (only positive-reason slugs in map),
+   *  which is correct for read-only callers. Refresh path passes true
+   *  so it can OVERWRITE stale chips on slugs whose qualifying tier
+   *  dropped to zero (e.g. Harrow's tennis tier=regional no longer
+   *  qualifies for "strong tennis" after Phase 2.8.3). */
+  includeEmpty?: boolean
+}
+
 export async function loadMatchReasonsBatch(
   supabase: SupabaseClient,
   profile:  BriefProfile,
   slugs:    string[],
+  opts?:    LoadMatchReasonsBatchOptions,
 ): Promise<Map<string, MatchReasonsRecord>> {
   const out = new Map<string, MatchReasonsRecord>()
   if (slugs.length === 0) return out
@@ -244,11 +293,14 @@ export async function loadMatchReasonsBatch(
     ]),
   )
 
+  const includeEmpty = opts?.includeEmpty === true
   for (const slug of slugs) {
     const school = schoolBySlug.get(slug)
     if (!school) continue
     const reasons = buildMatchReasons(profile, school, structBySlug.get(slug) ?? null)
-    if (reasons.length > 0) out.set(slug, packMatchReasons(reasons))
+    if (reasons.length > 0 || includeEmpty) {
+      out.set(slug, packMatchReasons(reasons))
+    }
   }
   return out
 }

@@ -326,7 +326,14 @@ export async function POST(
   try {
     // Codex r4 P2 #2 (2026-05-24): thread the cache-merged profile so match
     // reasons see the freshly cached drill_focus.
-    reasonsBySlug = await loadMatchReasonsBatch(svc, profileWithCache as BriefProfile, pick.slugs)
+    // Phase 2.8.5 (Codex r1 chip-bundle P1): pass includeEmpty so slugs
+    // whose chips just dropped to zero (e.g. brief switched from tennis to
+    // academic — Harrow's "strong tennis" chip no longer qualifies under
+    // Phase 2.8.3's national-tier floor) get an OVERWRITE with empty
+    // reasons, clearing the stale chip. Without this, the per-slug UPDATE
+    // loop below silently skips zero-reason slugs and the old chip text
+    // persists across briefs.
+    reasonsBySlug = await loadMatchReasonsBatch(svc, profileWithCache as BriefProfile, pick.slugs, { includeEmpty: true })
   } catch (e) {
     console.warn('[refresh-recommendations] match_reasons compute failed:', e)
   }
@@ -352,16 +359,26 @@ export async function POST(
     return NextResponse.json({ error: 'insert_failed' }, { status: 500 })
   }
 
-  // Build 2 r1 (Codex P1 #2): null-only backfill UPDATE.
+  // Build 2 r1 (Codex P1 #2): backfill UPDATE — Phase 2.8.5 (2026-05-25)
+  // raised scope from null-only to "always refresh".
   //
   // `ignoreDuplicates: true` above means existing (user_id, child_id,
   // school_slug) rows are SKIPPED entirely — their match_reasons column
-  // stays null even when we just computed a fresh value. Without this
+  // stays null OR stale when we just computed a fresh value. Without this
   // pass, every shortlist row added before Build 2 shipped never gets
   // reasons populated.
   //
-  // Per-slug UPDATE with `.is('match_reasons', null)` so we don't
-  // overwrite reasons a parent might already have (preserves "richer
+  // Phase 2.8.5: the prior `.is('match_reasons', null)` filter meant
+  // that once a row had ANY match_reasons set (from a prior Refresh),
+  // the chip text never refreshed even when the brief changed. Live
+  // smoke 2026-05-25 surfaced "strong tennis" stuck on Harrow after a
+  // rugby Refresh + on every school after an academic Refresh. Removed
+  // the .is(null) guard so chips track the current brief. Trade-off:
+  // we cannot today distinguish "parent manually edited chips" from
+  // "system wrote chips" — but the schema has no manual-chip concept,
+  // so blanket refresh is the honest behaviour.
+  //
+  // Per-slug UPDATE because upsert(ignoreDuplicates: true) won't touch
   // reason set" if any). N is at most 6 (top recommendations cap), so
   // sequential awaits are fine here.
   for (const slug of pick.slugs) {
@@ -373,7 +390,9 @@ export async function POST(
       .eq('user_id', user.id)
       .eq('child_id', id)
       .eq('school_slug', slug)
-      .is('match_reasons', null)
+      // Phase 2.8.5: `.is('match_reasons', null)` filter dropped here so
+      // returning slugs (already in shortlist from prior Refresh) get
+      // fresh chips for the current brief.
     if (backfillErr) {
       console.warn('[POST refresh-recommendations] match_reasons backfill failed:', slug, backfillErr.message)
     }
