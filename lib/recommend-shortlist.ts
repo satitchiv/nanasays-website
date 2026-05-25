@@ -836,5 +836,15 @@ async function loadReasonsForBriefScope(
   }
 
   if (!profile) return new Map()
-  return loadMatchReasonsBatch(supabase, profile, slugs)
+  // Phase 2.8.6: slugs are passed in recommender-score order — embed rank
+  // into match_reasons so the comparison view sorts by score.
+  //
+  // Codex r1 P1: also pass includeEmpty so zero-chip schools still get
+  // rank_position. Without it, onboarding rows with no visible chips fall
+  // to the bottom of the comparison view via SENTINEL even though they
+  // were picked at a specific rank by the recommender.
+  return loadMatchReasonsBatch(supabase, profile, slugs, {
+    embedRankFromSlugIndex: true,
+    includeEmpty: true,
+  })
 }

@@ -333,7 +333,10 @@ export async function POST(
     // reasons, clearing the stale chip. Without this, the per-slug UPDATE
     // loop below silently skips zero-reason slugs and the old chip text
     // persists across briefs.
-    reasonsBySlug = await loadMatchReasonsBatch(svc, profileWithCache as BriefProfile, pick.slugs, { includeEmpty: true })
+    // Phase 2.8.6: embedRankFromSlugIndex bakes the slug's index in
+    // pick.slugs (recommender-score-ordered) into match_reasons.rank_position
+    // so the comparison view sorts by recommender rank instead of added_at.
+    reasonsBySlug = await loadMatchReasonsBatch(svc, profileWithCache as BriefProfile, pick.slugs, { includeEmpty: true, embedRankFromSlugIndex: true })
   } catch (e) {
     console.warn('[refresh-recommendations] match_reasons compute failed:', e)
   }

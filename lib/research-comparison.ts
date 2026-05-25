@@ -141,9 +141,25 @@ async function loadSchoolColumns(
   type ShortlistRow = {
     school_slug:   string
     added_at:      string
-    match_reasons: { reasons?: unknown } | null
+    match_reasons: { reasons?: unknown; rank_position?: unknown } | null
   }
-  const shortlistRows = (rows ?? []) as ShortlistRow[]
+  // Phase 2.8.6 (2026-05-25): sort by match_reasons.rank_position ASC
+  // (recommender-score order) with added_at as tiebreak. Rows missing
+  // rank_position (manually-added schools, pre-2.8.6 legacy rows) sort
+  // to the end so the recommender's top picks lead.
+  const shortlistRowsRaw = (rows ?? []) as ShortlistRow[]
+  const RANK_MISSING_SENTINEL = Number.MAX_SAFE_INTEGER
+  const rankOf = (r: ShortlistRow): number => {
+    const v = r.match_reasons?.rank_position
+    return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : RANK_MISSING_SENTINEL
+  }
+  const shortlistRows = [...shortlistRowsRaw].sort((a, b) => {
+    const ra = rankOf(a)
+    const rb = rankOf(b)
+    if (ra !== rb) return ra - rb
+    // tiebreak: original added_at ASC (already the DB sort order)
+    return a.added_at.localeCompare(b.added_at)
+  })
   const slugs = shortlistRows.map(r => r.school_slug)
   if (slugs.length === 0) return []
 

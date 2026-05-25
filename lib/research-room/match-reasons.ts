@@ -225,21 +225,32 @@ export function buildMatchReasons(
 
 /**
  * Shape stored on `shortlisted_schools.match_reasons`. Wrapping the array in
- * an object leaves room to add a `computed_at` / `rules_version` field
- * without a column-level migration.
+ * an object leaves room to add a `computed_at` / `rules_version` /
+ * `rank_position` field without a column-level migration.
+ *
+ * Phase 2.8.6 (2026-05-25): added optional rank_position. Recommender
+ * paths (refresh-recommendations + recommendShortlist) pass the index
+ * of the slug in pick.slugs (score-ordered output) so the comparison
+ * view can sort by it. Manually-added schools (Add School button,
+ * pre-2.8.6 rows) leave it undefined → sorted to the end.
  */
 export type MatchReasonsRecord = {
-  reasons:      string[]
-  computed_at:  string  // ISO timestamp
-  rules_version: 1
+  reasons:        string[]
+  computed_at:    string  // ISO timestamp
+  rules_version:  1
+  rank_position?: number  // 0-based; Phase 2.8.6
 }
 
-export function packMatchReasons(reasons: string[]): MatchReasonsRecord {
-  return {
+export function packMatchReasons(reasons: string[], rankPosition?: number): MatchReasonsRecord {
+  const out: MatchReasonsRecord = {
     reasons,
     computed_at:   new Date().toISOString(),
     rules_version: 1,
   }
+  if (typeof rankPosition === 'number' && Number.isFinite(rankPosition) && rankPosition >= 0) {
+    out.rank_position = rankPosition
+  }
+  return out
 }
 
 /**
@@ -261,6 +272,11 @@ export type LoadMatchReasonsBatchOptions = {
    *  dropped to zero (e.g. Harrow's tennis tier=regional no longer
    *  qualifies for "strong tennis" after Phase 2.8.3). */
   includeEmpty?: boolean
+  /** Phase 2.8.6: when set, the returned packed record carries
+   *  rank_position = index of the slug in the array (0-based). Use
+   *  when the caller is passing slugs in recommender-score order so
+   *  the comparison view can sort by it. Default omits rank_position. */
+  embedRankFromSlugIndex?: boolean
 }
 
 export async function loadMatchReasonsBatch(
@@ -294,12 +310,14 @@ export async function loadMatchReasonsBatch(
   )
 
   const includeEmpty = opts?.includeEmpty === true
-  for (const slug of slugs) {
+  const embedRank = opts?.embedRankFromSlugIndex === true
+  for (let i = 0; i < slugs.length; i++) {
+    const slug = slugs[i]!
     const school = schoolBySlug.get(slug)
     if (!school) continue
     const reasons = buildMatchReasons(profile, school, structBySlug.get(slug) ?? null)
     if (reasons.length > 0 || includeEmpty) {
-      out.set(slug, packMatchReasons(reasons))
+      out.set(slug, packMatchReasons(reasons, embedRank ? i : undefined))
     }
   }
   return out

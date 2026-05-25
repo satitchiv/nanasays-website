@@ -47,7 +47,15 @@ test('Build 2b: loader caps reasons display (4 reasons, 120 chars)', () => {
 test('Build 2b: loader is null-safe on missing/malformed match_reasons', () => {
   const src = readFile('lib/research-comparison.ts')
   // The shortlist row type marks match_reasons nullable.
-  assert.match(src, /match_reasons:\s*\{\s*reasons\?:\s*unknown\s*\}\s*\|\s*null/)
+  // Phase 2.8.6 (Codex r1 P2): type extended with rank_position?: unknown —
+  // assert per-key rather than the exact inline shape so future extensions
+  // (rules_version?, etc.) don't break this regex.
+  assert.match(src, /match_reasons:\s*\{[^}]*reasons\?:\s*unknown/,
+    'match_reasons inline type must declare reasons?: unknown')
+  assert.match(src, /match_reasons:\s*\{[^}]*rank_position\?:\s*unknown/,
+    'match_reasons inline type must declare rank_position?: unknown (Phase 2.8.6)')
+  assert.match(src, /match_reasons:\s*\{[^}]*\}\s*\|\s*null/,
+    'match_reasons must be `| null` (nullable column)')
   // Defensive guard against non-array reasons (legacy / malformed JSONB).
   assert.match(src, /if \(!Array\.isArray\(reasonsRaw\)\)/)
 })
