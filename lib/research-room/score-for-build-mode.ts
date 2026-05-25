@@ -1048,6 +1048,56 @@ export function rankCandidates(
     //   * #1 total cap — track the running sum and stop adding to `score`
     //     once SPORT_TOTAL_CAP is reached. Chips still emit so the parent
     //     sees all matched sports; only the numeric contribution caps.
+    // Phase 2.8.7 (Codex 2026-05-25): focus-sport specialist bonus.
+    // When the brief's `sport_focus` matches the sport currently being
+    // scored AND the school's tier is national+, add a specialist bonus
+    // ON TOP of the existing tier+level boost. This corrects a real
+    // weighting bug Codex traced live: mixed academic+tennis briefs
+    // (drill_focus='academic' + sport_focus='tennis') saw Reed's
+    // (national-elite tennis, conf=100) ranked #5 because the academic
+    // stack (+2.5) outweighed the tennis specialty (+1.75 capped).
+    // Specialist bonus tilts the composite toward the rare-specialty
+    // signal: tennis-elite schools surface for tennis briefs even when
+    // the academic signal is also present.
+    //
+    // Why not require drill_focus='sport': Jack-test's brief correctly
+    // classifies as drill_focus='academic' + sport_focus='tennis' (mixed
+    // intent). Requiring drill_focus='sport' would silently disable this
+    // bonus exactly for the mixed-brief case it's meant to fix.
+    const FOCUS_SPECIALIST_BONUS: Record<string, number> = {
+      'national-elite':  1.0,
+      'national-strong': 0.5,
+      'national':        0.2,
+    }
+    // Phase 2.8.7 (Codex r1 P2): derive focus key from focusResolution.sport
+    // (the resolver applies whitelist + structured-interest precedence)
+    // rather than raw input.intent?.sport_focus. Keeps the bonus aligned
+    // with the same canonical key used to inject the synthetic sportsInterest
+    // entry, and rejects malformed cache values via the resolver's whitelist.
+    const focusSportKey = focusResolution.sport
+      ? focusResolution.sport.toLowerCase()
+      : ''
+    // Phase 2.8.7 (Codex r2 P2): canonicalize sp.key so alias entries match
+    // focusSportKey (which is always canonical from resolveSportFocus). Without
+    // this, a parent with structured `interests_sports=[{sport: 'rugby union'}]`
+    // would miss the specialist bonus even though they score against the same
+    // rugby_standing dimension. SPORT_SCORER_BY_LABEL aliases:
+    //   rugby union / rugby league → rugby
+    //   soccer                     → football
+    //   field hockey               → hockey
+    const SPORT_ALIAS_TO_CANONICAL: Record<string, string> = {
+      'rugby union':  'rugby',
+      'rugby league': 'rugby',
+      'soccer':       'football',
+      'field hockey': 'hockey',
+    }
+    // Phase 2.8.7 (Codex r1 P1): guard against duplicate sportsInterest
+    // entries stacking the uncapped specialist bonus. If a parent writes
+    // [{sport:'tennis'}, {sport:'tennis'}] (or similar), the loop iterates
+    // twice and the bonus fires twice. specialistApplied locks the bonus
+    // to at most one school-tier hit per scoring pass.
+    let specialistApplied = false
+
     let sportBoostTotal = 0
     for (const sp of sportsInterest) {
       const scorerKey = SPORT_SCORER_BY_LABEL[sp.key]
@@ -1064,9 +1114,30 @@ export function rankCandidates(
         const boost = Math.min(scaled, remainingCap)
         score += boost
         sportBoostTotal += boost
-        const sportName = sp.key === 'rugby union' || sp.key === 'rugby league' ? 'rugby' : sp.key
-        const lookupSport = sportName === 'rugby' ? 'rugby' : sportName
-        const tier = readSportTier(struct, lookupSport)
+        // Phase 2.8.7 (Codex r3 P2): canonicalize sp.key ONCE so tier
+        // lookup, specialist comparison, and display signal all use the
+        // canonical sport key. Before this, sp.key='soccer' or
+        // 'field hockey' would cause readSportTier(struct, 'soccer') to
+        // look up sports_profile.soccer (doesn't exist; data is under
+        // .football / .hockey) → tier=null → specialist never fires for
+        // alias entries even when the underlying dimension scores fine.
+        const canonicalSpKey = SPORT_ALIAS_TO_CANONICAL[sp.key.toLowerCase()] ?? sp.key.toLowerCase()
+        const sportName = canonicalSpKey
+        const tier = readSportTier(struct, canonicalSpKey)
+        // Phase 2.8.7 specialist bonus — fires AFTER the normal boost so
+        // the standard tier+level scoring still applies. Bonus bypasses
+        // SPORT_TOTAL_CAP intentionally: the cap exists to stop multi-
+        // sport stacking (Maya's 2-sport case from Phase 3), but the
+        // specialist bonus is per-FOCUS-sport-only, so at most one
+        // school-tier hit. No stacking risk.
+        if (!specialistApplied && focusSportKey && focusSportKey === canonicalSpKey && tier) {
+          const specialist = FOCUS_SPECIALIST_BONUS[tier.toLowerCase()] ?? 0
+          if (specialist > 0) {
+            score += specialist
+            signals.push(`specialist ${sportName}`)
+            specialistApplied = true
+          }
+        }
         const tierFrag = tierToChipFragment(tier)
         if (tierFrag) {
           signals.push(`strong ${sportName} (${tierFrag})`)
