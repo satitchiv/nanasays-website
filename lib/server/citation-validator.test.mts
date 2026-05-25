@@ -30,7 +30,7 @@ const baselinePack: any = {
   schools: {
     'eton-college': {
       slug: 'eton-college',
-      meta: { name: 'Eton College', country: 'United Kingdom', boarding_type: 'full', gender_split: 'boys', fees_min_gbp: 50000, fees_max_gbp: 60000, is_uk: true },
+      meta: { name: 'Eton College', country: 'United Kingdom', boarding_type: 'full', gender_split: 'boys', fees_min: 50000, fees_max: 60000, fees_currency: 'GBP', is_uk: true },
       structured: null,
       source: 'structured',
       citations: [
@@ -40,7 +40,7 @@ const baselinePack: any = {
     },
     'harrow-school': {
       slug: 'harrow-school',
-      meta: { name: 'Harrow School', country: 'United Kingdom', boarding_type: 'full', gender_split: 'boys', fees_min_gbp: 48000, fees_max_gbp: 60000, is_uk: true },
+      meta: { name: 'Harrow School', country: 'United Kingdom', boarding_type: 'full', gender_split: 'boys', fees_min: 48000, fees_max: 60000, fees_currency: 'GBP', is_uk: true },
       structured: null,
       source: 'structured',
       citations: [],

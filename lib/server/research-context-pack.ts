@@ -11,6 +11,7 @@ import {
 } from './pack-redactors'
 import { loadDimensionEvidencePack } from './dimension-evidence-pack'
 import { projectSubjectStrengths } from './subject-strengths-projection.mjs'
+import { projectMetaFees } from './project-meta-fees.mjs'
 // Notion-sidecar wiring slice (2026-05-24). The projector enforces:
 // - whitelist of allowed fields (drops fees + unknown keys)
 // - SSD-wins on overlapping fields (total_pupils, boarders, intl, boarding_pct,
@@ -93,8 +94,16 @@ export type PackSchool = {
     country: string | null
     boarding_type: string | null
     gender_split: string | null
-    fees_min_gbp: number | null
-    fees_max_gbp: number | null
+    /** Local-currency annual fees (Tab A Step 4, 2026-05-25). Prefers
+     * school_structured_data.fees_min/max + fees_currency (post-2026-05-15
+     * fees-currency migration these are accurate). Falls back to
+     * schools.fees_usd_min/max + 'USD' when SSD has no fees. null when both
+     * sources empty. Replaces the misleading fees_min_gbp / fees_max_gbp
+     * fields that were carrying USD values under a GBP-suffixed name. */
+    fees_min: number | null
+    fees_max: number | null
+    /** ISO 4217 (GBP, USD, CHF, EUR, THB, ...) or null when fees null. */
+    fees_currency: string | null
     is_uk: boolean
   }
   /** Whitelisted SSD fields (per plan §6.1). Object shape varies by school. */
@@ -796,13 +805,23 @@ async function fetchSchoolBundle(
   const metaRow: any = metaRes.data
   if (!metaRow) return null
 
+  // Tab A Step 4 (2026-05-25): fees-currency truth-in-labelling. The
+  // legacy fields fees_min_gbp / fees_max_gbp were sourced from
+  // schools.fees_usd_min/max — a USD value under a GBP-named field that
+  // the renderer then prefixed with £. Real bug, no migration cleaned it.
+  // Projection moved to project-meta-fees.mjs so the SSD-vs-USD precedence
+  // logic can be unit-tested without mocking Supabase. Codex r1 r2 mods
+  // (single-sided "from"/"up to", numeric overflow guard) live there.
+  const { fees_min, fees_max, fees_currency } = projectMetaFees(structuredRes.data as any, metaRow)
+
   const meta = {
     name: metaRow.name ?? slug,
     country: metaRow.country ?? null,
     boarding_type: metaRow.boarding_type ?? null,
     gender_split: metaRow.gender_split ?? null,
-    fees_min_gbp: metaRow.fees_usd_min ?? null,
-    fees_max_gbp: metaRow.fees_usd_max ?? null,
+    fees_min,
+    fees_max,
+    fees_currency,
     is_uk: metaRow.country === 'United Kingdom',
   }
 
