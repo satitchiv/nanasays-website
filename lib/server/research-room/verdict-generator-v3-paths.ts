@@ -89,12 +89,40 @@ export const FRAMING_TABLE: Record<FramingHint, FramingEntry> = {
     evidenceCategoryPriority: ['academics', 'sport', 'pastoral', 'boarding', 'community'],
     opener:                   (school) => `${school} leads Path A because the recommender currently ranks it #1 against the child's brief.`,
   },
+  // Legacy umbrella — kept for back-compat with cached verdict_json from
+  // v3.1-pre-Sam-fix records. Fresh generates emit one of the three
+  // signal-specific variants below (a_level / gcse / aggregate).
   strongest_academic: {
     framing:                  'Strongest academic',
-    framingLong:              () => '…the school in your shortlist with the strongest exam results in the comparison evidence',
+    framingLong:              () => '…the school in your shortlist with the strongest academic evidence',
     anchor:                   'academic',
     evidenceCategoryPriority: ['academics', 'scholarship', 'community', 'boarding'],
-    opener:                   (school) => `${school} leads Path B because it has the strongest comparison-table academic signal among the shortlist.`,
+    opener:                   (school) => `${school} leads Path B because it has the strongest academic evidence among the shortlist.`,
+  },
+  // v3.2 (2026-05-26 — Codex Path-B-signal r1): signal-specific Path B
+  // copy. selectPathWinners picks the variant by which AcademicSignalKind
+  // won (a_level > gcse > aggregate). Parent reads honest copy that
+  // matches the metric that actually drove the pick.
+  strongest_academic_a_level: {
+    framing:                  'Strongest academic',
+    framingLong:              () => '…the school in your shortlist with the highest published A-level A*-A rate',
+    anchor:                   'academic',
+    evidenceCategoryPriority: ['academics', 'scholarship', 'community', 'boarding'],
+    opener:                   (school) => `${school} leads Path B because it has the highest published A-level A*-A rate among the shortlist.`,
+  },
+  strongest_academic_gcse: {
+    framing:                  'Strongest academic',
+    framingLong:              () => '…the school in your shortlist with the highest published GCSE 9-7 rate (A-level results not yet extracted across the shortlist)',
+    anchor:                   'academic',
+    evidenceCategoryPriority: ['academics', 'scholarship', 'community', 'boarding'],
+    opener:                   (school) => `${school} leads Path B because it has the highest published GCSE 9-7 rate among the shortlist (A-level results not yet extracted).`,
+  },
+  strongest_academic_aggregate: {
+    framing:                  'Strongest academic',
+    framingLong:              () => '…the school in your shortlist with the strongest academic evidence in the comparison table (extracted exam rates not yet available for all candidates)',
+    anchor:                   'academic',
+    evidenceCategoryPriority: ['academics', 'scholarship', 'community', 'boarding'],
+    opener:                   (school) => `${school} leads Path B because it has the strongest aggregate academic signal in the comparison evidence (extracted exam rates aren't available for every candidate yet).`,
   },
   next_best_fit_b: {
     framing:                  'Next-best fit',

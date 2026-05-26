@@ -269,6 +269,10 @@ type BuildPathInput = {
   // v3.1 (Codex r2 P3): tailor needs_research / fallback status_note copy to
   // the number of schools that cleared the 50% coverage threshold.
   eligibleCount: number
+  // v3.3 (2026-05-26 — Sam smoke): list of other paths whose winner is the
+  // same school as this one. When non-empty, opener prepends a clarifying
+  // line so the reader knows the duplicate isn't a bug.
+  sharedWith:    PathKey[]
 }
 
 export function buildPathOverlay(input: BuildPathInput): PathOverlay {
@@ -318,9 +322,18 @@ function buildReasoningParagraphs(input: BuildPathInput): string[] {
 // topPriority modes. Real winner → openerForPath() lookup table (one sentence
 // per framingHint). Fallback → generic hard-constraint copy. Needs_research →
 // per-pathKey copy from statusNoteForV2 (already on path_status).
-function buildOpeningParagraph({ pathKey, winner, pathStatus, framingHint, budgetCapLabel }: BuildPathInput): string {
+function buildOpeningParagraph({ pathKey, winner, pathStatus, framingHint, budgetCapLabel, sharedWith }: BuildPathInput): string {
   if (pathStatus === 'winner') {
-    return openerForPath(framingHint, winner.name, budgetCapLabel)
+    const base = openerForPath(framingHint, winner.name, budgetCapLabel)
+    // v3.3 (2026-05-26): when this path's winner is the SAME school as
+    // another path's winner, prepend a clarifying line. Without it the
+    // reader sees the same school card twice with different copy and
+    // suspects a bug. With it, the duplicate reads as "honest overlap".
+    if (sharedWith.length > 0) {
+      const others = sharedWith.map(p => `Path ${p}`).join(' and ')
+      return `${winner.name} also wins ${others} for this brief — the lenses converge here. ${base}`
+    }
+    return base
   }
 
   if (pathStatus === 'fallback') {
@@ -342,18 +355,28 @@ function buildEvidenceParagraph({ winner, winnerFacts, allEligibleSchools, frami
 
   // Lens-relevant lead sentence.
   switch (framingHint) {
-    case 'strongest_academic':
+    // v3.1 + v3.2: academic lens variants. Each cites the metric that
+    // actually drove the pick so headers and body never contradict.
+    case 'strongest_academic':              // legacy back-compat (cached overlays)
+    case 'strongest_academic_a_level':
+    case 'best_overall':
       if (facts?.a_level_a_star_a_pct != null) {
         parts.push(`Academically, **${facts.a_level_a_star_a_pct}% A-level A*-A** — ${formatCategoryComparison(winner, 'academics', allEligibleSchools)}.`)
       }
       break
-    case 'best_overall':
-      // Highest-fit lens — surface academic + boarding evidence side-by-side
-      // when present; the recommender's overall ranking is what placed this
-      // school here, no single-anchor justification needed.
-      if (facts?.a_level_a_star_a_pct != null) {
-        parts.push(`Academically, **${facts.a_level_a_star_a_pct}% A-level A*-A** — ${formatCategoryComparison(winner, 'academics', allEligibleSchools)}.`)
+    case 'strongest_academic_gcse':
+      if (facts?.gcse_9_7_pct != null) {
+        parts.push(`Academically, **${facts.gcse_9_7_pct}% GCSE 9-7** — the highest published GCSE rate in your shortlist (A-level rates not yet extracted for all candidates).`)
+      } else if (facts?.a_level_a_star_a_pct != null) {
+        // Defensive: signal said GCSE drove the pick but A-level is also
+        // present for the winner — narrate honestly.
+        parts.push(`Academically, **${facts.a_level_a_star_a_pct}% A-level A*-A**.`)
       }
+      break
+    case 'strongest_academic_aggregate':
+      // Neither A-level nor GCSE was extracted for the winner; aggregate
+      // comparison-cell signal won. Don't claim a specific exam %.
+      parts.push(`${winner.name} has the strongest aggregate academic signal in the comparison evidence — extracted exam rates aren't yet on file for this candidate, so the headline number isn't shown here.`)
       break
     case 'most_affordable':
     case 'least_over_budget':

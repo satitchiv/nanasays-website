@@ -38,6 +38,11 @@ type PathOverlay = {
   costs?:          PathCostItem[]
   considerations?: string[]
   status_note?:    string
+  // v3.3 (2026-05-26): server-emitted list of OTHER PathKeys whose
+  // winner is the same school as this path. Renders the "Also wins
+  // Path X" badge on the tile. Replaces the now-deleted v3.0
+  // `same_winner_across_paths` consensus field.
+  sharedWith?:     PathKey[]
   // UX iteration Phase 2 (2026-05-24): LLM-generated round-up paragraphs.
   // Mirror of the server type's optional field. Rendered by the panel
   // below, falls back to `reasoning` when absent (LLM failure or pre-
@@ -677,14 +682,18 @@ export default function VerdictTab({ verdict, sessionId, childName }: Props) {
                 ?? winnerSlug
                 ?? '—'
               const isNeedsResearch = path?.path_status === 'needs_research'
-              // Same-winner consolidation: list of OTHER paths whose winner is
-              // the same school as this tile's winner. Surfaced as a small
-              // "Also Path X" line in the tile, so parents see the consensus
-              // signal at the tile level too (the consensus banner above the
-              // tiles repeats this at the section level).
-              const alsoPaths: PathKey[] = (winnerSlug && verdictJson.same_winner_across_paths?.winner_slug === winnerSlug)
-                ? verdictJson.same_winner_across_paths.paths.filter(p => p !== letter)
-                : []
+              // v3.3 (2026-05-26 — Sam/Jack browser smoke): same-winner
+              // consolidation now comes from path.sharedWith (per-path list
+              // of OTHER PathKeys whose winner is the same school). Replaces
+              // the v3.0 `same_winner_across_paths` consensus field which
+              // was deleted in v3.1 cleanup. Falls back to the legacy field
+              // for cached records that still carry it.
+              const alsoPaths: PathKey[] =
+                path?.sharedWith && path.sharedWith.length > 0
+                  ? path.sharedWith
+                  : (winnerSlug && verdictJson.same_winner_across_paths?.winner_slug === winnerSlug)
+                    ? verdictJson.same_winner_across_paths.paths.filter(p => p !== letter)
+                    : []
               return (
                 <button
                   key={letter}

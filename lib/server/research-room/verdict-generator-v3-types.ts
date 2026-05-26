@@ -120,6 +120,11 @@ export type PathOverlay = {
   // fallbacks. Optional because cached overlays from earlier v3 releases
   // don't have it; readers must default to 'best_overall'.
   framingHint?:   FramingHint
+  // v3.3 (2026-05-26 — Sam smoke): list of OTHER PathKeys whose winner
+  // is the same school as this path. Empty / undefined when the path's
+  // winner is unique. Reader uses this to render "Also wins Path X"
+  // badges and avoid duplicate detail panels for the same school.
+  sharedWith?:    PathKey[]
   winner_slug:    string                 // points to a school in ranked_schools[]
   path_status:    PathStatus             // R4-P2: 'winner' | 'fallback' | 'needs_research'
   reasoning:      string[]               // paragraphs of advisor-voice prose

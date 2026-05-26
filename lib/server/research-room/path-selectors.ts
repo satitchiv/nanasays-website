@@ -44,7 +44,15 @@ export type RecommenderRanking = Array<{
 
 export type FramingHint =
   | 'best_overall'
-  | 'strongest_academic'
+  // v3.2 (2026-05-26 — Codex Path-B-signal r1): Path B framing is now
+  // signal-specific so the parent-facing copy matches which extracted
+  // facts actually drove the pick. 'strongest_academic' kept as a
+  // back-compat umbrella (cached overlays only); fresh generates emit
+  // one of the three sub-variants below.
+  | 'strongest_academic'              // legacy / cached-overlay back-compat
+  | 'strongest_academic_a_level'      // A-level A*-A % drove the pick
+  | 'strongest_academic_gcse'         // GCSE 9-7 % drove the pick
+  | 'strongest_academic_aggregate'    // comparison-cell aggregate drove the pick
   | 'most_affordable'
   | 'least_over_budget'
   | 'lowest_fee'
@@ -62,11 +70,47 @@ export type SelectionSource =
   | 'no_budget_set'
   | 'empty'
 
-// ── Path B helper ──────────────────────────────────────────────────────
-function academicSignal(s: ScoredSchool): number | null {
-  const raw = s.categoryScores.academics
-  if (raw === undefined || raw === null || raw <= 0) return null
-  return raw
+// ── Path B helper — tagged-priority academic signal ────────────────────
+//
+// v3.2 (2026-05-26 — Codex Path-B-signal r1): the previous helper read
+// `categoryScores.academics` only, which aggregates GCSE + A-level + IB +
+// scholarship + Oxbridge. Parent-readable "Strongest academic" should
+// match the headline exam %. Sam smoke (2026-05-26): selector picked
+// Rugby (60% A*-A) when Bromsgrove (61% A*-A) should have won; aggregate
+// ranked Rugby higher because Rugby has more academic comparison cells.
+//
+// Tagged-priority sort: A-level wins ties against GCSE wins ties against
+// aggregate. No magic-number scaling — debugging the selector with
+// `console.log(sourceDebug)` immediately shows which signal drove each
+// pick.
+//
+// IB caveat (Codex r1 extra): `ib_avg_40_plus_pct` is average points (out
+// of 45), NOT a comparable percentage. Don't fold it into this signal
+// unless/until it gets normalised + renamed.
+
+export type AcademicSignalKind = 'a_level' | 'gcse' | 'aggregate'
+
+export type AcademicSignal = {
+  kind:     AcademicSignalKind
+  priority: 3 | 2 | 1
+  value:    number
+}
+
+function positiveNumber(n: unknown): number | null {
+  return typeof n === 'number' && Number.isFinite(n) && n > 0 ? n : null
+}
+
+function academicSignal(s: ScoredSchool, facts: SchoolFacts | undefined): AcademicSignal | null {
+  const aLevel = positiveNumber(facts?.a_level_a_star_a_pct)
+  if (aLevel != null) return { kind: 'a_level', priority: 3, value: aLevel }
+
+  const gcse = positiveNumber(facts?.gcse_9_7_pct)
+  if (gcse != null) return { kind: 'gcse', priority: 2, value: gcse }
+
+  const aggregate = positiveNumber(s.categoryScores.academics)
+  if (aggregate != null) return { kind: 'aggregate', priority: 1, value: aggregate }
+
+  return null
 }
 
 // ── Path C / fee-cost helper ───────────────────────────────────────────
@@ -146,18 +190,23 @@ export function pickPathB_strongestAcademic(
   if (candidates.length === 0) {
     const broader = eligibleOnly.filter(s => !excludeSlugs.has(s.slug))
     if (broader.length === 0) {
-      return { winner: null, source: 'empty', framingHint: 'strongest_academic' }
+      return { winner: null, source: 'empty', framingHint: 'strongest_academic_aggregate' }
     }
+    const bestBroader = pickAcademicBest(broader, schoolFactsBySlug)
     return {
-      winner: pickAcademicBest(broader) ?? broader[0],
-      source: 'hard_constraint_fallback',
-      framingHint: 'strongest_academic',
+      winner:      bestBroader?.school ?? broader[0],
+      source:      'hard_constraint_fallback',
+      framingHint: framingHintForAcademicSignal(bestBroader?.signal.kind),
     }
   }
 
-  const best = pickAcademicBest(candidates)
+  const best = pickAcademicBest(candidates, schoolFactsBySlug)
   if (best) {
-    return { winner: best, source: 'academic_signal', framingHint: 'strongest_academic' }
+    return {
+      winner:      best.school,
+      source:      'academic_signal',
+      framingHint: framingHintForAcademicSignal(best.signal.kind),
+    }
   }
 
   const fallback = pickRecommenderWalk(candidates, recommenderRanking)
@@ -168,16 +217,33 @@ export function pickPathB_strongestAcademic(
   }
 }
 
-function pickAcademicBest(candidates: ScoredSchool[]): ScoredSchool | null {
+// v3.2: returns the winning school + the AcademicSignal that beat all
+// others. Sort priority: signal.priority desc (a_level beats gcse beats
+// aggregate), then signal.value desc, then s.score desc, then slug asc.
+function pickAcademicBest(
+  candidates:   ScoredSchool[],
+  factsBySlug:  Map<string, SchoolFacts>,
+): { school: ScoredSchool; signal: AcademicSignal } | null {
   const withAcademics = candidates
-    .map(s => ({ s, sig: academicSignal(s) }))
-    .filter((x): x is { s: ScoredSchool; sig: number } => x.sig !== null)
+    .map(s => ({ s, signal: academicSignal(s, factsBySlug.get(s.slug)) }))
+    .filter((x): x is { s: ScoredSchool; signal: AcademicSignal } => x.signal !== null)
     .sort((a, b) => {
-      if (b.sig !== a.sig) return b.sig - a.sig
-      if (b.s.score !== a.s.score) return b.s.score - a.s.score
+      if (b.signal.priority !== a.signal.priority) return b.signal.priority - a.signal.priority
+      if (b.signal.value    !== a.signal.value)    return b.signal.value    - a.signal.value
+      if (b.s.score          !== a.s.score)          return b.s.score          - a.s.score
       return a.s.slug.localeCompare(b.s.slug)
     })
-  return withAcademics[0]?.s ?? null
+  const top = withAcademics[0]
+  return top ? { school: top.s, signal: top.signal } : null
+}
+
+function framingHintForAcademicSignal(kind: AcademicSignalKind | undefined): FramingHint {
+  // Default to aggregate variant when caller had no winning signal —
+  // matches the empty-broader-pool case where the renderer should still
+  // emit Path B's umbrella copy without claiming a specific exam metric.
+  if (kind === 'a_level')   return 'strongest_academic_a_level'
+  if (kind === 'gcse')      return 'strongest_academic_gcse'
+  return 'strongest_academic_aggregate'
 }
 
 function pickRecommenderWalk(
@@ -319,6 +385,14 @@ export type PathSelectionResult = {
   // v3 (Codex r2 P3): eligible count so statusNoteFor can tailor copy
   // when 0 / 1 / 2 schools meet coverage threshold.
   eligibleCount:  number
+  // v3.3 (2026-05-26 — Sam/Jack browser smoke): each path's `sharedWith`
+  // lists OTHER PathKeys whose winner is the same school. Empty when the
+  // path's winner is unique. Reader uses this for "Same school as Path A"
+  // badges on duplicate cards. Replaces the v3.0 strict-exclusion rule —
+  // when one school honestly wins multiple lenses (e.g. Reed's cheapest
+  // AND best-overall for Jack-test), we now surface that truth instead
+  // of forcing a worse-but-distinct pick for the later paths.
+  sharedWith:     Record<PathKey, PathKey[]>
 }
 
 export function selectPathWinners(
@@ -352,10 +426,11 @@ export function selectPathWinners(
   }
 
   // ── Path B ──
-  const excludeForB = new Set<string>()
-  if (a.winner) excludeForB.add(a.winner.slug)
+  // v3.3 (2026-05-26): empty excludeSlugs. Path B picks the actual
+  // strongest-academic school even if it duplicates Path A. The
+  // sharedWith bookkeeping below records the overlap for the UI badge.
   const b = pickPathB_strongestAcademic(
-    eligibleOnly, schoolFactsBySlug, briefContext, recommenderRanking, excludeForB, eligibleForPath,
+    eligibleOnly, schoolFactsBySlug, briefContext, recommenderRanking, new Set<string>(), eligibleForPath,
   )
   winners.B      = b.winner
   framingHints.B = b.framingHint
@@ -367,11 +442,9 @@ export function selectPathWinners(
   }
 
   // ── Path C ──
-  const excludeForC = new Set<string>()
-  if (a.winner) excludeForC.add(a.winner.slug)
-  if (b.winner) excludeForC.add(b.winner.slug)
+  // v3.3 (2026-05-26): empty excludeSlugs (same reasoning as Path B).
   const c = pickPathC_bestValue(
-    eligibleOnly, schoolFactsBySlug, briefContext, recommenderRanking, excludeForC, eligibleForPath,
+    eligibleOnly, schoolFactsBySlug, briefContext, recommenderRanking, new Set<string>(), eligibleForPath,
   )
   winners.C      = c.winner
   framingHints.C = c.framingHint
@@ -406,11 +479,27 @@ export function selectPathWinners(
     }
   }
 
+  // v3.3 (2026-05-26): compute sharedWith for each path — list of OTHER
+  // paths whose winner is the same school. Reader uses this for "Also
+  // wins Path X" badges so the same school doesn't render with a
+  // contradictory copy across cards.
+  const sharedWith: PathSelectionResult['sharedWith'] = { A: [], B: [], C: [] }
+  for (const pk of ['A', 'B', 'C'] as PathKey[]) {
+    const winner = winners[pk]
+    if (!winner) continue
+    for (const other of ['A', 'B', 'C'] as PathKey[]) {
+      if (other === pk) continue
+      const otherWinner = winners[other]
+      if (otherWinner?.slug === winner.slug) sharedWith[pk].push(other)
+    }
+  }
+
   return {
     winners, pathStatus, framingHints, costNotes, budgetCapLabel,
     considerationNotes, sourceDebug,
     skippedRanksDebug: a.skippedRanks,
     eligibleCount: eligibleOnly.length,
+    sharedWith,
   }
 }
 

@@ -1128,8 +1128,17 @@ function buildV3Overlay(
   // least-over-budget / lowest-fee variants depending on budget data).
   // `sanitizedRanking` is computed once in buildResearchVerdictDraft and
   // reused for the hash payload (Codex r4 P3 — single normalization point).
+  //
+  // v3.5 (2026-05-26 — Yoko smoke): pass full `scored` (not coverage-filtered
+  // `eligible`) so the verdict's Path A = Comparison tab's #1 unconditionally
+  // — the hard rule the parent's mental model assumes. Pre-v3.5, schools
+  // with <50% comparison-table coverage were silently filtered out of path
+  // selection (Yoko: Dwight at 39% coverage was the recommender's #1 but
+  // Path A surfaced Dulwich at 94%). The `couldnt_compare` panel still
+  // surfaces below-threshold schools as a soft "add more rows" hint, but
+  // they're no longer excluded from being verdict winners.
   const pathSelection = selectPathWinners(
-    eligible as unknown as Parameters<typeof selectPathWinners>[0],
+    scored as unknown as Parameters<typeof selectPathWinners>[0],
     facts,
     briefContext,
     sanitizedRanking,
@@ -1148,8 +1157,31 @@ function buildV3Overlay(
       Object.fromEntries(anomalies))
   }
   if (pathSelection.skippedRanksDebug.length > 0) {
-    console.warn('[verdict-paths] Path A skipped ranks below coverage threshold:',
+    console.warn('[verdict-paths] Path A skipped ranks (hard-constraint filter):',
       pathSelection.skippedRanksDebug)
+    // v3.4 (2026-05-26 — Yoko smoke) updated v3.5 (coverage filter dropped):
+    // surface the skip to the parent. Post-v3.5 this only fires when a
+    // hard constraint (gender single-sex or year-stage prep mismatch)
+    // eliminates the recommender's #1 — coverage no longer gates
+    // selection. Rare but still worth explaining when it happens.
+    const skippedSchools = pathSelection.skippedRanksDebug
+      .map(entry => {
+        const slug = entry.split('@')[0]
+        const compSchool = args.comparisonData.schools.find(s => s.slug === slug)
+        return { slug, name: compSchool?.name ?? slug }
+      })
+    if (skippedSchools.length > 0) {
+      const topSkip = skippedSchools[0]
+      const others = skippedSchools.slice(1)
+      const otherList = others.length > 0
+        ? ` (${others.map(s => s.name).join(', ')} also filtered.)`
+        : ''
+      const banner = `Note: **${topSkip.name}** is the recommender's #1 pick but is filtered out by a brief hard constraint (gender single-sex or year-stage match). The next-eligible recommended school is shown as Path A.${otherList}`
+      pathSelection.considerationNotes.A = [
+        banner,
+        ...(pathSelection.considerationNotes.A ?? []),
+      ]
+    }
   }
 
   // Tension detection after winners known.
@@ -1201,6 +1233,7 @@ function buildV3Overlay(
         framing:        framing.framing,
         framingLong:    framing.framingLong,
         framingHint,
+        sharedWith:     pathSelection.sharedWith[pk],
         winner_slug:    '',
         path_status:    'needs_research',
         status_note:    statusNoteForV2(
@@ -1230,6 +1263,7 @@ function buildV3Overlay(
       framingHint,
       budgetCapLabel:     pathSelection.budgetCapLabel,
       eligibleCount:      pathSelection.eligibleCount,
+      sharedWith:         pathSelection.sharedWith[pk],
     })
 
     // v3.1 (Codex r2 P2.a): the selector owns fee-cost generation now.
@@ -1247,6 +1281,9 @@ function buildV3Overlay(
         ...baseOverlay.considerations,
       ]
     }
+    // v3.3 (2026-05-26 — Sam smoke): expose sharedWith so the renderer
+    // can show "Also wins Path X" badges on duplicate winners.
+    baseOverlay.sharedWith = pathSelection.sharedWith[pk]
     return baseOverlay
   }
   const paths = { A: overlayFor('A'), B: overlayFor('B'), C: overlayFor('C') }
@@ -1600,8 +1637,26 @@ export function buildResearchVerdictDraft(args: BuildArgs): { inputHash: string;
   // (computed once at the top of this function) included so a Refresh that
   // re-ranks invalidates the cached verdict. Codex r4 P3: one normalization
   // point — selection + hash payload share `sanitizedRanking`.
+  // v3.2 (2026-05-26): bumped to version 6 — Path B selector now reads
+  // SchoolFacts.a_level_a_star_a_pct (then gcse_9_7_pct) as primary signal
+  // (Sam smoke surfaced Rugby/Bromsgrove inversion). Cached v5 verdicts
+  // were built against the aggregate-only selector and must regenerate.
+  // v3.3 (2026-05-26): bumped to version 7 — dropped strict A/B/C
+  // exclusion so Path B/C now honestly pick the strongest-academic /
+  // cheapest school even if it duplicates Path A. Output shape adds
+  // PathOverlay.sharedWith so cached v6 verdicts must regenerate.
+  // v3.4 (2026-05-26 — Yoko smoke): bumped to version 8 — when Path A
+  // skips below-coverage recommender entries, considerations[] now
+  // explains why (parent was confused by silent skip). No structural
+  // shape change, but cached verdicts predate the explanation copy.
+  // v3.5 (2026-05-26 — Yoko smoke followup): bumped to version 9 —
+  // dropped the 50% coverage threshold filter from path selection so
+  // Path A = recommender's #1 unconditionally. Selection pool is now
+  // the full `scored` array (was coverage-filtered `eligible`). Path B
+  // and Path C also pick from the full pool; "couldn't compare yet"
+  // panel still surfaces below-threshold schools as a soft hint.
   const hashPayload: Record<string, unknown> = {
-    version: 5,
+    version: 9,
     sessionId: args.sessionId,
     childId: args.childId,
     schools: args.comparisonData.schools,
