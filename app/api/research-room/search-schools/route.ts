@@ -137,6 +137,10 @@ export async function POST(req: NextRequest) {
       .select('slug, name, region, country')
       .ilike('name', pat)
       .or('country.eq.United Kingdom,country.is.null')
+      // A1 deprecation filter (2026-05-26): hide schools flagged as
+      // duplicates (e.g. st-pauls-school-uk → st-pauls-school-london).
+      // The picker is the primary parent-facing surface where dupes annoy.
+      .is('deprecated_at', null)
     if (body.excludeSlugs.length > 0) {
       q1 = q1.not('slug', 'in', `(${body.excludeSlugs.join(',')})`)
     }
