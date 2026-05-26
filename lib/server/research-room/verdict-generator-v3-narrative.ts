@@ -531,12 +531,11 @@ function buildEvidenceParagraph({ winner, winnerFacts, briefContext, allEligible
 }
 
 function buildBalanceParagraph({ winner, winnerFacts, briefContext, pathKey }: BuildPathInput): string {
-  // Honest counterpoint — acknowledge what this path doesn't get the parent.
-  const cap = briefContext.rubric.budgetMaxAnnual
-  if (winnerFacts?.fee_max && cap && winnerFacts.fee_max > cap) {
-    const over = Math.round((winnerFacts.fee_max - cap) / 1000)
-    return `The honest balance: upper fee band is £${over}k above your stated cap. The school stays in scope if bursary support is on the table; otherwise verify the realistic fee band for Year ${briefContext.rubric.childYear ?? 'entry'} entry.`
-  }
+  // v3.1 (2026-05-26): fee-cap balance line REMOVED. Selector now emits the
+  // fee-cost note for over-budget winners on every path (path-selectors.ts
+  // `selectPathWinners` post-loop), and the verdict-generator overlay
+  // adapter prepends it to costs[] uniformly. Keeping the duplicate here
+  // would surface two competing fee-cap blurbs on the same path.
   if (pathKey === 'C') {
     // R8-MUST-1: don't say "location wins" when Path C is neutralised by
     // anywhere/overseas. Use neutral copy in that case.

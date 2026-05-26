@@ -33,7 +33,7 @@ export type ResearchVerdict = {
   paths?: { A: import('./verdict-generator-v3-types').PathOverlay; B: import('./verdict-generator-v3-types').PathOverlay; C: import('./verdict-generator-v3-types').PathOverlay }
   couldnt_compare?: import('./verdict-generator-v3-types').CouldntCompareSchool[]
   brief_tensions?: import('./verdict-generator-v3-types').BriefTension[]
-  same_winner_across_paths?: { winner_slug: string; paths: ('A' | 'B' | 'C')[] }
+  // v3.1: same_winner_across_paths removed (strict A/B/C exclusion).
   default_path?: 'A' | 'B' | 'C' | null
   school_facts?: Record<string, import('./verdict-generator-v3-types').SchoolFactsForUi>
   brief_chips?: import('./verdict-generator-v3-types').BriefChip[]
@@ -66,6 +66,11 @@ type BuildArgs = {
   // empty Map is acceptable for tests/degenerate cases (yields all-needs_research
   // paths, but the overlay still builds with v3 shape).
   schoolFacts: Map<string, import('./verdict-generator-v3-types').SchoolFacts>
+  // v3.1 (2026-05-26): recommender ranking from shortlisted_schools.match_reasons.
+  // Empty array (or undefined) = recommender ranking unavailable; Path A falls
+  // back to scored[0] with a provisional-ranking banner surfaced via the
+  // overlay's considerations[].
+  recommenderRanking?: RecommenderRanking
 }
 
 type DecisionCategory =
@@ -1029,12 +1034,22 @@ import {
   detectTensions,
   quoteBriefGoal,
 }                              from './verdict-generator-v3-brief'
+// v3.1 (2026-05-26): path selection moved to recommender-driven
+// path-selectors.ts. eligibleForPath + framingForPathV2 + statusNoteForV2
+// stay in -v3-paths.ts. The old selectPathWinners / detectSameWinnerAcrossPaths
+// / selectDefaultPath / framingForPath remain exported as dead code while
+// the parallel-session edits settle — cleanup commit after smoke validates.
+import {
+  eligibleForPath,
+  framingForPathV2,
+  statusNoteForV2,
+}                              from './verdict-generator-v3-paths'
 import {
   selectPathWinners,
-  detectSameWinnerAcrossPaths,
   selectDefaultPath,
-  framingForPath,
-}                              from './verdict-generator-v3-paths'
+  type RecommenderRanking,
+  type SelectionSource,
+}                              from './path-selectors'
 import {
   buildPathOverlay,
 }                              from './verdict-generator-v3-narrative'
@@ -1056,7 +1071,8 @@ type V3Overlay = {
   paths:                    { A: PathOverlay; B: PathOverlay; C: PathOverlay }
   couldnt_compare:          CouldntCompareSchool[]
   brief_tensions:           BriefTension[]
-  same_winner_across_paths?: { winner_slug: string; paths: PathKey[] }
+  // v3.1: same_winner_across_paths removed — strict A/B/C exclusion in
+  // selectPathWinners makes it structurally impossible.
   default_path:             PathKey | null
   pathWinnerSlugs:          Array<[string, PathKey]>
   belowThresholdSlugs:      Set<string>
@@ -1106,13 +1122,32 @@ function buildV3Overlay(
     }
   })
 
-  // Path selection (operates on eligible only).
+  // v3.1 (2026-05-26): recommender-driven selection. Path A = recommender
+  // #1, Path B = strongest academic, Path C = most-affordable (or
+  // least-over-budget / lowest-fee variants depending on budget data).
   const pathSelection = selectPathWinners(
-    scored   as unknown as Parameters<typeof selectPathWinners>[0],
+    eligible as unknown as Parameters<typeof selectPathWinners>[0],
     facts,
     briefContext,
-    eligible as unknown as Parameters<typeof selectPathWinners>[3],
+    args.recommenderRanking ?? [],
+    eligibleForPath as unknown as Parameters<typeof selectPathWinners>[4],
   )
+
+  // v3.1: anomaly-only logging — happy-path sources stay silent.
+  const ANOMALY_SOURCES = new Set<SelectionSource>([
+    'fallback_scored', 'hard_constraint_fallback', 'fallback_recommender',
+    'over_budget', 'empty',
+  ])
+  const anomalies = Object.entries(pathSelection.sourceDebug)
+    .filter(([, src]) => ANOMALY_SOURCES.has(src as SelectionSource))
+  if (anomalies.length > 0) {
+    console.warn('[verdict-paths] non-standard selection sources for child=' + args.childId,
+      Object.fromEntries(anomalies))
+  }
+  if (pathSelection.skippedRanksDebug.length > 0) {
+    console.warn('[verdict-paths] Path A skipped ranks below coverage threshold:',
+      pathSelection.skippedRanksDebug)
+  }
 
   // Tension detection after winners known.
   const pathWinnersSlugMap: Record<PathKey, string> = {
@@ -1155,30 +1190,27 @@ function buildV3Overlay(
   // origin attribution are complete; contributing_rows is empty so
   // cited_lens_id/cited_lens_kind in evidence falls back to null.
   function overlayFor(pk: PathKey): PathOverlay {
-    const winner = pathSelection.winners[pk]
+    const winner      = pathSelection.winners[pk]
+    const framingHint = pathSelection.framingHints[pk]
+    const framing     = framingForPathV2(pk, framingHint, pathSelection.budgetCapLabel)
     if (!winner) {
-      // Degenerate case — selectPathWinners returns null winner when
-      // eligible is empty. Emit a needs_research placeholder.
-      //
-      // Codex r2 P2 (2026-05-23): use framingForPath(pk, rubric) so Path A's
-      // framing flexes with topPriority even in this no-eligible branch.
-      // Without this, a parent with topPriority='academic' + every school
-      // below 50% coverage would see "If sport is the priority" placeholder.
-      const framing = framingForPath(pk, briefContext.rubric)
       return {
         framing:        framing.framing,
-        framingLong:    '',
+        framingLong:    framing.framingLong,
+        framingHint,
         winner_slug:    '',
         path_status:    'needs_research',
-        status_note:    'No school in your shortlist meets the 50% coverage threshold yet.',
+        status_note:    statusNoteForV2(
+          'needs_research', pk, framingHint, pathSelection.eligibleCount,
+        ) ?? 'No school in your shortlist meets the 50% coverage threshold yet.',
         reasoning:      [`Path ${pk} has no eligible candidate.`],
         evidence:       [],
         costs:          [],
-        considerations: [`Add at least 50% comparison-table coverage on at least one shortlisted school.`],
+        considerations: pathSelection.considerationNotes[pk] ?? [],
       }
     }
     const winnerFacts = facts.get(winner.slug)
-    return buildPathOverlay({
+    const baseOverlay = buildPathOverlay({
       pathKey:            pk,
       winner:             winner as unknown as Parameters<typeof buildPathOverlay>[0]['winner'],
       winnerFacts,
@@ -1188,16 +1220,40 @@ function buildV3Overlay(
       rowsWithProvenance: rowsWithProvenance as unknown as Parameters<typeof buildPathOverlay>[0]['rowsWithProvenance'],
       schoolIdx:          args.comparisonData.schools.findIndex(s => s.slug === winner.slug),
     })
+    // v3.1: override framing + framingHint + status_note from new framing
+    // table so the prose under the panel still reads the legacy narrative
+    // builder but the header/anchor reflects the recommender-driven lens.
+    baseOverlay.framing     = framing.framing
+    baseOverlay.framingLong = framing.framingLong
+    baseOverlay.framingHint = framingHint   // Codex r3 NIT: explicit assignment
+    const newStatusNote = statusNoteForV2(
+      pathSelection.pathStatus[pk], pk, framingHint, pathSelection.eligibleCount,
+    )
+    if (newStatusNote !== undefined) baseOverlay.status_note = newStatusNote
+    else if (pathSelection.pathStatus[pk] === 'winner') baseOverlay.status_note = undefined
+
+    // v3.1 (Codex r2 P2.a): the selector owns fee-cost generation now.
+    // Strip any duplicate fee-cap cost from the narrative builder's output
+    // and prepend the selector's note when present.
+    baseOverlay.costs = baseOverlay.costs.filter(c => c.label !== 'Fees')
+    if (pathSelection.costNotes[pk]) {
+      baseOverlay.costs.unshift({ label: 'Fees', detail: pathSelection.costNotes[pk]! })
+    }
+    // v3.1 (self-audit P2-3): provisional-ranking banner + any selector-
+    // emitted considerations prepend to the existing considerations[].
+    if (pathSelection.considerationNotes[pk]) {
+      baseOverlay.considerations = [
+        ...pathSelection.considerationNotes[pk]!,
+        ...baseOverlay.considerations,
+      ]
+    }
+    return baseOverlay
   }
   const paths = { A: overlayFor('A'), B: overlayFor('B'), C: overlayFor('C') }
 
-  // same_winner_across_paths + default_path.
-  // Codex r1 P1 #3 fix (2026-05-22): a path may be marked `fallback` while its
-  // winner is null (selectPathWinners' degenerate-path case). Without the
-  // winners-null AND below, default_path could return 'A' (selectDefaultPath's
-  // init value) pointing at no winner. Treat null-winner paths as "no usable
-  // path" alongside explicit needs_research status.
-  const sameWinner = detectSameWinnerAcrossPaths(pathSelection)
+  // v3.1: same_winner_across_paths removed (strict A/B/C exclusion makes it
+  // structurally impossible). default_path: a path marked `fallback` with a
+  // null winner shouldn't be auto-selected, treat as "no usable path".
   const noUsablePath = (['A', 'B', 'C'] as PathKey[]).every(p =>
     pathSelection.pathStatus[p] === 'needs_research' || pathSelection.winners[p] === null
   )
@@ -1248,7 +1304,7 @@ function buildV3Overlay(
     paths,
     couldnt_compare,
     brief_tensions:           briefContext.tensions,
-    same_winner_across_paths: sameWinner,
+    // v3.1: same_winner_across_paths removed (see V3Overlay comment above).
     default_path,
     pathWinnerSlugs,
     belowThresholdSlugs,
@@ -1520,7 +1576,7 @@ export function buildResearchVerdictDraft(args: BuildArgs): { inputHash: string;
     paths:                    v3Overlay.paths,
     couldnt_compare:          v3Overlay.couldnt_compare,
     brief_tensions:           v3Overlay.brief_tensions,
-    same_winner_across_paths: v3Overlay.same_winner_across_paths,
+    // v3.1: same_winner_across_paths removed (strict A/B/C exclusion).
     default_path:             v3Overlay.default_path,
     school_facts:             v3Overlay.schoolFactsForUi,
     brief_chips:              buildBriefChips(rubric),
@@ -1531,14 +1587,22 @@ export function buildResearchVerdictDraft(args: BuildArgs): { inputHash: string;
   // version 4 and includes a stable schoolFacts projection so cached verdicts
   // re-generate when structured facts change. Codex r1 Delete #2 (2026-05-22):
   // version always 4 — v2 hash branch removed with the fallback path.
+  //
+  // v3.1 (2026-05-26): bumped to version 5; sanitized recommenderRanking
+  // included so a Refresh that re-ranks invalidates the cached verdict.
+  const sanitizedRanking = (args.recommenderRanking ?? [])
+    .filter(r => Number.isFinite(r.rank_position) && r.rank_position >= 0)
+    .sort((a, b) => a.rank_position - b.rank_position || a.slug.localeCompare(b.slug))
+    .map(r => [r.slug, r.rank_position])
   const hashPayload: Record<string, unknown> = {
-    version: 4,
+    version: 5,
     sessionId: args.sessionId,
     childId: args.childId,
     schools: args.comparisonData.schools,
     rows: args.comparisonData.rows,
     childProfile: args.childProfile ?? {},
     schoolFacts: v3Overlay.schoolFactsProjection,
+    recommenderRanking: sanitizedRanking,
   }
   const inputHash = crypto.createHash('sha256').update(JSON.stringify(stableHashValue(hashPayload))).digest('hex')
   const bodyMarkdown = buildMarkdown(verdict)

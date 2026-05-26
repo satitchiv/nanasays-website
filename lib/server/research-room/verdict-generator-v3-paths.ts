@@ -500,3 +500,136 @@ export function statusNoteFor(
 
   return `Comparison evidence is too thin to declare a clear ${noun} here. The top candidate is shown but verdict confidence is low — fill in more comparison rows and re-run.`
 }
+
+// ════════════════════════════════════════════════════════════════════════
+// v3.1 (2026-05-26) — recommender-driven framing
+// ════════════════════════════════════════════════════════════════════════
+//
+// FRAMING_TABLE replaces PATH_FRAMING + PATH_C_NEUTRALISED_FRAMING +
+// pathAModeForRubric. Keyed by `framingHint` from path-selectors.ts.
+// Each entry carries copy + evidence-category priority + opener
+// template so the narrative builder has ONE source of truth per lens.
+//
+// The legacy PATH_FRAMING / pathAModeForRubric / framingForPath / etc
+// remain exported as dead code while the parallel-session edits settle.
+// Cleanup commit after smoke validates.
+
+import type { FramingHint } from './path-selectors'
+
+export type FramingEntry = {
+  framing:                  string
+  framingLong:              (capLabel: string | null) => string
+  anchor:                   string
+  evidenceCategoryPriority: DecisionCategory[]
+  opener:                   (schoolName: string, capLabel: string | null) => string
+}
+
+export const FRAMING_TABLE: Record<FramingHint, FramingEntry> = {
+  best_overall: {
+    framing:                  'Best overall match',
+    framingLong:              () => '…the highest-fit school in your shortlist per our latest recommendations',
+    anchor:                   'overall',
+    evidenceCategoryPriority: ['academics', 'sport', 'pastoral', 'boarding', 'community'],
+    opener:                   (school) => `${school} leads Path A because the recommender currently ranks it #1 against the child's brief.`,
+  },
+  strongest_academic: {
+    framing:                  'Strongest academic',
+    framingLong:              () => '…the school in your shortlist with the strongest exam results in the comparison evidence',
+    anchor:                   'academic',
+    evidenceCategoryPriority: ['academics', 'scholarship', 'community', 'boarding'],
+    opener:                   (school) => `${school} leads Path B because it has the strongest comparison-table academic signal among the shortlist.`,
+  },
+  next_best_fit_b: {
+    framing:                  'Next-best fit',
+    framingLong:              () => "…academic results aren't in the comparison evidence yet; this is the recommender's next-best fit",
+    anchor:                   'next-best',
+    evidenceCategoryPriority: ['academics', 'sport', 'pastoral', 'boarding', 'community'],
+    opener:                   (school) => `${school} leads Path B as the next-best fit on the recommender's ranking — academic results aren't in the comparison yet.`,
+  },
+  most_affordable: {
+    framing:                  'Most affordable credible fit',
+    framingLong:              (cap) => `…the lowest-fee school in your shortlist that's still within your ${cap ?? 'stated'} cap`,
+    anchor:                   'value',
+    evidenceCategoryPriority: ['fees', 'academics', 'boarding', 'community'],
+    opener:                   (school, cap) => `${school} leads Path C because it's the lowest-fee shortlist option within your ${cap ?? 'stated'} budget.`,
+  },
+  least_over_budget: {
+    framing:                  'Least over budget',
+    framingLong:              (cap) => `…every school in your shortlist exceeds your ${cap ?? 'stated'} cap; this is the smallest overshoot`,
+    anchor:                   'value-overshoot',
+    evidenceCategoryPriority: ['fees', 'academics', 'boarding', 'community'],
+    opener:                   (school, cap) => `${school} leads Path C as the smallest overshoot — every shortlist option exceeds your ${cap ?? 'stated'} cap.`,
+  },
+  lowest_fee: {
+    framing:                  'Lowest-fee credible fit',
+    framingLong:              () => '…the lowest-fee school in your shortlist. Set a budget in the brief for a more targeted reading.',
+    anchor:                   'value',
+    evidenceCategoryPriority: ['fees', 'academics', 'boarding', 'community'],
+    opener:                   (school) => `${school} leads Path C as the lowest-fee shortlist option (no budget was set in the brief).`,
+  },
+  next_best_fit_c: {
+    framing:                  'Next-best fit',
+    framingLong:              () => "…fee data isn't in the comparison evidence for this shortlist; this is the recommender's next-best fit",
+    anchor:                   'next-best',
+    evidenceCategoryPriority: ['fees', 'academics', 'boarding', 'community'],
+    opener:                   (school) => `${school} leads Path C as the next-best fit on the recommender's ranking — fee data isn't in the comparison yet.`,
+  },
+}
+
+const ANCHOR_NOUN_V2: Record<string, string> = {
+  overall:           'best-fit winner',
+  academic:          'academic-led winner',
+  value:             'value-led winner',
+  'value-overshoot': 'value-led winner',
+  'next-best':       'next-best fit',
+}
+
+export function framingForPathV2(
+  _pathKey:       PathKey,
+  framingHint:    FramingHint,
+  budgetCapLabel: string | null,
+): { framing: string; framingLong: string; anchor: string } {
+  const e = FRAMING_TABLE[framingHint]
+  return { framing: e.framing, framingLong: e.framingLong(budgetCapLabel), anchor: e.anchor }
+}
+
+export function evidenceCategoryPriorityFor(framingHint: FramingHint): DecisionCategory[] {
+  return FRAMING_TABLE[framingHint].evidenceCategoryPriority
+}
+
+export function openerForPath(
+  framingHint:    FramingHint,
+  schoolName:     string,
+  budgetCapLabel: string | null,
+): string {
+  return FRAMING_TABLE[framingHint].opener(schoolName, budgetCapLabel)
+}
+
+export function statusNoteForV2(
+  pathStatus:    PathStatus,
+  pathKey:       PathKey,
+  framingHint:   FramingHint,
+  eligibleCount: number,
+): string | undefined {
+  if (pathStatus === 'winner') return undefined
+  if (pathStatus === 'fallback') {
+    const noun = ANCHOR_NOUN_V2[FRAMING_TABLE[framingHint].anchor] ?? 'winner'
+    return `No eligible ${noun} passes the brief's hard constraints (gender single-sex or year-stage match). The closest broader fit is shown as a fallback; below-threshold schools that match this anchor are listed under "couldn't compare yet."`
+  }
+  // needs_research — copy tailors to eligible count
+  if (eligibleCount === 0) {
+    return `No school in your shortlist meets the 50% comparison-coverage threshold yet. Fill in more comparison rows on at least one school and re-run.`
+  }
+  if (pathKey === 'A') {
+    return `We don't have a top recommendation yet for this child's brief. Add at least one school with ≥50% comparison coverage and re-run.`
+  }
+  if (pathKey === 'B') {
+    return eligibleCount === 1
+      ? `Only one school in your shortlist meets coverage threshold — add another for a Path B reading.`
+      : `Couldn't pick a Path B school distinct from Path A — add another shortlist school and re-run.`
+  }
+  // Path C
+  return eligibleCount <= 2
+    ? `Only ${eligibleCount} school${eligibleCount === 1 ? '' : 's'} in your shortlist meet${eligibleCount === 1 ? 's' : ''} coverage threshold — add another for a Path C reading.`
+    : `Path C couldn't pick a third school distinct from Path A and Path B — add another shortlist school and re-run.`
+}

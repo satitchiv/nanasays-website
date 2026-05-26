@@ -13,6 +13,7 @@
 // - All v3 schema additions are NULL-SAFE so partial-data schools render gracefully
 
 import type { ComparisonRow, RowCell } from '@/components/nana/comparison-placeholder'
+import type { FramingHint } from './path-selectors'
 
 // ── Path identity ───────────────────────────────────────────────────────
 
@@ -110,8 +111,15 @@ export type Rubric = {
 // ── PathOverlay — one entry per path ────────────────────────────────────
 
 export type PathOverlay = {
-  framing:        string                 // e.g. "If sport is the priority"
+  framing:        string                 // e.g. "Best overall match"
   framingLong:    string                 // the italic deck
+  // v3.1 (2026-05-26): which semantic lens picked this path's winner —
+  // 'best_overall' = recommender #1, 'strongest_academic' = top academic
+  // signal, 'most_affordable'|'least_over_budget'|'lowest_fee' = value
+  // variants, 'next_best_fit_b'|'next_best_fit_c' = recommender-walk
+  // fallbacks. Optional because cached overlays from earlier v3 releases
+  // don't have it; readers must default to 'best_overall'.
+  framingHint?:   FramingHint
   winner_slug:    string                 // points to a school in ranked_schools[]
   path_status:    PathStatus             // R4-P2: 'winner' | 'fallback' | 'needs_research'
   reasoning:      string[]               // paragraphs of advisor-voice prose
@@ -257,7 +265,11 @@ export type ResearchVerdict = {
   paths?:                   { A: PathOverlay; B: PathOverlay; C: PathOverlay }
   couldnt_compare?:         CouldntCompareSchool[]
   brief_tensions?:          BriefTension[]
-  same_winner_across_paths?: { winner_slug: string; paths: PathKey[] }
+  // v3.1 (2026-05-26): `same_winner_across_paths` removed. The new
+  // recommender-driven selectors enforce strict A/B/C exclusion, so two
+  // paths can never share a winner. Field deletion is a clean break;
+  // cached v3 records that still contain it are read-tolerant (JSONB
+  // extra keys are ignored by the renderer).
   default_path?:            PathKey | null   // R5-SHOULD-FIX + R6-MUST-5: null when all paths are needs_research; omit when v2 cached
   // P1 #4 wiring (2026-05-22): server-side projection of the schoolFacts Map,
   // keyed by school slug. Carries the fact ribbon + map embed + community

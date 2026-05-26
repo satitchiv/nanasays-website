@@ -124,6 +124,10 @@ export type AdvisorInput = {
   pathKey:        PathKey
   framing:        string
   framingLong:    string
+  // v3.1 (2026-05-26 — Codex r2 NEW-P1): semantic lens that picked this
+  // path. Optional because legacy v3 cached overlays don't have it; reader
+  // defaults to 'best_overall' if absent.
+  framingHint?:   import('./path-selectors').FramingHint
   schoolName:     string
   schoolFacts:    SchoolFacts | undefined
   reasoning:      string[]
@@ -256,6 +260,11 @@ export async function enrichVerdictWithAdvisorRoundups(args: {
         pathKey:        pk,
         framing:        path.framing,
         framingLong:    path.framingLong,
+        // v3.1 Codex r2 NEW-P1: thread framingHint to the LLM prompt so it
+        // knows WHY this path was picked (best_overall / strongest_academic /
+        // most_affordable / etc.). Legacy cached overlays default to
+        // 'best_overall' here so the prompt always has a value.
+        framingHint:    path.framingHint ?? 'best_overall',
         schoolName:     schoolFacts?.name ?? path.winner_slug,
         schoolFacts,
         reasoning:      path.reasoning,
@@ -298,6 +307,12 @@ export function buildUserMessage(input: AdvisorInput): string {
   lines.push(`# Path being justified`)
   lines.push(`Path ${input.pathKey} — ${input.framing}`)
   if (input.framingLong) lines.push(`(${input.framingLong})`)
+  // v3.1 Codex r2 NEW-P1: explicit semantic anchor so the LLM knows WHY
+  // this path was selected, not just the user-facing copy. Internal hint
+  // only — never echo it literally.
+  if (input.framingHint) {
+    lines.push(`framingHint (internal — do not quote): ${input.framingHint}`)
+  }
   lines.push('')
 
   lines.push(`# School (one school only — do not recommend others)`)

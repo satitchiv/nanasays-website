@@ -125,6 +125,10 @@ type VerdictJson = {
   paths?: Record<PathKey, PathOverlay>
   couldnt_compare?: CouldntCompareSchool[]
   brief_tensions?: unknown[]
+  // v3.1 (2026-05-26): same_winner_across_paths removed from server output
+  // (strict A/B/C exclusion in recommender-driven selectors makes it
+  // structurally impossible). Cached v3 records still contain it; the
+  // render block below tolerates absence.
   same_winner_across_paths?: { winner_slug: string; paths: PathKey[] }
   default_path?: PathKey | null
   school_facts?: Record<string, SchoolFactsForUi>

@@ -228,6 +228,35 @@ export async function POST(req: NextRequest) {
     comparisonData.schools.map(s => s.slug),
   )
 
+  // v3.1 (2026-05-26): fetch the recommender ranking from
+  // shortlisted_schools.match_reasons.rank_position so the v3.1 path
+  // selectors (Path A = recommender #1, etc.) have one source of truth.
+  // .eq('user_id', user.id) is defense-in-depth — `svc` is the service-role
+  // client which bypasses RLS, so we explicitly scope to the caller.
+  // Fail-open: if the shortlist read errors, the recommenderRanking arg
+  // is `[]` and Path A falls back to scored[0] with a provisional banner.
+  type ShortlistRow = {
+    school_slug:   string
+    match_reasons: { rank_position?: number | null } | null
+  }
+  const { data: shortlistRows, error: shortlistErr } = await svc
+    .from('shortlisted_schools')
+    .select('school_slug, match_reasons')
+    .eq('user_id', user.id)
+    .eq('child_id', child.id)
+  if (shortlistErr) {
+    console.warn('[verdict] shortlist fetch failed; Path A will fall back to scored[0]', shortlistErr)
+  }
+  const recommenderRanking = ((shortlistRows ?? []) as ShortlistRow[])
+    .map(r => ({
+      slug:           r.school_slug,
+      rank_position:  typeof r.match_reasons?.rank_position === 'number'
+        ? r.match_reasons.rank_position
+        : Number.POSITIVE_INFINITY,
+    }))
+    .filter(r => Number.isFinite(r.rank_position) && r.rank_position >= 0)
+    .sort((a, b) => a.rank_position - b.rank_position || a.slug.localeCompare(b.slug))
+
   const draft = buildResearchVerdictDraft({
     comparisonData,
     childName: child.name,
@@ -235,6 +264,7 @@ export async function POST(req: NextRequest) {
     sessionId: session.id,
     childId: child.id,
     schoolFacts,
+    recommenderRanking,
   })
 
   try {
