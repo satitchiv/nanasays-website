@@ -5,6 +5,9 @@ import {
   KNOWN_DAY_ONLY_NAMES,
   KNOWN_FULL_BOARDING_NAMES,
   normalizeSchoolName,
+  isGenderCompatible,
+  getEffectiveSchoolGender,
+  type ChildYear,
 } from '../school-name-overrides.ts'
 import { DIMENSIONS } from '../server/dimensions.js'
 import { loadDimFactsBundles } from '../server/tools.js'
@@ -97,8 +100,10 @@ const YEAR_TO_ENTRY_AGE: Record<string, number | null> = {
   'not-sure':   null,
 }
 
-const BOY_COMPAT  = new Set(['boys', 'boys only', 'co-ed', 'co-educational', 'mixed'])
-const GIRL_COMPAT = new Set(['girls', 'girls only', 'co-ed', 'co-educational', 'mixed'])
+// BOY_COMPAT / GIRL_COMPAT removed 2026-05-26 — gender compatibility
+// now flows through isGenderCompatible() / getEffectiveSchoolGender()
+// in school-name-overrides.ts which encapsulates the column patterns +
+// curated overrides + year-aware exemptions.
 
 // 2026-05-19 Bug 1 fix — curriculum filter parity with Picker #1
 // (lib/recommend-shortlist.ts:73-80). When the parent says IB, drop
@@ -312,40 +317,45 @@ const RELIGIOUS_ETHOS_LABELS = new Set([
 type NonnegFilter = {
   name:      string
   pattern:   RegExp
-  predicate: (s: SchoolRow, struct: StructRow | null) => boolean
+  // Codex r1 P1 #3 (2026-05-26) — predicates that classify by school
+  // gender now receive childYear so they can call
+  // getEffectiveSchoolGender(school, childYear) and honour year-aware
+  // exemptions (Westminster sixth-form co-ed; Abingdon Year 7 Sept 2026).
+  // Predicates that don't care about gender ignore the param.
+  predicate: (s: SchoolRow, struct: StructRow | null, childYear?: ChildYear) => boolean
 }
 
 // 2026-05-24 Yoko slice — exported for unit testing.
 export const NONNEG_FILTERS: NonnegFilter[] = [
   // ── Gender ───────────────────────────────────────────────────────
   // "must be co-ed" / "co-ed only" / "coed only" / "mixed only"
+  // Codex r1 P1 #3 — was reading raw gender_split; now uses
+  // getEffectiveSchoolGender so mistagged single-sex schools (Dulwich,
+  // Westminster, Queenswood) can't slip past as co-ed.
   {
     name: 'must-be-coed',
     pattern: /\b(?:(?:must\s+be|need|needs|want|wants|require[sd]?|prefer|preferred|only|strictly)\s+(?:a\s+)?(?:co-?ed(?:ucational)?|coed|mixed(?:\s+gender)?(?:\s+school)?)|(?:co-?ed(?:ucational)?|coed|mixed(?:\s+gender)?)\s+(?:school\s+)?only)\b/i,
-    predicate: (s) => {
-      const g = (s.gender_split ?? '').trim().toLowerCase()
-      if (!g) return true
-      return /co-?ed|coed|mixed/.test(g)
+    predicate: (s, _struct, childYear) => {
+      const eff = getEffectiveSchoolGender(s, childYear ?? null)
+      return eff === 'co-ed' || eff === 'unknown'
     },
   },
   // "girls only" / "all-girls" / "single-sex girls"
   {
     name: 'girls-only',
     pattern: /\b(?:(?:must\s+be|need|needs|want|wants|require[sd]?|only|strictly)\s+(?:an?\s+)?(?:all[-\s]?girls?|girls[-\s]?only|single[-\s]sex\s+girls?)|girls[-\s]?only|all[-\s]?girls?\s+(?:school\s+)?only|single[-\s]sex\s+girls?)\b/i,
-    predicate: (s) => {
-      const g = (s.gender_split ?? '').trim().toLowerCase()
-      if (!g) return true
-      return /girls/.test(g) && !/co-?ed|coed|mixed/.test(g)
+    predicate: (s, _struct, childYear) => {
+      const eff = getEffectiveSchoolGender(s, childYear ?? null)
+      return eff === 'girls-only' || eff === 'unknown'
     },
   },
   // "boys only" / "all-boys" / "single-sex boys"
   {
     name: 'boys-only',
     pattern: /\b(?:(?:must\s+be|need|needs|want|wants|require[sd]?|only|strictly)\s+(?:an?\s+)?(?:all[-\s]?boys?|boys[-\s]?only|single[-\s]sex\s+boys?)|boys[-\s]?only|all[-\s]?boys?\s+(?:school\s+)?only|single[-\s]sex\s+boys?)\b/i,
-    predicate: (s) => {
-      const g = (s.gender_split ?? '').trim().toLowerCase()
-      if (!g) return true
-      return /boys/.test(g) && !/co-?ed|coed|mixed/.test(g)
+    predicate: (s, _struct, childYear) => {
+      const eff = getEffectiveSchoolGender(s, childYear ?? null)
+      return eff === 'boys-only' || eff === 'unknown'
     },
   },
   // ── Location ─────────────────────────────────────────────────────
@@ -756,16 +766,23 @@ export function rankCandidates(
   const explicitHomeRegion: HomeRegion | null = resolveHomeRegion(parent, firedNonnegFilters)
 
   // ── JS-level hard filters: gender + boarding via name overrides ──
+  // Codex r1 P1 #3 (2026-05-26) — gender check delegated to the shared
+  // `isGenderCompatible(school, childGender, childYear)` helper in
+  // school-name-overrides.ts. The helper layers:
+  //   1. Curated single-sex name + slug overrides (defence against
+  //      mistagged DB rows — Dulwich, Westminster, Winchester,
+  //      Queenswood, Abingdon all tagged 'co-ed' in DB despite being
+  //      single-sex at the entry years parents typically apply).
+  //   2. Year-aware exemptions (Westminster / Winchester / UCS co-ed
+  //      sixth-form; Abingdon Year 7 + Sixth Form Sept 2026).
+  //   3. Column fallback (NULL → 'unknown' → pass; don't penalise
+  //      schools with missing data).
+  // The same helper drives the three gender-related NONNEG_FILTERS
+  // predicates so a mistagged school can't slip past via nonneg either.
   let filtered = schools
-  const genderAllow =
-    childGender === 'boy'  ? BOY_COMPAT  :
-    childGender === 'girl' ? GIRL_COMPAT :
-    null
-  if (genderAllow) {
-    filtered = filtered.filter(s => {
-      const g = (s.gender_split ?? '').trim().toLowerCase()
-      return !g || genderAllow.has(g)
-    })
+  const childYearForGender: ChildYear = (input.childYear ?? null) as ChildYear
+  if (childGender === 'boy' || childGender === 'girl') {
+    filtered = filtered.filter(s => isGenderCompatible(s, childGender, childYearForGender))
   }
 
   // Phase 4 item #3 Codex r2 review (2026-05-22): use the shared
@@ -791,7 +808,9 @@ export function rankCandidates(
   if (firedNonnegFilters.length > 0) {
     filtered = filtered.filter(s => {
       const struct = structBySlug.get(s.slug) ?? null
-      return firedNonnegFilters.every(f => f.predicate(s, struct))
+      // Codex r1 P1 #3 — pass childYear so gender-related predicates can
+      // honour year-aware exemptions (Westminster sixth-form co-ed, etc.).
+      return firedNonnegFilters.every(f => f.predicate(s, struct, childYearForGender))
     })
   }
 

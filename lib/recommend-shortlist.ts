@@ -3,6 +3,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   KNOWN_DAY_ONLY_NAMES,
   KNOWN_FULL_BOARDING_NAMES,
+  isGenderCompatible,
+  type ChildYear,
   assertUserId,
   normalizeSchoolName,
 } from './school-name-overrides'
@@ -84,8 +86,8 @@ const YEAR_TO_ENTRY_AGE: Record<string, number | null> = {
 // schools.gender_split values are case-inconsistent: 'boys', 'Boys',
 // 'Boys only', 'co-ed', 'Co-educational', 'girls', 'Girls', 'Mixed'.
 // Normalize on lowercase and match against these allowlists.
-const BOY_COMPAT  = new Set(['boys', 'boys only', 'co-ed', 'co-educational', 'mixed'])
-const GIRL_COMPAT = new Set(['girls', 'girls only', 'co-ed', 'co-educational', 'mixed'])
+// BOY_COMPAT / GIRL_COMPAT removed 2026-05-26 — gender compatibility
+// now flows through isGenderCompatible() in school-name-overrides.ts.
 
 // 2026-05-24 Slice A — IB_VARIANTS / ALEVEL_VARIANTS removed. Used to back
 // the SQL `overlaps('curriculum', ...)` hard filter which trusted the
@@ -443,19 +445,18 @@ export async function pickTopSchoolSlugs(
   // 'must-be-london' → 'london' (overrides stale wizard), else parent value.
   const explicitHomeRegion = resolveHomeRegion(profile as unknown as BriefProfile, firedNonneg)
 
-  // 5. Gender filter in JS (case-normalize)
-  const genderAllow =
-    profile.child_gender === 'boy'  ? BOY_COMPAT  :
-    profile.child_gender === 'girl' ? GIRL_COMPAT :
-    null
-
+  // 5. Gender filter — Codex r1 P1 #3 (2026-05-26) — delegated to the
+  // shared `isGenderCompatible(school, childGender, childYear)` helper.
+  // Layers curated overrides + year-aware exemptions + column fallback.
+  // See school-name-overrides.ts for full rationale.
   let filtered = candidates as SchoolCandidate[]
-  if (genderAllow) {
-    filtered = filtered.filter(s => {
-      const g = (s.gender_split ?? '').trim().toLowerCase()
-      // NULL gender → keep (unknown, don't penalize)
-      return !g || genderAllow.has(g)
-    })
+  const childYearForGender: ChildYear = (profile.child_year ?? null) as ChildYear
+  const childGenderForFilter: 'boy' | 'girl' | null =
+    profile.child_gender === 'boy'  ? 'boy'  :
+    profile.child_gender === 'girl' ? 'girl' :
+    null
+  if (childGenderForFilter) {
+    filtered = filtered.filter(s => isGenderCompatible(s, childGenderForFilter, childYearForGender))
   }
 
   // 5b. Boarding workaround filter — 2026-05-24 Yoko slice delegates to
@@ -477,7 +478,7 @@ export async function pickTopSchoolSlugs(
   // any-curriculum no-op; etc). Mirrors score-for-build-mode.ts:750 logic.
   if (firedNonneg.length > 0) {
     filtered = filtered.filter(s =>
-      firedNonneg.every(f => f.predicate(s as any, null)),
+      firedNonneg.every(f => f.predicate(s as any, null, childYearForGender)),
     )
   }
 
