@@ -12,6 +12,7 @@ import {
 import { loadDimensionEvidencePack } from './dimension-evidence-pack'
 import { projectSubjectStrengths } from './subject-strengths-projection.mjs'
 import { projectMetaFees } from './project-meta-fees.mjs'
+import { projectSchoolPdfs } from './project-meta-pdfs.mjs'
 // Notion-sidecar wiring slice (2026-05-24). The projector enforces:
 // - whitelist of allowed fields (drops fees + unknown keys)
 // - SSD-wins on overlapping fields (total_pupils, boarders, intl, boarding_pct,
@@ -148,6 +149,40 @@ export type PackSchool = {
      * point bloating the JSON). */
     bus_service: true | null
     unique_selling_points: string | null
+    /**
+     * Tab A Step 10 v2 Commit 3 (2026-05-26). 14 additional parent-facing
+     * fields wired alongside the original Step 3 group.
+     *
+     * A-slice (richness, single-line bits): est. year, ISI inspection date,
+     * top-university destinations, notable alumni (wiki-cruft scrubbed),
+     * Instagram + YouTube full URLs, school crest + hero photo URLs,
+     * top-4 readable PDFs filtered by parent-relevance whitelist.
+     *
+     * B-slice (ISI narrative block, multi-line render via
+     * renderISINarrative): summary prose + grade verdicts + key strengths
+     * array + areas-for-improvement array.
+     */
+    founded_year: number | null
+    isi_report_date: string | null
+    top_universities: string[] | null
+    /** Wiki citation markers (`#cite note-N`, `[1]`) and inline URLs are
+     * scrubbed at projection time; field is capped at 500 chars. */
+    alumni_notable: string | null
+    instagram_url: string | null
+    youtube_url: string | null
+    logo_url: string | null
+    hero_image: string | null
+    /** Filtered readable PDFs (max 4). null when no row matches the
+     * parent-relevance whitelist — better than offering parents a
+     * Fire Risk Assessment. */
+    school_pdfs: Array<{ title: string; url: string }> | null
+    /** ISI inspectorate verdicts/prose. isi_summary is the gate — when
+     * null, renderISINarrative emits no block (non-UK schools). */
+    isi_summary: string | null
+    isi_key_strengths: string[] | null
+    isi_areas_for_improvement: string[] | null
+    isi_academic_quality: string | null
+    isi_pastoral_care: string | null
   } | null
   /** Optional: regulatory rows (only when intent fires). */
   sensitive?: Array<{ type: string; date: string | null; severity: string | null; title: string; summary: string | null }>
@@ -761,7 +796,7 @@ async function fetchSchoolBundle(
   // T4.17: rugby projection now goes through loadDimensionEvidencePack which
   // filters on the trusted projection_version. Non-rugby dimensions still
   // return null (no entry in KNOWN_PROJECTION_VERSIONS yet).
-  const [metaRes, structuredRes, projectionPack, factsRes, notionRes] = await Promise.all([
+  const [metaRes, structuredRes, projectionPack, factsRes, notionRes, pdfsRes] = await Promise.all([
     supabase
       .from('schools')
       .select(
@@ -772,7 +807,13 @@ async function fetchSchoolBundle(
         ' open_day_text, open_day_url, prospectus_url,' +
         ' head_of_school, head_tenure_start,' +
         ' house_system, house_names,' +
-        ' food_options, bus_service, unique_selling_points',
+        ' food_options, bus_service, unique_selling_points,' +
+        // Tab A Step 10 v2 Commit 3 curated_meta fields (2026-05-26):
+        ' founded_year, isi_report_date, top_universities,' +
+        ' alumni_notable, instagram_url, youtube_url,' +
+        ' logo_url, hero_image,' +
+        ' isi_summary, isi_key_strengths, isi_areas_for_improvement,' +
+        ' isi_academic_quality, isi_pastoral_care',
       )
       .eq('slug', slug)
       .maybeSingle(),
@@ -801,6 +842,23 @@ async function fetchSchoolBundle(
       // for the live-status-distribution rationale.
       .in('status', ['clean', 'matched'])
       .maybeSingle(),
+    // Tab A Step 10 v2 Commit 3 (2026-05-26). Pull readable PDF rows
+    // ordered newest-first so projectSchoolPdfs has enough to find ≤4 that
+    // match the parent-relevance whitelist. Filenames like "Fire-Risk-2025"
+    // are dropped at projection time.
+    //
+    // Codex r1 F2: raised from 20 to 100 because some schools (e.g.
+    // Ardingly) have ≥20 recent policy PDFs that bury the prospectus.
+    // school_pdfs has ~2,079 readable rows across 178 schools (avg 12 per
+    // school, max in the 30s), so 100 covers the long tail cheaply.
+    supabase
+      .from('school_pdfs')
+      .select('filename, url, readable, status, found_at')
+      .eq('school_slug', slug)
+      .eq('readable', true)
+      .eq('status', 'ingested')
+      .order('found_at', { ascending: false })
+      .limit(100),
   ])
   const metaRow: any = metaRes.data
   if (!metaRow) return null
@@ -830,12 +888,103 @@ async function fetchSchoolBundle(
   // open-day blurb can be long). Array (house_names) capped at 12. If every
   // field is null, the whole object becomes null so the reducer doesn't have
   // to walk it later.
+  // Tab A Step 10 v2 Commit 3 (2026-05-26), Codex r1 P1: every string that
+  // lands in the prompt must be sanitized for prompt-injection vectors.
+  // Embedded newlines/control chars in DB values let a malicious or
+  // accidentally-scraped wiki value break the per-school line and inject
+  // fake "Ignore previous instructions" markers (Codex reproduced this).
+  // Strategy: strip ASCII control chars (incl. \n \r \t), collapse
+  // remaining whitespace runs to a single space, trim. Applied BEFORE
+  // length-capping so the cap counts post-sanitisation characters.
+  const sanitizeForPrompt = (s: string): string => {
+    // Strip C0 control chars (NUL through US) + DEL. Source uses
+    // \uHHHH escape syntax so it stays readable AND avoids the
+    // Unicode `u` regex flag (which requires ES2018+ target).
+    return s.replace(/[\u0000-\u001F\u007F]+/g, " ").replace(/\s+/g, " ").trim()
+  }
   const CURATED_TEXT_CAP = 120
   const clipText = (s: unknown): string | null => {
     if (s == null) return null
-    const t = String(s).trim()
+    const t = sanitizeForPrompt(String(s))
     if (!t) return null
     return t.length > CURATED_TEXT_CAP ? t.slice(0, CURATED_TEXT_CAP - 1).trimEnd() + '…' : t
+  }
+  // Tab A Step 10 v2 Commit 3 (2026-05-26). Longer cap for prose fields
+  // (alumni, ISI summary) since they're closer to one paragraph than to
+  // one-line scalars. 500 chars covers ~99% of observed values; max
+  // observed alumni_notable is 870 chars (rare).
+  const CURATED_PROSE_CAP = 500
+  const clipProse = (s: unknown): string | null => {
+    if (s == null) return null
+    const t = sanitizeForPrompt(String(s))
+    if (!t) return null
+    return t.length > CURATED_PROSE_CAP ? t.slice(0, CURATED_PROSE_CAP - 1).trimEnd() + '…' : t
+  }
+  // Alumni values sometimes contain wiki-export cruft (`#cite note-N`,
+  // `[1]`, inline `https://…` URLs from MediaWiki source, MediaWiki ref
+  // tags, citation-needed markers). Strip BEFORE the prompt sanitizer
+  // so the URL-strip regex sees the original characters intact.
+  const scrubAlumni = (s: unknown): string | null => {
+    if (s == null) return null
+    let t = String(s)
+    t = t.replace(/#cite[_ ]note[-_]\d+/gi, '')
+    t = t.replace(/\bhttps?:\/\/\S+/g, '')
+    t = t.replace(/\[\d+\]/g, '')
+    t = t.replace(/\[citation[ _-]needed\]/gi, '')
+    t = t.replace(/<\/?ref(\s+[^>]*)?>(?:[^<]*<\/ref>)?/gi, '')
+    t = t.replace(/\{\{cite[^}]*\}\}/gi, '')
+    t = sanitizeForPrompt(t)
+    if (!t) return null
+    return t.length > CURATED_PROSE_CAP ? t.slice(0, CURATED_PROSE_CAP - 1).trimEnd() + '…' : t
+  }
+  const TOP_UNIVERSITIES_CAP = 10
+  const ISI_STRENGTHS_CAP = 8
+  const ISI_AREAS_CAP = 4
+  // Codex r1 P1: URLs must be parseable AND free of whitespace/control
+  // chars (otherwise an embedded \n breaks the per-school line in the
+  // prompt). Reject anything that doesn't parse via WHATWG `new URL()`
+  // or contains any whitespace character at all.
+  const httpUrl = (s: unknown): string | null => {
+    if (typeof s !== 'string') return null
+    const t = s.trim()
+    if (!t || /\s/.test(t)) return null
+    try {
+      const u = new URL(t)
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return null
+      // Codex r2 Q4: reject userinfo URLs (`https://trusted.com@evil.com/`)
+      // — technically valid but commonly used to mislead readers into
+      // thinking the URL points at the prefix host.
+      if (u.username || u.password) return null
+      return u.toString()
+    } catch {
+      return null
+    }
+  }
+  const trimString = (s: unknown): string | null => {
+    if (typeof s !== 'string') return null
+    const t = sanitizeForPrompt(s)
+    return t || null
+  }
+  const stringArray = (v: unknown, cap: number): string[] | null => {
+    if (!Array.isArray(v) || v.length === 0) return null
+    const out: string[] = []
+    for (const item of v) {
+      if (out.length >= cap) break
+      if (typeof item !== 'string') continue
+      const t = sanitizeForPrompt(item)
+      if (t) out.push(t)
+    }
+    return out.length > 0 ? out : null
+  }
+  // ISI report date is stored as a Postgres `date` (serialises as ISO
+  // "YYYY-MM-DD"). Keep the raw ISO string here — renderer formats it.
+  const isoDate = (v: unknown): string | null => {
+    if (typeof v !== 'string') return null
+    return /^\d{4}-\d{2}-\d{2}$/.test(v.trim()) ? v.trim() : null
+  }
+  const integerOrNull = (v: unknown): number | null => {
+    if (typeof v === 'number' && Number.isInteger(v) && Number.isFinite(v)) return v
+    return null
   }
   // Codex r1 P7: preserve the pre-cap house count so the renderer can show
   // "houses (25): name1…name6" instead of mis-reporting 12 (the projection
@@ -849,14 +998,17 @@ async function fetchSchoolBundle(
     thai_students: typeof metaRow.thai_students === 'number' ? metaRow.thai_students : null,
     thai_community: clipText(metaRow.thai_community),
     open_day_text: clipText(metaRow.open_day_text),
-    open_day_url: typeof metaRow.open_day_url === 'string' && metaRow.open_day_url ? metaRow.open_day_url : null,
-    prospectus_url: typeof metaRow.prospectus_url === 'string' && metaRow.prospectus_url ? metaRow.prospectus_url : null,
-    head_of_school: typeof metaRow.head_of_school === 'string' && metaRow.head_of_school ? metaRow.head_of_school : null,
-    head_tenure_start: typeof metaRow.head_tenure_start === 'string' && metaRow.head_tenure_start ? metaRow.head_tenure_start : null,
+    // Codex r2 F1: Step 3 fields were being passed through raw. An
+    // embedded \n in any of these would break the per-school line and
+    // inject fake instructions. Route them through the same sanitizers
+    // we added for the Step 10 v2 fields.
+    open_day_url: httpUrl(metaRow.open_day_url),
+    prospectus_url: httpUrl(metaRow.prospectus_url),
+    head_of_school: clipText(metaRow.head_of_school),
+    head_tenure_start: trimString(metaRow.head_tenure_start),
     house_system: clipText(metaRow.house_system),
-    house_names: houseNamesRaw && houseNamesRaw.length > 0
-      ? houseNamesRaw.slice(0, 12).map((x) => String(x))
-      : null,
+    // Codex r2 F1: stringArray applies sanitizeForPrompt per item.
+    house_names: stringArray(houseNamesRaw, 12),
     house_count: houseNamesCount,
     food_options: clipText(metaRow.food_options),
     // Codex r1 P8: collapse false → null. false produces no rendering
@@ -864,6 +1016,21 @@ async function fetchSchoolBundle(
     // raw false would just bloat the JSON.
     bus_service: metaRow.bus_service === true ? (true as const) : null,
     unique_selling_points: clipText(metaRow.unique_selling_points),
+    // Tab A Step 10 v2 Commit 3 (2026-05-26). 14 additional fields.
+    founded_year: integerOrNull(metaRow.founded_year),
+    isi_report_date: isoDate(metaRow.isi_report_date),
+    top_universities: stringArray(metaRow.top_universities, TOP_UNIVERSITIES_CAP),
+    alumni_notable: scrubAlumni(metaRow.alumni_notable),
+    instagram_url: httpUrl(metaRow.instagram_url),
+    youtube_url: httpUrl(metaRow.youtube_url),
+    logo_url: httpUrl(metaRow.logo_url),
+    hero_image: httpUrl(metaRow.hero_image),
+    school_pdfs: projectSchoolPdfs(pdfsRes.data as unknown as Parameters<typeof projectSchoolPdfs>[0]),
+    isi_summary: clipProse(metaRow.isi_summary),
+    isi_key_strengths: stringArray(metaRow.isi_key_strengths, ISI_STRENGTHS_CAP),
+    isi_areas_for_improvement: stringArray(metaRow.isi_areas_for_improvement, ISI_AREAS_CAP),
+    isi_academic_quality: trimString(metaRow.isi_academic_quality),
+    isi_pastoral_care: trimString(metaRow.isi_pastoral_care),
   }
   const curated_meta: PackSchool['curated_meta'] =
     Object.values(curatedMetaRaw).every((v) => v === null) ? null : curatedMetaRaw
