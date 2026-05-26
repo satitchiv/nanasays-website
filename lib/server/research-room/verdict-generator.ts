@@ -1092,6 +1092,7 @@ function buildV3Overlay(
   args:   BuildArgs,
   rubric: Rubric,
   scored: ScoredSchool[],
+  sanitizedRanking: RecommenderRanking,
 ): V3Overlay {
   const facts = args.schoolFacts
 
@@ -1125,11 +1126,13 @@ function buildV3Overlay(
   // v3.1 (2026-05-26): recommender-driven selection. Path A = recommender
   // #1, Path B = strongest academic, Path C = most-affordable (or
   // least-over-budget / lowest-fee variants depending on budget data).
+  // `sanitizedRanking` is computed once in buildResearchVerdictDraft and
+  // reused for the hash payload (Codex r4 P3 — single normalization point).
   const pathSelection = selectPathWinners(
     eligible as unknown as Parameters<typeof selectPathWinners>[0],
     facts,
     briefContext,
-    args.recommenderRanking ?? [],
+    sanitizedRanking,
     eligibleForPath as unknown as Parameters<typeof selectPathWinners>[4],
   )
 
@@ -1192,8 +1195,8 @@ function buildV3Overlay(
   function overlayFor(pk: PathKey): PathOverlay {
     const winner      = pathSelection.winners[pk]
     const framingHint = pathSelection.framingHints[pk]
-    const framing     = framingForPathV2(pk, framingHint, pathSelection.budgetCapLabel)
     if (!winner) {
+      const framing = framingForPathV2(pk, framingHint, pathSelection.budgetCapLabel)
       return {
         framing:        framing.framing,
         framingLong:    framing.framingLong,
@@ -1210,6 +1213,11 @@ function buildV3Overlay(
       }
     }
     const winnerFacts = facts.get(winner.slug)
+    // v3.1 (2026-05-26): narrative now reads framingHint + budgetCapLabel +
+    // eligibleCount directly (passed via BuildPathInput), so framing /
+    // framingLong / framingHint / status_note are correct at construction.
+    // No more post-hoc override of those fields in this adapter — only the
+    // selector-owned costs + considerations merge below.
     const baseOverlay = buildPathOverlay({
       pathKey:            pk,
       winner:             winner as unknown as Parameters<typeof buildPathOverlay>[0]['winner'],
@@ -1219,18 +1227,10 @@ function buildV3Overlay(
       allEligibleSchools: eligible as unknown as Parameters<typeof buildPathOverlay>[0]['allEligibleSchools'],
       rowsWithProvenance: rowsWithProvenance as unknown as Parameters<typeof buildPathOverlay>[0]['rowsWithProvenance'],
       schoolIdx:          args.comparisonData.schools.findIndex(s => s.slug === winner.slug),
+      framingHint,
+      budgetCapLabel:     pathSelection.budgetCapLabel,
+      eligibleCount:      pathSelection.eligibleCount,
     })
-    // v3.1: override framing + framingHint + status_note from new framing
-    // table so the prose under the panel still reads the legacy narrative
-    // builder but the header/anchor reflects the recommender-driven lens.
-    baseOverlay.framing     = framing.framing
-    baseOverlay.framingLong = framing.framingLong
-    baseOverlay.framingHint = framingHint   // Codex r3 NIT: explicit assignment
-    const newStatusNote = statusNoteForV2(
-      pathSelection.pathStatus[pk], pk, framingHint, pathSelection.eligibleCount,
-    )
-    if (newStatusNote !== undefined) baseOverlay.status_note = newStatusNote
-    else if (pathSelection.pathStatus[pk] === 'winner') baseOverlay.status_note = undefined
 
     // v3.1 (Codex r2 P2.a): the selector owns fee-cost generation now.
     // Strip any duplicate fee-cap cost from the narrative builder's output
@@ -1539,11 +1539,19 @@ export function buildResearchVerdictDraft(args: BuildArgs): { inputHash: string;
   const childLabel = args.childName ? `${args.childName}'s` : 'your child\'s'
   const confidence = confidenceFor(args.comparisonData, scored)
 
+  // v3.1 (2026-05-26 — Codex r4 P3): sanitize recommenderRanking ONCE here so
+  // selection AND hash payload read the same shape. Filters non-finite +
+  // negative rank_position; stable sort by (rank, slug). Direct callers
+  // (tests, future scripts) get the same normalization as the route.
+  const sanitizedRanking: RecommenderRanking = (args.recommenderRanking ?? [])
+    .filter(r => Number.isFinite(r.rank_position) && r.rank_position >= 0)
+    .sort((a, b) => a.rank_position - b.rank_position || a.slug.localeCompare(b.slug))
+
   // Codex r1 Delete #2 (2026-05-22): v2 fallback path removed. v3 overlay
   // always built — with empty/degenerate schoolFacts the overlay still emits
   // v3 shape (paths default to needs_research, couldnt_compare carries
   // below-threshold schools, brief_tensions empty).
-  const v3Overlay = buildV3Overlay(args, rubric, scored)
+  const v3Overlay = buildV3Overlay(args, rubric, scored, sanitizedRanking)
 
   const ranked = scored.map((s, idx) => {
     const winsPaths = v3Overlay.pathWinnerSlugs
@@ -1589,11 +1597,9 @@ export function buildResearchVerdictDraft(args: BuildArgs): { inputHash: string;
   // version always 4 — v2 hash branch removed with the fallback path.
   //
   // v3.1 (2026-05-26): bumped to version 5; sanitized recommenderRanking
-  // included so a Refresh that re-ranks invalidates the cached verdict.
-  const sanitizedRanking = (args.recommenderRanking ?? [])
-    .filter(r => Number.isFinite(r.rank_position) && r.rank_position >= 0)
-    .sort((a, b) => a.rank_position - b.rank_position || a.slug.localeCompare(b.slug))
-    .map(r => [r.slug, r.rank_position])
+  // (computed once at the top of this function) included so a Refresh that
+  // re-ranks invalidates the cached verdict. Codex r4 P3: one normalization
+  // point — selection + hash payload share `sanitizedRanking`.
   const hashPayload: Record<string, unknown> = {
     version: 5,
     sessionId: args.sessionId,
@@ -1602,7 +1608,7 @@ export function buildResearchVerdictDraft(args: BuildArgs): { inputHash: string;
     rows: args.comparisonData.rows,
     childProfile: args.childProfile ?? {},
     schoolFacts: v3Overlay.schoolFactsProjection,
-    recommenderRanking: sanitizedRanking,
+    recommenderRanking: sanitizedRanking.map(r => [r.slug, r.rank_position]),
   }
   const inputHash = crypto.createHash('sha256').update(JSON.stringify(stableHashValue(hashPayload))).digest('hex')
   const bodyMarkdown = buildMarkdown(verdict)
