@@ -707,4 +707,40 @@ export const INTENT_FIXTURES: IntentFixture[] = [
     },
     origin: 'item-3 Codex r1 all-neutral sentinel',
   },
+  // ── 2026-05-27 flexi-boarding enum addition ────────────────────────
+  // Eval battery (Theo persona, sixth-form IB boy) surfaced 2× misses
+  // where parent prose explicitly said "flexible boarding" but
+  // classifier emitted 'none' because enum was missing 'flexi'.
+  // Fixtures lock the new value's recognition + ambient signals.
+  {
+    name:         'flexi: open to flexible boarding → flexi',
+    anchors_notes: 'South East England is essential. We are open to flexible boarding if the right school comes along. Budget is £40-50k per year.',
+    expected:     { boarding_pref_from_prose: 'flexi' },
+    origin:       '2026-05-27 flexi-enum slice — Theo persona r2 anchors_notes',
+  },
+  {
+    name:         'flexi: a few nights a week → flexi',
+    anchors_notes: 'Day commute is hard in the week, so a few nights a week boarding suits us.',
+    expected:     { boarding_pref_from_prose: 'flexi' },
+    origin:       '2026-05-27 flexi-enum slice — paraphrased',
+  },
+  {
+    name:         'flexi: full boarding still wins over flexible mention',
+    // Sanity check — explicit "full boarding" should still pin to
+    // 'full' even when the word "flexible" appears in a different
+    // context. Locks against the new enum value over-firing.
+    academic_notes: 'We want full boarding — he is ready for the immersive experience.',
+    anchors_notes:  'Flexible on which county; full boarding is the requirement.',
+    expected:       { boarding_pref_from_prose: 'full' },
+    origin:         '2026-05-27 flexi-enum slice — over-fire regression guard',
+  },
+  {
+    name:         'flexi-vs-none boundary: flexible-on-location + maybe boarding → none',
+    // Codex r1 P2 #3 (2026-05-27) — the riskier boundary. Generic
+    // "flexible" wording about location + ambivalent boarding stance
+    // must stay 'none', not coerce to 'flexi'.
+    anchors_notes: "We're flexible on location and might consider boarding, but no boarding preference yet.",
+    expected:      { boarding_pref_from_prose: 'none' },
+    origin:        '2026-05-27 Codex r1 P2 — flexi-vs-none boundary',
+  },
 ]

@@ -50,7 +50,7 @@ export type IntentFocusCache = {
 // CLASSIFICATION_VERSION. Hardcoded here (vs imported from server) so this
 // module stays free of 'server-only' deps. Keep these two strings in
 // lockstep when bumping the classifier prompt/schema.
-export const DEFAULT_EXPECTED_VERSION = 'phase-2-8-sport-focus-v1'
+export const DEFAULT_EXPECTED_VERSION = 'phase-2-8-sport-focus-v2-flexi'
 
 // Phase 2.8 — sport_focus enum (mirrors classify-build-mode-intent.ts
 // BuildModeIntentLlmSchema). Lives here so brief-predicates and consumers

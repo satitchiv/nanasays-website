@@ -62,9 +62,15 @@ const MAX_TOKENS    = 512  // 8-field JSON output is still tiny; raised from 256
 // Bump when the prompt or schema changes meaningfully. Cache keys should
 // include this so a prompt revision invalidates stored intents.
 // Phase 2.8 (2026-05-25): added sport_focus enum — bumped from
-// phase-4-item-3-v1 → phase-2-8-sport-focus-v1. Keep in lockstep with
-// effective-top-priority.ts DEFAULT_EXPECTED_VERSION.
-export const CLASSIFICATION_VERSION = 'phase-2-8-sport-focus-v1'
+// phase-4-item-3-v1 → phase-2-8-sport-focus-v1.
+// 2026-05-27: added 'flexi' to boarding_pref_from_prose enum (was
+// missing — wizard has flexi but classifier coerced flexible-boarding
+// prose to 'none'). Caught by recommender eval battery Theo persona
+// (sixth-form boy, IB, flexible boarding) — classifier missed his
+// 'flexible boarding' wording 2× in a row. Bumped to v2.
+// Keep in lockstep with effective-top-priority.ts
+// DEFAULT_EXPECTED_VERSION.
+export const CLASSIFICATION_VERSION = 'phase-2-8-sport-focus-v2-flexi'
 
 // ── Schema ──────────────────────────────────────────────────────────
 //
@@ -82,7 +88,12 @@ export const BuildModeIntentLlmSchema = z.object({
   pastoral_priority:        z.enum(['high', 'normal', 'none']),
   inclusive_priority:       z.enum(['high', 'normal', 'none']),
   small_env_pref:           z.enum(['wants', 'rejects', 'none']),
-  boarding_pref_from_prose: z.enum(['full', 'weekly', 'day', 'rejects', 'none']),
+  // 2026-05-27 — 'flexi' added to mirror wizard enum
+  // (lib/onboarding-fields.ts boarding_pref). Without it, parents
+  // saying "flexible boarding" or "a few nights a week" coerced to
+  // 'none' and downstream resolveBoardingPref couldn't honour the
+  // signal.
+  boarding_pref_from_prose: z.enum(['full', 'weekly', 'flexi', 'day', 'rejects', 'none']),
   // Codex r1 implementation review (2026-05-22): 'cultural' was captured
   // but never persisted or scored. Dropped to reduce model burden and
   // keep the schema honest. Re-add when we have a place to act on it
@@ -148,6 +159,7 @@ const SYSTEM_PROMPT = `You classify a parent's free-text notes about their child
 **boarding_pref_from_prose**
 - "full" — parent positively signals full boarding desired. Examples: "we want full boarding", "boarding 7 days a week", "live in".
 - "weekly" — parent signals weekly boarding. Examples: "weekly boarding suits us", "home at weekends".
+- "flexi" — parent signals flexible/flexi boarding (a few nights a week, can vary). Examples: "we're open to flexible boarding", "flexi boarding works for us", "flexible boarding if the right school comes along", "a few nights a week", "flexi" (alone in boarding context).
 - "day" — parent positively signals day-school. Examples: "she'd prefer day", "stays at home", "day pupil".
 - "rejects" — parent explicitly rejects boarding (any kind). Examples: "no boarding", "she's not ready for boarding", "boarding isn't right for him", "we don't want boarding".
 - "none" — neither, or only mentions boarding incidentally / current-school context.

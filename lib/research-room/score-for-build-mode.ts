@@ -199,15 +199,16 @@ const SPORT_LEVEL_DEFAULT = 0.5
 const SPORT_TOTAL_CAP = 3.0
 
 // Phase 4 item #3 Codex r2 review (2026-05-22): shared boarding-pref
-// resolver. Wizard wins; otherwise prose full/weekly/day/rejects fill the
-// effective boarding preference, with rejects mapped to 'day' (the
-// closest hard-filter equivalent — drops KNOWN_FULL_BOARDING_NAMES). Used
-// by: (a) the hard-filter step below, (b) the in-budget chip in the
-// pure ranker, (c) the wrapper SQL budget-column selection. Without this
-// shared resolver, "weekly boarding suits us" with a null wizard would
-// not filter day-only schools and would not use the boarding fee column
-// for budget checks — a positive-prose-boarding asymmetry Codex r2 caught.
-// No-erase rule preserved: when wizard is set, prose is ignored.
+// resolver. Wizard wins; otherwise prose full/weekly/flexi/day/rejects
+// fill the effective boarding preference, with rejects mapped to 'day'
+// (the closest hard-filter equivalent — drops KNOWN_FULL_BOARDING_NAMES).
+// 2026-05-27 — 'flexi' added to the prose enum (mirrors wizard).
+// Used by: (a) the hard-filter step below, (b) the in-budget chip in
+// the pure ranker, (c) the wrapper SQL budget-column selection. Without
+// this shared resolver, "weekly boarding suits us" with a null wizard
+// would not filter day-only schools and would not use the boarding fee
+// column for budget checks — a positive-prose-boarding asymmetry Codex
+// r2 caught. No-erase rule preserved: when wizard is set, prose is ignored.
 // 2026-05-24 Yoko slice — exported for unit testing. firedNonneg param added
 // so explicit nonneg directives ("day school only", "boarding required")
 // override stale inherited wizard values. Closes Yoko-pattern 0-candidates
@@ -227,7 +228,7 @@ export function resolveBoardingPref(
     return wizard
   }
   const prose = intent?.boarding_pref_from_prose
-  if (prose === 'full' || prose === 'weekly' || prose === 'day') return prose
+  if (prose === 'full' || prose === 'weekly' || prose === 'flexi' || prose === 'day') return prose
   if (prose === 'rejects') return 'day'
   return null
 }
@@ -764,6 +765,12 @@ export function rankCandidates(
   //   - 'must-be-london' fires → 'london' (overrides stale parent.home_region)
   //   - else → parent.home_region (with anywhere/overseas/unknown → null)
   const explicitHomeRegion: HomeRegion | null = resolveHomeRegion(parent, firedNonnegFilters)
+
+  // Codex r1 P1 (2026-05-27) — effective curriculum for the IB signal
+  // block in the score loop. Mirrors resolveCurriculumPref's nonneg
+  // override path so `any-curriculum` nonneg relaxes both the hard
+  // filter AND the IB signal/boost.
+  const effectiveCurric = resolveCurriculumPref(parent, firedNonnegFilters)
 
   // ── JS-level hard filters: gender + boarding via name overrides ──
   // Codex r1 P1 #3 (2026-05-26) — gender check delegated to the shared
@@ -1305,6 +1312,31 @@ export function rankCandidates(
       // unshift — parent-stated preference match (sen_need='yes-priority'),
       // must survive the top-5 dedupe/slice. See ethos-match for full rationale.
       signals.unshift('SEN-aware')
+    }
+
+    // ── IB curriculum positive ──────────────────────────────────────
+    // 2026-05-27 — Theo (sixth-form, curriculum_pref='ib') eval persona
+    // surfaced this miss: shortlist passed IB hard-filter but signals[]
+    // didn't surface curriculum match, so parent couldn't see WHICH
+    // schools offered IB. matchesCurriculumPreference is the hard
+    // filter; this block is the parent-facing signal surface.
+    // A-Level intentionally NOT surfaced — it's the UK default, so an
+    // 'A-Level curriculum' chip on every school would be noise.
+    //
+    // Codex r1 P1 (2026-05-27): gate on `effectiveCurric` (which
+    // honours the `any-curriculum` nonneg override) instead of raw
+    // `parent.curriculum_pref`. Without this, a parent with stale
+    // inherited curriculum_pref='ib' + explicit "any curriculum"
+    // nonneg would still see IB chips + boost on IB schools — but
+    // the hard filter already relaxed, so the IB chip is a false
+    // promise.
+    if (effectiveCurric === 'ib' && struct?.curriculum && struct.curriculum.length > 0) {
+      const hasIB = struct.curriculum.some(c => typeof c === 'string' && IB_PATTERN.test(c))
+      if (hasIB) {
+        score += 0.3
+        // unshift to survive top-N dedupe (mirrors SEN-aware pattern).
+        signals.unshift('IB curriculum')
+      }
     }
 
     // ── Phase 1 data-utilization (2026-05-21) — Medicine / law / engineering
