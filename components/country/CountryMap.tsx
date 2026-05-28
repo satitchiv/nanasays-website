@@ -2,27 +2,43 @@
 
 import { useEffect, useRef } from 'react'
 import { CITY_COORDS } from '@/lib/cityCoords'
+import { isInCountryBounds } from '@/lib/countryBounds'
 import type { SchoolListItem } from '@/lib/types'
 
 interface Props {
   schools: SchoolListItem[]
   center: [number, number]
   zoom: number
+  country: string
   hoveredSchoolId: string | null
   selectedSchoolId: string | null
   onSchoolClick: (id: string) => void
 }
 
-function getCoords(school: SchoolListItem): [number, number] | null {
-  if (school.latitude && school.longitude) return [school.latitude, school.longitude]
+// Escape strings before interpolating into Leaflet popup HTML. The popup is
+// built as raw HTML (bindPopup string), so any DB-sourced field that ever
+// gets contaminated would be stored-XSS without this. Belt and braces.
+function esc(s: string | null | undefined): string {
+  return (s ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  })[c] as string)
+}
+
+function getCoords(school: SchoolListItem, country: string): [number, number] | null {
+  if (school.latitude != null && school.longitude != null) {
+    const lat = Number(school.latitude)
+    const lng = Number(school.longitude)
+    if (isInCountryBounds(lat, lng, country)) return [lat, lng]
+    // Stored coords are outside the page country — fall through to city lookup.
+  }
   if (school.city) {
     const c = CITY_COORDS[school.city]
-    if (c) return c
+    if (c && isInCountryBounds(c[0], c[1], country)) return c
   }
   return null
 }
 
-export default function CountryMap({ schools, center, zoom, hoveredSchoolId, selectedSchoolId, onSchoolClick }: Props) {
+export default function CountryMap({ schools, center, zoom, country, hoveredSchoolId, selectedSchoolId, onSchoolClick }: Props) {
   const mapRef = useRef<HTMLDivElement>(null)
   const mapInstanceRef = useRef<any>(null)
   // Map from school id → { marker, school }
@@ -54,7 +70,7 @@ export default function CountryMap({ schools, center, zoom, hoveredSchoolId, sel
       mapInstanceRef.current = map
 
       schools.forEach(school => {
-        const coords = getCoords(school)
+        const coords = getCoords(school, country)
         if (!coords) return
 
         const icon = makePin(L.default, false, false)
@@ -62,9 +78,9 @@ export default function CountryMap({ schools, center, zoom, hoveredSchoolId, sel
 
         marker.bindPopup(`
           <div style="padding:8px 10px;font-family:'Nunito Sans',sans-serif;min-width:180px;max-width:240px;">
-            <div style="font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;color:#1B3252;line-height:1.3;margin-bottom:3px;">${school.name}</div>
-            <div style="font-size:11px;color:#6B7280;margin-bottom:10px;">${school.city ?? ''}</div>
-            <a href="/schools/${school.slug}" style="display:block;text-align:center;padding:8px 12px;background:#1B3252;color:#fff;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;font-family:'Nunito Sans',sans-serif;">View profile →</a>
+            <div style="font-family:'Nunito',sans-serif;font-size:13px;font-weight:800;color:#1B3252;line-height:1.3;margin-bottom:3px;">${esc(school.name)}</div>
+            <div style="font-size:11px;color:#6B7280;margin-bottom:10px;">${esc(school.city)}</div>
+            <a href="/schools/${encodeURIComponent(school.slug)}" style="display:block;text-align:center;padding:8px 12px;background:#1B3252;color:#fff;border-radius:8px;font-size:12px;font-weight:700;text-decoration:none;font-family:'Nunito Sans',sans-serif;">View profile →</a>
           </div>
         `, { maxWidth: 260 })
 
@@ -76,7 +92,7 @@ export default function CountryMap({ schools, center, zoom, hoveredSchoolId, sel
       if (selectedSchoolId) {
         const entry = markersRef.current[selectedSchoolId]
         if (entry) {
-          const coords = getCoords(entry.school)
+          const coords = getCoords(entry.school, country)
           if (coords) {
             map.setView(coords, Math.max(zoom, 13))
             entry.marker.openPopup()
@@ -114,7 +130,7 @@ export default function CountryMap({ schools, center, zoom, hoveredSchoolId, sel
     if (!mapRef.current || mapRef.current.offsetWidth === 0) return
     const entry = markersRef.current[selectedSchoolId]
     if (!entry) return
-    const coords = getCoords(entry.school)
+    const coords = getCoords(entry.school, country)
     if (!coords) return
     mapInstanceRef.current.flyTo(coords, Math.max(zoom, 13), { duration: 0.6 })
     entry.marker.openPopup()
