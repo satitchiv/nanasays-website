@@ -457,7 +457,12 @@ export async function POST(req: NextRequest) {
             ? {
                 kind: (intentMatch as any).intent ?? null,
                 dimension: (intentMatch as any).dimension ?? null,
-                target_slugs: (intentMatch as any).schoolSlugs ?? [],
+                // 2026-06-11 review fix: routeIntent returns
+                // `recommendedSchoolSlugs` — the old `.schoolSlugs` read
+                // (hidden by the `as any`) meant intent targets NEVER
+                // reached the pack, so the assembler's targets-first
+                // ordering only ever saw mentioned/active slugs.
+                target_slugs: (intentMatch as any).recommendedSchoolSlugs ?? [],
                 confidence: (intentMatch as any).confidence ?? null,
               }
             : null,

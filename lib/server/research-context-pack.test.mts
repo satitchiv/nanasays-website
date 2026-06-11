@@ -11,7 +11,7 @@ import {
   safeRecentMessages,
   estimateTokens,
 } from './pack-redactors.ts'
-import { assembleResearchContextPack } from './research-context-pack.ts'
+import { assembleResearchContextPack, applyOverflowReducers } from './research-context-pack.ts'
 
 // ── pack-redactors: redactPii ──────────────────────────────────────────────
 
@@ -454,7 +454,7 @@ test('assembleResearchContextPack: T4.17 — wrong-version projection is ignored
   assert.equal(ply.projection, undefined, 'projection payload should be dropped when version mismatches')
 })
 
-test('assembleResearchContextPack: shortlist-of-3 fits under 5000 tokens', async () => {
+test('assembleResearchContextPack: shortlist-of-3 fits under 14000 tokens', async () => {
   const slugs = ['school-a', 'school-b', 'school-c']
   const supabase = buildMockSupabase({
     parent_profiles: [{ id: 'p', child_year: null, boarding_pref: null, budget_range: null, top_priority: null, home_region: null }],
@@ -489,7 +489,8 @@ test('assembleResearchContextPack: shortlist-of-3 fits under 5000 tokens', async
     'compare these',
   )
 
-  assert.ok(pack.meta.estimated_tokens <= 5000, `pack should fit 5000 tokens for shortlist=3, was ${pack.meta.estimated_tokens}`)
+  // 2026-06-11: cap raised 5000 → 14000 (whole-landscape slice).
+  assert.ok(pack.meta.estimated_tokens <= 14000, `pack should fit 14000 tokens for shortlist=3, was ${pack.meta.estimated_tokens}`)
   assert.equal(Object.keys(pack.schools).length, 3)
 })
 
@@ -543,26 +544,28 @@ async function packForShortlist(n: number) {
   )
 }
 
-test('Token budget — shortlist=1 fits under 4000 tokens', async () => {
+// 2026-06-11: caps raised across all tiers (whole-landscape slice) —
+// 4000/5000/6500/8000 → 12000/14000/18000/24000.
+test('Token budget — shortlist=1 fits under 12000 tokens', async () => {
   const pack = await packForShortlist(1)
-  assert.ok(pack.meta.estimated_tokens <= 4000, `was ${pack.meta.estimated_tokens}`)
+  assert.ok(pack.meta.estimated_tokens <= 12000, `was ${pack.meta.estimated_tokens}`)
 })
 
-test('Token budget — shortlist=2 fits under 4000 tokens', async () => {
+test('Token budget — shortlist=2 fits under 12000 tokens', async () => {
   const pack = await packForShortlist(2)
-  assert.ok(pack.meta.estimated_tokens <= 4000, `was ${pack.meta.estimated_tokens}`)
+  assert.ok(pack.meta.estimated_tokens <= 12000, `was ${pack.meta.estimated_tokens}`)
 })
 
-test('Token budget — shortlist=5 fits under 6500 tokens', async () => {
+test('Token budget — shortlist=5 fits under 18000 tokens', async () => {
   const pack = await packForShortlist(5)
-  assert.ok(pack.meta.estimated_tokens <= 6500, `was ${pack.meta.estimated_tokens}`)
+  assert.ok(pack.meta.estimated_tokens <= 18000, `was ${pack.meta.estimated_tokens}`)
   // Should have triggered overflow reducers
   assert.ok(pack.meta.overflow_actions.length >= 0)
 })
 
-test('Token budget — shortlist=8 fits under 8000 tokens', async () => {
+test('Token budget — shortlist=8 fits under 24000 tokens', async () => {
   const pack = await packForShortlist(8)
-  assert.ok(pack.meta.estimated_tokens <= 8000, `was ${pack.meta.estimated_tokens}`)
+  assert.ok(pack.meta.estimated_tokens <= 24000, `was ${pack.meta.estimated_tokens}`)
   // Reducers may or may not fire depending on fixture density; what matters is
   // the cap is honoured. Codex 2026-05-08: this test asserts the cap, not the
   // mechanism — heavier fixtures will exercise reducers when real data hits.
@@ -624,8 +627,166 @@ test('Token budget — adversarially-heavy 5-school fixture forces reducers to f
     'compare these',
   )
 
-  // Cap for shortlist=5 is 6500 (per capsForShortlistSize). Pack must end up
-  // under cap, which means reducers MUST have fired.
-  assert.ok(pack.meta.estimated_tokens <= 6500, `pack went over cap: ${pack.meta.estimated_tokens}`)
+  // Cap for shortlist=5 is 18000 (per capsForShortlistSize, raised 2026-06-11).
+  // The fixture's raw structured payload alone is ~25k tokens, so the pack
+  // must end up under cap, which means reducers MUST have fired.
+  assert.ok(pack.meta.estimated_tokens <= 18000, `pack went over cap: ${pack.meta.estimated_tokens}`)
   assert.ok(pack.meta.overflow_actions.length > 0, `expected reducers to fire; overflow_actions=${JSON.stringify(pack.meta.overflow_actions)}`)
+})
+
+// ══════════════════════════════════════════════════════════════════════════
+// applyOverflowReducers — target-aware stages (whole-landscape slice,
+// 2026-06-11; Codex Commit-3 follow-up test plan). Synthetic packs are built
+// directly so each stage's trigger cap can be computed exactly instead of
+// calibrating a Supabase fixture by trial and error.
+// ══════════════════════════════════════════════════════════════════════════
+
+const ISI_PROSE = 'I'.repeat(3500) // ≈1000 tokens — dominant per-school weight
+const PDF_TITLE = 'P'.repeat(1750) // ≈500 tokens
+const ALUMNI = 'A'.repeat(875) // ≈250 tokens
+
+function syntheticOverflowPack(slugs: string[]) {
+  const schools: Record<string, any> = {}
+  for (const slug of slugs) {
+    schools[slug] = {
+      slug,
+      meta: { name: slug, country: 'United Kingdom', is_uk: true },
+      structured: { pastoral_care: 'Pastoral detail. '.repeat(20) },
+      curated_meta: {
+        head_of_school: 'Dr Head',
+        founded_year: 1880,
+        isi_report_date: '2024-03-01',
+        top_universities: ['Oxford', 'Cambridge', 'Imperial'],
+        alumni_notable: ALUMNI,
+        school_pdfs: [{ title: PDF_TITLE, url: 'https://example.com/admissions.pdf' }],
+        isi_summary: ISI_PROSE,
+        isi_key_strengths: ['strong teaching', 'pastoral care'],
+        isi_areas_for_improvement: ['homework consistency'],
+      },
+      source: 'structured',
+      citations: [],
+      missing_dims: [],
+    }
+  }
+  return {
+    parent: { user_id: 'p', region: null, budget_band: null, top_priority: null, boarding_pref: null, child_year: null, ethos_pref: null, intl_pref: null, phone_pref: null, lgbtq_pref: null, pastoral_pref: null },
+    child: null,
+    session: { id: 's', title: '', rolling_summary: null, turn_count: 0 },
+    recent_messages: [],
+    shortlist: slugs,
+    comparison: { lens_id: null, lens_kind: 'general', lens_question: null, weights: {}, visible_rows: [], rows: [] },
+    intent: null,
+    schools,
+    meta: { pack_version: '1.0.0', assembled_at: '', elapsed_ms: 0, bytes: 0, estimated_tokens: 0, flags: { mode: 'authenticated', share_justifications: false }, overflow_actions: [] },
+  } as any
+}
+
+const OVERFLOW_SLUGS = ['winchester-college', 'bg-1', 'bg-2', 'bg-3', 'bg-4', 'bg-5', 'bg-6', 'bg-7']
+const OVERFLOW_TARGETS = new Set(['winchester-college'])
+
+/** Estimate pack size after manually applying the target-aware stages 1..k —
+ * gives each test an exact cap that stops the chain at the stage it wants. */
+function estimateAfterBackgroundStages(slugs: string[], stages: 1 | 2 | 3): number {
+  const clone = syntheticOverflowPack(slugs)
+  for (const slug of slugs) {
+    if (OVERFLOW_TARGETS.has(slug)) continue
+    const cm = clone.schools[slug].curated_meta
+    cm.isi_summary = null; cm.isi_key_strengths = null; cm.isi_areas_for_improvement = null
+    if (stages >= 2) cm.school_pdfs = null
+    if (stages >= 3) { cm.alumni_notable = null; cm.top_universities = null }
+  }
+  return estimateTokens(clone)
+}
+
+test('applyOverflowReducers: target preservation — mentioned school keeps ISI prose while background sheds it', () => {
+  const pack = syntheticOverflowPack(OVERFLOW_SLUGS)
+  const cap = estimateAfterBackgroundStages(OVERFLOW_SLUGS, 1)
+  const actions = applyOverflowReducers(pack, OVERFLOW_TARGETS, cap)
+
+  assert.ok(actions.includes('dropped_isi_prose_background'), `stage 1 must fire; actions=${actions}`)
+  assert.ok(!actions.includes('dropped_curated_meta'), `full nuke must NOT fire; actions=${actions}`)
+  // No-op reducers must not pollute telemetry: nothing earlier in the chain
+  // had anything to drop, so stage 1 is the only recorded action.
+  assert.deepEqual(actions, ['dropped_isi_prose_background'])
+  // Target keeps its ISI narrative…
+  assert.equal(pack.schools['winchester-college'].curated_meta.isi_summary, ISI_PROSE)
+  // …while every background school shed it.
+  for (const slug of OVERFLOW_SLUGS.filter((s) => s !== 'winchester-college')) {
+    assert.equal(pack.schools[slug].curated_meta.isi_summary, null, `${slug} should shed ISI prose`)
+  }
+})
+
+test('applyOverflowReducers: escalation — compact fields survive stages 1-3 on ALL schools', () => {
+  const pack = syntheticOverflowPack(OVERFLOW_SLUGS)
+  const cap = estimateAfterBackgroundStages(OVERFLOW_SLUGS, 3)
+  const actions = applyOverflowReducers(pack, OVERFLOW_TARGETS, cap)
+
+  assert.deepEqual(actions, ['dropped_isi_prose_background', 'dropped_school_pdfs_background', 'dropped_rich_meta_background'])
+  for (const slug of OVERFLOW_SLUGS) {
+    const cm = pack.schools[slug].curated_meta
+    assert.ok(cm, `${slug} curated_meta must survive stages 1-3`)
+    assert.equal(cm.founded_year, 1880, `${slug} keeps founded_year`)
+    assert.equal(cm.isi_report_date, '2024-03-01', `${slug} keeps isi_report_date`)
+    assert.equal(cm.head_of_school, 'Dr Head', `${slug} keeps head_of_school`)
+  }
+  // Target keeps even the rich fields…
+  const target = pack.schools['winchester-college'].curated_meta
+  assert.equal(target.alumni_notable, ALUMNI)
+  assert.ok(Array.isArray(target.school_pdfs) && target.school_pdfs.length === 1)
+  // …background schools shed them.
+  assert.equal(pack.schools['bg-1'].curated_meta.alumni_notable, null)
+  assert.equal(pack.schools['bg-1'].curated_meta.school_pdfs, null)
+})
+
+test('applyOverflowReducers: last resort — pathological cap still nukes curated_meta everywhere', () => {
+  const pack = syntheticOverflowPack(OVERFLOW_SLUGS)
+  const actions = applyOverflowReducers(pack, OVERFLOW_TARGETS, 10)
+
+  assert.ok(actions.includes('dropped_curated_meta'), `full nuke must fire; actions=${actions}`)
+  assert.ok(actions.includes('truncated_structured_to_meta_only'), `structured trim must fire; actions=${actions}`)
+  for (const slug of OVERFLOW_SLUGS) {
+    assert.equal(pack.schools[slug].curated_meta, null, `${slug} curated_meta nuked at last resort`)
+    assert.equal(pack.schools[slug].structured, null, `${slug} structured nuked at last resort`)
+  }
+})
+
+test('applyOverflowReducers: under-cap pack records no actions and is untouched', () => {
+  const pack = syntheticOverflowPack(['solo-school'])
+  const before = estimateTokens(pack)
+  const actions = applyOverflowReducers(pack, new Set<string>(), before + 1000)
+  assert.deepEqual(actions, [])
+  assert.equal(pack.schools['solo-school'].curated_meta.isi_summary, ISI_PROSE)
+})
+
+test('assembleResearchContextPack: mentioned school survives a full 10-school shortlist (targets-first ordering)', async () => {
+  const shortlist = Array.from({ length: 10 }, (_, i) => `short-${i}`)
+  const allSlugs = [...shortlist, 'mentioned-school']
+  const supabase = buildMockSupabase({
+    parent_profiles: [{ id: 'p', child_year: null, boarding_pref: null, budget_range: null, top_priority: null, home_region: null }],
+    children: [],
+    research_sessions: [{ id: 's', user_id: 'p', title: '', summary: null, child_id: null }],
+    research_session_messages: [],
+    schools: allSlugs.map((s, i) => ({ slug: s, name: `School ${i}`, country: 'United Kingdom' })),
+    school_structured_data: [],
+    school_fact_projections: [],
+    school_facts: [],
+    comparison_rows: [],
+    comparison_lenses: [],
+  })
+
+  const pack = await assembleResearchContextPack(
+    supabase,
+    {
+      user_id: 'p', child_id: null, session_id: 's',
+      shortlist, mentioned_slugs: ['mentioned-school'], active_school_slug: null,
+      base_lens_kind: 'general', intent: null,
+    },
+    'what about mentioned school?',
+  )
+
+  const inPack = Object.keys(pack.schools)
+  assert.ok(inPack.includes('mentioned-school'), 'the school the parent just asked about must never be sliced off')
+  assert.ok(inPack.length <= 10, `pack ceiling is 10, was ${inPack.length}`)
+  // The tail of the shortlist pays the cost, not the target.
+  assert.ok(!inPack.includes('short-9'), 'last shortlist school is the one displaced')
 })

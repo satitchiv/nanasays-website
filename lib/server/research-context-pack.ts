@@ -248,12 +248,20 @@ export type ResearchContextPack = {
 }
 
 // ── Token caps per shortlist size (plan §6.5) ─────────────────────────────
+// 2026-06-11 evidence-based raise (whole-landscape slice). Live data: 11 of 21
+// shortlists hold 6+ schools, so the old 8k tier — which zeroed per-school
+// chunk budget and fired the full reducer cascade (observed: a 7-school pack
+// at ≈13.3k pre-reduction tokens lost curated_meta + notion + facts on every
+// school) — was the COMMON case, not the edge. New hard caps are sized so the
+// observed worst case fits with no reducers; reducers stay as the safety net
+// for genuinely pathological packs. perSchool*/comparison/recent/citations are
+// advisory sub-budgets (only `hard` is enforced today).
 
 function capsForShortlistSize(n: number) {
-  if (n <= 2) return { hard: 4000, perSchoolStructured: 350, perSchoolChunks: 600, comparison: 800, recent: 600, citations: 200 }
-  if (n === 3) return { hard: 5000, perSchoolStructured: 350, perSchoolChunks: 400, comparison: 800, recent: 600, citations: 200 }
-  if (n <= 5) return { hard: 6500, perSchoolStructured: 300, perSchoolChunks: 250, comparison: 1000, recent: 500, citations: 200 }
-  return { hard: 8000, perSchoolStructured: 250, perSchoolChunks: 0, comparison: 1200, recent: 500, citations: 200 }
+  if (n <= 2) return { hard: 12000, perSchoolStructured: 1000, perSchoolChunks: 1800, comparison: 1600, recent: 800, citations: 200 }
+  if (n === 3) return { hard: 14000, perSchoolStructured: 1000, perSchoolChunks: 1200, comparison: 1600, recent: 800, citations: 200 }
+  if (n <= 5) return { hard: 18000, perSchoolStructured: 900, perSchoolChunks: 750, comparison: 2000, recent: 700, citations: 200 }
+  return { hard: 24000, perSchoolStructured: 750, perSchoolChunks: 500, comparison: 2400, recent: 700, citations: 200 }
 }
 
 // SSD fields whitelisted into the pack (plan §6.1).
@@ -310,12 +318,18 @@ export async function assembleResearchContextPack(
   const overflow_actions: string[] = []
 
   // Resolve in-scope school slugs deterministically.
-  const inScope = uniq([
-    ...ctx.shortlist,
-    ...ctx.mentioned_slugs,
+  // 2026-06-11 (whole-landscape slice, Codex Commit-3 follow-up bonus bug):
+  // TARGETS — the active school, schools the user just named, and the intent
+  // router's resolved targets — go FIRST, shortlist fills the tail. The old
+  // shortlist-first order let a full shortlist slice off the school the
+  // parent was literally asking about. Ceiling raised 8 → 10 to match
+  // route.ts's slice(0, 10) shortlist cap (live max observed shortlist = 9).
+  const targetSlugs = uniq([
     ...(ctx.active_school_slug ? [ctx.active_school_slug] : []),
+    ...ctx.mentioned_slugs,
     ...((ctx.intent?.target_slugs ?? []) as string[]),
-  ]).slice(0, 8) // hard ceiling — pack assembler never pulls > 8 schools per call
+  ])
+  const inScope = uniq([...targetSlugs, ...ctx.shortlist]).slice(0, 10) // hard ceiling — pack assembler never pulls > 10 schools per call
 
   const caps = capsForShortlistSize(inScope.length)
 
@@ -455,11 +469,40 @@ export async function assembleResearchContextPack(
   }
 
   // ── Token-budget enforcement (plan §6.5) ─────────────────────────────────
-  // Codex 2026-05-08: enforcement now iterates until under cap or all reducible
-  // sections exhausted. Earlier version stopped after a few drops and could
-  // still return over cap. Now: chunks → sensitive → projection → visible_rows →
-  // comparison-row tail → older messages → facts → structured-trim. Never drops
-  // parent/child/session/shortlist/intent.
+  overflow_actions.push(...applyOverflowReducers(pack, new Set(targetSlugs), caps.hard))
+
+  pack.meta.elapsed_ms = Date.now() - t0
+  const json = JSON.stringify(pack)
+  pack.meta.bytes = Buffer.byteLength(json, 'utf8')
+  pack.meta.estimated_tokens = estimateTokens(pack)
+  pack.meta.overflow_actions = overflow_actions
+
+  return pack
+}
+
+// ── Overflow reducers (plan §6.5; target-aware split 2026-06-11) ───────────
+// Codex 2026-05-08: enforcement iterates until under cap or all reducible
+// sections exhausted. Never drops parent/child/session/shortlist/intent.
+//
+// 2026-06-11 (Codex Commit-3 follow-up design, REVISE-then-proceed verdict):
+// before the curated_meta full nuke, three TARGET-AWARE stages shed the
+// bulkiest curated fields from BACKGROUND schools only — schools the parent
+// is actually asking about (`targetSlugs`: active school + mentioned +
+// intent targets) keep their ISI prose / PDFs / rich text until the
+// last-resort full nuke. "What did ISI say about Winchester?" must keep
+// Winchester intact even while the rest of the shortlist sheds weight.
+//
+// A reducer's name is recorded only when it actually shrank the pack —
+// overflow_actions now means "this dropped something", not "this ran".
+// Exported for direct unit testing (synthetic packs, no fixture calibration).
+export function applyOverflowReducers(
+  pack: ResearchContextPack,
+  targetSlugs: ReadonlySet<string>,
+  hardCap: number,
+): string[] {
+  const backgroundSlugs = () =>
+    Object.keys(pack.schools).filter((slug) => !targetSlugs.has(slug))
+
   const reducers: Array<{ name: string; reduce: () => void }> = [
     {
       name: 'dropped_chunks',
@@ -478,6 +521,39 @@ export async function assembleResearchContextPack(
       reduce: () => { pack.comparison.visible_rows = pack.comparison.visible_rows.slice(0, 4) },
     },
     {
+      // Stage 1 (target-aware): ISI narrative prose off background schools.
+      // Fires before comparison-row truncation — comparison rows are the
+      // user's own workspace; background ISI prose is just context.
+      name: 'dropped_isi_prose_background',
+      reduce: () => {
+        for (const slug of backgroundSlugs()) {
+          const cm = pack.schools[slug].curated_meta
+          if (cm) { cm.isi_summary = null; cm.isi_key_strengths = null; cm.isi_areas_for_improvement = null }
+        }
+      },
+    },
+    {
+      // Stage 2 (target-aware): PDF URLs are bulky and rarely needed unless
+      // the user asks about documents.
+      name: 'dropped_school_pdfs_background',
+      reduce: () => {
+        for (const slug of backgroundSlugs()) {
+          const cm = pack.schools[slug].curated_meta
+          if (cm) cm.school_pdfs = null
+        }
+      },
+    },
+    {
+      // Stage 3 (target-aware): remaining rich-text curated fields.
+      name: 'dropped_rich_meta_background',
+      reduce: () => {
+        for (const slug of backgroundSlugs()) {
+          const cm = pack.schools[slug].curated_meta
+          if (cm) { cm.alumni_notable = null; cm.top_universities = null }
+        }
+      },
+    },
+    {
       name: 'truncated_comparison_rows_to_4',
       reduce: () => {
         if (pack.comparison.rows.length > 4) {
@@ -491,11 +567,10 @@ export async function assembleResearchContextPack(
       reduce: () => { if (pack.recent_messages.length > 3) pack.recent_messages = pack.recent_messages.slice(-3) },
     },
     {
-      // Tab A Step 3 (2026-05-25). Drop curated_meta BEFORE notion_backfill —
-      // Notion carries higher-impact quant facts (class size, pupil counts,
-      // GCSE / A-Level %) that parents ask about more than head_of_school /
-      // food_options / USP / etc. that live in curated_meta. Both are
-      // supplementary to the citation-bearing facts.
+      // Tab A Step 3 (2026-05-25); now the Stage-4 LAST-RESORT full nuke —
+      // hits target schools too. Stays ahead of notion_backfill: Notion
+      // carries higher-impact quant facts (class size, pupil counts,
+      // GCSE / A-Level %) than the curated head/food/USP fields.
       name: 'dropped_curated_meta',
       reduce: () => { for (const slug of Object.keys(pack.schools)) pack.schools[slug].curated_meta = null },
     },
@@ -527,21 +602,16 @@ export async function assembleResearchContextPack(
     },
   ]
 
+  const actions: string[] = []
   let estimated = estimateTokens(pack)
   for (const r of reducers) {
-    if (estimated <= caps.hard) break
+    if (estimated <= hardCap) break
     r.reduce()
-    overflow_actions.push(r.name)
-    estimated = estimateTokens(pack)
+    const after = estimateTokens(pack)
+    if (after < estimated) actions.push(r.name)
+    estimated = after
   }
-
-  pack.meta.elapsed_ms = Date.now() - t0
-  const json = JSON.stringify(pack)
-  pack.meta.bytes = Buffer.byteLength(json, 'utf8')
-  pack.meta.estimated_tokens = estimateTokens(pack)
-  pack.meta.overflow_actions = overflow_actions
-
-  return pack
+  return actions
 }
 
 // ── Internals ──────────────────────────────────────────────────────────────
