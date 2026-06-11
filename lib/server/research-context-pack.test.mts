@@ -454,7 +454,7 @@ test('assembleResearchContextPack: T4.17 — wrong-version projection is ignored
   assert.equal(ply.projection, undefined, 'projection payload should be dropped when version mismatches')
 })
 
-test('assembleResearchContextPack: shortlist-of-3 fits under 14000 tokens', async () => {
+test('assembleResearchContextPack: shortlist-of-3 fits under 36000 tokens', async () => {
   const slugs = ['school-a', 'school-b', 'school-c']
   const supabase = buildMockSupabase({
     parent_profiles: [{ id: 'p', child_year: null, boarding_pref: null, budget_range: null, top_priority: null, home_region: null }],
@@ -489,8 +489,8 @@ test('assembleResearchContextPack: shortlist-of-3 fits under 14000 tokens', asyn
     'compare these',
   )
 
-  // 2026-06-11: cap raised 5000 → 14000 (whole-landscape slice).
-  assert.ok(pack.meta.estimated_tokens <= 14000, `pack should fit 14000 tokens for shortlist=3, was ${pack.meta.estimated_tokens}`)
+  // 2026-06-11: cap raised 5000 → 36000 (whole-landscape slice, live-measured).
+  assert.ok(pack.meta.estimated_tokens <= 36000, `pack should fit 36000 tokens for shortlist=3, was ${pack.meta.estimated_tokens}`)
   assert.equal(Object.keys(pack.schools).length, 3)
 })
 
@@ -544,28 +544,28 @@ async function packForShortlist(n: number) {
   )
 }
 
-// 2026-06-11: caps raised across all tiers (whole-landscape slice) —
-// 4000/5000/6500/8000 → 12000/14000/18000/24000.
-test('Token budget — shortlist=1 fits under 12000 tokens', async () => {
+// 2026-06-11: caps raised across all tiers (whole-landscape slice, sized from
+// live-measured packs) — 4000/5000/6500/8000 → 24000/36000/48000/72000.
+test('Token budget — shortlist=1 fits under 24000 tokens', async () => {
   const pack = await packForShortlist(1)
-  assert.ok(pack.meta.estimated_tokens <= 12000, `was ${pack.meta.estimated_tokens}`)
+  assert.ok(pack.meta.estimated_tokens <= 24000, `was ${pack.meta.estimated_tokens}`)
 })
 
-test('Token budget — shortlist=2 fits under 12000 tokens', async () => {
+test('Token budget — shortlist=2 fits under 24000 tokens', async () => {
   const pack = await packForShortlist(2)
-  assert.ok(pack.meta.estimated_tokens <= 12000, `was ${pack.meta.estimated_tokens}`)
+  assert.ok(pack.meta.estimated_tokens <= 24000, `was ${pack.meta.estimated_tokens}`)
 })
 
-test('Token budget — shortlist=5 fits under 18000 tokens', async () => {
+test('Token budget — shortlist=5 fits under 48000 tokens', async () => {
   const pack = await packForShortlist(5)
-  assert.ok(pack.meta.estimated_tokens <= 18000, `was ${pack.meta.estimated_tokens}`)
+  assert.ok(pack.meta.estimated_tokens <= 48000, `was ${pack.meta.estimated_tokens}`)
   // Should have triggered overflow reducers
   assert.ok(pack.meta.overflow_actions.length >= 0)
 })
 
-test('Token budget — shortlist=8 fits under 24000 tokens', async () => {
+test('Token budget — shortlist=8 fits under 72000 tokens', async () => {
   const pack = await packForShortlist(8)
-  assert.ok(pack.meta.estimated_tokens <= 24000, `was ${pack.meta.estimated_tokens}`)
+  assert.ok(pack.meta.estimated_tokens <= 72000, `was ${pack.meta.estimated_tokens}`)
   // Reducers may or may not fire depending on fixture density; what matters is
   // the cap is honoured. Codex 2026-05-08: this test asserts the cap, not the
   // mechanism — heavier fixtures will exercise reducers when real data hits.
@@ -594,12 +594,13 @@ test('Token budget — adversarially-heavy 5-school fixture forces reducers to f
     school_structured_data: slugs.map((s) => ({
       school_slug: s,
       fees_min: 40000, fees_max: 50000,
-      // very heavy text fields:
-      pastoral_care: 'Pastoral care detail '.repeat(200),
-      pastoral_model: 'House system detail '.repeat(200),
-      report_parent_fit: 'Parent fit narrative '.repeat(200),
-      report_verdict: 'Verdict narrative '.repeat(200),
-      sports_profile: { rugby: { competitive_tier: 'national', summary: 'rugby '.repeat(300) } },
+      // very heavy text fields (2026-06-11: repeats ×4 so the raw pack
+      // clears the raised 48k cap for shortlist=5 and reducers MUST fire):
+      pastoral_care: 'Pastoral care detail '.repeat(800),
+      pastoral_model: 'House system detail '.repeat(800),
+      report_parent_fit: 'Parent fit narrative '.repeat(800),
+      report_verdict: 'Verdict narrative '.repeat(800),
+      sports_profile: { rugby: { competitive_tier: 'national', summary: 'rugby '.repeat(1200) } },
     })),
     // Comparison: many heavy rows so the comparison section is huge
     comparison_rows: Array.from({ length: 12 }, (_, i) => ({
@@ -627,10 +628,10 @@ test('Token budget — adversarially-heavy 5-school fixture forces reducers to f
     'compare these',
   )
 
-  // Cap for shortlist=5 is 18000 (per capsForShortlistSize, raised 2026-06-11).
-  // The fixture's raw structured payload alone is ~25k tokens, so the pack
+  // Cap for shortlist=5 is 48000 (per capsForShortlistSize, raised 2026-06-11).
+  // The fixture's raw structured payload alone is ~100k tokens, so the pack
   // must end up under cap, which means reducers MUST have fired.
-  assert.ok(pack.meta.estimated_tokens <= 18000, `pack went over cap: ${pack.meta.estimated_tokens}`)
+  assert.ok(pack.meta.estimated_tokens <= 48000, `pack went over cap: ${pack.meta.estimated_tokens}`)
   assert.ok(pack.meta.overflow_actions.length > 0, `expected reducers to fire; overflow_actions=${JSON.stringify(pack.meta.overflow_actions)}`)
 })
 
@@ -645,13 +646,17 @@ const ISI_PROSE = 'I'.repeat(3500) // ≈1000 tokens — dominant per-school wei
 const PDF_TITLE = 'P'.repeat(1750) // ≈500 tokens
 const ALUMNI = 'A'.repeat(875) // ≈250 tokens
 
-function syntheticOverflowPack(slugs: string[]) {
+// structured defaults to null: the (reordered, 2026-06-11) chain drops
+// structured BEFORE the target-aware stages, so a non-null structured would
+// add a leading action to every stage-order assertion. The last-resort test
+// passes its own structured payload to cover that reducer.
+function syntheticOverflowPack(slugs: string[], opts: { structured?: Record<string, unknown> | null } = {}) {
   const schools: Record<string, any> = {}
   for (const slug of slugs) {
     schools[slug] = {
       slug,
       meta: { name: slug, country: 'United Kingdom', is_uk: true },
-      structured: { pastoral_care: 'Pastoral detail. '.repeat(20) },
+      structured: opts.structured ?? null,
       curated_meta: {
         head_of_school: 'Dr Head',
         founded_year: 1880,
@@ -739,7 +744,7 @@ test('applyOverflowReducers: escalation — compact fields survive stages 1-3 on
 })
 
 test('applyOverflowReducers: last resort — pathological cap still nukes curated_meta everywhere', () => {
-  const pack = syntheticOverflowPack(OVERFLOW_SLUGS)
+  const pack = syntheticOverflowPack(OVERFLOW_SLUGS, { structured: { pastoral_care: 'Pastoral detail. '.repeat(20) } })
   const actions = applyOverflowReducers(pack, OVERFLOW_TARGETS, 10)
 
   assert.ok(actions.includes('dropped_curated_meta'), `full nuke must fire; actions=${actions}`)

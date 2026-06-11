@@ -249,19 +249,21 @@ export type ResearchContextPack = {
 
 // ── Token caps per shortlist size (plan §6.5) ─────────────────────────────
 // 2026-06-11 evidence-based raise (whole-landscape slice). Live data: 11 of 21
-// shortlists hold 6+ schools, so the old 8k tier — which zeroed per-school
-// chunk budget and fired the full reducer cascade (observed: a 7-school pack
-// at ≈13.3k pre-reduction tokens lost curated_meta + notion + facts on every
-// school) — was the COMMON case, not the edge. New hard caps are sized so the
-// observed worst case fits with no reducers; reducers stay as the safety net
-// for genuinely pathological packs. perSchool*/comparison/recent/citations are
-// advisory sub-budgets (only `hard` is enforced today).
+// shortlists hold 6+ schools, so the old 8k tier — which fired the full
+// reducer cascade — was the COMMON case, not the edge. Measured against live
+// production data on 2026-06-11 (uncapped probe): the heaviest real pack is
+// ≈52k JSON tokens for 10 schools and ≈26.5k for 3 schools, while the
+// RENDERED prompt string from that 52k pack is only ≈4.7k tokens — the JSON
+// estimate is dominated by sections no consumer renders (see reducer-order
+// note below). Caps sized with headroom over those measurements; reducers
+// stay as the safety net for pathological growth. perSchool*/comparison/
+// recent/citations are advisory sub-budgets (only `hard` is enforced today).
 
 function capsForShortlistSize(n: number) {
-  if (n <= 2) return { hard: 12000, perSchoolStructured: 1000, perSchoolChunks: 1800, comparison: 1600, recent: 800, citations: 200 }
-  if (n === 3) return { hard: 14000, perSchoolStructured: 1000, perSchoolChunks: 1200, comparison: 1600, recent: 800, citations: 200 }
-  if (n <= 5) return { hard: 18000, perSchoolStructured: 900, perSchoolChunks: 750, comparison: 2000, recent: 700, citations: 200 }
-  return { hard: 24000, perSchoolStructured: 750, perSchoolChunks: 500, comparison: 2400, recent: 700, citations: 200 }
+  if (n <= 2) return { hard: 24000, perSchoolStructured: 1000, perSchoolChunks: 1800, comparison: 1600, recent: 800, citations: 200 }
+  if (n === 3) return { hard: 36000, perSchoolStructured: 1000, perSchoolChunks: 1200, comparison: 1600, recent: 800, citations: 200 }
+  if (n <= 5) return { hard: 48000, perSchoolStructured: 900, perSchoolChunks: 750, comparison: 2000, recent: 700, citations: 200 }
+  return { hard: 72000, perSchoolStructured: 750, perSchoolChunks: 500, comparison: 2400, recent: 700, citations: 200 }
 }
 
 // SSD fields whitelisted into the pack (plan §6.1).
@@ -492,6 +494,18 @@ export async function assembleResearchContextPack(
 // last-resort full nuke. "What did ISI say about Winchester?" must keep
 // Winchester intact even while the rest of the shortlist sheds weight.
 //
+// ORDER (live-data finding, 2026-06-11 smoke): chunks / sensitive /
+// projection / facts / structured have NO downstream consumer — the runners
+// only consume the pack via buildPackContextString (which renders meta /
+// notion / curated only) and citation-validator reads s.citations +
+// comparison cell sources, never facts or structured. Those never-rendered
+// sections dominate the JSON estimate (a measured 52k-token pack rendered
+// to just 4.7k prompt tokens), so they shed FIRST; sections the model
+// actually sees (curated_meta, notion, comparison, messages) shed last.
+// Earlier orderings dropped rendered curated_meta while 38k tokens of
+// unrendered facts/structured stayed aboard — the parent-visible answer
+// paid for invisible weight.
+//
 // A reducer's name is recorded only when it actually shrank the pack —
 // overflow_actions now means "this dropped something", not "this ran".
 // Exported for direct unit testing (synthetic packs, no fixture calibration).
@@ -515,6 +529,18 @@ export function applyOverflowReducers(
     {
       name: 'dropped_projection',
       reduce: () => { for (const slug of Object.keys(pack.schools)) delete pack.schools[slug].projection },
+    },
+    {
+      // Moved ahead of all rendered sections 2026-06-11: pack.facts has no
+      // consumer (renderer + citation-validator verified) — pure JSON weight.
+      name: 'dropped_facts',
+      reduce: () => { for (const slug of Object.keys(pack.schools)) delete pack.schools[slug].facts },
+    },
+    {
+      // Moved ahead of all rendered sections 2026-06-11: runners build their
+      // structured blocks from their own retrieve calls, not from the pack.
+      name: 'truncated_structured_to_meta_only',
+      reduce: () => { for (const slug of Object.keys(pack.schools)) pack.schools[slug].structured = null },
     },
     {
       name: 'truncated_visible_rows',
@@ -585,20 +611,12 @@ export function applyOverflowReducers(
       reduce: () => { for (const slug of Object.keys(pack.schools)) pack.schools[slug].notion_backfill = null },
     },
     {
-      name: 'dropped_facts',
-      reduce: () => { for (const slug of Object.keys(pack.schools)) delete pack.schools[slug].facts },
-    },
-    {
       name: 'truncated_comparison_rows_to_2',
       reduce: () => { if (pack.comparison.rows.length > 2) pack.comparison.rows = pack.comparison.rows.slice(0, 2) },
     },
     {
       name: 'truncated_recent_messages_to_1',
       reduce: () => { if (pack.recent_messages.length > 1) pack.recent_messages = pack.recent_messages.slice(-1) },
-    },
-    {
-      name: 'truncated_structured_to_meta_only',
-      reduce: () => { for (const slug of Object.keys(pack.schools)) pack.schools[slug].structured = null },
     },
   ]
 
