@@ -11,6 +11,10 @@ import {
 } from '../school-name-overrides.ts'
 import { DIMENSIONS } from '../server/dimensions.js'
 import { loadDimFactsBundles } from '../server/tools.js'
+// 2026-07-05 — generic sport-offering scorer (golf, swimming, rowing, …).
+// Lets interests_sports entries OUTSIDE the big-five whitelist still rank
+// schools by real offering evidence instead of being silently dropped.
+import { GENERIC_SPORTS, matchGenericSportLabel, scoreSportOffering } from '../server/generic-sport.mjs'
 import type { BriefProfile } from './brief-predicates.ts'
 import type { BuildModeExtractionHTTP } from '../server/research-room/build-mode-schemas.ts'
 import type { BuildModeIntent } from '../server/research-room/classify-build-mode-intent.ts'
@@ -880,6 +884,22 @@ export function rankCandidates(
     : (focusResolution.sport
         ? [{ raw: focusResolution.sport, key: focusResolution.sport, level: 'inferred-prose' }]
         : [])
+  // 2026-07-05 — generic sports. interests_sports entries the big-five
+  // normalizeSportLabel dropped (golf, swimming, rowing, sailing, …) used to
+  // vanish: the parent's golf-mad child got only the generic "sport" tag
+  // fallback, so golf-strong schools ranked identically to any sporty school.
+  // Now each unmapped entry that matches the GENERIC_SPORTS registry scores
+  // via scoreSportOffering() against sports_profile's generic fields.
+  // Deduped by key so [{sport:'Golf'},{sport:'golfing'}] can't stack.
+  const genericSeen = new Set<string>()
+  const genericSportsInterest = (child?.interests_sports ?? [])
+    .filter(s => normalizeSportLabel(s.sport) === null)
+    .map(s => ({ raw: s.sport ?? '', key: matchGenericSportLabel(s.sport ?? null), level: s.level }))
+    .filter((s): s is { raw: string; key: string; level: string } => {
+      if (s.key === null || genericSeen.has(s.key)) return false
+      genericSeen.add(s.key)
+      return true
+    })
   const artsInterest = child?.interests_arts ?? []
   // Phase 4 item #2 + item #3 (2026-05-22) — LLM-classified intent reading
   // the 5 actual prose fields (academic_notes / goals_notes /
@@ -1172,7 +1192,31 @@ export function rankCandidates(
         }
       }
     }
-    if (wantsSportFocus && sportsInterest.length === 0) {
+    // 2026-07-05 — generic-sport boost. Shares sportBoostTotal and
+    // SPORT_TOTAL_CAP with the big-five loop above so multi-sport briefs
+    // can't stack past the cap. Normalisation: scoreSportOffering tops out
+    // ~33 but a strong live programme lands 10-15 (ACS Cobham golf ≈ 13),
+    // so /8 with a 2.0 ceiling keeps generic boosts slightly below the
+    // big-five ceiling (2.5) — offering-level evidence is deliberately
+    // weaker than competitive-tier evidence.
+    for (const gs of genericSportsInterest) {
+      const offering = scoreSportOffering(struct?.sports_profile ?? null, gs.key)
+      if (offering.score > 0) {
+        const norm = Math.min(offering.score / 8, 2.0)
+        const levelKey = (gs.level ?? '').toLowerCase().trim()
+        const levelMul = SPORT_LEVEL_MULTIPLIER[levelKey] ?? SPORT_LEVEL_DEFAULT
+        const scaled = norm * levelMul
+        const remainingCap = Math.max(0, SPORT_TOTAL_CAP - sportBoostTotal)
+        const boost = Math.min(scaled, remainingCap)
+        score += boost
+        sportBoostTotal += boost
+        const label = GENERIC_SPORTS[gs.key as keyof typeof GENERIC_SPORTS]?.label?.toLowerCase() ?? gs.key
+        // ≥6 requires signature-sport status or a major/academy category
+        // hit — that's a real programme, not a passing mention.
+        signals.push(offering.score >= 6 ? `strong ${label} programme` : `offers ${label}`)
+      }
+    }
+    if (wantsSportFocus && sportsInterest.length === 0 && genericSportsInterest.length === 0) {
       // Build Mode said sport_career but we couldn't map any specific sport.
       // Fall back to the broad 'sport' strengths tag.
       const strengthsLc = (s.strengths ?? []).map(x => x.toLowerCase())
