@@ -71,7 +71,13 @@ const MAX_TOP_N    = 6 // static schema bound; per-call topN clamps below it
 // school as more residential than the note (e.g. Wellington/Oakham
 // "offers full boarding alongside weekly/day" is NOT "a full boarding
 // school"); no note (grade unknown) → no boarding mode may be asserted.
-export const REASONING_VERSION = 'reasoned-shortlist-v1-2'
+// v1.3 (2026-07-06 scorer pool bugs Phase 3): REGION RE-ADMITS rule added.
+// The adaptive region floor re-admits out-of-region BOARDING schools for
+// constrained (north/scotland) boarding pools, flagged in scorer signals as
+// "outside your region — boards". The stage must treat these as valid options
+// (not upstream bugs) but state their location honestly (the child boards
+// there; it is not local). Day families get no re-admit, so no flag exists.
+export const REASONING_VERSION = 'reasoned-shortlist-v1-3'
 
 // ── Schema ──────────────────────────────────────────────────────────
 // LLM-facing schema omits reasoning_version (attached programmatically).
@@ -118,6 +124,7 @@ HARD RULES:
 - The pool lists each school's scorer signals as hints only — do not cite a signal in your reasons unless the evidence pack itself backs it.
 - HARD CONSTRAINTS: if a school's evidence pack contradicts one of the child's hard constraints (gender, region/location, day vs boarding need, budget, stated non-negotiables), do NOT place it in your picks unless the pool offers fewer than TOP_N compliant schools — and report every such school in pool_flags. The pool is supposed to be pre-filtered; treat contradictions as upstream bugs to route around, not facts to echo.
 - BOARDING HONESTY: a pack's "boarding_note" is the AUTHORITATIVE CEILING on how residential you may describe a school, and it OVERRIDES the raw "boarding_type" / "boarding" fields whenever they seem to disagree. Never describe a school's boarding as fuller or more full-time than its boarding_note states — e.g. a school whose note says it "offers full boarding as one option alongside weekly/day places" is NOT "a full boarding school" and you must not imply the child would board there full-time as a matter of course. If a pack has NO boarding_note (boarding grade unknown / undocumented), do not assert ANY boarding arrangement for that school even if boarding_type is present; say the boarding pattern isn't documented and lower confidence if boarding is core to this child's need.
+- REGION RE-ADMITS (an ALLOWED EXCEPTION to the region-contradiction rule above): the scorer MAY mark a boarding-family candidate with the signal "outside your region — boards". Unlike the other scorer signals (which are hints only), this one is authoritative control-flow: it means the candidate was DELIBERATELY re-admitted across the family's stated home-region boundary because too few in-region boarding schools survived filtering. Treat such a school as a valid option — do NOT report it as an upstream region bug — and include it when it genuinely fits this child. But state its location honestly: the child would BOARD there and it is NOT local (it is outside the family's stated home region). Never imply such a school is in or near the family's own area, and note the location trade-off in pool_flags.
 - Think pathways, not points: how does this school's documented evidence advance this child's specific goals (subjects, sport, university ambitions, temperament, environment)?
 - Reasons: 2-3 warm, concrete sentences in the parent's register. No scores, no jargon, no slug names.
 - evidence_fields: list the pack fields each pick's reasons rely on (e.g. "exam_results", "sports.tennis", "pastoral").

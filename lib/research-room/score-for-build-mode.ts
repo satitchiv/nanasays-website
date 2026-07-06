@@ -757,6 +757,37 @@ function tierToChipFragment(tier: string | null): string | null {
 
 // ── Pure ranker (exported for tests) ────────────────────────────────
 //
+// Phase 3 (2026-07-06 scorer pool bugs) — adaptive region-floor tunables.
+// The region hard filter (below) hard-drops out-of-bucket schools. For the
+// two SMALL buckets (north ~8, scotland-wales ~7), gender + boarding + budget
+// narrowing can push the in-region pool below a usable size, starving the
+// shortlist-of-5 stage. When the in-region count is < TRIGGER, the floor
+// re-admits out-of-region schools (boarding-aware) to refill toward REFILL.
+//   - TRIGGER 8: the largest bucket that can genuinely bind (north). The 4
+//     large buckets (london 60 / south-east / south-west 22 / midlands 18)
+//     never breach it post-backfill, so their behaviour is pure hard-drop.
+//   - REFILL 12: shortlist-of-5 headroom, kept BELOW the default 20-slice so
+//     re-admitted schools survive the final slice rather than being cut.
+// Env-overridable so the recommender battery can sweep values without a
+// recompile (both guarded against NaN / non-positive).
+function envPosInt(name: string, fallback: number): number {
+  const n = Number(process.env[name])
+  return Number.isFinite(n) && n > 0 ? n : fallback
+}
+const REGION_FLOOR_TRIGGER = envPosInt('NANA_REGION_FLOOR_TRIGGER', 8)
+const REGION_FLOOR_REFILL  = envPosInt('NANA_REGION_FLOOR_REFILL', 12)
+
+// Genuine-boarder-first ordering for the floor re-admit sort (day-only is
+// already excluded by offersAnyBoarding, so it never reaches this). Higher =
+// more residential. `unknown` sorts last so no-data schools don't crowd out
+// documented boarders in the capped refill.
+const BOARDING_READMIT_RANK: Record<string, number> = {
+  'full-dominant': 3,
+  'offers-full':   2,
+  'weekly-only':   1,
+  'unknown':       0,
+}
+
 // Takes already-loaded school + structured-data rows and returns the
 // ranked, signal-annotated candidate list. No DB access — the main
 // `scoreForBuildMode` wrapper handles SQL filters and calls this.
@@ -859,23 +890,104 @@ export function rankCandidates(
     })
   }
 
-  // Bug #3 (2026-05-22) — Region hard filter when parent stated an
-  // explicit home_region. Soft -2.0 penalty was insufficient: London-
-  // clicking parents could see 0 London schools when sport/academic/
-  // pastoral dimensions outranked the penalty. Drops schools where
-  // region is known AND known to be in a different bucket. Keeps
-  // NULL-region schools (could be undocumented London — Bug #4 backfill)
-  // and broad 'England'-tagged schools (country-level, not bucket-
-  // disqualifying). Skipped when explicitHomeRegion is null (anywhere /
-  // overseas / unknown bucket / parent didn't answer).
+  // Bug #3 (2026-05-22) + Phase 3 (2026-07-06) — Region hard filter WITH an
+  // adaptive floor. The hard filter drops schools whose region is known AND
+  // in a different bucket; NULL-region schools (data debt) and broad
+  // 'England'-tagged schools (country-level) fail OPEN. Skipped entirely when
+  // explicitHomeRegion is null (anywhere / overseas / parent didn't answer).
+  //
+  // The floor exists because the two SMALL buckets (north / scotland-wales)
+  // can narrow below a usable size after gender+boarding+budget filtering.
+  // When the in-region count is < REGION_FLOOR_TRIGGER, re-admit out-of-region
+  // BOARDING schools for BOARDING-seeking families only (the child boards, so
+  // distance is irrelevant), flagged honestly (never disguised as local — see
+  // the score loop). DAY families get NO re-admit: a day pupil can't use a
+  // distant school and coarse buckets can't guarantee commutability, so an
+  // honest short in-region list is correct (distance-based day re-admit is a
+  // filed follow-up). The 4 large buckets rarely breach the trigger, so their
+  // behaviour is essentially unchanged pure hard-drop.
+  // See ~/notes/scorer-pool-bugs-DECISIONS-2026-07-06.md.
+  const readmittedOutOfRegion = new Set<string>()
   if (explicitHomeRegion) {
-    filtered = filtered.filter(s => {
+    const inRegion = filtered.filter(s => {
       const r = s.region
-      if (r == null) return true
+      if (r == null) return true                       // NULL fails OPEN (data debt)
       const lc = r.trim().toLowerCase()
-      if (lc === 'england') return true
+      if (lc === 'england') return true                // broad country tag, not bucket-disqualifying
       return regionInBucket(explicitHomeRegion, r)
     })
+
+    // Data-debt visibility (DECISIONS doc): surface how many NULL-region
+    // schools rode the fail-open into this pool, once per call.
+    const nullRegionPass = inRegion.reduce((n, s) => n + (s.region == null ? 1 : 0), 0)
+    if (nullRegionPass > 0) {
+      console.info('[score-for-build-mode] region NULL fail-open (data debt)', {
+        homeRegion: explicitHomeRegion, count: nullRegionPass,
+      })
+    }
+
+    if (inRegion.length >= REGION_FLOOR_TRIGGER) {
+      filtered = inRegion
+    } else {
+      // ── Adaptive floor ──────────────────────────────────────────────
+      const inRegionSlugs = new Set(inRegion.map(s => s.slug))
+      // Genuinely wrong-bucket schools only — NULL / 'England' already passed
+      // into inRegion via fail-open, so they are not re-admit candidates.
+      const outOfRegion = filtered.filter(s => {
+        if (inRegionSlugs.has(s.slug)) return false
+        const r = s.region
+        return r != null && r.trim().toLowerCase() !== 'england'
+      })
+
+      const boardingSeeker =
+        effectiveBoardingPref === 'full'   ||
+        effectiveBoardingPref === 'weekly' ||
+        effectiveBoardingPref === 'flexi'
+
+      let candidates: SchoolRow[]
+      if (boardingSeeker) {
+        // The child sleeps at school, so distance is not disqualifying:
+        // re-admit ANY boarding-capable out-of-region school, preferring
+        // genuine boarders (full-dominant > offers-full > weekly) so a day
+        // school that merely offers boarding doesn't win a refill slot over a
+        // real boarding school. confidence_score breaks ties.
+        // Codex r1 P2: slug is the final tie-break so same-grade / same-
+        // confidence (often 0/NULL) candidates have a DETERMINISTIC order —
+        // otherwise which ones survive slice(need) would depend on DB row order.
+        candidates = outOfRegion
+          .filter(s => offersAnyBoarding(effectiveBoardingGrade(s.name, s.boarding_grade)))
+          .sort((a, b) =>
+            (BOARDING_READMIT_RANK[effectiveBoardingGrade(b.name, b.boarding_grade)] ?? 0) -
+            (BOARDING_READMIT_RANK[effectiveBoardingGrade(a.name, a.boarding_grade)] ?? 0) ||
+            (b.confidence_score ?? 0) - (a.confidence_score ?? 0) ||
+            a.slug.localeCompare(b.slug))
+      } else {
+        // Day family (or no boarding pref): NO re-admit. A day pupil can only
+        // attend a genuinely-nearby school, and coarse region-bucket adjacency
+        // can't tell near-adjacent from far-adjacent (the 2026-07-06 gate saw a
+        // Birmingham day family offered Cumbria / Kent schools ~3hr away). Per
+        // the DECISIONS doc's "day-only → NEVER distant" rule, an honest SHORT
+        // in-region list beats a padded list of non-commutable schools. Proper
+        // "nearby day schools" needs true distance (school lat/long + a
+        // home-region centre), filed as a follow-up. See DECISIONS doc.
+        candidates = []
+      }
+
+      const need = Math.max(0, REGION_FLOOR_REFILL - inRegion.length)
+      const readmit = candidates.slice(0, need)
+      for (const s of readmit) readmittedOutOfRegion.add(s.slug)
+      filtered = [...inRegion, ...readmit]
+
+      if (readmit.length > 0) {
+        console.info('[score-for-build-mode] region floor engaged', {
+          homeRegion:    explicitHomeRegion,
+          inRegion:      inRegion.length,
+          readmitted:    readmit.length,
+          eligible:      candidates.length,
+          boardingSeeker,
+        })
+      }
+    }
   }
 
   if (filtered.length === 0) return []
@@ -1091,13 +1203,22 @@ export function rankCandidates(
     // (regionInBucket handles the case folding).
     if (explicitHomeRegion) {
       const broadEngland = typeof s.region === 'string' && s.region.trim().toLowerCase() === 'england'
-      if (s.region == null || broadEngland) {
+      if (readmittedOutOfRegion.has(s.slug)) {
+        // Phase 3 — re-admitted across the region boundary by the adaptive
+        // floor. Only BOARDING seekers reach this set (day families get no
+        // re-admit), so the school is one the child would BOARD at. NO region
+        // boost (it is genuinely out of bucket), but surface an HONEST signal
+        // so neither the parent nor the reasoned prose ever treats it as local.
+        // unshift (not push) so the honesty flag survives the top-5 signal
+        // slice — this is the one signal that must never be truncated here.
+        signals.unshift('outside your region — boards')
+      } else if (s.region == null || broadEngland) {
         // neutral — null OR broad country-level tag ('England')
       } else if (regionInBucket(explicitHomeRegion, s.region)) {
         score += 0.6
         signals.push(`${s.region.toLowerCase()} region`)
       }
-      // else: wrong-bucket — already dropped by hard filter above.
+      // else: wrong-bucket AND not re-admitted — dropped by the hard filter.
     }
 
     // ── Budget closeness ────────────────────────────────────────────
