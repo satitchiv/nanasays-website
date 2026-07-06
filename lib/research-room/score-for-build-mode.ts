@@ -7,6 +7,7 @@ import {
   normalizeSchoolName,
   isGenderCompatible,
   getEffectiveSchoolGender,
+  isKnownFaithSchool,
   effectiveBoardingGrade,
   offersFullBoarding,
   offersAnyBoarding,
@@ -450,13 +451,25 @@ export const NONNEG_FILTERS: NonnegFilter[] = [
     predicate: () => true,
   },
   // ── Religion ─────────────────────────────────────────────────────
-  // "not religious" / "no religion" / "secular only" / "non-religious"
+  // "not religious" / "no religion" / "no faith schools" / "secular only"
   // — drops schools whose ethos_label is one of the religious-affiliated
-  // tags. Schools with ethos_label='secular' OR NULL pass through.
+  // tags. Schools with ethos_label='secular' OR NULL pass through,
+  // EXCEPT curated known-faith schools (see below).
+  // Codex r1 P1 (2026-07-07) — "no faith schools" / "not a faith school"
+  // never matched (the eval only passed because Lily's brief also said
+  // "not religious"). The faith alternative always requires the
+  // school(s) noun (with optional "-based") so bare "no faith"
+  // ("no faith in league tables") can't false-positive.
   {
     name: 'not-religious',
-    pattern: /\b(?:not\s+religious|no\s+religion|non[-\s]?religious|secular\s+(?:school\s+)?only|secular(?:\s+only)?|no\s+religious(?:\s+(?:affiliation|ethos|school))?)\b/i,
+    pattern: /\b(?:not\s+religious|no\s+religion|non[-\s]?religious|no(?:t\s+a)?\s+faith(?:[-\s]based)?\s+schools?|secular\s+(?:school\s+)?only|secular(?:\s+only)?|no\s+religious(?:\s+(?:affiliation|ethos|school))?)\b/i,
     predicate: (s, struct) => {
+      // Curated list first (same trust order as the gender/boarding
+      // override layers): missing ethos_label fails OPEN below, so a
+      // famous faith school with no extracted ethos would otherwise
+      // reach "no faith schools" parents — Lily / Francis Holland P0,
+      // 2026-07-06 gate. Curated also beats a wrong extracted label.
+      if (isKnownFaithSchool(s)) return false
       const label = (struct?.ethos_facts as { ethos_label?: string } | undefined)?.ethos_label
       if (!label) return true
       return !RELIGIOUS_ETHOS_LABELS.has(label.trim().toLowerCase())

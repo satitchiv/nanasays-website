@@ -312,6 +312,57 @@ export function isGenderCompatible(
   return true
 }
 
+// ── Known-faith override layer (2026-07-07 not-religious nonneg stopgap) ──
+//
+// Why: the `not-religious` NONNEG predicate reads
+// school_structured_data ethos_facts.ethos_label, which fails OPEN when
+// missing — and 83/152 of the scorer pool (including all 12 schools in
+// the 2026-07-06 region backfill) has no ethos facts extracted yet.
+// Francis Holland (Church of England) reached a "no faith schools"
+// London shortlist through that gap (Lily judge P0, Phase 1b/3 gate).
+// This curated list is the predicate's fallback until the batch
+// ethos-extraction sweep lands.
+//
+// Inclusion bar (each school verified against its own site / GIAS / ISI,
+// 2026-07-07): the school TODAY has an official religious designation or
+// an active religious ethos (chaplaincy, worship, faith-framed values) —
+// not merely a religious founder. Of the 12 backfill schools, St Paul's
+// Girls', Notting Hill & Ealing GDST, South Hampstead High GDST,
+// Dulwich Prep & Senior, Ewell Castle and Queen's Gate all checked
+// non-denominational and are deliberately absent. Guildford High is
+// included on the strict reading: it carries a formal CofE designation
+// via its proprietor (United Church Schools Trust / United Learning)
+// even though its own pages show no active worship — a hard nonneg
+// should fail closed on an official designation.
+export const KNOWN_FAITH_SCHOOL_NAMES: ReadonlySet<string> = new Set<string>([
+  'francis holland',               // CofE — "We're a Church of England school"; chaplain-led services
+  'francis holland sloane square', // name variants of the same Anglican Trust
+  'francis holland regents park',
+  'francis holland preparatory',   // CofE — Trust chaplain, services at St Luke's Sydney Street
+  'channing',                      // Unitarian — "education based on inclusive, Unitarian principles"
+  'queens london',                 // Queen's College, London — All Souls chaplain, daily Prayers
+  'guildford high',                // formal CofE designation via United Church Schools Trust
+  'kings wimbledon',               // KCS — CofE, active chaplaincy. Covers the real duplicate row
+                                   // kings-college-school-wimbledon "King's College School Wimbledon"
+                                   // (canonical row matched by slug below)
+])
+
+// Slug escape hatch — the canonical KCS row is named "King's College
+// School", which normalizes to bare "kings": far too generic for the name
+// set (same reason UCS lives in KNOWN_BOYS_ONLY_SLUGS).
+export const KNOWN_FAITH_SCHOOL_SLUGS: ReadonlySet<string> = new Set<string>([
+  'kings-college-school-uk',
+])
+
+export function isKnownFaithSchool(
+  school: { slug?: string | null; name?: string | null },
+): boolean {
+  return (
+    KNOWN_FAITH_SCHOOL_NAMES.has(normalizeSchoolName(school.name)) ||
+    KNOWN_FAITH_SCHOOL_SLUGS.has((school.slug ?? '').toLowerCase())
+  )
+}
+
 // ── Misc ────────────────────────────────────────────────────────────
 
 // Defensive UUID check — server-side helpers accept an arbitrary
