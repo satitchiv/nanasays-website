@@ -22,6 +22,7 @@
 
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import { effectiveBoardingGrade } from '../../school-name-overrides.ts'
 
 export interface EvidencePack {
   name?: string
@@ -30,6 +31,12 @@ export interface EvidencePack {
   gender?: string
   boarding?: unknown
   boarding_type?: string
+  // Phase 2 (2026-07-06 scorer pool bugs) — honest, human-readable framing
+  // of schools.boarding_grade. This is the meta-guard the reasoning prompt
+  // keys on: it must not describe a school's boarding as MORE residential
+  // than this note states. Absent when the grade is 'unknown' (no data) so
+  // the model has nothing to over-claim from. See boardingGradeNote below.
+  boarding_note?: string
   religion?: string
   ages?: string
   school_type?: string
@@ -77,6 +84,28 @@ const cap = (v: unknown, n: number): string | undefined => {
 
 const BIG_FIVE = ['tennis', 'rugby', 'cricket', 'football', 'hockey'] as const
 
+// Phase 2 (2026-07-06 scorer pool bugs) — map the derived boarding_grade to
+// an honest parent-facing phrase. This is what stops the Wellington/Oakham
+// over-claim P0: the reasoning stage is told (via SYSTEM_PROMPT) not to
+// describe boarding as more residential than this note. 'unknown' returns
+// undefined on purpose — no note means the model may not assert any mode.
+// The raw `boarding_type` string stays in the pack as secondary evidence;
+// this note is the authoritative ceiling.
+export function boardingGradeNote(grade: string | null | undefined): string | undefined {
+  switch ((grade ?? '').trim().toLowerCase()) {
+    case 'full-dominant':
+      return 'predominantly a boarding school — most pupils board full-time (7 days)'
+    case 'offers-full':
+      return 'offers full (7-day) boarding as one option alongside weekly and/or day places — not a predominantly or exclusively full-boarding school'
+    case 'weekly-only':
+      return 'boarding is weekly/flexi only — no full 7-day boarding on record'
+    case 'day-only':
+      return 'a day school — no boarding on record'
+    default:
+      return undefined // 'unknown' / NULL — no boarding claim may be made
+  }
+}
+
 export async function buildEvidencePacks(
   supabase: SupabaseClient,
   slugs: string[],
@@ -86,7 +115,7 @@ export async function buildEvidencePacks(
     const [metaRes, ssdRes] = await Promise.all([
       supabase
         .from('schools')
-        .select('slug, name, city, region, gender_split, boarding, boarding_type, religious_affiliation, age_min, age_max, school_type')
+        .select('slug, name, city, region, gender_split, boarding, boarding_type, boarding_grade, religious_affiliation, age_min, age_max, school_type')
         .in('slug', slugs),
       supabase
         .from('school_structured_data')
@@ -128,6 +157,14 @@ export async function buildEvidencePacks(
         gender: (m?.gender_split as string) ?? undefined,
         boarding: m?.boarding ?? undefined,
         boarding_type: (m?.boarding_type as string) ?? undefined,
+        // Codex r1 P1: route through effectiveBoardingGrade (name-list OVER
+        // column) so the note matches what the scorer KEEPS — else Merchiston
+        // (column weekly-only, name-listed full) would emit a "weekly only"
+        // note that contradicts its kept-as-full status and the reasoned
+        // stage would treat a genuine full boarder as a constraint violation.
+        boarding_note: boardingGradeNote(
+          effectiveBoardingGrade(m?.name as string | null | undefined, m?.boarding_grade as string | null | undefined),
+        ),
         religion: (m?.religious_affiliation as string) ?? undefined,
         ages: m ? `${m.age_min ?? '?'}-${m.age_max ?? '?'}` : undefined,
         school_type: (m?.school_type as string) ?? undefined,

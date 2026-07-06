@@ -7,6 +7,9 @@ import {
   normalizeSchoolName,
   isGenderCompatible,
   getEffectiveSchoolGender,
+  effectiveBoardingGrade,
+  offersFullBoarding,
+  offersAnyBoarding,
   type ChildYear,
 } from '../school-name-overrides.ts'
 import { DIMENSIONS } from '../server/dimensions.js'
@@ -397,6 +400,14 @@ export const NONNEG_FILTERS: NonnegFilter[] = [
   // parent.boarding_pref='weekly' (which still allows full-boarding
   // schools that offer weekly options). This drops schools whose name
   // appears in KNOWN_FULL_BOARDING_NAMES (single-mode full-board only).
+  //
+  // Phase 2 (2026-07-06 scorer pool bugs) — DELIBERATELY still name-list
+  // only. A graded mirror (drop effective grade offers-full/full-dominant
+  // via offersFullBoarding) would use the RELIABLE offers-full-vs-weekly
+  // boundary and is safe in principle, but it changes live prod behaviour
+  // for this "no full boarding" path with no battery persona exercising it
+  // yet. Deferred to its own gated round; the full-seeker P0 this slice
+  // targets is fully covered by the graded hard filter below.
   {
     name: 'weekly-only',
     pattern: /\b(?:weekly\s+(?:boarding\s+)?only|only\s+weekly\s+boarding|no\s+full[-\s]board(?:ing)?|not?\s+full[-\s]board(?:ing)?|weekly[-\s]?board(?:ing)?\s+(?:school\s+)?only)\b/i,
@@ -595,6 +606,11 @@ type SchoolRow = {
   age_min:          number | null
   age_max:          number | null
   region:           string | null
+  // Phase 2 (2026-07-06 scorer pool bugs): derived, self-maintaining
+  // boarding signal (schools.boarding_grade). NULL → treated as 'unknown'
+  // (fails open on the boarding hard filter). See effectiveBoardingGrade
+  // in school-name-overrides.ts for the name-list-over-column layering.
+  boarding_grade:   string | null
 }
 
 type StructRow = {
@@ -801,12 +817,30 @@ export function rankCandidates(
   // all fill the effective boarding when wizard is null. Wizard wins.
   // 'rejects' → 'day' (closest hard-filter equivalent).
   const effectiveBoardingPref = resolveBoardingPref(parent, input.intent, firedNonnegFilters)
-  if (
-    effectiveBoardingPref === 'full' ||
-    effectiveBoardingPref === 'weekly' ||
-    effectiveBoardingPref === 'flexi'
-  ) {
-    filtered = filtered.filter(s => !KNOWN_DAY_ONLY_NAMES.has(normalizeSchoolName(s.name)))
+  // Phase 2 (2026-07-06 scorer pool bugs) — GRADED boarding hard filter.
+  // Replaces the old name-list-only drop. `effectiveBoardingGrade` layers
+  // KNOWN_FULL_BOARDING_NAMES / KNOWN_DAY_ONLY_NAMES OVER the derived
+  // schools.boarding_grade column, so:
+  //   - full-seeker: drop day-only + weekly-only; KEEP offers-full /
+  //     full-dominant / unknown. The name-list keep-override protects the
+  //     Merchiston invariant (column weekly-only, genuine full boarder) and
+  //     keeps Wellington/Oakham (offers-full) in the pool — the reasoned-
+  //     prose meta-guard, not the filter, stops the over-claim.
+  //   - weekly/flexi seeker: drop only day-only (keeps weekly-only,
+  //     offers-full, full-dominant, unknown).
+  //   - unknown fails OPEN in both directions (no-data schools like Eton are
+  //     never hard-dropped; the ranker unknown-penalty + prose hedge handle
+  //     them). See offersFullBoarding / offersAnyBoarding.
+  //   - day-seeker: keep the existing name-list-only drop. The column's
+  //     full-dominant grade is intentionally NOT a day-seeker drop criterion
+  //     — full-dominant schools (Canford-style) still take day pupils, so a
+  //     column-based drop would false-reject them.
+  if (effectiveBoardingPref === 'full') {
+    filtered = filtered.filter(s =>
+      offersFullBoarding(effectiveBoardingGrade(s.name, s.boarding_grade)))
+  } else if (effectiveBoardingPref === 'weekly' || effectiveBoardingPref === 'flexi') {
+    filtered = filtered.filter(s =>
+      offersAnyBoarding(effectiveBoardingGrade(s.name, s.boarding_grade)))
   } else if (effectiveBoardingPref === 'day') {
     filtered = filtered.filter(s => !KNOWN_FULL_BOARDING_NAMES.has(normalizeSchoolName(s.name)))
   }
@@ -961,7 +995,11 @@ export function rankCandidates(
   // (Codex r1 design rule: empty/contradicting prose never erases wizard).
   // Same additive-only semantics as the deleted regex hints — they boost
   // when 'wants', do nothing when 'rejects' or 'none'.
-  const wantsFullBoardingProse = input.intent?.boarding_pref_from_prose === 'full'
+  // Phase 2 (2026-07-06 scorer pool bugs): the former `wantsFullBoardingProse`
+  // KNOWN_FULL_BOARDING_NAMES prose bonus was folded into the grade-aware
+  // boarding tilt below (gated on the resolved full pref, honouring
+  // wizard-wins). `boarding_pref_from_prose` still flows through
+  // resolveBoardingPref → effectiveBoardingPref.
   const wantsSmallProse        = input.intent?.small_env_pref === 'wants'
 
   // Phase 1 data-utilization (2026-05-21): career-intent detection. Reads
@@ -1338,15 +1376,31 @@ export function rankCandidates(
       }
     }
 
-    // ── Full-boarding prose hint ────────────────────────────────────
-    if (wantsFullBoardingProse) {
-      // Cheap signal: name override sets capture boarding type. Already
-      // filtered above for `boarding_pref`, but the prose may be the only
-      // place full-boarding intent was mentioned. Reward known full-
-      // boarding schools.
-      if (KNOWN_FULL_BOARDING_NAMES.has(normalizeSchoolName(s.name))) {
-        score += 0.3
-        signals.push('full boarding')
+    // ── Boarding-grade tilt (full-seekers) ──────────────────────────
+    // Phase 2 (2026-07-06 scorer pool bugs). Consolidates the old
+    // KNOWN_FULL_BOARDING_NAMES prose bonus into one GRADE-AWARE block gated
+    // on the resolved full-boarding pref (wizard-or-prose-or-nonneg, so
+    // wizard-wins is honoured — the old `wantsFullBoardingProse` block fired
+    // even when a wizard 'day' click contradicted 'full' prose). Among the
+    // schools KEPT by the graded hard filter above, tilt by boarding grade:
+    //   - full-dominant → +0.25, 'boarding-focused' (predominantly boarders)
+    //   - offers-full   → +0.15, 'offers full boarding' (HEDGED signal — the
+    //     school offers full boarding but is not exclusively full-boarding;
+    //     replaces the old bare 'full boarding' signal that over-claimed for
+    //     Wellington/Oakham-style offers-full schools in the rationale_seed).
+    //   - unknown       → -0.2, no signal (keeps no-data schools off the top).
+    // Deliberately small vs region (+0.6) / in-budget (+0.5) / sport (+3.0):
+    // it tilts, never gates. weekly-only/day-only can't reach here (dropped).
+    if (effectiveBoardingPref === 'full') {
+      const grade = effectiveBoardingGrade(s.name, s.boarding_grade)
+      if (grade === 'full-dominant') {
+        score += 0.25
+        signals.push('boarding-focused')
+      } else if (grade === 'offers-full') {
+        score += 0.15
+        signals.push('offers full boarding')
+      } else if (grade === 'unknown') {
+        score -= 0.2
       }
     }
 
@@ -1647,7 +1701,7 @@ export async function scoreForBuildMode(
   // 2. Candidate query — hard filters in SQL where possible
   let q = supabase
     .from('schools')
-    .select('slug, name, gender_split, fees_usd_min, fees_usd_max, sen_support, strengths, confidence_score, age_min, age_max, region')
+    .select('slug, name, gender_split, fees_usd_min, fees_usd_max, sen_support, strengths, confidence_score, age_min, age_max, region, boarding_grade')
     .in('slug', candidateSlugs)
     .eq('country', 'United Kingdom')
 

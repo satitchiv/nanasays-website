@@ -71,6 +71,74 @@ export const KNOWN_DAY_ONLY_NAMES: ReadonlySet<string> = new Set<string>([
   'guildford high',
 ])
 
+// ── Boarding-grade classification (Phase 2, 2026-07-06 scorer pool bugs) ──
+//
+// `schools.boarding_grade` is a derived, self-maintaining enum (migration
+// 2026-07-06-boarding-grade-signal.sql) graded from the reliable
+// `boarding_arrangements` free text. The monotone order is:
+//   day-only < weekly-only < offers-full < full-dominant   (+ unknown)
+//
+// FILTER-CRITICAL boundary = "offers full at all?" = offers-full vs
+// weekly-only, which is high-confidence from text. The fuzzy
+// full-dominant-vs-offers-full split is ranker/prose-only and NEVER
+// load-bearing for a hard drop (a full-seeker keeps both).
+//
+// `effectiveBoardingGrade` layers the curated name-lists OVER the column so
+// the two signals can't disagree at filter time:
+//   1. KNOWN_FULL_BOARDING_NAMES → at-least offers-full. This is the
+//      Merchiston invariant (column grades merchiston-castle 'weekly-only'
+//      from keyword-less "houses" prose, but it's a genuine full boarder)
+//      AND the Wellington/Oakham "keep but frame honestly" path (they grade
+//      offers-full already, so the override is a no-op there).
+//   2. KNOWN_DAY_ONLY_NAMES → day-only (curated day-only beats any column).
+//   3. else → the column grade (NULL → 'unknown', fails open on the filter).
+export type BoardingGrade =
+  | 'day-only'
+  | 'weekly-only'
+  | 'offers-full'
+  | 'full-dominant'
+  | 'unknown'
+
+const BOARDING_GRADE_VALUES: ReadonlySet<string> = new Set<string>([
+  'day-only', 'weekly-only', 'offers-full', 'full-dominant', 'unknown',
+])
+
+function normalizeBoardingGrade(raw: string | null | undefined): BoardingGrade {
+  const g = (raw ?? '').trim().toLowerCase()
+  return BOARDING_GRADE_VALUES.has(g) ? (g as BoardingGrade) : 'unknown'
+}
+
+export function effectiveBoardingGrade(
+  name:        string | null | undefined,
+  columnGrade: string | null | undefined,
+): BoardingGrade {
+  const norm = normalizeSchoolName(name)
+  const col  = normalizeBoardingGrade(columnGrade)
+  // Full-boarding name-list wins first (keep-override). Preserve a stronger
+  // column reading (full-dominant) so the ranker tilt still sees it; only
+  // floor a weaker/unknown column up to offers-full.
+  if (KNOWN_FULL_BOARDING_NAMES.has(norm)) {
+    return col === 'full-dominant' ? 'full-dominant' : 'offers-full'
+  }
+  if (KNOWN_DAY_ONLY_NAMES.has(norm)) return 'day-only'
+  return col
+}
+
+// True when the effective grade offers full (7-day) boarding at all — the
+// only boundary a full-seeker's hard filter may key on. `unknown` fails
+// OPEN (returns true) so no-data schools are never hard-dropped; the ranker
+// unknown-penalty + the reasoned-prose hedge handle them downstream.
+export function offersFullBoarding(grade: BoardingGrade): boolean {
+  return grade === 'offers-full' || grade === 'full-dominant' || grade === 'unknown'
+}
+
+// True when the effective grade offers weekly/flexi boarding at all (i.e.
+// is not a pure day school). `unknown` fails OPEN. Used by weekly/flexi
+// seekers, who only need to drop day-only schools.
+export function offersAnyBoarding(grade: BoardingGrade): boolean {
+  return grade !== 'day-only'
+}
+
 // ── Single-sex override layer ───────────────────────────────────────
 //
 // Defence-in-depth against wrong/NULL schools.gender_split values.
