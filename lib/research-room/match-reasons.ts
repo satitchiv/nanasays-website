@@ -239,6 +239,11 @@ export type MatchReasonsRecord = {
   computed_at:    string  // ISO timestamp
   rules_version:  1
   rank_position?: number  // 0-based; Phase 2.8.6
+  // Reasoned shortlist (2026-07-06): parent-facing "why" written by the
+  // flag-gated reasoning stage on the Refresh path. Additive — UI ignores
+  // it today; a future UI can render it. Only present on slugs the
+  // reasoning stage actually picked (padded slots stay without it).
+  reasoned_why?:  string
 }
 
 export function packMatchReasons(reasons: string[], rankPosition?: number): MatchReasonsRecord {

@@ -49,12 +49,27 @@ type EvalRequestBody = {
   excludeSlugs?: string[]
   childGender?: string | null
   childYear?:   string | null
+  // Reasoned shortlist (2026-07-06): run the flag-gated reasoning stage
+  // over the scored pool and return it additively. Uses forceForEval (this
+  // route is already 404-in-prod + token-gated) so the battery can exercise
+  // the stage without flipping the global env flag.
+  runReasoning?: boolean
 }
 
 type EvalResponseBody = {
   intent:     BuildModeIntent
   candidates: ScoredCandidate[]
   reason:     'ok' | 'no_candidates' | 'fetch_failed'
+  // Additive block, present only when runReasoning was requested.
+  // candidates = pool entries in reasoned order with rationale_seed
+  // replaced by the parent-facing reasons (judge reads rationale_seed);
+  // total_score/signals stay as pool values — the battery labels them as
+  // retrieval-order values for the judge (Codex r1 #11).
+  reasoned?: {
+    candidates: ScoredCandidate[]
+    reason:     'ok' | 'skipped' | 'failed'
+    reasoned_in_ms: number
+  }
   meta: {
     scorer_limit: number
     classified_in_ms: number
@@ -118,10 +133,51 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
   const tScored = Date.now()
 
+  // Reasoned shortlist stage — additive, battery-only (runReasoning flag).
+  let reasoned: EvalResponseBody['reasoned']
+  if (body.runReasoning) {
+    if (reason !== 'ok' || candidates.length === 0) {
+      reasoned = { candidates: [], reason: 'skipped', reasoned_in_ms: 0 }
+    } else {
+      const { buildEvidencePacks } = await import('@/lib/server/research-room/evidence-packs')
+      const { reasonShortlist, FALLBACK_REASONED, applyReasonedOrder } =
+        await import('@/lib/server/research-room/reason-shortlist')
+      const packs = await buildEvidencePacks(svc, candidates.map(c => c.slug))
+      const r = await reasonShortlist({
+        prose: {
+          academic_notes:    child?.academic_notes    ?? '',
+          goals_notes:       child?.goals_notes       ?? '',
+          personality_notes: child?.personality_notes ?? '',
+          child_wants:       child?.child_wants       ?? '',
+          anchors_notes:     child?.anchors_notes     ?? '',
+        },
+        intent,
+        pool: candidates,
+        packs,
+        topN: 5, // battery judges top-5; parity with candidates.slice(0,5)
+        forceForEval: true,
+      })
+      if (r === FALLBACK_REASONED) {
+        reasoned = { candidates: [], reason: 'failed', reasoned_in_ms: Date.now() - tScored }
+      } else {
+        const { ordered, whyBySlug } = applyReasonedOrder(candidates, r, 5)
+        reasoned = {
+          candidates: ordered.map(c => {
+            const why = whyBySlug.get(c.slug)
+            return why ? { ...c, rationale_seed: why } : c
+          }),
+          reason: 'ok',
+          reasoned_in_ms: Date.now() - tScored,
+        }
+      }
+    }
+  }
+
   const payload: EvalResponseBody = {
     intent,
     candidates,
     reason,
+    ...(reasoned ? { reasoned } : {}),
     meta: {
       scorer_limit:     SCORER_LIMIT,
       classified_in_ms: tClassified - t0,

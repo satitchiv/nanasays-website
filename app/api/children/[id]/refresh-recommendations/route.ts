@@ -38,6 +38,13 @@ import {
 // pickTopSchoolSlugs cap (6) so existing UX is unchanged in count.
 const REFRESH_TOP_N = 6
 
+// Reasoned shortlist (2026-07-06): when NANA_REASONED_SHORTLIST=on, retrieve
+// a wider pool for the reasoning stage. Flag off → limit stays REFRESH_TOP_N
+// and behavior is byte-identical (rankCandidates sorts, filters zero-signal,
+// then slices — limit does not affect scoring; the wrapper query is fixed at
+// 250 rows independent of limit. Codex r1 #3 verified).
+const POOL_LIMIT_REASONED = 20
+
 // Mirror of finalize route's overlay helper. Child value wins when set,
 // else parent value. Used to compose the BriefProfile passed to the scorer.
 function pickInherited(childVal: unknown, parentVal: unknown): string | null {
@@ -271,6 +278,9 @@ export async function POST(
 
   // 6) Score with the rich Picker #2. excludeSlugs=[] because the Refresh
   //    button is an atomic replace; no need to exclude the current list.
+  //    Reasoned shortlist: flag on → retrieve the 20-pool for the reasoning
+  //    stage; flag off → identical to today.
+  const reasonedOn = process.env.NANA_REASONED_SHORTLIST === 'on'
   let pickResult: Awaited<ReturnType<typeof scoreForBuildMode>>
   try {
     pickResult = await scoreForBuildMode(
@@ -283,7 +293,7 @@ export async function POST(
         childYear,
         intent:       buildModeIntent,
       },
-      REFRESH_TOP_N,
+      reasonedOn ? POOL_LIMIT_REASONED : REFRESH_TOP_N,
     )
   } catch (e) {
     console.error('[POST refresh-recommendations] scoreForBuildMode threw:', e)
@@ -298,11 +308,46 @@ export async function POST(
     return NextResponse.json({ error: 'recommender_failed' }, { status: 500 })
   }
 
-  // Adapt pickResult to the shape downstream code expects (slug list +
-  // reason string). Maintains backwards compat with prior pickTopSchoolSlugs
-  // contract so match_reasons + upsert + delete logic stays unchanged.
+  // Reasoned shortlist stage (2026-07-06) — flag-gated, fail-open. All
+  // reasoned imports stay inside the flag branch (Codex r2 #4) so flag-off
+  // keeps a clean static module graph and byte-identical behavior.
+  // applyReasonedOrder guarantees EXACTLY min(REFRESH_TOP_N, pool) rows in
+  // every path — the 20-pool never leaks into shortlist rows (Codex r1 #3).
+  let orderedCandidates = pickResult.candidates
+  let reasonedWhyBySlug: Map<string, string> = new Map()
+  let mergeReasonedWhyFn: ((records: Map<string, MatchReasonsRecord>, why: Map<string, string>) => void) | null = null
+  if (reasonedOn && pickResult.reason === 'ok' && pickResult.candidates.length > 0) {
+    const { buildEvidencePacks } = await import('@/lib/server/research-room/evidence-packs')
+    const { reasonShortlist, applyReasonedOrder, mergeReasonedWhy } = await import('@/lib/server/research-room/reason-shortlist')
+    mergeReasonedWhyFn = mergeReasonedWhy
+    const packs = await buildEvidencePacks(svc, pickResult.candidates.map(c => c.slug))
+    const reasonedResult = await reasonShortlist({
+      prose: {
+        academic_notes:    strOrNull(profile.academic_notes) ?? '',
+        goals_notes:       strOrNull(profile.goals_notes) ?? '',
+        personality_notes: strOrNull(profile.personality_notes) ?? '',
+        child_wants:       strOrNull(profile.child_wants) ?? '',
+        anchors_notes:     strOrNull(profile.anchors_notes) ?? '',
+      },
+      intent: buildModeIntent,
+      pool:   pickResult.candidates,
+      packs,
+      topN:   REFRESH_TOP_N,
+    })
+    if (reasonedResult.pool_flags.length) {
+      console.warn('[refresh-recommendations] reason-shortlist pool_flags:', reasonedResult.pool_flags)
+    }
+    const applied = applyReasonedOrder(pickResult.candidates, reasonedResult, REFRESH_TOP_N)
+    orderedCandidates = applied.ordered
+    reasonedWhyBySlug = applied.whyBySlug
+  }
+
+  // Adapt to the shape downstream code expects (slug list + reason string).
+  // Maintains backwards compat with prior pickTopSchoolSlugs contract so
+  // match_reasons + upsert + delete logic stays unchanged. Flag off:
+  // orderedCandidates === pickResult.candidates (limit was REFRESH_TOP_N).
   const pick = {
-    slugs: pickResult.candidates.map(c => c.slug),
+    slugs: orderedCandidates.map(c => c.slug),
     reason: pickResult.reason === 'ok' ? 'inserted' : pickResult.reason,
   }
 
@@ -339,6 +384,13 @@ export async function POST(
     reasonsBySlug = await loadMatchReasonsBatch(svc, profileWithCache as BriefProfile, pick.slugs, { includeEmpty: true, embedRankFromSlugIndex: true })
   } catch (e) {
     console.warn('[refresh-recommendations] match_reasons compute failed:', e)
+  }
+
+  // Reasoned shortlist: carry the parent-facing "why" additively inside
+  // match_reasons (typed reasoned_why field). Mutating the map here means
+  // both the upsert and the per-slug backfill UPDATE below carry it.
+  if (reasonedWhyBySlug.size && mergeReasonedWhyFn) {
+    mergeReasonedWhyFn(reasonsBySlug, reasonedWhyBySlug)
   }
 
   // Upsert new rows first (idempotent thanks to NULLS NOT DISTINCT
