@@ -31,9 +31,12 @@ export const dynamic = 'force-dynamic'
 // module so the route + the LLM-side stay in lock-step. Tests in
 // `build-mode-interview.test.mjs` assert key + base-type parity.
 //
-// Re-exported under the original local name to preserve any in-repo
-// imports that referenced this constant.
-export const BuildModeExtractionSchema_HTTP = BuildModeExtractionHTTPSchema
+// Aliased to the original local name (used by the fields: entry below).
+// NOT exported: Next.js route modules may only export HTTP handlers +
+// the config allowlist (runtime/dynamic/…); exporting a schema const
+// fails the production route-type check. No in-repo code imports this
+// symbol, so a local const is sufficient.
+const BuildModeExtractionSchema_HTTP = BuildModeExtractionHTTPSchema
 
 // Session 3 (v5 apply 2026-05-14): the RPC moved from Record<string,number>
 // targets to Record<string,{state,weight}>. Body schema mirrors the
