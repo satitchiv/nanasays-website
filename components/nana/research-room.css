@@ -2991,6 +2991,76 @@
   background: var(--rr-white);
   -webkit-overflow-scrolling: touch;
 }
+
+/* ── Redesign req 5: smoother population ─────────────────────────────
+   Replaces the previous experience — router.refresh() swapping in fresh
+   server data with no transition, reading as a flash/full repaint — with
+   a brief settle-in fade+rise on the data rows. Toggled by the
+   `settling` state in ComparisonView (true for ~420ms right after the
+   `data` prop changes). Header row is excluded so it doesn't re-animate
+   every refresh. */
+.rr-cmp-table-wrap--settling .rr-cmp-table-row:not(.rr-cmp-table-row--head) {
+  animation: rr-cmp-settle .38s ease both;
+}
+@keyframes rr-cmp-settle {
+  from { opacity: .35; transform: translateY(3px); }
+  to   { opacity: 1;   transform: translateY(0); }
+}
+
+/* ── Redesign req 3: card-friendlier layout for a small shortlist ────
+   When there are only a few schools (≤3, `fewSchools` in the component),
+   columns get a bounded max-width (set via inline gridTemplateColumns)
+   instead of stretching edge-to-edge, so the table reads as a tight set
+   of comparison cards rather than a sparse spreadsheet. On narrow
+   viewports it goes further: each data row becomes a stacked card, with
+   every cell labelled by school name (see `data-school` + the ::before
+   below), letting a 1–3 school comparison work as a scroll-down list
+   instead of a side-scrolling table. */
+@media (max-width: 680px) {
+  .rr-cmp-table-wrap--cards .rr-cmp-table {
+    min-width: 0;
+  }
+  /* The header row's grid tracks still have a comfortable minimum
+     (minmax(240px,360px), set inline from gridTemplateColumns) wider than
+     a phone screen. Giving the head row its OWN horizontal scroll keeps
+     that scrolling contained to the header — swipe to see the next
+     school's photo/name — instead of dragging the whole outer table-wrap
+     (and leaving a confusing blank gutter under the now-stacked cards). */
+  .rr-cmp-table-wrap--cards .rr-cmp-table-row--head {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .rr-cmp-table-wrap--cards .rr-cmp-table-row:not(.rr-cmp-table-row--head) {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--rr-border);
+    border-radius: var(--rr-r-md);
+    margin: 0 14px 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px var(--rr-shadow);
+  }
+  .rr-cmp-table-wrap--cards .rr-cmp-dim {
+    position: static;
+    width: 100%;
+    border-right: none;
+    background: var(--rr-off);
+  }
+  .rr-cmp-table-wrap--cards .rr-cmp-cell {
+    width: 100%;
+    border-right: none;
+  }
+  .rr-cmp-table-wrap--cards .rr-cmp-cell[data-school]::before {
+    content: attr(data-school);
+    display: block;
+    font-family: var(--rr-sans);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--rr-muted);
+    margin-bottom: 6px;
+  }
+}
 .rr-cmp-table {
   /* Slice 6 commit 8 — switched from one big CSS grid to a flex
      column of grid-rows. Each .rr-cmp-table-row is its own
@@ -3010,17 +3080,26 @@
 
 /* Slice 8 Step 0.6: section header rendered between groups of rows whose
    group_name changes. Suppressed for the 'general' default group. Spans
-   the full grid via inline gridColumn: '1 / -1' on the element. */
+   the full grid via inline gridColumn: '1 / -1' on the element.
+   Redesign req 3 (2026-07-16): now sticks just below the school-header
+   row (inline `top` set from the measured header height) instead of
+   scrolling away, and reads as a firmer divider — heavier top border in
+   brand teal, tinted background, more breathing room above/below — so
+   groups of rows read as distinct sections instead of one dense list. */
 .rr-section-header {
   font-family: var(--rr-sans);
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 1.4px;
   text-transform: uppercase;
-  color: var(--rr-muted);
-  padding: 18px 20px 8px;
+  color: var(--rr-teal-dk);
+  padding: 12px 20px;
+  margin-top: 10px;
+  border-top: 2px solid var(--rr-teal);
   border-bottom: 1px solid var(--rr-border);
-  background: var(--rr-white);
+  background: var(--rr-teal-bg);
+  position: sticky;
+  z-index: 2;
 }
 
 .rr-cmp-corner {
@@ -3067,8 +3146,52 @@
   border-right: 1px solid var(--rr-border);
   position: sticky;
   top: 0;
+  z-index: 5;
   background: var(--rr-white);
   transition: transform .2s;
+}
+
+/* ── Redesign req 4: hero photo + logo badge in the column header ────
+   Rendered only when the data-side agent has populated heroImage /
+   logoUrl for a school; omitted entirely otherwise (see the boolean
+   guards in ComparisonView.tsx). Negative margins pull the hero photo
+   flush to the head cell's own edges/top. */
+.rr-cmp-head-media {
+  position: relative;
+  margin: -16px -18px 24px;
+  height: 84px;
+  overflow: hidden;
+  background: var(--rr-off-2);
+}
+.rr-cmp-head-hero {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.rr-cmp-head-logo {
+  position: absolute;
+  left: 12px;
+  bottom: -14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--rr-white);
+  border: 2px solid var(--rr-white);
+  box-shadow: 0 2px 8px var(--rr-shadow);
+}
+/* Logo-only variant (no hero photo yet): no full-width strip, just a
+   small inline badge above the rank line. */
+.rr-cmp-head-media--logo-only {
+  height: auto;
+  margin: 0 0 10px;
+  background: none;
+}
+.rr-cmp-head-media--logo-only .rr-cmp-head-logo {
+  position: static;
+  border: 1px solid var(--rr-border);
+  box-shadow: none;
 }
 .rr-cmp-head:last-child { border-right: none; }
 .rr-cmp-head-rank {
@@ -3185,6 +3308,7 @@
   color: var(--rr-navy);
   line-height: 1;
   letter-spacing: -.6px;
+  font-variant-numeric: tabular-nums;
 }
 .rr-cmp-cell-text {
   font-family: var(--rr-sans);
@@ -3206,6 +3330,83 @@
   margin-top: 7px;
   font-weight: 600;
 }
+
+/* ── Redesign req 1: winner highlighting ─────────────────────────────
+   Applied only to rows with a directional winnerRule (never 'neutral' —
+   e.g. fees never get a winner mark, cheapest isn't always best). Uses
+   the --rr-highlight token that shipped in slice 1 but was never
+   consumed until now. */
+.rr-cmp-cell--winner {
+  background: var(--rr-highlight);
+}
+.rr-cmp-cell--winner:hover {
+  background: var(--rr-highlight);
+}
+.rr-cmp-cell-winner-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--rr-teal);
+  color: var(--rr-navy);
+  font-size: 11px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px var(--rr-shadow);
+  line-height: 1;
+}
+
+/* ── Redesign req 2: type-aware cell rendering ───────────────────────
+   Percentage rows get a compact inline progress bar under the value;
+   known rating vocabularies (ISI/Ofsted-style outcomes) get a colored
+   pill badge instead of plain text. Fees/plain numbers keep the existing
+   big-number treatment (.rr-cmp-cell-num above), now with tabular-nums
+   so figures line up column-to-column. */
+.rr-cmp-cell-pct {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.rr-cmp-cell-pct-value {
+  font-family: var(--rr-display);
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--rr-navy);
+  letter-spacing: -.4px;
+  font-variant-numeric: tabular-nums;
+}
+.rr-cmp-cell-pct-track {
+  display: block;
+  width: 100%;
+  max-width: 140px;
+  height: 6px;
+  border-radius: var(--rr-r-pill);
+  background: var(--rr-off-2);
+  overflow: hidden;
+}
+.rr-cmp-cell-pct-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--rr-teal), var(--rr-teal-dk));
+  border-radius: var(--rr-r-pill);
+  transition: width .4s ease;
+}
+.rr-cmp-cell-badge {
+  display: inline-block;
+  font-family: var(--rr-sans);
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: .01em;
+  padding: 5px 12px;
+  border-radius: var(--rr-r-pill);
+}
+.rr-cmp-cell-badge--green { background: var(--rr-moss-bg); color: var(--rr-moss); }
+.rr-cmp-cell-badge--amber { background: var(--rr-amber-bg); color: var(--rr-amber); }
+.rr-cmp-cell-badge--red   { background: var(--rr-rust-bg); color: var(--rr-rust); }
 
 /* 4-light verdict pills */
 .rr-cmp-stamps {

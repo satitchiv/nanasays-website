@@ -98,6 +98,57 @@ type Props = {
   onRefreshTopicLens?: (topicName: string) => void
 }
 
+// ─── Comparison redesign (2026-07-16) ───────────────────────────────────
+// Consumes new OPTIONAL fields the data-side agent is landing in parallel
+// on the shared types (comparison-placeholder.ts / lib/research-comparison.ts):
+//   - SchoolColumn.heroImage? / SchoolColumn.logoUrl?
+//   - ComparisonRow.winnerRule?: 'higher-is-better' | 'lower-is-better' | 'neutral'
+//   - RowCell (kind 'value').numericValue?: number
+// All optional — every read below tolerates them being absent (older/thin
+// records, or this file running against the type defs before the other
+// agent's loader changes have fully landed).
+
+// Reads the numeric comparison value off a 'value' cell, if present.
+function cellNumericValue(cell: RowCell): number | null {
+  if (cell.kind !== 'value') return null
+  const raw = cell.numericValue
+  return typeof raw === 'number' && Number.isFinite(raw) ? raw : null
+}
+
+// Rating-style text values (ISI/Ofsted-type outcomes) get a colored badge
+// instead of plain text. Kept to a small known vocabulary so we never
+// mis-badge an unrelated free-text cell.
+const RATING_TONES: Record<string, 'green' | 'amber' | 'red'> = {
+  excellent: 'green',
+  outstanding: 'green',
+  good: 'amber',
+  satisfactory: 'red',
+  'requires improvement': 'red',
+  inadequate: 'red',
+}
+function ratingTone(primary: string): 'green' | 'amber' | 'red' | null {
+  return RATING_TONES[primary.trim().toLowerCase()] ?? null
+}
+
+// Winner highlighting (redesign requirement 1). `neutral` rows (fees, etc.)
+// never get a winner mark — cheapest isn't always best, per founder
+// decision. Ties (2+ schools sharing the best value) mark ALL tied cells
+// rather than picking one arbitrarily; a tie across every school with data
+// means nothing is distinguished, so nothing is marked at all. Missing
+// (`—`) cells never win.
+function computeRowWinners(row: ComparisonRow): Set<number> | null {
+  const rule = row.winnerRule
+  if (!rule || rule === 'neutral') return null
+  const values = row.cells.map(cellNumericValue)
+  const present = values.filter((v): v is number => v !== null)
+  if (present.length < 2) return null
+  const best = rule === 'higher-is-better' ? Math.max(...present) : Math.min(...present)
+  const winners = new Set<number>()
+  values.forEach((v, i) => { if (v !== null && v === best) winners.add(i) })
+  if (winners.size === present.length) return null // everyone with data is tied
+  return winners
+}
+
 // Slice 5.5: ALL rows live in comparison_rows now (no more hardcoded
 // canonical rows). Every row id is `cmp-<dbId>`. Removability is set by the
 // loader: only chat-added rows have row.removable = true. Seeded
@@ -145,6 +196,18 @@ export default function ComparisonView({
   // slug back so the column reappears with the error banner.
   const [optimisticallyRemoved, setOptimisticallyRemoved] = useState<Set<string>>(new Set())
   const [shortlistError, setShortlistError] = useState<string | null>(null)
+  // Redesign req 4 follow-up: a present-but-broken heroImage/logoUrl (e.g.
+  // an R2 object returning an HTML hotlink-protection stub instead of an
+  // image, HTTP 200 but wrong content-type) doesn't throw client-side —
+  // the <img> just fails to decode and the browser shows its broken-image
+  // glyph. Track failures per school+image-kind so a failed load falls
+  // back through the SAME code path as a null/missing URL (hasHero/
+  // hasLogo below already treat both as "don't render"), instead of
+  // leaving a broken-image icon or a layout gap.
+  const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
+  function markImageFailed(key: string) {
+    setFailedImages(prev => (prev.has(key) ? prev : new Set(prev).add(key)))
+  }
 
   // Slice 6.6 Tier 3.5 — zoom state for the comparison table. Three
   // discrete steps (small / normal / large) give predictable layout vs
@@ -173,6 +236,37 @@ export default function ComparisonView({
       window.localStorage.setItem('rr-cmp-zoom', String(next))
     }
   }
+
+  // Redesign req 3 — measures the header row's rendered height (it now
+  // varies with hero images being present or not) so section headers can
+  // stick just beneath it instead of a hardcoded offset.
+  const headRowRef = useRef<HTMLDivElement | null>(null)
+  const [headHeight, setHeadHeight] = useState(0)
+  useEffect(() => {
+    const el = headRowRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(entries => {
+      for (const entry of entries) setHeadHeight(entry.contentRect.height)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  // Redesign req 5 — soften router.refresh()'s full repaint. Instead of the
+  // table flashing/repainting all at once when fresh server data lands, the
+  // data rows briefly fade + settle in via CSS. Skipped on first mount (no
+  // prior state to "change" from). No animation library needed.
+  const [settling, setSettling] = useState(false)
+  const isFirstDataRender = useRef(true)
+  useEffect(() => {
+    if (isFirstDataRender.current) {
+      isFirstDataRender.current = false
+      return
+    }
+    setSettling(true)
+    const t = setTimeout(() => setSettling(false), 420)
+    return () => clearTimeout(t)
+  }, [data])
 
   async function handleRemoveSchool(slug: string) {
     if (!activeChildId) return
@@ -408,7 +502,15 @@ export default function ComparisonView({
     )
   }
 
-  const gridTemplateColumns = `260px repeat(${schools.length}, minmax(220px, 1fr))`
+  // Redesign req 3 — with only a few schools, letting columns stretch to
+  // fill the full viewport width (minmax(220px, 1fr)) reads as sparse and
+  // disconnected, more like a leftover spreadsheet than a comparison. Cap
+  // the column width instead so a 1–3 school comparison reads tighter and
+  // more like bounded cards sitting side by side.
+  const fewSchools = schools.length <= 3
+  const gridTemplateColumns = fewSchools
+    ? `260px repeat(${schools.length}, minmax(240px, 360px))`
+    : `260px repeat(${schools.length}, minmax(220px, 1fr))`
 
   return (
     <div className="rr-cmp-wrap">
@@ -564,12 +666,12 @@ export default function ComparisonView({
 
 
       <div
-        className="rr-cmp-table-wrap"
+        className={`rr-cmp-table-wrap${fewSchools ? ' rr-cmp-table-wrap--cards' : ''}${settling ? ' rr-cmp-table-wrap--settling' : ''}`}
         style={{ zoom }}
       >
         <div className="rr-cmp-table">
           {/* Header row */}
-          <div className="rr-cmp-table-row rr-cmp-table-row--head" style={{ gridTemplateColumns }}>
+          <div ref={headRowRef} className="rr-cmp-table-row rr-cmp-table-row--head" style={{ gridTemplateColumns }}>
             <div className="rr-cmp-corner">
               <div className="rr-cmp-corner-eyebrow">Comparing</div>
               <div className="rr-cmp-corner-title">
@@ -581,11 +683,43 @@ export default function ComparisonView({
                   : (lens === 'general' ? 'General lens' : `${childLensLabel} lens`)}
               </div>
             </div>
-            {schools.map((s, i) => (
+            {schools.map((s, i) => {
+              // Redesign req 4 — hero photo + logo badge in the column
+              // header, when the data-side agent has populated them.
+              // Gracefully omitted (no empty box) when absent.
+              const heroFailKey = `${s.slug}:hero`
+              const logoFailKey = `${s.slug}:logo`
+              const hasHero = Boolean(s.heroImage) && !failedImages.has(heroFailKey)
+              const hasLogo = Boolean(s.logoUrl) && !failedImages.has(logoFailKey)
+              return (
               // Slice 6.6 t12 T1.1: column disappears optimistically,
               // so no per-column "removing…" indicator needed — the
               // column is already gone the moment the user clicks ×.
               <div key={s.slug} className="rr-cmp-head">
+                {(hasHero || hasLogo) && (
+                  <div className={`rr-cmp-head-media${hasHero ? '' : ' rr-cmp-head-media--logo-only'}`}>
+                    {hasHero && (
+                      // eslint-disable-next-line @next/next/no-img-element -- remote domain unknown ahead of time; avoids next/image domain config coupling
+                      <img
+                        src={s.heroImage}
+                        alt=""
+                        className="rr-cmp-head-hero"
+                        loading="lazy"
+                        onError={() => markImageFailed(heroFailKey)}
+                      />
+                    )}
+                    {hasLogo && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={s.logoUrl}
+                        alt={`${s.name} logo`}
+                        className="rr-cmp-head-logo"
+                        loading="lazy"
+                        onError={() => markImageFailed(logoFailKey)}
+                      />
+                    )}
+                  </div>
+                )}
                 <div className="rr-cmp-head-rank">
                   No. <strong>{String(i + 1).padStart(2, '0')}</strong>
                 </div>
@@ -616,7 +750,8 @@ export default function ComparisonView({
                   </button>
                 )}
               </div>
-            ))}
+              )
+            })}
           </div>
 
           {/* Slice 6 commit 8 — sortable data rows. DnD wraps the rows
@@ -631,6 +766,7 @@ export default function ComparisonView({
             onRemove={handleRemoveRow}
             pendingRemoveId={pendingRemoveId}
             onReorderRows={onReorderRows}
+            sectionHeaderTop={headHeight}
           />
         </div>
       </div>
@@ -656,6 +792,7 @@ function SortableTableBody({
   onRemove,
   pendingRemoveId,
   onReorderRows,
+  sectionHeaderTop,
 }: {
   rows: ComparisonRow[]
   schools: SchoolColumn[]
@@ -663,6 +800,10 @@ function SortableTableBody({
   onRemove: (rowId: string) => Promise<void> | void
   pendingRemoveId: string | null
   onReorderRows?: (rowIds: string[]) => void
+  // Redesign req 3 — section headers stick just below the (variable-
+  // height, now sometimes photo-bearing) school header row instead of a
+  // hardcoded top offset. 0 is a safe fallback (sticks to the very top).
+  sectionHeaderTop: number
 }) {
   // PointerSensor needs a small distance threshold so a click on the
   // remove × or a cell doesn't accidentally start a drag. 4px is the
@@ -714,7 +855,7 @@ function SortableTableBody({
                   <div
                     role="presentation"
                     className="rr-section-header"
-                    style={{ gridColumn: '1 / -1' }}
+                    style={{ gridColumn: '1 / -1', top: sectionHeaderTop }}
                   >
                     {prettyGroupName(row.group_name!)}
                   </div>
@@ -726,6 +867,7 @@ function SortableTableBody({
                   onRemove={row.removable ? onRemove : null}
                   removing={pendingRemoveId === row.id}
                   isDragEnabled={Boolean(onReorderRows)}
+                  winners={computeRowWinners(row)}
                 />
               </Fragment>
             )
@@ -746,6 +888,7 @@ function SortableRow({
   onRemove,
   removing,
   isDragEnabled,
+  winners,
 }: {
   row: ComparisonRow
   schools: SchoolColumn[]
@@ -753,6 +896,10 @@ function SortableRow({
   onRemove: ((rowId: string) => void) | null
   removing: boolean
   isDragEnabled: boolean
+  // Redesign req 1 — indices into `schools` whose cell wins this row.
+  // null when the row has no winner to mark (neutral rule, no rule, no
+  // comparable data, or an all-tied row).
+  winners: Set<number> | null
 }) {
   const {
     attributes,
@@ -818,11 +965,23 @@ function SortableRow({
         </div>
         {row.blurb && <div className="rr-cmp-dim-blurb">{row.blurb}</div>}
       </div>
-      {schools.map((s, i) => (
-        <div key={`${row.id}-${s.slug}`} className="rr-cmp-cell">
-          <CellBody cell={row.cells[i] ?? { kind: 'empty' }} />
-        </div>
-      ))}
+      {schools.map((s, i) => {
+        const isWinner = winners?.has(i) ?? false
+        return (
+          <div
+            key={`${row.id}-${s.slug}`}
+            className={`rr-cmp-cell${isWinner ? ' rr-cmp-cell--winner' : ''}`}
+            data-school={s.name}
+          >
+            {isWinner && (
+              <span className="rr-cmp-cell-winner-badge" role="img" aria-label={`Best in shortlist: ${s.name}`} title="Best in shortlist">
+                ✓
+              </span>
+            )}
+            <CellBody cell={row.cells[i] ?? { kind: 'empty' }} />
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -843,6 +1002,40 @@ function CellBody({ cell }: { cell: RowCell }) {
       </div>
     )
   }
+
+  // Redesign req 2 — type-aware rendering. Percentages get a small inline
+  // progress bar; known rating vocabularies get a colored badge; anything
+  // else (including fees, which stay big bold numbers via .rr-cmp-cell-num)
+  // falls back to the existing plain treatment. Detected from the display
+  // string itself — no new field required, so this works today even
+  // before the data-side agent's fields land.
+  const percentMatch = /^(\d+(?:\.\d+)?)\s?%$/.exec(cell.primary.trim())
+  const tone = ratingTone(cell.primary)
+
+  if (percentMatch) {
+    const pct = Math.max(0, Math.min(100, parseFloat(percentMatch[1])))
+    return (
+      <>
+        <div className="rr-cmp-cell-pct">
+          <span className="rr-cmp-cell-pct-value">{cell.primary}</span>
+          <span className="rr-cmp-cell-pct-track" aria-hidden="true">
+            <span className="rr-cmp-cell-pct-fill" style={{ width: `${pct}%` }} />
+          </span>
+        </div>
+        {cell.sub && <div className="rr-cmp-cell-sub">{cell.sub}</div>}
+      </>
+    )
+  }
+
+  if (tone) {
+    return (
+      <>
+        <span className={`rr-cmp-cell-badge rr-cmp-cell-badge--${tone}`}>{cell.primary}</span>
+        {cell.sub && <div className="rr-cmp-cell-sub">{cell.sub}</div>}
+      </>
+    )
+  }
+
   return (
     <>
       <div className={cell.numeric ? 'rr-cmp-cell-num' : 'rr-cmp-cell-text'}>
