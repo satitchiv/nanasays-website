@@ -508,9 +508,28 @@ export default function ComparisonView({
   // the column width instead so a 1–3 school comparison reads tighter and
   // more like bounded cards sitting side by side.
   const fewSchools = schools.length <= 3
-  const gridTemplateColumns = fewSchools
-    ? `260px repeat(${schools.length}, minmax(240px, 360px))`
-    : `260px repeat(${schools.length}, minmax(220px, 1fr))`
+  // Diagnostic follow-up (2026-07-17): 4-5 schools is the realistic common
+  // shortlist size (not just ≤3), but the old flat `minmax(220px, 1fr)`
+  // still forced a 5-school table to a ~1360px content minimum (260 dim +
+  // 5×220) — wider than a 1440px laptop's usable content width even with
+  // chat closed, and well past a 1280px laptop's. Scale the dim column and
+  // per-school min/max down as the count grows so 4-5 schools compress
+  // toward what a normal laptop screen can actually show, instead of
+  // always forcing horizontal scroll. Cell content (images, highlighted
+  // values, progress bars) stays legible down to ~150px — verified via
+  // Puppeteer at 1440/1280 against the real 5-school session.
+  const dimWidth = fewSchools ? 260 : Math.max(200, 260 - (schools.length - 3) * 20)
+  const colMin = fewSchools ? 240 : Math.max(150, 260 - schools.length * 18)
+  const colMax = fewSchools ? 360 : Math.max(colMin, 320 - schools.length * 16)
+  const gridTemplateColumns = `${dimWidth}px repeat(${schools.length}, minmax(${colMin}px, ${colMax}px))`
+  // The shared `.rr-cmp-table` rule carries a flat 1100px min-width so a
+  // 1-2 school table doesn't look sparse. That floor is harmless for
+  // fewSchools (its own min-content already exceeds it) but for 4-5
+  // schools it would silently cancel the compression above (e.g. 4
+  // schools' new min-content is ~992px, comfortably under the 1100px
+  // floor) — so tighten the floor to match this table's OWN computed
+  // minimum instead of the shared constant once we're past ≤3 schools.
+  const tableMinWidth = fewSchools ? undefined : dimWidth + schools.length * colMin
 
   return (
     <div className="rr-cmp-wrap">
@@ -669,7 +688,7 @@ export default function ComparisonView({
         className={`rr-cmp-table-wrap${fewSchools ? ' rr-cmp-table-wrap--cards' : ''}${settling ? ' rr-cmp-table-wrap--settling' : ''}`}
         style={{ zoom }}
       >
-        <div className="rr-cmp-table">
+        <div className="rr-cmp-table" style={tableMinWidth != null ? { minWidth: tableMinWidth } : undefined}>
           {/* Header row */}
           <div ref={headRowRef} className="rr-cmp-table-row rr-cmp-table-row--head" style={{ gridTemplateColumns }}>
             <div className="rr-cmp-corner">
