@@ -105,6 +105,11 @@ export type PackSchool = {
     fees_max: number | null
     /** ISO 4217 (GBP, USD, CHF, EUR, THB, ...) or null when fees null. */
     fees_currency: string | null
+    /** Bug 1 fix: the school's own published local-currency fee text
+     * (schools.fees_original), used in place of USD-converted numbers so a
+     * conversion is never shown as the local price. null when SSD numeric
+     * fees are used or no original text exists. */
+    fees_text?: string | null
     is_uk: boolean
   }
   /** Whitelisted SSD fields (per plan §6.1). Object shape varies by school. */
@@ -888,7 +893,7 @@ async function fetchSchoolBundle(
     supabase
       .from('schools')
       .select(
-        'slug, name, country, boarding_type, gender_split, fees_usd_min, fees_usd_max, is_international,' +
+        'slug, name, country, boarding_type, gender_split, fees_original, fees_usd_min, fees_usd_max, is_international,' +
         // Tab A Step 3 curated_meta fields (2026-05-25):
         ' eal_support, eal_hours_per_week, eal_cost_usd,' +
         ' thai_students, thai_community,' +
@@ -958,7 +963,23 @@ async function fetchSchoolBundle(
   // Projection moved to project-meta-fees.mjs so the SSD-vs-USD precedence
   // logic can be unit-tested without mocking Supabase. Codex r1 r2 mods
   // (single-sided "from"/"up to", numeric overflow guard) live there.
-  const { fees_min, fees_max, fees_currency } = projectMetaFees(structuredRes.data as any, metaRow)
+  let { fees_min, fees_max, fees_currency } = projectMetaFees(structuredRes.data as any, metaRow)
+
+  // Bug 1 fix: when the only numeric fees are USD-converted (SSD had none),
+  // prefer the school's own published local-currency fee text if we have it,
+  // so the pack never quotes a USD conversion as the local price. Local-
+  // currency SSD numbers (fees_currency !== 'USD') are left untouched.
+  let fees_text: string | null = null
+  const feesOriginal =
+    typeof metaRow.fees_original === 'string' && metaRow.fees_original.trim()
+      ? metaRow.fees_original.trim()
+      : null
+  if (fees_currency === 'USD' && feesOriginal) {
+    fees_text = feesOriginal
+    fees_min = null
+    fees_max = null
+    fees_currency = null
+  }
 
   const meta = {
     name: metaRow.name ?? slug,
@@ -968,6 +989,7 @@ async function fetchSchoolBundle(
     fees_min,
     fees_max,
     fees_currency,
+    fees_text,
     is_uk: metaRow.country === 'United Kingdom',
   }
 
