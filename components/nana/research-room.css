@@ -3567,6 +3567,84 @@
   color: var(--rr-rust);
 }
 
+/* ── RRV-5: fit bars (mock §4) ────────────────────────────────────────
+   Discrete N-of-M filled segments, never a continuous width — the word
+   is the claim, the segments are its ordinal position on a small named
+   scale, nothing implies a measured score in between. */
+.rr-cmp-cell-band {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.rr-cmp-cell-band-track {
+  display: inline-flex;
+  gap: 3px;
+}
+.rr-cmp-cell-band-seg {
+  display: block;
+  width: 14px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--rr-off-2);
+}
+.rr-cmp-cell-band-seg.is-filled {
+  background: var(--rr-teal);
+}
+/* Muted = a genuine mismatch with what this family asked for (e.g. a
+   day-only school for a full-boarding seeker) — never "low confidence".
+   --rr-muted (not the lighter --rr-bmd) so the bar stays visible against
+   the --rr-off-2 track, not just the word. */
+.rr-cmp-cell-band--muted .rr-cmp-cell-band-seg.is-filled {
+  background: var(--rr-muted);
+}
+.rr-cmp-cell-band-word {
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--rr-navy);
+}
+.rr-cmp-cell-band--muted .rr-cmp-cell-band-word {
+  color: var(--rr-muted);
+}
+
+/* ── RRV-5: boarding mix (mock §5) ────────────────────────────────────
+   A genuine 2-segment board/day proportional bar — only rendered when a
+   real per-school % exists (buildBoardingRatio). The categorical-only
+   fallback (no proportion on record) renders as a plain word/badge cell
+   instead, via the existing tone/text branches below. */
+.rr-cmp-cell-mix {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rr-cmp-cell-mix-value {
+  font-family: var(--rr-display);
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--rr-navy);
+  font-variant-numeric: tabular-nums;
+}
+.rr-cmp-cell-mix-track {
+  display: flex;
+  width: 100%;
+  max-width: 140px;
+  height: 8px;
+  border-radius: var(--rr-r-pill);
+  overflow: hidden;
+  background: var(--rr-off-2);
+}
+.rr-cmp-cell-mix-fill {
+  display: block;
+  height: 100%;
+}
+.rr-cmp-cell-mix-fill--board {
+  background: var(--rr-navy);
+}
+.rr-cmp-cell-mix-fill--day {
+  background: var(--rr-bmd);
+}
+
 /* ── Empty state (0 schools shortlisted) ───────────────────────────── */
 .rr-cmp-empty {
   background: var(--rr-white);

@@ -51,6 +51,36 @@ export type EvidenceQuote = {
   older: boolean
 }
 
+// RRV-5 (fit bars + boarding mix, 2026-07-20): a discrete, ordinal bar —
+// `filled` of `total` segments lit — for a qualitative claim that has a
+// real, small, named scale behind it (a sport's competitive tier, an
+// academic-stretch bucket, a boarding_grade rung). Deliberately NOT a
+// continuous 0-100 width: a continuous fill next to a word would imply a
+// measured score precise enough to ask "why 65 and not 68?", which no
+// underlying data supports. `word` is a parent-facing label distinct from
+// the cell's `primary` (which stays the plain factual value, e.g. the raw
+// tier string) — see seed-rows.ts band-producing builders for the mapping.
+// `muted` means "this is a poor match for what THIS family asked for"
+// (e.g. a day-only school for a full-boarding seeker) — never "low
+// confidence"; low-but-real tiers (e.g. "Local" rugby) render at normal
+// weight with fewer segments filled, not muted.
+export type FitBand = {
+  word: string
+  filled: number
+  total: number
+  muted?: boolean
+}
+
+// RRV-5: a genuine per-school proportional population split (board % vs
+// day %), used only when a real number exists (student_community.boarding_pct
+// or the Notion boarding_ratio fallback — see buildBoardingRatio). Never
+// fabricated from the categorical boarding_grade enum, which has no
+// per-school proportion to offer — see the "Boarding mix" row builder.
+export type BoardingMix = {
+  boardPct: number
+  dayPct: number
+}
+
 export type RowCell =
   | {
       kind: 'value'
@@ -71,6 +101,12 @@ export type RowCell =
       // rows for this school. Undefined/empty means "no chip" — never a
       // fabricated zero-source chip.
       evidence?: EvidenceQuote[]
+      // RRV-5: see FitBand above. Attached in loadLensRows only, same rule
+      // as `tier`/`evidence` — never in cellFromRaw (verdict cache-hash
+      // stability; loadVerdictRows must stay byte-for-byte unaffected).
+      band?: FitBand
+      // RRV-5: see BoardingMix above. Same attach-site rule as `band`.
+      mix?: BoardingMix
     }
   | { kind: 'lights'; lights: Array<{ label: string; tone: 'green' | 'amber' | 'red' }> }
   // RRV-2 rung 3: no verified/derived value exists for this school, but

@@ -1125,6 +1125,53 @@ function CellBody({ cell, onAskNanaGap }: { cell: RowCell; onAskNanaGap?: (quest
     ? <EvidenceDisclosure evidence={cell.evidence} />
     : null
 
+  // RRV-5 (2026-07-20) — fit bars (mock §4). Checked BEFORE percentMatch:
+  // a band cell's `primary` can itself look like a percentage (e.g.
+  // "82%" on Academic stretch) and must not fall into the generic
+  // single-fill percent bar below. `filled`-of-`total` discrete segments,
+  // never a continuous width — see FitBand's comment in
+  // comparison-placeholder.ts for why (no score exists to measure
+  // continuously; a word + ordinal position is all the data supports).
+  if (cell.band) {
+    const { word, filled, total, muted } = cell.band
+    return (
+      <>
+        <div className={`rr-cmp-cell-band${muted ? ' rr-cmp-cell-band--muted' : ''}`}>
+          <span className="rr-cmp-cell-band-track" aria-hidden="true">
+            {Array.from({ length: total }, (_, i) => (
+              <span key={i} className={`rr-cmp-cell-band-seg${i < filled ? ' is-filled' : ''}`} />
+            ))}
+          </span>
+          <span className="rr-cmp-cell-band-word">{word}</span>
+          {derivedTag}
+        </div>
+        {cell.sub && <div className="rr-cmp-cell-sub">{cell.sub}</div>}
+        {evidenceBlock}
+      </>
+    )
+  }
+
+  // RRV-5 — boarding mix (mock §5): a genuine 2-segment board/day
+  // proportional bar, only ever attached when a real per-school % exists
+  // (see buildBoardingRatio) — checked before percentMatch for the same
+  // reason as band above (cell.primary is itself "NN%").
+  if (cell.mix) {
+    return (
+      <>
+        <div className="rr-cmp-cell-mix">
+          <span className="rr-cmp-cell-mix-value">{cell.primary}</span>
+          {derivedTag}
+          <span className="rr-cmp-cell-mix-track" aria-hidden="true">
+            <span className="rr-cmp-cell-mix-fill rr-cmp-cell-mix-fill--board" style={{ width: `${cell.mix.boardPct}%` }} />
+            <span className="rr-cmp-cell-mix-fill rr-cmp-cell-mix-fill--day" style={{ width: `${cell.mix.dayPct}%` }} />
+          </span>
+        </div>
+        {cell.sub && <div className="rr-cmp-cell-sub">{cell.sub}</div>}
+        {evidenceBlock}
+      </>
+    )
+  }
+
   if (percentMatch) {
     const pct = Math.max(0, Math.min(100, parseFloat(percentMatch[1])))
     return (

@@ -1,6 +1,6 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { ComparisonData, ComparisonRow, RowCell, SchoolColumn, WinnerRule, EvidenceQuote } from '@/components/nana/comparison-placeholder'
+import type { ComparisonData, ComparisonRow, RowCell, SchoolColumn, WinnerRule, EvidenceQuote, FitBand, BoardingMix } from '@/components/nana/comparison-placeholder'
 import { assertUserId } from './school-name-overrides'
 import { GENERAL_ROW_WINNER_RULES, GENERAL_ROW_SLUG_BY_NAME, COHORT_ELIGIBLE_SLUGS, EVIDENCE_DIMENSION_BY_ROW_SLUG, gapQuestionFor } from './research-room/seed-rows'
 import { REGION_BUCKETS } from './uk-regions'
@@ -20,7 +20,7 @@ type ComparisonRowDb = {
   row_name:            string
   group_name:          string
   weight:              number
-  cell_data:           Record<string, { value?: string | number | null; source?: string | null; note?: string; numeric?: number | null }> | null
+  cell_data:           Record<string, RowCellData> | null
   sort_order:          number
   lens_kind:           'general' | 'child_fit' | 'chat'
   // Slice 6.5: NULL for base/seed/chat rows; UUID of the parent topic
@@ -38,6 +38,12 @@ type RowCellData = {
   // behind `value` when the underlying field is genuinely numeric (fees,
   // percentages, scores). See RowCell['numericValue'] in comparison-placeholder.ts.
   numeric?: number | null
+  // RRV-5 (2026-07-20): see FitBand/BoardingMix in comparison-placeholder.ts.
+  // Attached onto the returned RowCell in loadLensRows only, same rule as
+  // `tier`/`evidence` below — cellFromRaw (shared with loadVerdictRows)
+  // deliberately does not read these two fields.
+  band?: FitBand | null
+  mix?: BoardingMix | null
 }
 
 type SchoolMeta = {
@@ -341,10 +347,13 @@ async function loadLensRows(
       // RRV-6 evidence is attached the same way and for the same reason —
       // cellFromRaw is shared with loadVerdictRows, which must stay
       // byte-identical for cache-hash stability (see that function).
+      // RRV-5 band/mix follow the identical rule — attached here only.
       if (base.kind === 'value') {
         const withTier = raw ? { ...base, tier: classifyTier(raw) } : base
+        const withBand = raw?.band ? { ...withTier, band: raw.band } : withTier
+        const withMix = raw?.mix ? { ...withBand, mix: raw.mix } : withBand
         const evidence = evidenceForRow?.get(col.slug)
-        return evidence && evidence.length > 0 ? { ...withTier, evidence } : withTier
+        return evidence && evidence.length > 0 ? { ...withMix, evidence } : withMix
       }
       if (base.kind !== 'empty') return base
       const bucket = schoolBuckets.get(col.slug)
