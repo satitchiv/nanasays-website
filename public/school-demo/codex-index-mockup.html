@@ -1,0 +1,1519 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nanasays - Scroll Index of UK Independent Schools</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<style>
+:root {
+  --paper: #f2ebd7;
+  --paper-light: #f7f0df;
+  --paper-deep: #e6dac0;
+  --ink: #1b3252;
+  --ink-soft: #52647a;
+  --teal: #34c3a0;
+  --teal-deep: #238b78;
+  --oxblood: #7c2f2f;
+  --amber: #c9956a;
+  --rule: rgba(27, 50, 82, 0.18);
+  --rule-strong: rgba(27, 50, 82, 0.42);
+  --shadow: rgba(27, 50, 82, 0.18);
+  --serif: "Cormorant Garamond", "Times New Roman", serif;
+  --sans: "Manrope", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  background: var(--paper);
+  scroll-behavior: smooth;
+}
+
+body {
+  min-height: 100vh;
+  overflow-x: hidden;
+  background:
+    linear-gradient(90deg, rgba(27, 50, 82, 0.035) 1px, transparent 1px) 50% 0 / 82px 82px,
+    linear-gradient(180deg, var(--paper-light) 0%, var(--paper) 44%, #eee1c6 100%);
+  color: var(--ink);
+  font-family: var(--sans);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  opacity: 0.34;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='11'/><feColorMatrix values='0 0 0 0 0.54  0 0 0 0 0.43  0 0 0 0 0.27  0 0 0 0.18 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 39;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(123, 47, 47, 0.08) 0%, transparent 18%, transparent 72%, rgba(27, 50, 82, 0.08) 100%),
+    radial-gradient(circle at 50% 12%, rgba(255, 252, 239, 0.38), transparent 42%);
+}
+
+::selection {
+  background: var(--oxblood);
+  color: var(--paper-light);
+}
+
+img {
+  display: block;
+  max-width: 100%;
+}
+
+a {
+  color: inherit;
+}
+
+.page {
+  position: relative;
+  z-index: 2;
+}
+
+.masthead {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 24px;
+  padding: 18px clamp(18px, 4vw, 52px) 14px;
+  border-bottom: 1px solid var(--rule);
+  background: rgba(242, 235, 215, 0.78);
+  backdrop-filter: blur(14px);
+}
+
+.masthead::after {
+  content: "";
+  position: absolute;
+  left: clamp(18px, 4vw, 52px);
+  right: clamp(18px, 4vw, 52px);
+  bottom: -5px;
+  height: 1px;
+  border-bottom: 1px dashed rgba(27, 50, 82, 0.26);
+}
+
+.masthead__left,
+.masthead__right {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.masthead__right {
+  justify-content: flex-end;
+}
+
+.masthead__brand {
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: clamp(27px, 3vw, 34px);
+  font-style: italic;
+  font-weight: 500;
+  line-height: 0.9;
+  text-decoration: none;
+}
+
+.masthead__label,
+.masthead__link {
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.masthead__link {
+  transition: color 160ms ease;
+}
+
+.masthead__link:hover {
+  color: var(--oxblood);
+}
+
+.counter {
+  position: fixed;
+  top: 88px;
+  right: clamp(18px, 3.6vw, 46px);
+  z-index: 35;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 82px;
+  padding: 9px 11px;
+  border: 1px solid rgba(27, 50, 82, 0.24);
+  border-radius: 999px;
+  background: rgba(247, 240, 223, 0.82);
+  box-shadow: 0 12px 34px rgba(27, 50, 82, 0.08);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  backdrop-filter: blur(10px);
+}
+
+.counter::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--teal);
+  box-shadow: 0 0 0 5px rgba(52, 195, 160, 0.16);
+}
+
+.hero {
+  position: relative;
+  height: 175vh;
+  min-height: 1060px;
+  isolation: isolate;
+}
+
+.hero__sticky {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  min-height: 680px;
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  background: var(--paper);
+}
+
+.hero__photo {
+  position: absolute;
+  inset: -4vh -4vw;
+  z-index: -2;
+  transform: scale(1.08);
+  transform-origin: center;
+  background-image: url("https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=2200&q=82");
+  background-position: center 45%;
+  background-size: cover;
+  will-change: transform;
+}
+
+.hero__photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(242, 235, 215, 0.9) 0%, rgba(242, 235, 215, 0.22) 34%, rgba(242, 235, 215, 0.8) 100%),
+    linear-gradient(90deg, rgba(27, 50, 82, 0.42), rgba(27, 50, 82, 0.08) 44%, rgba(124, 47, 47, 0.28));
+}
+
+.hero__paper-edge {
+  position: absolute;
+  inset: 74px clamp(18px, 4vw, 52px) 28px;
+  border: 1px solid rgba(27, 50, 82, 0.22);
+  pointer-events: none;
+}
+
+.hero__paper-edge::before,
+.hero__paper-edge::after {
+  content: "";
+  position: absolute;
+  left: 22px;
+  right: 22px;
+  height: 1px;
+  border-top: 1px dashed rgba(27, 50, 82, 0.24);
+}
+
+.hero__paper-edge::before {
+  top: 22px;
+}
+
+.hero__paper-edge::after {
+  bottom: 22px;
+}
+
+.hero__content {
+  width: min(1080px, calc(100vw - 44px));
+  margin-top: 42px;
+  text-align: center;
+  color: var(--ink);
+}
+
+.hero__kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 22px;
+  color: var(--oxblood);
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.hero__kicker::before,
+.hero__kicker::after {
+  content: "";
+  width: 44px;
+  height: 1px;
+  background: rgba(124, 47, 47, 0.54);
+}
+
+.hero__title {
+  max-width: 980px;
+  margin: 0 auto;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: clamp(72px, 11.5vw, 168px);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 0.78;
+  text-wrap: balance;
+}
+
+.hero__title em {
+  color: var(--oxblood);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.hero__deck {
+  max-width: 610px;
+  margin: 30px auto 0;
+  color: rgba(27, 50, 82, 0.84);
+  font-family: var(--serif);
+  font-size: clamp(22px, 2.2vw, 31px);
+  font-style: italic;
+  line-height: 1.22;
+}
+
+.hero__deck::first-letter {
+  float: left;
+  padding: 0 8px 0 0;
+  color: var(--oxblood);
+  font-family: var(--serif);
+  font-size: 68px;
+  font-style: normal;
+  line-height: 0.78;
+}
+
+.hero-meta-anchors {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(34px, 7vh, 70px);
+  z-index: 4;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(112px, 1fr));
+  gap: clamp(16px, 3vw, 52px);
+  width: min(620px, calc(100vw - 38px));
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.hero-meta-slot {
+  min-height: 46px;
+}
+
+.handoff-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 34;
+  pointer-events: none;
+}
+
+.handoff-chip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  min-width: 112px;
+  padding: 10px 14px 9px;
+  border: 1px solid rgba(27, 50, 82, 0.3);
+  border-radius: 999px;
+  background: rgba(247, 240, 223, 0.72);
+  box-shadow: 0 18px 50px rgba(27, 50, 82, 0.13);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  line-height: 1;
+  text-align: center;
+  text-transform: uppercase;
+  transform: translate3d(-999px, -999px, 0);
+  backdrop-filter: blur(10px);
+  will-change: transform, opacity;
+}
+
+.index {
+  position: relative;
+  padding: 0 clamp(18px, 4vw, 52px) 0;
+}
+
+.index::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: clamp(18px, 4vw, 52px);
+  right: clamp(18px, 4vw, 52px);
+  border-top: 1px solid var(--rule-strong);
+}
+
+.index__header {
+  position: sticky;
+  top: 64px;
+  z-index: 18;
+  display: grid;
+  grid-template-columns: 1fr repeat(3, minmax(100px, 170px));
+  gap: 18px;
+  align-items: end;
+  min-height: 102px;
+  padding: 24px 0 18px;
+  border-bottom: 1px solid var(--rule);
+  background: linear-gradient(180deg, rgba(242, 235, 215, 0.98), rgba(242, 235, 215, 0.88));
+  backdrop-filter: blur(12px);
+}
+
+.index__lede {
+  max-width: 560px;
+}
+
+.index__label,
+.toc__label,
+.entry__meta,
+.entry__stat-label,
+.footer__label,
+.cta__label {
+  color: var(--oxblood);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.index__title {
+  margin-top: 6px;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: clamp(32px, 4.6vw, 58px);
+  font-weight: 500;
+  line-height: 0.9;
+}
+
+.index-target {
+  min-height: 46px;
+  display: grid;
+  place-items: center;
+  padding: 10px 14px 9px;
+  border-top: 1px solid rgba(27, 50, 82, 0.2);
+  border-bottom: 1px solid rgba(27, 50, 82, 0.2);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-align: center;
+  text-transform: uppercase;
+  opacity: 0;
+}
+
+.index__layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 31vw) minmax(0, 1fr);
+  gap: clamp(26px, 5vw, 74px);
+  align-items: start;
+  padding-top: 38px;
+}
+
+.toc {
+  position: sticky;
+  top: 186px;
+  z-index: 12;
+  padding: 0 0 34px;
+}
+
+.toc__panel {
+  border-top: 1px solid var(--rule-strong);
+  border-bottom: 1px solid var(--rule-strong);
+  background:
+    linear-gradient(180deg, rgba(247, 240, 223, 0.8), rgba(242, 235, 215, 0.48)),
+    repeating-linear-gradient(180deg, transparent 0, transparent 39px, rgba(27, 50, 82, 0.075) 40px);
+  box-shadow: 0 20px 54px rgba(27, 50, 82, 0.06);
+}
+
+.toc__heading {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 18px;
+  align-items: end;
+  padding: 18px 0 16px;
+  border-bottom: 1px dashed rgba(27, 50, 82, 0.28);
+}
+
+.toc__title {
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: clamp(38px, 5vw, 56px);
+  font-weight: 500;
+  line-height: 0.88;
+}
+
+.toc__folio {
+  color: var(--amber);
+  font-family: var(--serif);
+  font-size: 34px;
+  font-style: italic;
+  line-height: 0.9;
+}
+
+.toc__rows {
+  padding: 9px 0 12px;
+}
+
+.toc-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 58px;
+  gap: 14px;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px dashed rgba(27, 50, 82, 0.17);
+  opacity: 0;
+  transform: translate3d(-28px, 0, 0);
+  will-change: transform, opacity;
+}
+
+.toc-row:last-child {
+  border-bottom: 0;
+}
+
+.toc-row__no,
+.toc-row__page {
+  color: var(--oxblood);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+}
+
+.toc-row__name {
+  overflow: hidden;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: clamp(24px, 2.1vw, 34px);
+  font-weight: 500;
+  line-height: 1;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.toc__note {
+  margin-top: 18px;
+  padding-left: 18px;
+  border-left: 2px solid var(--teal);
+  color: var(--ink-soft);
+  font-family: var(--serif);
+  font-size: 20px;
+  font-style: italic;
+  line-height: 1.28;
+}
+
+.entries {
+  min-width: 0;
+}
+
+.school-entry {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(260px, 38%) minmax(0, 1fr);
+  gap: clamp(22px, 4.4vw, 66px);
+  align-items: center;
+  min-height: 80vh;
+  padding: clamp(46px, 8vh, 80px) 0;
+}
+
+.school-entry::before {
+  content: attr(data-page);
+  position: absolute;
+  top: clamp(28px, 7vh, 74px);
+  right: 0;
+  color: rgba(124, 47, 47, 0.18);
+  font-family: var(--serif);
+  font-size: clamp(74px, 11vw, 156px);
+  font-style: italic;
+  line-height: 0.8;
+  pointer-events: none;
+}
+
+.entry-photo {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border: 1px solid rgba(27, 50, 82, 0.22);
+  background: var(--paper-deep);
+  box-shadow: 0 28px 60px rgba(27, 50, 82, 0.16);
+  transform: translate3d(-120px, 0, 0);
+  will-change: transform, opacity;
+}
+
+.entry-photo::after {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  border: 1px solid rgba(247, 240, 223, 0.46);
+  pointer-events: none;
+}
+
+.entry-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: sepia(0.16) saturate(0.86) contrast(1.05);
+  transform: scale(1.04);
+}
+
+.entry-body {
+  position: relative;
+  min-width: 0;
+  padding: 18px 0 34px;
+}
+
+.entry__meta {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.entry__meta::before {
+  content: "";
+  width: 28px;
+  height: 1px;
+  background: var(--oxblood);
+}
+
+.entry__name {
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: clamp(58px, 8vw, 120px);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 0.78;
+  opacity: 0;
+  transform: translate3d(0, 40px, 0);
+  will-change: transform, opacity;
+}
+
+.entry__name em {
+  color: var(--oxblood);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.entry__place {
+  max-width: 680px;
+  margin-top: 20px;
+  color: var(--ink-soft);
+  font-family: var(--serif);
+  font-size: clamp(22px, 2.4vw, 32px);
+  font-style: italic;
+  line-height: 1.16;
+}
+
+.entry__place .drop {
+  float: left;
+  padding-right: 8px;
+  color: var(--oxblood);
+  font-size: 58px;
+  font-style: normal;
+  line-height: 0.75;
+}
+
+.entry-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin-top: clamp(26px, 5vh, 46px);
+  border: 1px solid rgba(27, 50, 82, 0.18);
+  background: rgba(27, 50, 82, 0.18);
+}
+
+.entry-stat {
+  min-height: 118px;
+  padding: 17px 15px 16px;
+  background:
+    linear-gradient(180deg, rgba(247, 240, 223, 0.84), rgba(242, 235, 215, 0.76)),
+    repeating-linear-gradient(180deg, transparent 0, transparent 28px, rgba(27, 50, 82, 0.052) 29px);
+  opacity: 0;
+  transform: translate3d(-24px, 18px, 0);
+  will-change: transform, opacity;
+}
+
+.entry__stat-label {
+  display: block;
+  margin-bottom: 13px;
+  color: rgba(27, 50, 82, 0.66);
+  font-size: 9px;
+}
+
+.entry__stat-value {
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: clamp(28px, 3.5vw, 45px);
+  font-style: italic;
+  font-weight: 500;
+  line-height: 0.96;
+}
+
+.entry__rule {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--teal);
+  transform: scaleX(0);
+  transform-origin: left center;
+  will-change: transform;
+}
+
+.convergence {
+  position: relative;
+  min-height: 185vh;
+  padding: 28vh 0 12vh;
+}
+
+.footer-pin {
+  position: sticky;
+  top: 112px;
+  display: grid;
+  grid-template-columns: minmax(270px, 0.88fr) minmax(320px, 1.12fr);
+  gap: clamp(30px, 6vw, 90px);
+  align-items: center;
+  min-height: calc(100vh - 160px);
+}
+
+.footer__copy {
+  max-width: 540px;
+}
+
+.footer__title {
+  margin-top: 12px;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: clamp(56px, 8.2vw, 112px);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 0.8;
+}
+
+.footer__title em {
+  color: var(--oxblood);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.footer__text {
+  margin-top: 22px;
+  color: var(--ink-soft);
+  font-family: var(--serif);
+  font-size: clamp(22px, 2.2vw, 30px);
+  font-style: italic;
+  line-height: 1.22;
+}
+
+.footer-grid-wrap {
+  position: relative;
+  padding: clamp(14px, 2vw, 22px);
+  border-top: 1px solid var(--rule-strong);
+  border-bottom: 1px solid var(--rule-strong);
+}
+
+.footer-grid-wrap::before,
+.footer-grid-wrap::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  border-top: 1px dashed rgba(27, 50, 82, 0.25);
+}
+
+.footer-grid-wrap::before {
+  top: 6px;
+}
+
+.footer-grid-wrap::after {
+  bottom: 6px;
+}
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  opacity: 0;
+}
+
+.grid-slot {
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border: 1px solid rgba(27, 50, 82, 0.24);
+  background: var(--paper-deep);
+}
+
+.grid-slot img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: sepia(0.12) saturate(0.9) contrast(1.05);
+}
+
+.convergence-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 22;
+  pointer-events: none;
+}
+
+.converge-photo {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: clamp(250px, 32vw, 440px);
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border: 1px solid rgba(27, 50, 82, 0.24);
+  background: var(--paper-deep);
+  box-shadow: 0 22px 48px rgba(27, 50, 82, 0.18);
+  opacity: 0;
+  transform: translate3d(-999px, -999px, 0) scale(1);
+  transform-origin: top left;
+  will-change: transform, opacity;
+}
+
+.converge-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: sepia(0.12) saturate(0.9) contrast(1.05);
+}
+
+.cta {
+  display: grid;
+  place-items: center;
+  min-height: 58vh;
+  padding: 12vh clamp(18px, 4vw, 52px) 16vh;
+  text-align: center;
+}
+
+.cta__inner {
+  max-width: 780px;
+}
+
+.cta__title {
+  margin-top: 14px;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: clamp(58px, 9vw, 126px);
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 0.82;
+}
+
+.cta__title em {
+  color: var(--oxblood);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.try-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 32px;
+  padding: 15px 24px 14px;
+  border: 1px solid rgba(27, 50, 82, 0.18);
+  border-radius: 999px;
+  background: var(--teal);
+  box-shadow: 0 18px 44px rgba(35, 139, 120, 0.28);
+  color: #092d2a;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-decoration: none;
+  text-transform: uppercase;
+  transition: background 160ms ease, transform 160ms ease;
+}
+
+.try-button::after {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-top: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.try-button:hover {
+  background: #42d1ae;
+  transform: translateY(-2px);
+}
+
+@media (max-width: 980px) {
+  .masthead {
+    grid-template-columns: 1fr auto;
+  }
+
+  .masthead__left {
+    display: none;
+  }
+
+  .masthead__right {
+    gap: 12px;
+  }
+
+  .index__header {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    top: 62px;
+    align-items: start;
+  }
+
+  .index__lede {
+    grid-column: 1 / -1;
+  }
+
+  .index__layout {
+    display: block;
+  }
+
+  .toc {
+    top: 192px;
+    margin-bottom: 22px;
+  }
+
+  .toc__note {
+    display: none;
+  }
+
+  .school-entry {
+    grid-template-columns: 1fr;
+    min-height: 86vh;
+  }
+
+  .entry-photo {
+    width: min(430px, 86vw);
+    aspect-ratio: 5 / 4;
+  }
+
+  .footer-pin {
+    grid-template-columns: 1fr;
+    align-content: center;
+  }
+}
+
+@media (max-width: 680px) {
+  .masthead {
+    padding: 14px 16px 12px;
+  }
+
+  .masthead__brand {
+    font-size: 26px;
+  }
+
+  .masthead__link {
+    display: none;
+  }
+
+  .counter {
+    top: auto;
+    right: 14px;
+    bottom: 14px;
+  }
+
+  .hero {
+    height: 154vh;
+    min-height: 920px;
+  }
+
+  .hero__sticky {
+    min-height: 620px;
+  }
+
+  .hero__paper-edge {
+    inset: 62px 14px 22px;
+  }
+
+  .hero__content {
+    margin-top: 0;
+  }
+
+  .hero__title {
+    font-size: clamp(64px, 18vw, 92px);
+  }
+
+  .hero__deck {
+    font-size: 21px;
+  }
+
+  .hero-meta-anchors {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    bottom: 24px;
+  }
+
+  .handoff-chip {
+    min-width: 92px;
+    padding: 9px 8px 8px;
+    font-size: 8px;
+    letter-spacing: 0.13em;
+  }
+
+  .index {
+    padding-inline: 16px;
+  }
+
+  .index::before {
+    left: 16px;
+    right: 16px;
+  }
+
+  .index__header {
+    top: 54px;
+    gap: 8px;
+    min-height: 120px;
+    padding-top: 18px;
+  }
+
+  .index-target {
+    min-height: 36px;
+    padding: 8px 6px 7px;
+    font-size: 8px;
+    letter-spacing: 0.12em;
+  }
+
+  .toc {
+    position: relative;
+    top: auto;
+  }
+
+  .toc__heading {
+    padding-top: 14px;
+  }
+
+  .toc-row {
+    grid-template-columns: 38px minmax(0, 1fr) 42px;
+    gap: 8px;
+  }
+
+  .toc-row__name {
+    font-size: 22px;
+  }
+
+  .school-entry {
+    min-height: 92vh;
+    padding: 56px 0;
+  }
+
+  .entry__name {
+    font-size: clamp(52px, 15vw, 74px);
+  }
+
+  .entry-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .entry-stat {
+    min-height: 92px;
+  }
+
+  .school-entry::before {
+    font-size: 82px;
+  }
+
+  .convergence {
+    min-height: 170vh;
+  }
+
+  .footer-pin {
+    top: 82px;
+  }
+
+  .photo-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .converge-photo {
+    width: min(86vw, 430px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.001ms !important;
+    animation-duration: 0.001ms !important;
+  }
+}
+</style>
+</head>
+
+<body>
+<div class="handoff-layer" aria-hidden="true">
+  <div class="handoff-chip" data-handoff="0">Vol. I</div>
+  <div class="handoff-chip" data-handoff="1">MMXXVI</div>
+  <div class="handoff-chip" data-handoff="2">154 Schools</div>
+</div>
+
+<div class="convergence-layer" aria-hidden="true">
+  <div class="converge-photo" data-converge="0"><img alt="" src="https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=720&q=78" /></div>
+  <div class="converge-photo" data-converge="1"><img alt="" src="https://images.unsplash.com/photo-1568667256549-094345857637?auto=format&fit=crop&w=720&q=78" /></div>
+  <div class="converge-photo" data-converge="2"><img alt="" src="https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=720&q=78" /></div>
+  <div class="converge-photo" data-converge="3"><img alt="" src="https://images.unsplash.com/photo-1571260899304-425eee4c7efc?auto=format&fit=crop&w=720&q=78" /></div>
+  <div class="converge-photo" data-converge="4"><img alt="" src="https://images.unsplash.com/photo-1607237138185-eedd9c632b0b?auto=format&fit=crop&w=720&q=78" /></div>
+  <div class="converge-photo" data-converge="5"><img alt="" src="https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=720&q=78" /></div>
+  <div class="converge-photo" data-converge="6"><img alt="" src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=720&q=78" /></div>
+  <div class="converge-photo" data-converge="7"><img alt="" src="https://images.unsplash.com/photo-1481627834876-b7833e8f5570?auto=format&fit=crop&w=720&q=78" /></div>
+</div>
+
+<header class="masthead" aria-label="Nanasays masthead">
+  <div class="masthead__left">
+    <span class="masthead__label">Independent schools</span>
+  </div>
+  <a class="masthead__brand" href="#" aria-label="Nanasays">Nanasays</a>
+  <nav class="masthead__right" aria-label="Primary">
+    <a class="masthead__link" href="#index">Index</a>
+    <a class="masthead__link" href="#try-nana">Try Nana</a>
+  </nav>
+</header>
+
+<div class="counter" aria-live="polite"><span id="counterText">01 / 08</span></div>
+
+<main class="page">
+  <section class="hero" id="top" aria-labelledby="heroTitle">
+    <div class="hero__sticky">
+      <div class="hero__photo" data-hero-photo></div>
+      <div class="hero__paper-edge"></div>
+      <div class="hero__content">
+        <div class="hero__kicker">Nanasays index</div>
+        <h1 class="hero__title" id="heroTitle">An index, <em>set to scroll</em></h1>
+        <p class="hero__deck">Eight schools are laid down like folios, then gathered into one field of view.</p>
+      </div>
+      <div class="hero-meta-anchors" aria-hidden="true">
+        <div class="hero-meta-slot" data-meta-anchor="0"></div>
+        <div class="hero-meta-slot" data-meta-anchor="1"></div>
+        <div class="hero-meta-slot" data-meta-anchor="2"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="index" id="index" aria-labelledby="indexTitle">
+    <div class="index__header">
+      <div class="index__lede">
+        <div class="index__label">Directory specimen</div>
+        <h2 class="index__title" id="indexTitle">Index of schools</h2>
+      </div>
+      <div class="index-target" data-index-target="0">Vol. I</div>
+      <div class="index-target" data-index-target="1">MMXXVI</div>
+      <div class="index-target" data-index-target="2">154 Schools</div>
+    </div>
+
+    <div class="index__layout">
+      <aside class="toc" aria-labelledby="tocTitle">
+        <div class="toc__panel">
+          <div class="toc__heading">
+            <div>
+              <div class="toc__label">Table of Contents</div>
+              <h2 class="toc__title" id="tocTitle">Contents</h2>
+            </div>
+            <div class="toc__folio">I</div>
+          </div>
+          <div class="toc__rows">
+            <div class="toc-row" data-toc-row><span class="toc-row__no">01</span><span class="toc-row__name">Wycombe Abbey</span><span class="toc-row__page">p.12</span></div>
+            <div class="toc-row" data-toc-row><span class="toc-row__no">02</span><span class="toc-row__name">Eton College</span><span class="toc-row__page">p.18</span></div>
+            <div class="toc-row" data-toc-row><span class="toc-row__no">03</span><span class="toc-row__name">Benenden</span><span class="toc-row__page">p.24</span></div>
+            <div class="toc-row" data-toc-row><span class="toc-row__no">04</span><span class="toc-row__name">Winchester</span><span class="toc-row__page">p.30</span></div>
+            <div class="toc-row" data-toc-row><span class="toc-row__no">05</span><span class="toc-row__name">Marlborough</span><span class="toc-row__page">p.36</span></div>
+            <div class="toc-row" data-toc-row><span class="toc-row__no">06</span><span class="toc-row__name">Radley</span><span class="toc-row__page">p.42</span></div>
+            <div class="toc-row" data-toc-row><span class="toc-row__no">07</span><span class="toc-row__name">Fettes</span><span class="toc-row__page">p.48</span></div>
+            <div class="toc-row" data-toc-row><span class="toc-row__no">08</span><span class="toc-row__name">Sherborne Girls</span><span class="toc-row__page">p.54</span></div>
+          </div>
+        </div>
+        <p class="toc__note">A ledger for families who want the texture of a school before the spreadsheet narrows the field.</p>
+      </aside>
+
+      <div class="entries">
+        <article class="school-entry" data-entry data-page="p.12">
+          <figure class="entry-photo" data-source-photo>
+            <img src="https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=900&q=82" alt="Historic school buildings and lawn for Wycombe Abbey" />
+          </figure>
+          <div class="entry-body">
+            <div class="entry__meta">01 · Buckinghamshire</div>
+            <h3 class="entry__name">Wycombe <em>Abbey</em></h3>
+            <p class="entry__place"><span class="drop">G</span>irls Boarding 11-18, set in Buckinghamshire with a deliberately academic register.</p>
+            <div class="entry-stats">
+              <div class="entry-stat"><span class="entry__stat-label">Fees</span><strong class="entry__stat-value">£15,950/t</strong></div>
+              <div class="entry-stat"><span class="entry__stat-label">A*/A</span><strong class="entry__stat-value">82%</strong></div>
+              <div class="entry-stat"><span class="entry__stat-label">Type</span><strong class="entry__stat-value">Girls</strong></div>
+            </div>
+            <div class="entry__rule"></div>
+          </div>
+        </article>
+
+        <article class="school-entry" data-entry data-page="p.18">
+          <figure class="entry-photo" data-source-photo>
+            <img src="https://images.unsplash.com/photo-1568667256549-094345857637?auto=format&fit=crop&w=900&q=82" alt="Library stacks for Eton College" />
+          </figure>
+          <div class="entry-body">
+            <div class="entry__meta">02 · Berkshire</div>
+            <h3 class="entry__name">Eton <em>College</em></h3>
+            <p class="entry__place"><span class="drop">B</span>oys Boarding 13-18, Berkshire, with the cadence of old houses and exacting public results.</p>
+            <div class="entry-stats">
+              <div class="entry-stat"><span class="entry__stat-label">Fees</span><strong class="entry__stat-value">£16,668/t</strong></div>
+              <div class="entry-stat"><span class="entry__stat-label">A*/A</span><strong class="entry__stat-value">78%</strong></div>
+              <div class="entry-stat"><span class="entry__stat-label">Type</span><strong class="entry__stat-value">Boys</strong></div>
+            </div>
+            <div class="entry__rule"></div>
+          </div>
+        </article>
+
+        <article class="school-entry" data-entry data-page="p.24">
+          <figure class="entry-photo" data-source-photo>
+            <img src="https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=900&q=82" alt="Classroom shelves and books for Benenden" />
+          </figure>
+          <div class="entry-body">
+            <div class="entry__meta">03 · Kent</div>
+            <h3 class="entry__name">Benenden</h3>
+            <p class="entry__place"><span class="drop">G</span>irls Boarding 11-18, Kent, balancing rural calm with a purposeful sixth-form spine.</p>
+            <div class="entry-stats">
+              <div class="entry-stat"><span class="entry__stat-label">Fees</span><strong class="entry__stat-value">£14,995/t</strong></div>
+              <div class="entry-stat"><span class="entry__stat-label">A*/A</span><strong class="entry__stat-value">74%</strong></div>
+              <div class="entry-stat"><span class="entry__stat-label">Type</span><strong class="entry__stat-value">Girls</strong></div>
+            </div>
+            <div class="entry__rule"></div>
+          </div>
+        </article>
+
+        <article class="school-entry" data-entry data-page="p.30">
+          <figure class="entry-photo" data-source-photo>
+            <img src="https://images.unsplash.com/photo-1571260899304-425eee4c7efc?auto=format&fit=crop&w=900&q=82" alt="School corridor and lockers for Winchester" />
+          </figure>
+          <div class="entry-body">
+            <div class="entry__meta">04 · Hampshire</div>
+            <h3 class="entry__name">Winchester</h3>
+            <p class="entry__place"><span class="drop">C</span>o-ed Boarding 13-18, Hampshire, where older grammar meets a modern boarding pattern.</p>
+            <div class="entry-stats">
+              <div class="entry-stat"><span class="entry__stat-label">Fees</span><strong class="entry__stat-value">£16,490/t</strong></div>
+              <div class="entry-stat"><span class="entry__stat-label">A*/A</span><strong class="entry__stat-value">81%</strong></div>
+              <div class="entry-stat"><span class="entry__stat-label">Type</span><strong class="entry__stat-value">Co-ed</strong></div>
+            </div>
+            <div class="entry__rule"></div>
+          </div>
+        </article>
+
+        <article class="school-entry" data-entry data-page="p.36">
+          <figure class="entry-photo" data-source-photo>
+            <img src="https://images.unsplash.com/photo-1607237138185-eedd9c632b0b?auto=format&fit=crop&w=900&q=82" alt="University-style campus architecture for Marlborough" />
+          </figure>
+          <div class="entry-body">
+            <div class="entry__meta">05 · Wiltshire</div>
+            <h3 class="entry__name">Marlborough</h3>
+            <p class="entry__place"><span class="drop">C</span>o-ed Boarding 13-18, Wiltshire, broad in curriculum and set against a collegiate town edge.</p>
+            <div class="entry-stats">
+              <div class="entry-stat"><span class="entry__stat-label">Fees</span><strong class="entry__stat-value">£15,580/t</strong></div>
+              <div class="entry-stat"><span class="entry__stat-label">A*/A</span><strong class="entry__stat-value">76%</strong></div>
+              <div class="entry-stat"><span class="entry__stat-label">Type</span><strong class="entry__stat-value">Co-ed</strong></div>
+            </div>
+            <div class="entry__rule"></div>
+          </div>
+        </article>
+
+        <article class="school-entry" data-entry data-page="p.42">
+          <figure class="entry-photo" data-source-photo>
+            <img src="https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=900&q=82" alt="Teaching blackboard and classroom materials for Radley" />
+          </figure>
+          <div class="entry-body">
+            <div class="entry__meta">06 · Oxfordshire</div>
+            <h3 class="entry__name">Radley</h3>
+            <p class="entry__place"><span class="drop">B</span>oys Boarding 13-18, Oxfordshire, small enough to read as one village, large enough to compete widely.</p>
+            <div class="entry-stats">
+              <div class="entry-stat"><span class="entry__stat-label">Fees</span><strong class="entry__stat-value">£14,950/t</strong></div>
+              <div class="entry-stat"><span class="entry__stat-label">A*/A</span><strong class="entry__stat-value">71%</strong></div>
+              <div class="entry-stat"><span class="entry__stat-label">Type</span><strong class="entry__stat-value">Boys</strong></div>
+            </div>
+            <div class="entry__rule"></div>
+          </div>
+        </article>
+
+        <article class="school-entry" data-entry data-page="p.48">
+          <figure class="entry-photo" data-source-photo>
+            <img src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=900&q=82" alt="Graduates outside a school building for Fettes" />
+          </figure>
+          <div class="entry-body">
+            <div class="entry__meta">07 · Edinburgh</div>
+            <h3 class="entry__name">Fettes</h3>
+            <p class="entry__place"><span class="drop">C</span>o-ed Boarding 7-18, Edinburgh, built around a Scottish city setting and full-through provision.</p>
+            <div class="entry-stats">
+              <div class="entry-stat"><span class="entry__stat-label">Fees</span><strong class="entry__stat-value">£13,995/t</strong></div>
+              <div class="entry-stat"><span class="entry__stat-label">A*/A</span><strong class="entry__stat-value">69%</strong></div>
+              <div class="entry-stat"><span class="entry__stat-label">Type</span><strong class="entry__stat-value">Co-ed</strong></div>
+            </div>
+            <div class="entry__rule"></div>
+          </div>
+        </article>
+
+        <article class="school-entry" data-entry data-page="p.54">
+          <figure class="entry-photo" data-source-photo>
+            <img src="https://images.unsplash.com/photo-1481627834876-b7833e8f5570?auto=format&fit=crop&w=900&q=82" alt="Warm library interior for Sherborne Girls" />
+          </figure>
+          <div class="entry-body">
+            <div class="entry__meta">08 · Dorset</div>
+            <h3 class="entry__name">Sherborne <em>Girls</em></h3>
+            <p class="entry__place"><span class="drop">G</span>irls Boarding 11-18, Dorset, anchored by a town tradition and a compact residential feel.</p>
+            <div class="entry-stats">
+              <div class="entry-stat"><span class="entry__stat-label">Fees</span><strong class="entry__stat-value">£14,250/t</strong></div>
+              <div class="entry-stat"><span class="entry__stat-label">A*/A</span><strong class="entry__stat-value">70%</strong></div>
+              <div class="entry-stat"><span class="entry__stat-label">Type</span><strong class="entry__stat-value">Girls</strong></div>
+            </div>
+            <div class="entry__rule"></div>
+          </div>
+        </article>
+      </div>
+    </div>
+
+    <section class="convergence" aria-labelledby="footerTitle">
+      <div class="footer-pin">
+        <div class="footer__copy">
+          <div class="footer__label">Convergence</div>
+          <h2 class="footer__title" id="footerTitle">Eight folios, <em>one board</em></h2>
+          <p class="footer__text">As the list closes, every school image returns as a compact 4 by 2 index: an editorial end-state for comparison.</p>
+        </div>
+        <div class="footer-grid-wrap">
+          <div class="photo-grid" data-photo-grid>
+            <div class="grid-slot" data-grid-slot><img src="https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=520&q=76" alt="Wycombe Abbey index thumbnail" /></div>
+            <div class="grid-slot" data-grid-slot><img src="https://images.unsplash.com/photo-1568667256549-094345857637?auto=format&fit=crop&w=520&q=76" alt="Eton College index thumbnail" /></div>
+            <div class="grid-slot" data-grid-slot><img src="https://images.unsplash.com/photo-1497633762265-9d179a990aa6?auto=format&fit=crop&w=520&q=76" alt="Benenden index thumbnail" /></div>
+            <div class="grid-slot" data-grid-slot><img src="https://images.unsplash.com/photo-1571260899304-425eee4c7efc?auto=format&fit=crop&w=520&q=76" alt="Winchester index thumbnail" /></div>
+            <div class="grid-slot" data-grid-slot><img src="https://images.unsplash.com/photo-1607237138185-eedd9c632b0b?auto=format&fit=crop&w=520&q=76" alt="Marlborough index thumbnail" /></div>
+            <div class="grid-slot" data-grid-slot><img src="https://images.unsplash.com/photo-1503676260728-1c00da094a0b?auto=format&fit=crop&w=520&q=76" alt="Radley index thumbnail" /></div>
+            <div class="grid-slot" data-grid-slot><img src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=520&q=76" alt="Fettes index thumbnail" /></div>
+            <div class="grid-slot" data-grid-slot><img src="https://images.unsplash.com/photo-1481627834876-b7833e8f5570?auto=format&fit=crop&w=520&q=76" alt="Sherborne Girls index thumbnail" /></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </section>
+
+  <section class="cta" id="try-nana" aria-labelledby="ctaTitle">
+    <div class="cta__inner">
+      <div class="cta__label">Families start here</div>
+      <h2 class="cta__title" id="ctaTitle">Try <em>Nana</em></h2>
+      <a class="try-button" href="#">Try Nana</a>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const smooth = (t) => t * t * (3 - 2 * t);
+  const pad = (value) => String(value).padStart(2, "0");
+
+  const hero = document.querySelector(".hero");
+  const heroPhoto = document.querySelector("[data-hero-photo]");
+  const index = document.querySelector(".index");
+  const toc = document.querySelector(".toc");
+  const convergence = document.querySelector(".convergence");
+  const photoGrid = document.querySelector("[data-photo-grid]");
+  const counterText = document.getElementById("counterText");
+
+  const handoffChips = [...document.querySelectorAll("[data-handoff]")];
+  const metaAnchors = [...document.querySelectorAll("[data-meta-anchor]")];
+  const indexTargets = [...document.querySelectorAll("[data-index-target]")];
+  const tocRows = [...document.querySelectorAll("[data-toc-row]")];
+  const entries = [...document.querySelectorAll("[data-entry]")];
+  const sourcePhotos = [...document.querySelectorAll("[data-source-photo]")];
+  const convergePhotos = [...document.querySelectorAll("[data-converge]")];
+  const gridSlots = [...document.querySelectorAll("[data-grid-slot]")];
+
+  let ticking = false;
+  let viewportH = window.innerHeight;
+  let viewportW = window.innerWidth;
+
+  function rectProgress(rect, startFactor, endFactor) {
+    const start = viewportH * startFactor;
+    const end = viewportH * endFactor;
+    return clamp((start - rect.top) / (start - end));
+  }
+
+  function sectionProgress(element, startFactor, endFactor) {
+    const rect = element.getBoundingClientRect();
+    const start = viewportH * startFactor;
+    const end = viewportH * endFactor - rect.height;
+    return clamp((start - rect.top) / (start - end));
+  }
+
+  function placeFixed(element, x, y, scaleX = 1, scaleY = 1) {
+    element.style.transform = `translate3d(${x}px, ${y}px, 0) scale(${scaleX}, ${scaleY})`;
+  }
+
+  function updateHero() {
+    const rect = hero.getBoundingClientRect();
+    const heroProgress = clamp(-rect.top / Math.max(1, rect.height - viewportH));
+    const handoff = prefersReduced ? 1 : smooth(clamp((heroProgress - 0.58) / 0.34));
+    const ken = prefersReduced ? 1 : heroProgress;
+
+    heroPhoto.style.transform = `translate3d(0, ${lerp(-14, 18, ken)}px, 0) scale(${lerp(1.1, 1.02, ken)})`;
+
+    handoffChips.forEach((chip, index) => {
+      const start = metaAnchors[index].getBoundingClientRect();
+      const end = indexTargets[index].getBoundingClientRect();
+      const chipRect = chip.getBoundingClientRect();
+      const startX = start.left + (start.width - chipRect.width) / 2;
+      const startY = start.top + (start.height - chipRect.height) / 2;
+      const endX = end.left + (end.width - chipRect.width) / 2;
+      const endY = end.top + (end.height - chipRect.height) / 2;
+      const x = lerp(startX, endX, handoff);
+      const y = lerp(startY, endY, handoff);
+
+      placeFixed(chip, Math.round(x), Math.round(y));
+      chip.style.opacity = rect.bottom < -40 || rect.top > viewportH ? 0 : clamp(1 - Math.max(0, handoff - 0.93) / 0.07);
+      indexTargets[index].style.opacity = prefersReduced ? 1 : clamp((handoff - 0.78) / 0.22);
+    });
+  }
+
+  function updateToc() {
+    const progress = sectionProgress(index, 0.82, 0.18);
+
+    tocRows.forEach((row, index) => {
+      const start = 0.06 + index * 0.1;
+      const rowProgress = prefersReduced ? 1 : smooth(clamp((progress - start) / 0.12));
+      row.style.opacity = rowProgress;
+      row.style.transform = `translate3d(${lerp(-28, 0, rowProgress)}px, 0, 0)`;
+    });
+
+    if (prefersReduced && toc) {
+      toc.style.transform = "none";
+    }
+  }
+
+  function updateEntries() {
+    let current = 0;
+    let closest = Number.POSITIVE_INFINITY;
+
+    entries.forEach((entry, index) => {
+      const rect = entry.getBoundingClientRect();
+      const progress = prefersReduced ? 1 : smooth(rectProgress(rect, 0.88, 0.2));
+      const photo = entry.querySelector(".entry-photo");
+      const name = entry.querySelector(".entry__name");
+      const stats = [...entry.querySelectorAll(".entry-stat")];
+      const rule = entry.querySelector(".entry__rule");
+
+      photo.style.opacity = clamp(progress * 1.2);
+      photo.style.transform = `translate3d(${lerp(-120, 0, progress)}px, 0, 0)`;
+
+      const nameProgress = prefersReduced ? 1 : smooth(clamp((progress - 0.12) / 0.52));
+      name.style.opacity = nameProgress;
+      name.style.transform = `translate3d(0, ${lerp(40, 0, nameProgress)}px, 0)`;
+
+      stats.forEach((stat, statIndex) => {
+        const statProgress = prefersReduced ? 1 : smooth(clamp((progress - 0.28 - statIndex * 0.1) / 0.36));
+        stat.style.opacity = statProgress;
+        stat.style.transform = `translate3d(${lerp(-24, 0, statProgress)}px, ${lerp(18, 0, statProgress)}px, 0)`;
+      });
+
+      const lineProgress = prefersReduced ? 1 : smooth(clamp((progress - 0.46) / 0.46));
+      rule.style.transform = `scaleX(${lineProgress})`;
+
+      const distance = Math.abs(rect.top + rect.height * 0.34 - viewportH * 0.5);
+      if (rect.top < viewportH * 0.66 && rect.bottom > viewportH * 0.2 && distance < closest) {
+        closest = distance;
+        current = index;
+      }
+    });
+
+    counterText.textContent = `${pad(current + 1)} / ${pad(entries.length)}`;
+  }
+
+  function updateConvergence() {
+    const rect = convergence.getBoundingClientRect();
+    const progress = prefersReduced ? 1 : smooth(clamp((viewportH * 0.9 - rect.top) / (viewportH * 0.96)));
+    const showClones = progress > 0.015 && progress < 0.985;
+
+    photoGrid.style.opacity = prefersReduced ? 1 : smooth(clamp((progress - 0.74) / 0.22));
+
+    convergePhotos.forEach((clone, index) => {
+      const source = sourcePhotos[index].getBoundingClientRect();
+      const target = gridSlots[index].getBoundingClientRect();
+      const baseW = clone.offsetWidth;
+      const baseH = clone.offsetHeight;
+      const startScaleX = source.width / Math.max(1, baseW);
+      const startScaleY = source.height / Math.max(1, baseH);
+      const endScaleX = target.width / Math.max(1, baseW);
+      const endScaleY = target.height / Math.max(1, baseH);
+      const eased = prefersReduced ? 1 : progress;
+      const x = lerp(source.left, target.left, eased);
+      const y = lerp(source.top, target.top, eased);
+      const scaleX = lerp(startScaleX, endScaleX, eased);
+      const scaleY = lerp(startScaleY, endScaleY, eased);
+
+      clone.style.opacity = showClones ? clamp((progress - 0.015) / 0.14) * clamp((0.985 - progress) / 0.12) : 0;
+      placeFixed(clone, x, y, scaleX, scaleY);
+    });
+  }
+
+  function update() {
+    ticking = false;
+    viewportH = window.innerHeight;
+    viewportW = window.innerWidth;
+    document.documentElement.style.setProperty("--vw", `${viewportW}px`);
+
+    updateHero();
+    updateToc();
+    updateEntries();
+    updateConvergence();
+  }
+
+  function requestUpdate() {
+    if (!ticking) {
+      ticking = true;
+      requestAnimationFrame(update);
+    }
+  }
+
+  window.addEventListener("scroll", requestUpdate, { passive: true });
+  window.addEventListener("resize", requestUpdate);
+  window.addEventListener("load", requestUpdate);
+  requestUpdate();
+})();
+</script>
+</body>
+</html>

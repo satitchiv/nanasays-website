@@ -1,0 +1,464 @@
+/* Verdict mock — NEW styles only.
+   Reuses tokens + classes from research-room.css.
+   Layout B: compact brief chip row → headline → 3 selector tiles → one detail panel.
+*/
+
+/* ── BRIEF CHIP ROW (replaces the old decision-frame rail) ──────────── */
+.rr-verdict-brief-strip {
+  background: var(--rr-white);
+  border: 1px solid var(--rr-border);
+  border-radius: var(--rr-r-lg);
+  padding: 14px 18px;
+  margin-bottom: 20px;
+}
+.rr-verdict-brief-strip-head {
+  font-family: var(--rr-sans);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--rr-teal-dk);
+  margin-bottom: 10px;
+}
+.rr-verdict-brief-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.rr-verdict-brief-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 6px 12px;
+  background: var(--rr-off);
+  border: 1px solid var(--rr-border);
+  border-radius: var(--rr-r-sm);
+  font-family: var(--rr-sans);
+}
+.rr-verdict-brief-chip-k {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--rr-muted);
+  margin-bottom: 1px;
+}
+.rr-verdict-brief-chip-v {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--rr-navy);
+}
+.rr-verdict-brief-chip.is-anchor { background: var(--rr-teal-bg); border-color: rgba(35, 156, 128, 0.3); }
+.rr-verdict-brief-chip.is-anchor .rr-verdict-brief-chip-k { color: var(--rr-teal-dk); }
+
+/* ── SELECTOR TILES (3 paths, clickable) ────────────────────────────── */
+.rr-verdict-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin: 22px 0 24px;
+}
+.rr-verdict-tile {
+  position: relative;
+  background: var(--rr-white);
+  border: 1.5px solid var(--rr-border);
+  border-radius: var(--rr-r-lg);
+  padding: 16px 18px 18px;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: border-color .15s, box-shadow .15s, transform .15s;
+  overflow: hidden;
+}
+.rr-verdict-tile:hover {
+  border-color: var(--rr-tile-accent, var(--rr-teal-dk));
+  box-shadow: 0 4px 16px var(--rr-shadow);
+}
+.rr-verdict-tile.is-active {
+  border-color: var(--rr-tile-accent, var(--rr-teal-dk));
+  border-width: 2px;
+  box-shadow: 0 6px 22px var(--rr-shadow-lg);
+  background: var(--rr-tile-bg-active, var(--rr-white));
+}
+.rr-verdict-tile.is-active::after {
+  content: "";
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 0;
+  height: 3px;
+  background: var(--rr-tile-accent);
+}
+.rr-verdict-tile.is-tile-a { --rr-tile-accent: var(--rr-rust);    --rr-tile-bg: rgba(220, 79, 42, 0.06); }
+.rr-verdict-tile.is-tile-b { --rr-tile-accent: var(--rr-teal-dk); --rr-tile-bg: var(--rr-teal-bg);       }
+.rr-verdict-tile.is-tile-c { --rr-tile-accent: var(--rr-moss);    --rr-tile-bg: rgba(47, 128, 86, 0.06); }
+.rr-verdict-tile.is-active.is-tile-a { background: var(--rr-tile-bg); }
+.rr-verdict-tile.is-active.is-tile-b { background: var(--rr-tile-bg); }
+.rr-verdict-tile.is-active.is-tile-c { background: var(--rr-tile-bg); }
+
+.rr-verdict-tile-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.rr-verdict-tile-letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: var(--rr-tile-accent);
+  color: var(--rr-white);
+  font-family: var(--rr-display);
+  font-weight: 900;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.rr-verdict-tile-frame {
+  font-family: var(--rr-sans);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--rr-tile-accent);
+}
+.rr-verdict-tile-school {
+  font-family: var(--rr-display);
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1.15;
+  color: var(--rr-navy);
+  letter-spacing: -0.4px;
+  margin-bottom: 8px;
+}
+.rr-verdict-tile-tagline {
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--rr-muted);
+  margin-bottom: 0;
+}
+.rr-verdict-tile.is-active .rr-verdict-tile-tagline { color: var(--rr-body); }
+
+/* ── DETAIL PANEL (one selected path at a time) ─────────────────────── */
+/* Reuses existing .rr-verdict-card--essay aesthetic; just adds an accent stripe */
+.rr-verdict-detail {
+  position: relative;
+  background: var(--rr-white);
+  border: 1px solid var(--rr-border);
+  border-radius: var(--rr-r-lg);
+  box-shadow: 0 4px 18px var(--rr-shadow);
+  padding: 28px 32px;
+  overflow: hidden;
+}
+.rr-verdict-detail::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 5px;
+  background: var(--rr-detail-accent, var(--rr-teal-dk));
+}
+.rr-verdict-detail.is-path-a { --rr-detail-accent: var(--rr-rust); }
+.rr-verdict-detail.is-path-b { --rr-detail-accent: var(--rr-teal-dk); }
+.rr-verdict-detail.is-path-c { --rr-detail-accent: var(--rr-moss); }
+
+.rr-verdict-detail-eyebrow {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--rr-detail-accent);
+  margin-bottom: 6px;
+}
+.rr-verdict-detail-school {
+  font-family: var(--rr-display);
+  font-size: clamp(26px, 3vw, 32px);
+  font-weight: 900;
+  color: var(--rr-navy);
+  letter-spacing: -0.4px;
+  line-height: 1.1;
+  margin: 0 0 6px;
+}
+.rr-verdict-detail-school small {
+  display: inline;
+  font-family: var(--rr-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--rr-muted);
+  margin-left: 8px;
+}
+.rr-verdict-detail-frame {
+  font-family: var(--rr-sans);
+  font-style: italic;
+  font-size: 14.5px;
+  color: var(--rr-body);
+  padding-left: 14px;
+  border-left: 3px solid var(--rr-detail-accent);
+  margin: 4px 0 22px;
+  line-height: 1.55;
+}
+
+.rr-verdict-detail-reasoning {
+  font-family: var(--rr-sans);
+  font-size: 15.5px;
+  line-height: 1.72;
+  color: var(--rr-body);
+  margin-bottom: 20px;
+}
+.rr-verdict-detail-reasoning p { margin: 0 0 12px; }
+.rr-verdict-detail-reasoning p:last-child { margin-bottom: 0; }
+.rr-verdict-detail-reasoning strong { color: var(--rr-navy); font-weight: 800; }
+
+/* Evidence + Cost panels — reuse from earlier */
+.rr-verdict-evidence {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--rr-border);
+}
+.rr-verdict-evidence-head {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--rr-teal-dk);
+  margin-bottom: 10px;
+}
+.rr-verdict-evidence-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rr-verdict-evidence-list li {
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--rr-body);
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  gap: 8px;
+}
+.rr-verdict-evidence-list li::before {
+  content: "✓";
+  color: var(--rr-detail-accent);
+  font-weight: 900;
+}
+.rr-verdict-evidence-row { font-weight: 800; color: var(--rr-navy); }
+.rr-verdict-evidence-cite {
+  display: block;
+  margin-top: 2px;
+  color: var(--rr-muted);
+  font-size: 12px;
+}
+.rr-verdict-evidence-cite a {
+  color: var(--rr-teal-dk);
+  text-decoration: underline;
+  text-decoration-color: rgba(35, 156, 128, 0.4);
+  text-underline-offset: 2px;
+}
+.rr-verdict-evidence-cite a:hover { text-decoration-color: var(--rr-teal-dk); }
+
+.rr-verdict-cost {
+  margin-top: 20px;
+  background: rgba(245, 166, 35, 0.06);
+  border-left: 3px solid var(--rr-amber);
+  border-radius: 0 var(--rr-r-sm) var(--rr-r-sm) 0;
+  padding: 12px 16px;
+}
+.rr-verdict-cost-head {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: #8A5A00;
+  margin-bottom: 6px;
+}
+.rr-verdict-cost ul { margin: 0; padding-left: 18px; list-style: disc; }
+.rr-verdict-cost li {
+  font-family: var(--rr-sans);
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--rr-body);
+  margin-bottom: 4px;
+}
+.rr-verdict-cost li:last-child { margin-bottom: 0; }
+.rr-verdict-cost strong { color: var(--rr-navy); font-weight: 800; }
+
+/* ── COULDN'T COMPARE YET (unchanged from previous mock) ────────────── */
+.rr-verdict-couldnt {
+  margin: 30px 0 22px;
+  border: 1.5px dashed var(--rr-bmd);
+  border-radius: var(--rr-r-lg);
+  background: var(--rr-off);
+  padding: 22px 26px;
+}
+.rr-verdict-couldnt-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+.rr-verdict-couldnt-head h3 {
+  font-family: var(--rr-display);
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--rr-navy);
+  margin: 0;
+}
+.rr-verdict-couldnt-tag {
+  font-family: var(--rr-sans);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--rr-muted);
+}
+.rr-verdict-couldnt-intro {
+  font-family: var(--rr-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--rr-body);
+  margin: 0 0 16px;
+}
+.rr-verdict-couldnt-item {
+  border-top: 1px solid var(--rr-border);
+  padding: 14px 0 4px;
+}
+.rr-verdict-couldnt-item:first-of-type {
+  border-top: 0;
+  padding-top: 0;
+}
+.rr-verdict-couldnt-name {
+  font-family: var(--rr-display);
+  font-size: 16px;
+  font-weight: 900;
+  color: var(--rr-navy);
+  margin-bottom: 2px;
+}
+.rr-verdict-couldnt-meta {
+  font-family: var(--rr-sans);
+  font-size: 12px;
+  color: var(--rr-muted);
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+.rr-verdict-couldnt-body {
+  font-family: var(--rr-sans);
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--rr-body);
+  margin: 0 0 10px;
+}
+.rr-verdict-couldnt-body strong { color: var(--rr-navy); font-weight: 800; }
+.rr-verdict-couldnt-tag-match {
+  display: inline-block;
+  background: rgba(47, 128, 86, 0.1);
+  color: var(--rr-moss);
+  border: 1px solid rgba(47, 128, 86, 0.24);
+  padding: 2px 8px;
+  border-radius: var(--rr-r-sm);
+  font-weight: 800;
+  font-size: 12px;
+  margin-right: 6px;
+}
+.rr-verdict-couldnt-tag-warn {
+  display: inline-block;
+  background: rgba(220, 79, 42, 0.08);
+  color: var(--rr-rust);
+  border: 1px solid rgba(220, 79, 42, 0.24);
+  padding: 2px 8px;
+  border-radius: var(--rr-r-sm);
+  font-weight: 800;
+  font-size: 12px;
+  margin-right: 6px;
+}
+
+/* ── MOCK CHROME (banner, fake brand mark, collapsed chat rail) ─────── */
+.rr-mock-banner {
+  background: var(--rr-navy);
+  color: var(--rr-white);
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  padding: 6px 16px;
+  text-align: center;
+}
+.rr-mock-banner em { color: var(--rr-teal); font-style: normal; }
+
+.rr-mock-brand-mark {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--rr-teal) 0%, var(--rr-navy) 100%);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--rr-white);
+  font-family: var(--rr-display);
+  font-weight: 900;
+  font-size: 14px;
+}
+
+.rr-mock-chat-rail {
+  border-left: 1px solid var(--rr-border);
+  background: var(--rr-white);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 14px 0;
+  gap: 14px;
+}
+.rr-mock-chat-rail-avatar {
+  width: 36px; height: 36px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--rr-teal) 0%, var(--rr-navy) 100%);
+}
+.rr-mock-chat-rail-label {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: var(--rr-muted);
+  text-transform: uppercase;
+}
+
+/* Layout switcher strip (shared with mocks A and C) */
+.rr-mock-switcher {
+  background: #F0EFEA;
+  border-bottom: 1px solid var(--rr-border);
+  padding: 8px 5%;
+  display: flex; gap: 14px; align-items: center;
+  font-family: var(--rr-sans); font-size: 12px;
+  color: var(--rr-muted);
+}
+.rr-mock-switcher strong {
+  color: var(--rr-navy); font-size: 11px; font-weight: 900;
+  letter-spacing: 1.2px; text-transform: uppercase; margin-right: 8px;
+}
+.rr-mock-switcher a {
+  color: var(--rr-navy); text-decoration: none;
+  padding: 4px 10px; border-radius: var(--rr-r-sm);
+  border: 1px solid var(--rr-border); background: var(--rr-white);
+  font-weight: 700;
+}
+.rr-mock-switcher a.is-active {
+  background: var(--rr-navy); color: var(--rr-white); border-color: var(--rr-navy);
+}
+.rr-mock-switcher a:hover:not(.is-active) {
+  border-color: var(--rr-teal-dk); color: var(--rr-teal-dk);
+}
+
+@media (max-width: 920px) {
+  .rr-verdict-selector { grid-template-columns: 1fr; }
+}

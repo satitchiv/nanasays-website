@@ -1,0 +1,2008 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nanasays — Choosing a school deserves more than a brochure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..900,0..100,0..1&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+<style>
+/* ─────────────────────────────────────────────────────────────────────
+   NANASAYS — editorial premium mockup
+   Opal Tadpole inspired, with scroll-driven interaction.
+   Heritage navy + warm cream + sharp teal + amber accent.
+   ─────────────────────────────────────────────────────────────────── */
+
+:root {
+  --midnight: #0A1726;
+  --navy: #1B3252;
+  --navy-soft: #2A4566;
+  --cream: #F5EFE3;
+  --cream-pure: #FDFCF7;
+  --paper: #ECE5D5;
+  --teal: #34C3A0;
+  --teal-deep: #1F8E72;
+  --amber: #C9956A;
+  --amber-bright: #F5A623;
+  --ink: #0A1726;
+  --ink-muted: #5A6678;
+  --hairline: rgba(10,23,38,0.12);
+  --hairline-dark: rgba(245,239,227,0.14);
+
+  --serif: 'Fraunces', 'Times New Roman', serif;
+  --sans: 'Instrument Sans', system-ui, -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--cream);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-feature-settings: 'ss01', 'ss02', 'cv11';
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+::selection { background: var(--teal); color: var(--midnight); }
+
+/* ── Display utilities ───────────────────────────────────────────── */
+
+.eyebrow,
+.eyebrow-light {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.eyebrow { color: var(--teal-deep); }
+.eyebrow-light { color: var(--teal); }
+
+/* ── Navigation ──────────────────────────────────────────────────── */
+
+.nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  padding: 18px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(245,239,227,0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-bottom: 1px solid rgba(10,23,38,0.06);
+  transition: background 0.4s ease, color 0.4s ease, border-color 0.4s ease;
+}
+
+.nav.is-dark {
+  background: rgba(10,23,38,0.78);
+  border-bottom: 1px solid rgba(245,239,227,0.06);
+}
+.nav.is-dark .nav-brand,
+.nav.is-dark .nav-link,
+.nav.is-dark .nav-cta-ghost { color: var(--cream); }
+.nav.is-dark .nav-cta-ghost { border-color: rgba(245,239,227,0.25); }
+
+.nav-brand {
+  font-family: var(--serif);
+  font-variation-settings: 'opsz' 24, 'SOFT' 50;
+  font-weight: 500;
+  font-size: 22px;
+  letter-spacing: -0.02em;
+  color: var(--midnight);
+  text-decoration: none;
+  transition: color 0.4s ease;
+}
+.nav-brand sup {
+  font-family: var(--mono);
+  font-size: 8px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: var(--amber-bright);
+  margin-left: 2px;
+  vertical-align: super;
+}
+
+.nav-links { display: flex; gap: 36px; align-items: center; }
+
+.nav-link {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--midnight);
+  text-decoration: none;
+  letter-spacing: -0.005em;
+  opacity: 0.78;
+  transition: opacity 0.2s, color 0.4s ease;
+}
+.nav-link:hover { opacity: 1; }
+
+.nav-cta {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 18px;
+  border-radius: 999px;
+  background: var(--midnight);
+  color: var(--cream);
+  text-decoration: none;
+  border: 1px solid var(--midnight);
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+.nav-cta:hover { transform: translateY(-1px); background: var(--navy); }
+.nav.is-dark .nav-cta { background: var(--teal); color: var(--midnight); border-color: var(--teal); }
+.nav.is-dark .nav-cta:hover { background: #4FE0B8; }
+
+.nav-cta-ghost {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 500;
+  padding: 9px 18px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--midnight);
+  text-decoration: none;
+  border: 1px solid rgba(10,23,38,0.18);
+  transition: border-color 0.18s ease, background 0.18s ease, color 0.4s ease;
+}
+.nav-cta-ghost:hover { border-color: var(--midnight); }
+
+/* ── Section primitives ──────────────────────────────────────────── */
+
+section { position: relative; }
+.section-cream { background: var(--cream); color: var(--ink); }
+.section-dark { background: var(--midnight); color: var(--cream); }
+
+.container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+.container-narrow {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 40px;
+}
+
+/* ── HERO ────────────────────────────────────────────────────────── */
+
+.hero {
+  position: relative;
+  padding: 180px 0 100px;
+  overflow: hidden;
+  isolation: isolate;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 30%, rgba(52,195,160,0.10), transparent 60%),
+    radial-gradient(ellipse 70% 50% at 85% 70%, rgba(201,149,106,0.08), transparent 60%);
+  z-index: -1;
+}
+
+/* Mouse-tracked glow */
+.hero-glow {
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(52,195,160,0.18) 0%, transparent 60%);
+  pointer-events: none;
+  z-index: -1;
+  transform: translate3d(-50%, -50%, 0);
+  transition: opacity 0.4s ease;
+  opacity: 0;
+  filter: blur(40px);
+}
+.hero:hover .hero-glow { opacity: 1; }
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1fr 0.85fr;
+  gap: 80px;
+  align-items: center;
+}
+
+.hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 36px;
+}
+.hero-eyebrow::before {
+  content: '';
+  width: 24px; height: 1px;
+  background: var(--teal);
+}
+
+.hero-headline {
+  font-family: var(--serif);
+  font-variation-settings: 'opsz' 144, 'SOFT' 30, 'WONK' 0;
+  font-weight: 340;
+  font-size: clamp(56px, 7vw, 104px);
+  line-height: 0.92;
+  letter-spacing: -0.028em;
+  color: var(--cream);
+  margin-bottom: 32px;
+}
+.hero-headline em {
+  font-style: italic;
+  font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1;
+  font-weight: 320;
+  color: var(--teal);
+}
+
+/* word-by-word stagger reveal */
+.hero-headline .w {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(28px);
+  animation: word-rise 0.95s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes word-rise {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.hero-sub {
+  font-size: 17px;
+  line-height: 1.55;
+  color: rgba(245,239,227,0.72);
+  max-width: 480px;
+  margin-bottom: 44px;
+  opacity: 0;
+  transform: translateY(20px);
+  animation: word-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.7s forwards;
+}
+
+.hero-cta-row {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  flex-wrap: wrap;
+  opacity: 0;
+  transform: translateY(20px);
+  animation: word-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.9s forwards;
+}
+
+/* Magnetic button: JS adds translate; CSS handles smoothing */
+.magnetic {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.btn-primary {
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 600;
+  padding: 14px 26px;
+  border-radius: 999px;
+  background: var(--teal);
+  color: var(--midnight);
+  text-decoration: none;
+  border: 1px solid var(--teal);
+  transition: background 0.2s, box-shadow 0.3s;
+  position: relative;
+  overflow: hidden;
+}
+.btn-primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(255,255,255,0.35), transparent 60%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  pointer-events: none;
+}
+.btn-primary:hover { background: #4FE0B8; box-shadow: 0 12px 32px -8px rgba(52,195,160,0.5); }
+.btn-primary:hover::after { opacity: 1; }
+
+.btn-ghost {
+  font-family: var(--sans);
+  font-size: 15px;
+  font-weight: 500;
+  padding: 14px 26px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cream);
+  text-decoration: none;
+  border: 1px solid rgba(245,239,227,0.25);
+  transition: border-color 0.2s, background 0.2s;
+}
+.btn-ghost:hover { border-color: var(--cream); background: rgba(245,239,227,0.05); }
+
+.btn-arrow {
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 0.2s;
+}
+.btn-primary:hover .btn-arrow { transform: translateX(4px); }
+
+.hero-trust {
+  margin-top: 56px;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(245,239,227,0.5);
+  opacity: 0;
+  animation: word-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) 1.1s forwards;
+}
+.hero-trust span { display: flex; align-items: center; gap: 8px; }
+.hero-trust span::before {
+  content: '';
+  width: 6px; height: 6px;
+  background: var(--teal);
+  border-radius: 50%;
+}
+
+/* HERO visual: parallax cards */
+.hero-visual {
+  position: relative;
+  height: 580px;
+  perspective: 1200px;
+}
+
+.parallax-card {
+  position: absolute;
+  transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.report-card {
+  top: 0; right: 60px;
+  width: 360px;
+  background: var(--cream-pure);
+  border-radius: 14px;
+  padding: 28px 26px;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.04) inset,
+    0 30px 60px -20px rgba(0,0,0,0.5),
+    0 50px 100px -40px rgba(0,0,0,0.4);
+  color: var(--ink);
+  --base-rot: -1.5deg;
+  transform: rotate(var(--base-rot));
+  z-index: 1;
+}
+
+.report-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 22px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--hairline);
+}
+.report-card-title {
+  font-family: var(--serif);
+  font-variation-settings: 'opsz' 24, 'SOFT' 30;
+  font-weight: 500;
+  font-size: 19px;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+}
+.report-card-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  text-align: right;
+}
+
+.report-section { margin-bottom: 18px; }
+.report-section-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--teal-deep);
+  margin-bottom: 6px;
+}
+.report-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--hairline);
+}
+.report-row:last-child { border-bottom: none; }
+.report-row-key { font-size: 13px; color: var(--ink); font-weight: 500; }
+.report-row-val {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--midnight);
+  font-weight: 500;
+}
+.report-row-val.is-strong {
+  background: rgba(52,195,160,0.14);
+  color: var(--teal-deep);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.chat-card {
+  bottom: 0; left: 0;
+  width: 340px;
+  background: rgba(27, 50, 82, 0.85);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(245,239,227,0.1);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 30px 80px -20px rgba(0,0,0,0.6);
+  --base-rot: 2deg;
+  transform: rotate(var(--base-rot));
+  z-index: 2;
+}
+
+.chat-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(245,239,227,0.08);
+}
+.chat-avatar {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--teal), var(--amber-bright));
+  display: grid;
+  place-items: center;
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--midnight);
+}
+.chat-head-name {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 14px;
+  color: var(--cream);
+  letter-spacing: -0.01em;
+}
+.chat-head-status {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--teal);
+}
+
+.chat-bubble {
+  font-size: 13px;
+  line-height: 1.5;
+  padding: 11px 14px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  max-width: 88%;
+}
+.chat-bubble.user {
+  background: rgba(245,239,227,0.1);
+  color: var(--cream);
+  margin-left: auto;
+  border-bottom-right-radius: 3px;
+}
+.chat-bubble.nana {
+  background: var(--teal);
+  color: var(--midnight);
+  border-bottom-left-radius: 3px;
+  font-weight: 500;
+}
+.chat-bubble.nana strong { color: var(--midnight); font-weight: 700; }
+
+/* ── COMPARATIVE: sticky-scroll storytelling ─────────────────────── */
+
+.compare-wrap {
+  position: relative;
+  background: var(--cream);
+  padding: 0;
+}
+
+.compare-pin {
+  height: 280vh;          /* scroll-runway: every 40vh advances one fact */
+  position: relative;
+}
+
+.compare-pin-inner {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  padding: 80px 0;
+}
+
+.compare-pin-inner > .container-narrow { width: 100%; }
+
+.compare-intro {
+  text-align: center;
+  margin-bottom: 56px;
+}
+
+.compare-headline {
+  font-family: var(--serif);
+  font-variation-settings: 'opsz' 144, 'SOFT' 30;
+  font-weight: 340;
+  font-size: clamp(34px, 4.4vw, 60px);
+  line-height: 1.02;
+  letter-spacing: -0.022em;
+  color: var(--ink);
+  max-width: 860px;
+  margin: 18px auto 0;
+}
+.compare-headline em {
+  font-style: italic;
+  font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1;
+  color: var(--teal-deep);
+}
+
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+  border: 1px solid var(--hairline);
+  border-radius: 18px;
+  overflow: hidden;
+  background: var(--cream-pure);
+  position: relative;
+}
+
+.compare-col {
+  padding: 36px 36px 40px;
+  position: relative;
+  min-height: 440px;
+}
+.compare-col + .compare-col { border-left: 1px solid var(--hairline); }
+
+.compare-col-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+.compare-col-label-text {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.compare-col.is-brochure .compare-col-label-text { color: var(--ink-muted); }
+.compare-col.is-facts .compare-col-label-text { color: var(--teal-deep); }
+
+.compare-col-dot { width: 8px; height: 8px; border-radius: 50%; }
+.compare-col.is-brochure .compare-col-dot { background: var(--ink-muted); }
+.compare-col.is-facts .compare-col-dot { background: var(--teal); }
+
+.compare-col-title {
+  font-family: var(--serif);
+  font-variation-settings: 'opsz' 48, 'SOFT' 50;
+  font-weight: 440;
+  font-size: 22px;
+  letter-spacing: -0.015em;
+  line-height: 1.2;
+  margin-bottom: 24px;
+  color: var(--ink);
+}
+
+/* Sticky scroll-driven items */
+.brochure-quote,
+.facts-row {
+  opacity: 0.18;
+  transform: translateY(8px);
+  transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.brochure-quote.is-active,
+.facts-row.is-active {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.brochure-quote.is-faded {
+  opacity: 0.16;
+  filter: blur(0.4px);
+}
+
+.brochure-quote {
+  font-family: var(--serif);
+  font-style: italic;
+  font-variation-settings: 'opsz' 36, 'SOFT' 100, 'WONK' 1;
+  font-weight: 380;
+  font-size: 18px;
+  line-height: 1.5;
+  color: rgba(10,23,38,0.65);
+  margin-bottom: 14px;
+  padding-left: 16px;
+  border-left: 2px solid rgba(10,23,38,0.1);
+}
+
+.facts-list { list-style: none; }
+
+.facts-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--hairline);
+  align-items: baseline;
+}
+.facts-row:first-child { padding-top: 0; }
+
+.facts-key { font-size: 14px; font-weight: 500; color: var(--ink); }
+
+.facts-val {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--midnight);
+}
+.facts-val.green {
+  background: rgba(52,195,160,0.14);
+  color: var(--teal-deep);
+  padding: 3px 9px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+.facts-val.amber {
+  background: rgba(245,166,35,0.14);
+  color: #8a5800;
+  padding: 3px 9px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+/* Progress dots on the right edge */
+.compare-progress {
+  position: absolute;
+  right: -28px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.compare-progress span {
+  width: 4px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--hairline);
+  transition: background 0.3s, height 0.3s;
+}
+.compare-progress span.is-active { background: var(--teal); height: 22px; }
+
+.facts-source {
+  margin-top: 18px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+/* ── MEET NANA — scroll-narrated chat ───────────────────────────── */
+
+.nana-wrap {
+  position: relative;
+  background: var(--midnight);
+  color: var(--cream);
+}
+
+.nana-pin {
+  height: 320vh;          /* runway for 4 message reveals */
+  position: relative;
+}
+
+.nana-pin-inner {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+}
+.nana-pin-inner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 50% 40% at 80% 20%, rgba(52,195,160,0.07), transparent 70%);
+}
+
+.nana-grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 0.85fr 1fr;
+  gap: 100px;
+  align-items: center;
+  width: 100%;
+}
+
+.nana-headline {
+  font-family: var(--serif);
+  font-variation-settings: 'opsz' 144, 'SOFT' 30;
+  font-weight: 340;
+  font-size: clamp(48px, 5.6vw, 84px);
+  line-height: 0.96;
+  letter-spacing: -0.025em;
+  color: var(--cream);
+  margin: 24px 0 24px;
+}
+.nana-headline em {
+  font-style: italic;
+  font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1;
+  color: var(--amber);
+}
+
+.nana-body {
+  font-size: 16px;
+  line-height: 1.6;
+  color: rgba(245,239,227,0.72);
+  margin-bottom: 28px;
+  max-width: 440px;
+}
+
+.nana-can-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.nana-can-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  font-size: 14.5px;
+  color: rgba(245,239,227,0.85);
+}
+.nana-can-list li::before {
+  content: '';
+  flex-shrink: 0;
+  width: 5px; height: 5px;
+  margin-top: 9px;
+  border-radius: 50%;
+  background: var(--teal);
+  box-shadow: 0 0 0 3px rgba(52,195,160,0.18);
+}
+
+/* Scroll-narrated chat */
+.demo-chat {
+  background: rgba(245,239,227,0.04);
+  border: 1px solid rgba(245,239,227,0.1);
+  border-radius: 22px;
+  padding: 26px;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 40px 100px -30px rgba(0,0,0,0.6);
+  display: flex;
+  flex-direction: column;
+}
+
+.demo-chat-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid rgba(245,239,227,0.08);
+}
+.demo-chat-avatar {
+  width: 40px; height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--teal), var(--amber-bright));
+  display: grid;
+  place-items: center;
+  font-family: var(--serif);
+  font-variation-settings: 'opsz' 24, 'SOFT' 50;
+  font-weight: 500;
+  font-size: 17px;
+  color: var(--midnight);
+  position: relative;
+}
+.demo-chat-avatar::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 1px solid var(--teal);
+  opacity: 0;
+  animation: ring 2.4s ease-out infinite;
+}
+@keyframes ring {
+  0% { opacity: 0.8; transform: scale(0.9); }
+  100% { opacity: 0; transform: scale(1.35); }
+}
+.demo-chat-name {
+  font-family: var(--serif);
+  font-variation-settings: 'opsz' 24, 'SOFT' 50;
+  font-weight: 500;
+  font-size: 17px;
+  color: var(--cream);
+  letter-spacing: -0.015em;
+}
+.demo-chat-sub {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--teal);
+  margin-top: 2px;
+}
+
+.demo-msg {
+  margin-bottom: 12px;
+  display: flex;
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.demo-msg.is-in { opacity: 1; transform: translateY(0); }
+
+.demo-msg.user { justify-content: flex-end; }
+.demo-msg.nana { justify-content: flex-start; }
+
+.demo-bubble {
+  padding: 13px 17px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.55;
+  max-width: 86%;
+}
+.demo-bubble.user {
+  background: rgba(245,239,227,0.08);
+  color: var(--cream);
+  border-bottom-right-radius: 4px;
+}
+.demo-bubble.nana {
+  background: var(--cream);
+  color: var(--midnight);
+  border-bottom-left-radius: 4px;
+}
+.demo-bubble.nana strong { color: var(--midnight); font-weight: 700; }
+.demo-bubble.nana em {
+  font-style: italic;
+  font-family: var(--serif);
+  font-variation-settings: 'opsz' 24, 'SOFT' 100, 'WONK' 1;
+  font-weight: 500;
+}
+.demo-bubble.nana .cite {
+  display: inline-block;
+  margin-left: 4px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  background: rgba(52,195,160,0.16);
+  color: var(--teal-deep);
+  padding: 2px 6px;
+  border-radius: 3px;
+  vertical-align: middle;
+  font-weight: 600;
+}
+
+/* Typing indicator */
+.demo-typing {
+  display: flex;
+  gap: 4px;
+  padding: 13px 17px;
+  background: var(--cream);
+  border-radius: 14px;
+  border-bottom-left-radius: 4px;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+.demo-typing.is-in { opacity: 1; }
+.demo-typing.is-out { opacity: 0; height: 0; padding: 0; margin: 0; overflow: hidden; }
+.demo-typing span {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--ink-muted);
+  animation: dot 1.2s ease-in-out infinite;
+}
+.demo-typing span:nth-child(2) { animation-delay: 0.2s; }
+.demo-typing span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes dot {
+  0%, 80%, 100% { transform: scale(0.7); opacity: 0.4; }
+  40% { transform: scale(1); opacity: 1; }
+}
+
+.demo-input {
+  margin-top: 14px;
+  padding: 13px 16px;
+  border-radius: 12px;
+  background: rgba(10,23,38,0.5);
+  border: 1px solid rgba(245,239,227,0.1);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13.5px;
+  color: rgba(245,239,227,0.4);
+}
+.demo-input::after {
+  content: '';
+  width: 1px;
+  height: 16px;
+  background: var(--teal);
+  animation: blink 1.1s steps(2, end) infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+
+/* Scroll progress bar above chat */
+.demo-progress {
+  height: 2px;
+  background: rgba(245,239,227,0.08);
+  border-radius: 2px;
+  margin-bottom: 18px;
+  overflow: hidden;
+}
+.demo-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--teal), var(--amber-bright));
+  width: 0%;
+  transition: width 0.15s linear;
+}
+
+.demo-hint {
+  margin-top: 12px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(245,239,227,0.4);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.demo-hint::before {
+  content: '↓';
+  font-size: 12px;
+  color: var(--teal);
+  animation: bob 2s ease-in-out infinite;
+}
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(3px); }
+}
+
+/* ── INSIDE — spec cards with hover expand ───────────────────────── */
+
+.inside {
+  padding: 160px 0 140px;
+  background: var(--cream);
+}
+
+.inside-head {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: end;
+  margin-bottom: 56px;
+}
+
+.inside-headline {
+  font-family: var(--serif);
+  font-variation-settings: 'opsz' 144, 'SOFT' 30;
+  font-weight: 340;
+  font-size: clamp(40px, 5vw, 72px);
+  line-height: 0.98;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+  margin-top: 20px;
+}
+.inside-headline em {
+  font-style: italic;
+  font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1;
+  color: var(--teal-deep);
+}
+
+.inside-body {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--ink-muted);
+  max-width: 420px;
+  padding-bottom: 12px;
+}
+
+.specs-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 24px;
+}
+
+.spec-card {
+  background: var(--cream-pure);
+  border: 1px solid var(--hairline);
+  border-radius: 18px;
+  padding: 28px 28px 26px;
+  position: relative;
+  cursor: pointer;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow: hidden;
+}
+.spec-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), rgba(52,195,160,0.08), transparent 50%);
+  opacity: 0;
+  transition: opacity 0.4s;
+  pointer-events: none;
+}
+.spec-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 24px 60px -20px rgba(10,23,38,0.2);
+  border-color: rgba(52,195,160,0.4);
+}
+.spec-card:hover::before { opacity: 1; }
+
+.spec-card.span-6 { grid-column: span 6; }
+.spec-card.span-4 { grid-column: span 4; }
+.spec-card.span-8 { grid-column: span 8; }
+
+.spec-num {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--ink-muted);
+  margin-bottom: 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.spec-num-toggle {
+  width: 22px; height: 22px;
+  border-radius: 50%;
+  background: rgba(10,23,38,0.06);
+  display: grid;
+  place-items: center;
+  font-family: var(--sans);
+  font-size: 13px;
+  color: var(--ink);
+  transition: background 0.3s, transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.spec-card.is-open .spec-num-toggle {
+  transform: rotate(45deg);
+  background: var(--teal);
+  color: var(--midnight);
+}
+
+.spec-title {
+  font-family: var(--serif);
+  font-variation-settings: 'opsz' 48, 'SOFT' 30;
+  font-weight: 460;
+  font-size: 26px;
+  letter-spacing: -0.018em;
+  line-height: 1.1;
+  margin-bottom: 12px;
+  color: var(--ink);
+}
+.spec-title em {
+  font-style: italic;
+  font-variation-settings: 'opsz' 48, 'SOFT' 100, 'WONK' 1;
+  color: var(--teal-deep);
+}
+
+.spec-body {
+  font-size: 14.5px;
+  line-height: 1.55;
+  color: var(--ink-muted);
+  margin-bottom: 18px;
+}
+
+.spec-detail {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.3s ease;
+  opacity: 0;
+}
+.spec-card.is-open .spec-detail { max-height: 360px; opacity: 1; }
+
+.spec-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+.spec-chip {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 6px 11px;
+  border-radius: 6px;
+  background: rgba(10,23,38,0.05);
+  color: var(--midnight);
+  border: 1px solid var(--hairline);
+}
+.spec-chip.is-teal { background: rgba(52,195,160,0.12); color: var(--teal-deep); border-color: rgba(52,195,160,0.25); }
+.spec-chip.is-amber { background: rgba(245,166,35,0.10); color: #8a5800; border-color: rgba(245,166,35,0.22); }
+
+.spec-feature {
+  display: flex;
+  align-items: baseline;
+  gap: 18px;
+  padding: 12px 0;
+  border-top: 1px dashed var(--hairline);
+}
+.spec-feature:first-of-type { border-top: none; padding-top: 0; }
+.spec-feature-num {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--teal-deep);
+  letter-spacing: 0.08em;
+  width: 24px;
+  flex-shrink: 0;
+}
+.spec-feature-text {
+  font-size: 14px;
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+/* ── NUMBERS — count-up ──────────────────────────────────────────── */
+
+.numbers {
+  padding: 140px 0;
+  background: var(--midnight);
+  color: var(--cream);
+  position: relative;
+  overflow: hidden;
+}
+.numbers::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 60% 50% at 50% 50%, rgba(52,195,160,0.06), transparent 70%);
+}
+
+.numbers-head { text-align: center; margin-bottom: 64px; position: relative; }
+
+.numbers-headline {
+  font-family: var(--serif);
+  font-variation-settings: 'opsz' 144, 'SOFT' 30;
+  font-weight: 340;
+  font-size: clamp(34px, 4vw, 56px);
+  line-height: 1;
+  letter-spacing: -0.022em;
+  color: var(--cream);
+  max-width: 760px;
+  margin: 18px auto 0;
+}
+
+.numbers-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  position: relative;
+  border-top: 1px solid var(--hairline-dark);
+  border-bottom: 1px solid var(--hairline-dark);
+}
+
+.number-item {
+  padding: 56px 40px;
+  text-align: center;
+  position: relative;
+}
+.number-item + .number-item { border-left: 1px solid var(--hairline-dark); }
+
+.number-figure {
+  font-family: var(--serif);
+  font-variation-settings: 'opsz' 144, 'SOFT' 30;
+  font-weight: 320;
+  font-size: clamp(72px, 9vw, 140px);
+  line-height: 0.92;
+  letter-spacing: -0.04em;
+  margin-bottom: 12px;
+  background: linear-gradient(180deg, var(--cream) 55%, rgba(52,195,160,0.65));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-variant-numeric: tabular-nums;
+}
+
+.number-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(245,239,227,0.55);
+}
+
+.numbers-foot {
+  margin-top: 48px;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(245,239,227,0.45);
+}
+.numbers-foot span {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--teal);
+  margin-right: 10px;
+  vertical-align: middle;
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.4); opacity: 0.6; }
+}
+
+/* ── FINAL CTA ───────────────────────────────────────────────────── */
+
+.cta {
+  padding: 160px 0 140px;
+  background: linear-gradient(180deg, var(--midnight) 0%, var(--midnight) 40%, #0F1F33 100%);
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.cta::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 50% 40% at 50% 30%, rgba(52,195,160,0.10), transparent 70%);
+}
+
+.cta-content { position: relative; z-index: 1; }
+
+.cta-headline {
+  font-family: var(--serif);
+  font-variation-settings: 'opsz' 144, 'SOFT' 50;
+  font-weight: 340;
+  font-size: clamp(46px, 6vw, 88px);
+  line-height: 0.96;
+  letter-spacing: -0.028em;
+  color: var(--cream);
+  margin: 22px auto 22px;
+  max-width: 920px;
+}
+.cta-headline em {
+  font-style: italic;
+  font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1;
+  color: var(--teal);
+}
+
+.cta-sub {
+  font-size: 16px;
+  line-height: 1.6;
+  color: rgba(245,239,227,0.65);
+  max-width: 540px;
+  margin: 0 auto 40px;
+}
+
+.cta-actions { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; }
+
+/* ── FOOTER ──────────────────────────────────────────────────────── */
+
+footer {
+  padding: 36px 40px 52px;
+  background: var(--midnight);
+  border-top: 1px solid var(--hairline-dark);
+  color: rgba(245,239,227,0.5);
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+footer .copyright {
+  font-family: var(--mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-size: 10px;
+}
+footer .brand-mark {
+  font-family: var(--serif);
+  font-variation-settings: 'opsz' 24, 'SOFT' 50;
+  font-style: italic;
+  font-weight: 400;
+  font-size: 14px;
+  color: var(--cream);
+  letter-spacing: -0.01em;
+}
+
+/* ── Generic reveal (for sections not driven by scroll-scrub) ────── */
+
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 1s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 1s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.is-visible { opacity: 1; transform: translateY(0); }
+.reveal.delay-1 { transition-delay: 0.08s; }
+.reveal.delay-2 { transition-delay: 0.16s; }
+.reveal.delay-3 { transition-delay: 0.24s; }
+
+/* ── Custom cursor hint for spec cards ───────────────────────────── */
+
+@media (hover: hover) {
+  .spec-card { cursor: pointer; }
+}
+
+/* ── Responsive ──────────────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  .hero-grid { grid-template-columns: 1fr; gap: 60px; }
+  .hero-visual { height: 480px; }
+  .nana-grid { grid-template-columns: 1fr; gap: 60px; }
+  .nana-pin { height: auto; }
+  .nana-pin-inner { position: static; height: auto; padding: 100px 0; }
+  .compare-pin { height: auto; }
+  .compare-pin-inner { position: static; height: auto; padding: 100px 0; }
+  .inside-head { grid-template-columns: 1fr; gap: 32px; }
+  .specs-grid > .spec-card { grid-column: span 12 !important; }
+  .compare-grid { grid-template-columns: 1fr; }
+  .compare-col + .compare-col { border-left: none; border-top: 1px solid var(--hairline); }
+  .numbers-grid { grid-template-columns: 1fr; }
+  .number-item + .number-item { border-left: none; border-top: 1px solid var(--hairline-dark); }
+  .compare-progress { display: none; }
+  /* On smaller screens, reveal items in scroll-narrated sections via plain reveal */
+  .brochure-quote, .facts-row, .demo-msg { opacity: 1 !important; transform: none !important; }
+}
+
+@media (max-width: 640px) {
+  .nav { padding: 14px 20px; }
+  .nav-links { display: none; }
+  .container, .container-narrow { padding: 0 20px; }
+  .hero { padding: 130px 0 80px; }
+  .hero-visual { height: 420px; }
+  .report-card { width: 280px; right: 0; }
+  .chat-card { width: 280px; }
+  .inside { padding: 100px 0 80px; }
+  .numbers { padding: 100px 0; }
+  .cta { padding: 120px 0 100px; }
+  .compare-col, .demo-chat { padding: 24px 20px; }
+  .spec-card { padding: 22px 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  .brochure-quote, .facts-row, .demo-msg { opacity: 1 !important; transform: none !important; }
+}
+
+</style>
+</head>
+
+<body>
+
+<!-- ============ NAV ============ -->
+<nav class="nav" id="nav">
+  <a href="#" class="nav-brand">Nanasays<sup>UK</sup></a>
+  <div class="nav-links">
+    <a href="#" class="nav-link">Browse schools</a>
+    <a href="#" class="nav-link">How it works</a>
+    <a href="#" class="nav-link">For families</a>
+    <a href="#" class="nav-cta-ghost">Sign in</a>
+    <a href="#" class="nav-cta magnetic">Try Nana</a>
+  </div>
+</nav>
+
+<!-- ============ HERO ============ -->
+<section class="section-dark hero" id="hero">
+  <div class="hero-glow" id="heroGlow"></div>
+  <div class="container">
+    <div class="hero-grid">
+      <div>
+        <div class="hero-eyebrow eyebrow-light">For the choice that shapes a life</div>
+
+        <h1 class="hero-headline" id="heroHeadline">
+          <span class="line"><span class="w">Choosing</span> <span class="w">a</span> <span class="w">school</span></span><br />
+          <span class="line"><span class="w">deserves</span> <span class="w">more</span> <span class="w">than</span></span><br />
+          <span class="line"><span class="w">a</span>&nbsp;<span class="w"><em>brochure</em></span>.</span>
+        </h1>
+
+        <p class="hero-sub">
+          Nanasays reads every inspection report, fee schedule and policy across
+          the UK's independent schools — so Nana, your private guide, can answer
+          the question that actually matters: is this the right place for <em>your</em> child?
+        </p>
+
+        <div class="hero-cta-row">
+          <a href="#" class="btn-primary magnetic">Try Nana free <span class="btn-arrow">→</span></a>
+          <a href="#" class="btn-ghost magnetic">Browse 154 schools</a>
+        </div>
+
+        <div class="hero-trust">
+          <span>ISI&nbsp;verified</span>
+          <span>No paid placement</span>
+          <span>UK first</span>
+        </div>
+      </div>
+
+      <div class="hero-visual" id="heroVisual">
+        <div class="parallax-card report-card" data-depth="0.6">
+          <div class="report-card-head">
+            <div>
+              <div class="report-card-title">Wycombe Abbey</div>
+              <div style="font-size:11px; color:var(--ink-muted); margin-top:4px;">Girls · Boarding · 11–18</div>
+            </div>
+            <div class="report-card-meta">Report<br />v.2026.05</div>
+          </div>
+
+          <div class="report-section">
+            <div class="report-section-label">Academic</div>
+            <div class="report-row"><span class="report-row-key">A-level A*/A</span><span class="report-row-val is-strong">82%</span></div>
+            <div class="report-row"><span class="report-row-key">Oxbridge offers (3yr)</span><span class="report-row-val">28</span></div>
+          </div>
+
+          <div class="report-section">
+            <div class="report-section-label">Fees · 2026</div>
+            <div class="report-row"><span class="report-row-key">Full boarding / term</span><span class="report-row-val">£15,950</span></div>
+            <div class="report-row"><span class="report-row-key">Bursary cap</span><span class="report-row-val">100%</span></div>
+          </div>
+
+          <div class="report-section">
+            <div class="report-section-label">Pastoral</div>
+            <div class="report-row"><span class="report-row-key">Safeguarding (ISI)</span><span class="report-row-val is-strong">Excellent</span></div>
+          </div>
+        </div>
+
+        <div class="parallax-card chat-card" data-depth="1.2">
+          <div class="chat-head">
+            <div class="chat-avatar">N</div>
+            <div style="flex:1;">
+              <div class="chat-head-name">Nana</div>
+              <div class="chat-head-status">Reading…&nbsp;Wycombe Abbey</div>
+            </div>
+          </div>
+
+          <div class="chat-bubble user">Is the pastoral side as strong as the academics?</div>
+          <div class="chat-bubble nana">
+            ISI rated safeguarding <strong>excellent</strong> in 2024. One thing to know: weekly boarders join Saturday school.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ COMPARATIVE — sticky scroll-scrub ============ -->
+<section class="compare-wrap">
+  <div class="compare-pin" id="comparePin">
+    <div class="compare-pin-inner">
+      <div class="container-narrow">
+
+        <div class="compare-intro">
+          <div class="eyebrow">The honest read</div>
+          <h2 class="compare-headline">
+            There is the way schools want to be seen — <br />
+            and the way they <em>actually are</em>.
+          </h2>
+        </div>
+
+        <div class="compare-grid" id="compareGrid">
+          <div class="compare-col is-brochure">
+            <div class="compare-col-label">
+              <span class="compare-col-dot"></span>
+              <span class="compare-col-label-text">The brochure</span>
+            </div>
+            <h3 class="compare-col-title">What the website says</h3>
+
+            <p class="brochure-quote" data-step="0">
+              "A nurturing community where every girl finds her voice."
+            </p>
+            <p class="brochure-quote" data-step="1">
+              "Outstanding outcomes with a generous bursary programme to support exceptional candidates."
+            </p>
+            <p class="brochure-quote" data-step="2">
+              "Our pastoral structure ensures every pupil is known, valued and supported."
+            </p>
+
+            <div class="facts-source">Source · Marketing copy, 2026</div>
+          </div>
+
+          <div class="compare-col is-facts">
+            <div class="compare-col-label">
+              <span class="compare-col-dot"></span>
+              <span class="compare-col-label-text">The Nanasays read</span>
+            </div>
+            <h3 class="compare-col-title">What the data actually shows</h3>
+
+            <ul class="facts-list">
+              <li class="facts-row" data-step="0"><span class="facts-key">A-level A*/A</span><span class="facts-val green">82% · top decile</span></li>
+              <li class="facts-row" data-step="1"><span class="facts-key">Boarding fee / term</span><span class="facts-val">£15,950</span></li>
+              <li class="facts-row" data-step="2"><span class="facts-key">Bursary cap</span><span class="facts-val green">Up to 100%</span></li>
+              <li class="facts-row" data-step="3"><span class="facts-key">ISI safeguarding</span><span class="facts-val green">Excellent · 2024</span></li>
+              <li class="facts-row" data-step="4"><span class="facts-key">Saturday school</span><span class="facts-val amber">Mandatory · weekly boarders too</span></li>
+              <li class="facts-row" data-step="5"><span class="facts-key">LGBTQ+ provision</span><span class="facts-val">Named lead · GSA society</span></li>
+            </ul>
+
+            <div class="facts-source">Source · ISI report · Fee schedule · Policy docs</div>
+
+            <div class="compare-progress" id="compareProgress">
+              <span></span><span></span><span></span><span></span><span></span><span></span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MEET NANA — scroll-narrated chat ============ -->
+<section class="nana-wrap">
+  <div class="nana-pin" id="nanaPin">
+    <div class="nana-pin-inner">
+      <div class="container">
+        <div class="nana-grid">
+
+          <div>
+            <div class="eyebrow-light">The guide</div>
+            <h2 class="nana-headline">Nana has read <br />the <em>homework</em>.</h2>
+            <p class="nana-body">
+              Every Nanasays school comes with a private guide trained on its
+              inspection reports, fee schedules and policy documents. Ask the
+              questions you'd ask a friend on the inside.
+            </p>
+
+            <ul class="nana-can-list">
+              <li>Compare two schools on the things you care about — not the things they want to show off.</li>
+              <li>Surface the small print: Saturday school, exeats, dress code, screen policy.</li>
+              <li>Cite every claim back to the source document, with a page link.</li>
+            </ul>
+
+            <p class="demo-hint">Scroll to watch Nana answer</p>
+          </div>
+
+          <div class="demo-chat" id="demoChat">
+            <div class="demo-chat-head">
+              <div class="demo-chat-avatar">N</div>
+              <div>
+                <div class="demo-chat-name">Nana</div>
+                <div class="demo-chat-sub">Wycombe Abbey · Reading mode</div>
+              </div>
+            </div>
+
+            <div class="demo-progress"><div class="demo-progress-fill" id="demoProgress"></div></div>
+
+            <div class="demo-msg user" data-step="0">
+              <div class="demo-bubble user">
+                We're considering this school for our daughter who's autistic and bright.
+                Is the pastoral set-up actually equipped for her, or is that brochure language?
+              </div>
+            </div>
+
+            <div class="demo-typing" id="demoTyping" data-step="1"><span></span><span></span><span></span></div>
+
+            <div class="demo-msg nana" data-step="2">
+              <div class="demo-bubble nana">
+                Honest read: <strong>partly equipped</strong>. ISI 2024 rated safeguarding <em>excellent</em> and named a SENCO with three specialist staff — strong on paper. <span class="cite">ISI · p.14</span>
+              </div>
+            </div>
+
+            <div class="demo-msg nana" data-step="3">
+              <div class="demo-bubble nana">
+                But two things to weigh: cohort size is large (650+) and boarding rhythm is intense — Saturday school + Sunday chapel. For some autistic pupils that's grounding; for others it's overwhelming. <span class="cite">Policy · p.6</span>
+              </div>
+            </div>
+
+            <div class="demo-msg nana" data-step="4">
+              <div class="demo-bubble nana">
+                Want me to compare against Benenden or Tudor Hall, where the cohort is smaller?
+              </div>
+            </div>
+
+            <div class="demo-input">Ask Nana about Wycombe Abbey…</div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ INSIDE — spec cards ============ -->
+<section class="inside">
+  <div class="container">
+    <div class="inside-head">
+      <div class="reveal">
+        <div class="eyebrow">Inside every report</div>
+        <h2 class="inside-headline">50+ verified facts. <br />Zero <em>marketing copy</em>.</h2>
+      </div>
+      <p class="inside-body reveal delay-1">
+        Every Nanasays report is built from primary sources — ISI inspections,
+        fee schedules, registration packs, policy documents. We don't paraphrase
+        the website. We read past it. <strong>Tap any card</strong> to expand the detail.
+      </p>
+    </div>
+
+    <div class="specs-grid">
+
+      <article class="spec-card span-6 reveal delay-1" data-toggle>
+        <div class="spec-num"><span>01 — ACADEMIC OUTCOMES</span><span class="spec-num-toggle">+</span></div>
+        <h3 class="spec-title">What the <em>league tables</em> won't tell you.</h3>
+        <p class="spec-body">Three-year rolling A-level &amp; GCSE distributions, Oxbridge offer counts, Russell Group destinations, and subject-level dropoffs.</p>
+        <div class="spec-detail">
+          <div class="spec-feature"><span class="spec-feature-num">A·1</span><span class="spec-feature-text">A-level A*/A percentage, 3-year trend</span></div>
+          <div class="spec-feature"><span class="spec-feature-num">A·2</span><span class="spec-feature-text">Oxbridge offers and university destinations</span></div>
+          <div class="spec-feature"><span class="spec-feature-num">A·3</span><span class="spec-feature-text">Subject strength heatmap by department</span></div>
+          <div class="spec-feature"><span class="spec-feature-num">A·4</span><span class="spec-feature-text">GCSE 9–7 grade percentage, 3-year trend</span></div>
+        </div>
+      </article>
+
+      <article class="spec-card span-6 reveal delay-2" data-toggle>
+        <div class="spec-num"><span>02 — ISI INSPECTION</span><span class="spec-num-toggle">+</span></div>
+        <h3 class="spec-title">The report the <em>school can't edit</em>.</h3>
+        <p class="spec-body">Independent Schools Inspectorate findings extracted and structured — every claim citation-linked.</p>
+        <div class="spec-stats">
+          <span class="spec-chip is-teal">Safeguarding</span>
+          <span class="spec-chip is-teal">Pastoral</span>
+          <span class="spec-chip">Leadership</span>
+          <span class="spec-chip">SEND provision</span>
+          <span class="spec-chip is-amber">Action points</span>
+        </div>
+        <div class="spec-detail">
+          <div class="spec-feature"><span class="spec-feature-num">I·1</span><span class="spec-feature-text">Inspection grade per pillar with date</span></div>
+          <div class="spec-feature"><span class="spec-feature-num">I·2</span><span class="spec-feature-text">Verbatim action points, with page citations</span></div>
+          <div class="spec-feature"><span class="spec-feature-num">I·3</span><span class="spec-feature-text">Trend across previous two inspection cycles</span></div>
+        </div>
+      </article>
+
+      <article class="spec-card span-4 reveal delay-1" data-toggle>
+        <div class="spec-num"><span>03 — FEES</span><span class="spec-num-toggle">+</span></div>
+        <h3 class="spec-title">Every line item, every term.</h3>
+        <p class="spec-body">Boarding, day, registration, extras, bursaries.</p>
+        <div class="spec-detail">
+          <div class="spec-feature"><span class="spec-feature-num">F·1</span><span class="spec-feature-text">Per-term fee schedule with currency note</span></div>
+          <div class="spec-feature"><span class="spec-feature-num">F·2</span><span class="spec-feature-text">Bursary cap and means-test thresholds</span></div>
+          <div class="spec-feature"><span class="spec-feature-num">F·3</span><span class="spec-feature-text">Sibling discount and scholarship rate</span></div>
+        </div>
+      </article>
+
+      <article class="spec-card span-4 reveal delay-2" data-toggle>
+        <div class="spec-num"><span>04 — PASTORAL</span><span class="spec-num-toggle">+</span></div>
+        <h3 class="spec-title">Who notices when it goes <em>quiet</em>.</h3>
+        <p class="spec-body">Tutor ratios, house structure, mental-health resourcing.</p>
+        <div class="spec-detail">
+          <div class="spec-feature"><span class="spec-feature-num">P·1</span><span class="spec-feature-text">Counsellor-to-pupil ratio and access path</span></div>
+          <div class="spec-feature"><span class="spec-feature-num">P·2</span><span class="spec-feature-text">LGBTQ+ named lead and society provision</span></div>
+          <div class="spec-feature"><span class="spec-feature-num">P·3</span><span class="spec-feature-text">Anti-bullying outcomes from ISI</span></div>
+        </div>
+      </article>
+
+      <article class="spec-card span-4 reveal delay-3" data-toggle>
+        <div class="spec-num"><span>05 — SPORTS &amp; CULTURE</span><span class="spec-num-toggle">+</span></div>
+        <h3 class="spec-title">Tier ranking, not trophies.</h3>
+        <p class="spec-body">Rugby, cricket, tennis, hockey, football tiers.</p>
+        <div class="spec-detail">
+          <div class="spec-feature"><span class="spec-feature-num">S·1</span><span class="spec-feature-text">National tier ranking per sport</span></div>
+          <div class="spec-feature"><span class="spec-feature-num">S·2</span><span class="spec-feature-text">Squad depth (1st-XV through to U13)</span></div>
+          <div class="spec-feature"><span class="spec-feature-num">S·3</span><span class="spec-feature-text">Music, drama, creative arts strength index</span></div>
+        </div>
+      </article>
+
+      <article class="spec-card span-8 reveal delay-1" data-toggle>
+        <div class="spec-num"><span>06 — BOARDING RHYTHM</span><span class="spec-num-toggle">+</span></div>
+        <h3 class="spec-title">The week that <em>actually happens</em>.</h3>
+        <p class="spec-body">The Sunday-to-Saturday structure of a boarder's life. Saturday school, chapel, exeat patterns, mobile-phone rules, screen policy and the unwritten norms that shape whether a child will thrive or wilt.</p>
+        <div class="spec-stats">
+          <span class="spec-chip">Saturday school</span>
+          <span class="spec-chip">Exeat policy</span>
+          <span class="spec-chip">Phone rules</span>
+          <span class="spec-chip">Sunday rhythm</span>
+          <span class="spec-chip">Dress code</span>
+          <span class="spec-chip">Visitor policy</span>
+        </div>
+        <div class="spec-detail">
+          <div class="spec-feature"><span class="spec-feature-num">B·1</span><span class="spec-feature-text">Saturday school: mandatory / optional / none</span></div>
+          <div class="spec-feature"><span class="spec-feature-num">B·2</span><span class="spec-feature-text">Exeat pattern: weekly / fortnightly / fixed</span></div>
+          <div class="spec-feature"><span class="spec-feature-num">B·3</span><span class="spec-feature-text">Phone-and-screen policy by age band</span></div>
+          <div class="spec-feature"><span class="spec-feature-num">B·4</span><span class="spec-feature-text">Sunday chapel: required / opt-in / secular</span></div>
+        </div>
+      </article>
+
+      <article class="spec-card span-4 reveal delay-2" data-toggle>
+        <div class="spec-num"><span>07 — LOCATION</span><span class="spec-num-toggle">+</span></div>
+        <h3 class="spec-title">Trains, taxis, travel time.</h3>
+        <p class="spec-body">Door-to-door from London, nearest station, airport for international parents.</p>
+        <div class="spec-detail">
+          <div class="spec-feature"><span class="spec-feature-num">L·1</span><span class="spec-feature-text">Door-to-door from central London</span></div>
+          <div class="spec-feature"><span class="spec-feature-num">L·2</span><span class="spec-feature-text">Nearest station and taxi distance</span></div>
+          <div class="spec-feature"><span class="spec-feature-num">L·3</span><span class="spec-feature-text">Nearest international airport</span></div>
+        </div>
+      </article>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============ NUMBERS ============ -->
+<section class="numbers" id="numbers">
+  <div class="container">
+    <div class="numbers-head reveal">
+      <div class="eyebrow-light">The library, today</div>
+      <h2 class="numbers-headline">A picture of British independent education, kept honest.</h2>
+    </div>
+
+    <div class="numbers-grid">
+      <div class="number-item reveal">
+        <div class="number-figure" data-count="154">0</div>
+        <div class="number-label">Schools indexed</div>
+      </div>
+      <div class="number-item reveal delay-1">
+        <div class="number-figure" data-count="397">0</div>
+        <div class="number-label">ISI facts extracted</div>
+      </div>
+      <div class="number-item reveal delay-2">
+        <div class="number-figure" data-count="73">0</div>
+        <div class="number-label">Chat-ready with Nana</div>
+      </div>
+    </div>
+
+    <div class="numbers-foot reveal delay-2">
+      <span></span>Library growing weekly · UK-first
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA ============ -->
+<section class="cta">
+  <div class="container-narrow cta-content">
+    <div class="eyebrow-light reveal">Begin</div>
+    <h2 class="cta-headline reveal delay-1">
+      When the brochure runs out of words, <em>Nana keeps going</em>.
+    </h2>
+    <p class="cta-sub reveal delay-2">
+      Free to browse. Free to ask Nana the first questions.
+      No paid placement, no sponsored schools — ever.
+    </p>
+    <div class="cta-actions reveal delay-3">
+      <a href="#" class="btn-primary magnetic">Try Nana free <span class="btn-arrow">→</span></a>
+      <a href="#" class="btn-ghost magnetic">Browse all schools</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="copyright">© Nanasays 2026 · An honest read on British independent education.</div>
+  <div class="brand-mark">Made with care in the UK</div>
+</footer>
+
+<script>
+(() => {
+  'use strict';
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isCoarse = matchMedia('(hover: none)').matches;
+
+  /* ── HERO: word-by-word stagger ─────────────────────────────── */
+  document.querySelectorAll('#heroHeadline .w').forEach((w, i) => {
+    w.style.animationDelay = (0.06 + i * 0.06) + 's';
+  });
+
+  /* ── HERO: mouse-tracked glow + parallax cards ──────────────── */
+  const hero = document.getElementById('hero');
+  const glow = document.getElementById('heroGlow');
+  const visual = document.getElementById('heroVisual');
+  const cards = document.querySelectorAll('.parallax-card');
+
+  if (!isCoarse && !reduce && hero) {
+    let rafId = null;
+    let mx = 0, my = 0;
+
+    hero.addEventListener('mousemove', (e) => {
+      mx = e.clientX;
+      my = e.clientY;
+      if (!rafId) rafId = requestAnimationFrame(updateHero);
+    });
+
+    function updateHero() {
+      rafId = null;
+      const rect = hero.getBoundingClientRect();
+      glow.style.left = (mx - rect.left) + 'px';
+      glow.style.top  = (my - rect.top)  + 'px';
+
+      if (visual) {
+        const vrect = visual.getBoundingClientRect();
+        const cx = vrect.left + vrect.width / 2;
+        const cy = vrect.top  + vrect.height / 2;
+        const nx = (mx - cx) / vrect.width;     // -0.5 … 0.5
+        const ny = (my - cy) / vrect.height;
+        cards.forEach(card => {
+          const depth = parseFloat(card.dataset.depth || 1);
+          const baseRot = card.classList.contains('chat-card') ? 2 : -1.5;
+          const tx = -nx * 18 * depth;
+          const ty = -ny * 12 * depth;
+          const rot = baseRot + (-nx * 1.6 * depth);
+          card.style.transform = `translate3d(${tx}px, ${ty}px, 0) rotate(${rot}deg)`;
+        });
+      }
+    }
+  }
+
+  /* ── Magnetic buttons ───────────────────────────────────────── */
+  if (!isCoarse && !reduce) {
+    document.querySelectorAll('.magnetic').forEach(btn => {
+      btn.addEventListener('mousemove', (e) => {
+        const r = btn.getBoundingClientRect();
+        const cx = r.left + r.width / 2;
+        const cy = r.top + r.height / 2;
+        const dx = (e.clientX - cx) * 0.25;
+        const dy = (e.clientY - cy) * 0.25;
+        btn.style.transform = `translate(${dx}px, ${dy}px)`;
+
+        // ripple highlight position
+        btn.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
+        btn.style.setProperty('--my', ((e.clientY - r.top)  / r.height * 100) + '%');
+      });
+      btn.addEventListener('mouseleave', () => {
+        btn.style.transform = '';
+      });
+    });
+  }
+
+  /* ── NAV theme switch over dark sections ────────────────────── */
+  const nav = document.getElementById('nav');
+  const darkSections = document.querySelectorAll('.section-dark, .nana-wrap, .numbers, .cta');
+  function updateNavTheme() {
+    const h = 64;
+    let isDark = false;
+    darkSections.forEach(sec => {
+      const r = sec.getBoundingClientRect();
+      if (r.top <= h && r.bottom > h) isDark = true;
+    });
+    nav.classList.toggle('is-dark', isDark);
+  }
+  window.addEventListener('scroll', updateNavTheme, { passive: true });
+  updateNavTheme();
+
+  /* ── Generic scroll-reveal ──────────────────────────────────── */
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('is-visible');
+        io.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -8% 0px' });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+  /* ── COMPARE: sticky scroll-scrub ───────────────────────────── */
+  const comparePin = document.getElementById('comparePin');
+  const compareGrid = document.getElementById('compareGrid');
+  const compareProgress = document.getElementById('compareProgress');
+
+  if (comparePin && compareGrid && !reduce) {
+    const brochureItems = compareGrid.querySelectorAll('.brochure-quote');
+    const factItems = compareGrid.querySelectorAll('.facts-row');
+    const dots = compareProgress.querySelectorAll('span');
+
+    function updateCompare() {
+      const r = comparePin.getBoundingClientRect();
+      const total = r.height - window.innerHeight;
+      if (total <= 0) return;
+      const progress = Math.max(0, Math.min(1, -r.top / total));
+
+      const factCount = factItems.length;
+      const activeIdx = Math.min(factCount - 1, Math.floor(progress * factCount));
+      const brochureIdx = Math.min(brochureItems.length - 1, Math.floor(progress * brochureItems.length));
+
+      factItems.forEach((el, i) => {
+        el.classList.toggle('is-active', i <= activeIdx);
+      });
+      brochureItems.forEach((el, i) => {
+        const isActive = i <= brochureIdx;
+        el.classList.toggle('is-active', isActive);
+        el.classList.toggle('is-faded', i < brochureIdx);
+      });
+      dots.forEach((d, i) => d.classList.toggle('is-active', i <= activeIdx));
+    }
+
+    window.addEventListener('scroll', updateCompare, { passive: true });
+    window.addEventListener('resize', updateCompare);
+    updateCompare();
+  } else {
+    // Reduced motion / mobile: just reveal everything
+    document.querySelectorAll('.brochure-quote, .facts-row').forEach(el => el.classList.add('is-active'));
+  }
+
+  /* ── NANA chat: scroll-narrated reveal ──────────────────────── */
+  const nanaPin = document.getElementById('nanaPin');
+  const demoChat = document.getElementById('demoChat');
+  const demoProgress = document.getElementById('demoProgress');
+  const demoTyping = document.getElementById('demoTyping');
+
+  if (nanaPin && demoChat && !reduce) {
+    const steps = demoChat.querySelectorAll('.demo-msg');
+    const totalSteps = 5;   // 0: user, 1: typing on, 2-4: nana replies
+
+    function updateNana() {
+      const r = nanaPin.getBoundingClientRect();
+      const total = r.height - window.innerHeight;
+      if (total <= 0) return;
+      const progress = Math.max(0, Math.min(1, -r.top / total));
+
+      demoProgress.style.width = (progress * 100) + '%';
+
+      // step thresholds: 0.05, 0.22, 0.42, 0.62, 0.82
+      const t = [0.05, 0.22, 0.42, 0.62, 0.82];
+      const userMsg = demoChat.querySelector('.demo-msg[data-step="0"]');
+      const nanaMsgs = demoChat.querySelectorAll('.demo-msg[data-step="2"], .demo-msg[data-step="3"], .demo-msg[data-step="4"]');
+
+      userMsg.classList.toggle('is-in', progress >= t[0]);
+
+      // Typing on between user and first nana
+      const typingOn = progress >= t[1] && progress < t[2];
+      demoTyping.classList.toggle('is-in', typingOn);
+      demoTyping.classList.toggle('is-out', progress >= t[2]);
+
+      nanaMsgs[0].classList.toggle('is-in', progress >= t[2]);
+      nanaMsgs[1].classList.toggle('is-in', progress >= t[3]);
+      nanaMsgs[2].classList.toggle('is-in', progress >= t[4]);
+    }
+
+    window.addEventListener('scroll', updateNana, { passive: true });
+    window.addEventListener('resize', updateNana);
+    updateNana();
+  } else {
+    document.querySelectorAll('.demo-msg').forEach(el => el.classList.add('is-in'));
+  }
+
+  /* ── SPEC cards: click-to-expand + cursor highlight ─────────── */
+  document.querySelectorAll('[data-toggle]').forEach(card => {
+    card.addEventListener('click', () => card.classList.toggle('is-open'));
+
+    if (!isCoarse) {
+      card.addEventListener('mousemove', (e) => {
+        const r = card.getBoundingClientRect();
+        card.style.setProperty('--mx', ((e.clientX - r.left) / r.width * 100) + '%');
+        card.style.setProperty('--my', ((e.clientY - r.top)  / r.height * 100) + '%');
+      });
+    }
+  });
+
+  /* ── NUMBERS: count-up on visible ───────────────────────────── */
+  const numberEls = document.querySelectorAll('[data-count]');
+  const countIO = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      const el = entry.target;
+      const target = parseInt(el.dataset.count, 10);
+      const duration = 1600;
+      const start = performance.now();
+      function tick(now) {
+        const t = Math.min(1, (now - start) / duration);
+        // ease-out cubic
+        const eased = 1 - Math.pow(1 - t, 3);
+        el.textContent = Math.round(eased * target);
+        if (t < 1) requestAnimationFrame(tick);
+        else el.textContent = target;
+      }
+      requestAnimationFrame(tick);
+      countIO.unobserve(el);
+    });
+  }, { threshold: 0.4 });
+  numberEls.forEach(el => countIO.observe(el));
+
+})();
+</script>
+
+</body>
+</html>

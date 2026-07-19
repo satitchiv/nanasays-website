@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nanasays - From Scatter to Shortlist</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --paper: #F2EBD7;
+  --paper-light: #FBF4E2;
+  --paper-deep: #E4D7B8;
+  --ink: #1B3252;
+  --ink-soft: #465876;
+  --teal: #34C3A0;
+  --oxblood: #7C2F2F;
+  --amber: #C9956A;
+  --sage: #8EA179;
+  --hairline: rgba(27, 50, 82, 0.18);
+  --rule: rgba(27, 50, 82, 0.36);
+  --shadow: rgba(27, 50, 82, 0.22);
+  --serif: "Cormorant Garamond", "Times New Roman", serif;
+  --sans: "Manrope", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+  --card-w: 164px;
+  --card-h: 226px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  line-height: 1.5;
+  letter-spacing: 0;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  opacity: 0.35;
+  mix-blend-mode: multiply;
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.92' numOctaves='2' seed='12'/><feColorMatrix values='0 0 0 0 0.43 0 0 0 0 0.35 0 0 0 0 0.22 0 0 0 0.17 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+}
+
+::selection {
+  background: var(--oxblood);
+  color: var(--paper-light);
+}
+
+a {
+  color: inherit;
+}
+
+main,
+footer {
+  position: relative;
+  z-index: 2;
+}
+
+.hero {
+  position: relative;
+  min-height: 100svh;
+  padding: 30px clamp(22px, 5vw, 64px) 44px;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  overflow: hidden;
+  border-bottom: 1px solid var(--hairline);
+  background:
+    linear-gradient(90deg, rgba(27, 50, 82, 0.055) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(27, 50, 82, 0.045) 1px, transparent 1px),
+    var(--paper);
+  background-size: 76px 76px, 76px 76px, auto;
+}
+
+.hero::before {
+  content: "";
+  position: absolute;
+  inset: 24px;
+  border: 1px dashed rgba(27, 50, 82, 0.2);
+  pointer-events: none;
+}
+
+.hero::after {
+  content: "Independent Schools Directory";
+  position: absolute;
+  right: 34px;
+  bottom: 116px;
+  transform: rotate(90deg);
+  transform-origin: right center;
+  color: rgba(124, 47, 47, 0.72);
+  font-family: var(--mono);
+  font-size: 0.67rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.hero-topline {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 24px;
+  padding-inline: 4px;
+}
+
+.brand {
+  text-decoration: none;
+  font-family: var(--serif);
+  font-size: 1.75rem;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.hero-edition {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.hero-inner {
+  position: relative;
+  z-index: 1;
+  align-self: center;
+  max-width: 1100px;
+  padding-top: 44px;
+}
+
+.eyebrow {
+  margin: 0 0 18px;
+  color: var(--oxblood);
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.hero h1 {
+  max-width: 960px;
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 9.25rem;
+  font-weight: 400;
+  line-height: 0.86;
+  letter-spacing: 0;
+}
+
+.hero h1 span {
+  display: block;
+  color: var(--oxblood);
+  font-style: italic;
+}
+
+.hero-deck {
+  max-width: 570px;
+  margin: 34px 0 0;
+  color: var(--ink-soft);
+  font-family: var(--serif);
+  font-size: 1.55rem;
+  font-style: italic;
+  line-height: 1.36;
+}
+
+.hero-deck::first-letter {
+  float: left;
+  padding: 0.07em 0.1em 0 0;
+  color: var(--oxblood);
+  font-family: var(--serif);
+  font-size: 3.9em;
+  font-style: normal;
+  line-height: 0.74;
+}
+
+.scroll-hint {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  width: fit-content;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.scroll-hint::before {
+  content: "";
+  width: 54px;
+  height: 1px;
+  background: var(--rule);
+}
+
+.assembly-runway {
+  position: relative;
+  min-height: 400vh;
+  background: var(--paper);
+}
+
+.assembly-stage {
+  position: sticky;
+  top: 0;
+  height: 100svh;
+  overflow: hidden;
+  border-bottom: 1px solid var(--hairline);
+  background:
+    linear-gradient(90deg, rgba(27, 50, 82, 0.05) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(27, 50, 82, 0.045) 1px, transparent 1px),
+    linear-gradient(180deg, var(--paper-light), var(--paper));
+  background-size: 52px 52px, 52px 52px, auto;
+}
+
+.assembly-stage::before,
+.assembly-stage::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.assembly-stage::before {
+  inset: 24px;
+  border: 1px dashed rgba(27, 50, 82, 0.2);
+}
+
+.assembly-stage::after {
+  left: clamp(20px, 4vw, 54px);
+  right: clamp(20px, 4vw, 54px);
+  bottom: 102px;
+  height: 1px;
+  background-image: linear-gradient(90deg, var(--rule) 0 42%, transparent 42% 48%, var(--rule) 48% 100%);
+  opacity: 0.55;
+}
+
+.stage-caption {
+  position: absolute;
+  z-index: 5;
+  top: 28px;
+  left: clamp(24px, 5vw, 64px);
+  max-width: 330px;
+  padding-left: 14px;
+  border-left: 2px solid var(--oxblood);
+}
+
+.stage-caption .eyebrow {
+  margin-bottom: 8px;
+  color: var(--ink-soft);
+}
+
+.stage-caption h2 {
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 2.25rem;
+  font-weight: 400;
+  line-height: 1;
+}
+
+.stage-caption h2 em {
+  color: var(--oxblood);
+  font-style: italic;
+}
+
+.progress-panel {
+  position: absolute;
+  z-index: 6;
+  top: 28px;
+  right: clamp(22px, 4vw, 56px);
+  width: min(400px, calc(100vw - 44px));
+  padding: 13px 14px 14px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: rgba(251, 244, 226, 0.82);
+  box-shadow: 0 18px 40px -28px var(--shadow);
+  backdrop-filter: blur(10px);
+}
+
+.progress-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 10px;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.progress-track {
+  position: relative;
+  height: 4px;
+  margin-bottom: 13px;
+  overflow: hidden;
+  border: 1px solid rgba(27, 50, 82, 0.28);
+  background: rgba(27, 50, 82, 0.08);
+}
+
+.progress-track span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--teal);
+  transform: scaleX(0);
+  transform-origin: left center;
+  will-change: transform;
+}
+
+.progress-steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 7px;
+}
+
+.progress-steps span {
+  min-height: 28px;
+  display: grid;
+  place-items: center;
+  border: 1px dashed rgba(27, 50, 82, 0.25);
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.progress-steps span.is-active {
+  border-style: solid;
+  border-color: rgba(52, 195, 160, 0.85);
+  background: rgba(52, 195, 160, 0.16);
+  color: var(--ink);
+}
+
+.sort-axis {
+  position: absolute;
+  z-index: 4;
+  left: clamp(22px, 4vw, 52px);
+  bottom: 34px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.sort-axis::before {
+  content: "";
+  width: 88px;
+  height: 7px;
+  border: 1px solid var(--rule);
+  background:
+    linear-gradient(90deg, var(--teal) 0 25%, var(--paper-light) 25% 50%, var(--amber) 50% 75%, var(--oxblood) 75% 100%);
+}
+
+.cards-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+}
+
+.school-card {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--card-w);
+  height: var(--card-h);
+  padding: 10px 10px 12px;
+  overflow: visible;
+  border: 1px solid rgba(27, 50, 82, 0.28);
+  border-radius: 3px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.28), transparent 34%),
+    var(--paper-light);
+  box-shadow:
+    0 16px 34px -22px var(--shadow),
+    0 2px 0 rgba(255, 255, 255, 0.45) inset;
+  transform-origin: top left;
+  will-change: transform;
+  backface-visibility: hidden;
+  contain: layout style;
+}
+
+.school-card::before {
+  content: "";
+  position: absolute;
+  top: -10px;
+  left: 16px;
+  width: 52px;
+  height: 18px;
+  border: 1px solid rgba(27, 50, 82, 0.1);
+  background: var(--tape, #A7E5DA);
+  box-shadow: 0 2px 4px rgba(27, 50, 82, 0.08);
+  opacity: 0.9;
+  transform: rotate(var(--tape-rot, -3deg));
+}
+
+.school-card::after {
+  content: attr(data-number);
+  position: absolute;
+  top: 13px;
+  right: 13px;
+  color: rgba(27, 50, 82, 0.45);
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  font-weight: 600;
+}
+
+.school-photo {
+  position: relative;
+  height: 98px;
+  margin-bottom: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(27, 50, 82, 0.22);
+  border-radius: 2px;
+  background: var(--paper-deep);
+}
+
+.school-photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: saturate(0.86) sepia(0.11) contrast(0.96);
+}
+
+.school-photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 45%, rgba(27, 50, 82, 0.18));
+  pointer-events: none;
+}
+
+.school-name {
+  min-height: 42px;
+  margin: 0;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.24rem;
+  font-style: italic;
+  font-weight: 500;
+  line-height: 1.02;
+}
+
+.school-county {
+  margin: 3px 0 8px;
+  color: var(--oxblood);
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.school-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(27, 50, 82, 0.26);
+}
+
+.school-stats div {
+  min-width: 0;
+}
+
+.school-stats dt {
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.school-stats dd {
+  margin: 1px 0 0;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.02rem;
+  font-style: italic;
+  font-weight: 600;
+  line-height: 1.05;
+}
+
+.is-hidden-by-layout {
+  display: none;
+}
+
+.cta {
+  padding: 112px clamp(22px, 5vw, 64px) 124px;
+  text-align: center;
+  background:
+    linear-gradient(180deg, rgba(251, 244, 226, 0.6), rgba(242, 235, 215, 0.95)),
+    var(--paper);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.cta .eyebrow {
+  margin-bottom: 18px;
+}
+
+.cta h2 {
+  max-width: 850px;
+  margin: 0 auto 22px;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 4.7rem;
+  font-weight: 400;
+  line-height: 0.94;
+}
+
+.cta h2 em {
+  color: var(--oxblood);
+  font-style: italic;
+}
+
+.cta p {
+  max-width: 540px;
+  margin: 0 auto 34px;
+  color: var(--ink-soft);
+  font-family: var(--serif);
+  font-size: 1.38rem;
+  font-style: italic;
+  line-height: 1.36;
+}
+
+.cta-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.cta-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 25px;
+  border: 1.5px solid var(--ink);
+  border-radius: 3px;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 0.73rem;
+  font-weight: 700;
+  text-decoration: none;
+  text-transform: uppercase;
+}
+
+.cta-link.primary {
+  border-color: var(--oxblood);
+  background: var(--oxblood);
+  color: var(--paper-light);
+}
+
+.cta-link:hover {
+  background: var(--ink);
+  color: var(--paper-light);
+}
+
+footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+  padding: 34px clamp(22px, 5vw, 64px) 44px;
+  background: var(--paper-light);
+  color: var(--ink-soft);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.footer-brand {
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 1.18rem;
+  font-style: italic;
+  font-weight: 500;
+  text-transform: none;
+}
+
+@media (max-width: 1180px) {
+  :root {
+    --card-w: 148px;
+    --card-h: 214px;
+  }
+
+  .hero h1 {
+    font-size: 7.2rem;
+  }
+
+  .stage-caption h2 {
+    font-size: 1.92rem;
+  }
+}
+
+@media (max-width: 899px) {
+  :root {
+    --card-w: 142px;
+    --card-h: 202px;
+  }
+
+  .hero {
+    min-height: 96svh;
+    padding: 22px 20px 34px;
+  }
+
+  .hero::before {
+    inset: 14px;
+  }
+
+  .hero::after {
+    display: none;
+  }
+
+  .hero-topline {
+    align-items: flex-start;
+  }
+
+  .hero-edition {
+    max-width: 140px;
+    text-align: right;
+  }
+
+  .hero h1 {
+    font-size: 5.2rem;
+    line-height: 0.9;
+  }
+
+  .hero-deck {
+    max-width: 440px;
+    font-size: 1.28rem;
+  }
+
+  .assembly-runway {
+    min-height: 330vh;
+  }
+
+  .assembly-stage::before {
+    inset: 14px;
+  }
+
+  .stage-caption {
+    top: 18px;
+    left: 18px;
+    max-width: 210px;
+  }
+
+  .stage-caption h2 {
+    font-size: 1.42rem;
+  }
+
+  .progress-panel {
+    top: auto;
+    right: 14px;
+    bottom: 14px;
+    left: 14px;
+    width: auto;
+    padding: 10px;
+  }
+
+  .progress-steps {
+    gap: 5px;
+  }
+
+  .progress-steps span {
+    min-height: 25px;
+    font-size: 0.56rem;
+  }
+
+  .sort-axis {
+    display: none;
+  }
+
+  .cta {
+    padding-top: 80px;
+    padding-bottom: 92px;
+  }
+
+  .cta h2 {
+    font-size: 3.3rem;
+  }
+}
+
+@media (max-width: 560px) {
+  :root {
+    --card-w: 130px;
+    --card-h: 196px;
+  }
+
+  .brand {
+    font-size: 1.45rem;
+  }
+
+  .hero h1 {
+    font-size: 4rem;
+  }
+
+  .hero-deck {
+    font-size: 1.14rem;
+  }
+
+  .school-card {
+    padding: 8px;
+  }
+
+  .school-photo {
+    height: 78px;
+  }
+
+  .school-name {
+    min-height: 38px;
+    font-size: 1.05rem;
+  }
+
+  .school-stats {
+    gap: 5px;
+  }
+
+  .school-stats dd {
+    font-size: 0.9rem;
+  }
+
+  footer {
+    display: grid;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .assembly-runway {
+    min-height: 125vh;
+  }
+}
+</style>
+</head>
+<body>
+<main>
+  <section class="hero" aria-labelledby="hero-title">
+    <div class="hero-topline">
+      <a href="#" class="brand">Nanasays</a>
+      <span class="hero-edition">Directory Field Notes</span>
+    </div>
+    <div class="hero-inner">
+      <p class="eyebrow">&sect; The Field</p>
+      <h1 id="hero-title">From scatter <span>to shortlist.</span></h1>
+      <p class="hero-deck">A dozen school cards begin as loose photographs on the desk, then settle into a shortlist ordered by the numbers families actually compare.</p>
+    </div>
+    <div class="scroll-hint">Scroll</div>
+  </section>
+
+  <section class="assembly-runway" id="assembly" aria-label="School shortlist assembly">
+    <div class="assembly-stage" id="stage">
+      <div class="stage-caption">
+        <p class="eyebrow">Fee-file choreography</p>
+        <h2>The pile finds its <em>order.</em></h2>
+      </div>
+
+      <div class="progress-panel" aria-live="polite">
+        <div class="progress-top">
+          <span>Progress</span>
+          <span id="progressValue">0%</span>
+        </div>
+        <div class="progress-track" aria-hidden="true"><span id="progressBar"></span></div>
+        <div class="progress-steps" id="progressSteps">
+          <span data-phase="scattered">Scattered</span>
+          <span data-phase="grid">Grid</span>
+          <span data-phase="sorted">Sorted</span>
+          <span data-phase="ribbon">Ribbon</span>
+        </div>
+      </div>
+
+      <div class="sort-axis">Fee/term, lowest first</div>
+      <div class="cards-layer" id="cardsLayer" aria-hidden="true"></div>
+    </div>
+  </section>
+
+  <section class="cta" aria-labelledby="cta-title">
+    <p class="eyebrow">Shortlists without the spreadsheet fog</p>
+    <h2 id="cta-title">Let Nana turn the pile into a <em>clear next step.</em></h2>
+    <p>Search, compare, and keep the independent-school options that deserve a second look.</p>
+    <div class="cta-actions">
+      <a href="#" class="cta-link primary">Try Nana</a>
+      <a href="#" class="cta-link">Browse all 154</a>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <span class="footer-brand">Nanasays</span>
+  <span>UK independent-schools directory</span>
+  <span>The Field · MMXXVI</span>
+</footer>
+
+<script>
+(() => {
+  const schools = [
+    { name: "Wycombe Abbey", county: "Buckinghamshire", fee: 15950, feeText: "£15,950", alevel: "82%", photo: "1541339907198-e08756dedf3f" },
+    { name: "Eton College", county: "Berkshire", fee: 16668, feeText: "£16,668", alevel: "78%", photo: "1568667256549-094345857637" },
+    { name: "Benenden", county: "Kent", fee: 14995, feeText: "£14,995", alevel: "74%", photo: "1497633762265-9d179a990aa6" },
+    { name: "Winchester", county: "Hampshire", fee: 16490, feeText: "£16,490", alevel: "81%", photo: "1571260899304-425eee4c7efc" },
+    { name: "Marlborough", county: "Wiltshire", fee: 15580, feeText: "£15,580", alevel: "76%", photo: "1607237138185-eedd9c632b0b" },
+    { name: "Radley", county: "Oxfordshire", fee: 14950, feeText: "£14,950", alevel: "71%", photo: "1503676260728-1c00da094a0b" },
+    { name: "Fettes", county: "Edinburgh", fee: 13995, feeText: "£13,995", alevel: "69%", photo: "1523050854058-8df90110c9f1" },
+    { name: "Sherborne Girls", county: "Dorset", fee: 14250, feeText: "£14,250", alevel: "70%", photo: "1481627834876-b7833e8f5570" },
+    { name: "St Paul's Girls", county: "London", fee: 10300, feeText: "£10,300", alevel: "89%", photo: "1541339907198-e08756dedf3f" },
+    { name: "Westminster", county: "London", fee: 14800, feeText: "£14,800", alevel: "87%", photo: "1568667256549-094345857637" },
+    { name: "Charterhouse", county: "Surrey", fee: 15200, feeText: "£15,200", alevel: "75%", photo: "1497633762265-9d179a990aa6" },
+    { name: "Harrow", county: "London", fee: 15900, feeText: "£15,900", alevel: "73%", photo: "1571260899304-425eee4c7efc" }
+  ];
+
+  const scatter = [
+    { dx: -520, dy: -260, rot: -13 },
+    { dx: 390, dy: -340, rot: 10 },
+    { dx: -310, dy: 285, rot: 14 },
+    { dx: 555, dy: 215, rot: -9 },
+    { dx: -230, dy: -460, rot: 7 },
+    { dx: 470, dy: -190, rot: -15 },
+    { dx: -570, dy: 115, rot: 12 },
+    { dx: 250, dy: 405, rot: -7 },
+    { dx: -360, dy: 455, rot: 9 },
+    { dx: 570, dy: -95, rot: -12 },
+    { dx: -270, dy: -220, rot: 5 },
+    { dx: 300, dy: 500, rot: -6 }
+  ];
+
+  const tape = ["#A7E5DA", "#EAB8BB", "#F3E3A2", "#C8D6A4"];
+  const tapeRot = [-4, 3, -2, 4, 2, -3];
+  const runway = document.getElementById("assembly");
+  const stage = document.getElementById("stage");
+  const layer = document.getElementById("cardsLayer");
+  const progressValue = document.getElementById("progressValue");
+  const progressBar = document.getElementById("progressBar");
+  const progressSteps = Array.from(document.querySelectorAll("[data-phase]"));
+  const reduceQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+  const cards = schools.map((school, index) => {
+    const article = document.createElement("article");
+    article.className = "school-card";
+    article.dataset.number = `No. ${String(index + 1).padStart(2, "0")}`;
+    article.style.setProperty("--tape", tape[index % tape.length]);
+    article.style.setProperty("--tape-rot", `${tapeRot[index % tapeRot.length]}deg`);
+    article.innerHTML = `
+      <div class="school-photo">
+        <img src="https://images.unsplash.com/photo-${school.photo}?auto=format&fit=crop&w=720&q=82" alt="${school.name} school grounds" loading="${index < 6 ? "eager" : "lazy"}">
+      </div>
+      <h3 class="school-name">${school.name}</h3>
+      <div class="school-county">${school.county}</div>
+      <dl class="school-stats">
+        <div><dt>Fee/term</dt><dd>${school.feeText}</dd></div>
+        <div><dt>A-level</dt><dd>${school.alevel}</dd></div>
+      </dl>
+    `;
+    layer.appendChild(article);
+    return { el: article, school, index };
+  });
+
+  let visibleCards = [];
+  let layouts = new Map();
+  let ticking = false;
+  let needsLayout = true;
+
+  const clamp = (value, min = 0, max = 1) => Math.min(max, Math.max(min, value));
+  const lerp = (from, to, t) => from + (to - from) * t;
+  const ease = (t) => t * t * (3 - 2 * t);
+
+  function getProgress() {
+    const rect = runway.getBoundingClientRect();
+    const range = Math.max(1, runway.offsetHeight - window.innerHeight);
+    return clamp(-rect.top / range);
+  }
+
+  function mixPose(from, to, t) {
+    return {
+      x: lerp(from.x, to.x, t),
+      y: lerp(from.y, to.y, t),
+      rot: lerp(from.rot, to.rot, t),
+      scale: lerp(from.scale, to.scale, t)
+    };
+  }
+
+  function computeLayouts() {
+    const w = stage.clientWidth;
+    const h = stage.clientHeight;
+    const mobile = w < 900;
+    const count = mobile ? 6 : schools.length;
+    visibleCards = cards.slice(0, count);
+
+    cards.forEach((card, index) => {
+      card.el.classList.toggle("is-hidden-by-layout", index >= count);
+    });
+
+    const sample = visibleCards[0].el;
+    const cardW = sample.offsetWidth;
+    const cardH = sample.offsetHeight;
+    const cols = mobile ? 2 : 4;
+    const rows = Math.ceil(count / cols);
+    const gapX = mobile ? 12 : (w < 1150 ? 16 : 24);
+    const gapY = mobile ? 12 : 18;
+    const topReserve = mobile ? 116 : 128;
+    const bottomReserve = mobile ? 120 : 92;
+    const sideReserve = mobile ? 18 : clamp(w * 0.075, 48, 96);
+    const baseGridW = cols * cardW + (cols - 1) * gapX;
+    const baseGridH = rows * cardH + (rows - 1) * gapY;
+    const gridScale = clamp(
+      Math.min(
+        1,
+        (w - sideReserve * 2) / baseGridW,
+        (h - topReserve - bottomReserve) / baseGridH
+      ),
+      0.5,
+      1
+    );
+    const gridW = baseGridW * gridScale;
+    const gridH = baseGridH * gridScale;
+    const gridX0 = (w - gridW) / 2;
+    const gridY0 = topReserve + Math.max(0, (h - topReserve - bottomReserve - gridH) / 2);
+
+    const sorted = [...visibleCards].sort((a, b) => a.school.fee - b.school.fee);
+    const sortScale = mobile ? 0.68 : 0.56;
+    const sortAvailable = Math.max(220, h - topReserve - bottomReserve);
+    const sortStep = count > 1
+      ? Math.max(24, Math.min(cardH * sortScale * 0.42, (sortAvailable - cardH * sortScale) / (count - 1)))
+      : 0;
+    const sortTotal = cardH * sortScale + sortStep * (count - 1);
+    const sortX = (w - cardW * sortScale) / 2;
+    const sortY0 = topReserve + Math.max(0, (sortAvailable - sortTotal) / 2);
+
+    const ribbonMargin = mobile ? 18 : 36;
+    const ribbonGap = mobile ? 8 : 7;
+    const maxRibbonScale = mobile ? 0.62 : 0.54;
+    const ribbonScale = clamp(
+      Math.min(maxRibbonScale, (w - ribbonMargin * 2 - ribbonGap * (count - 1)) / (count * cardW)),
+      0.3,
+      maxRibbonScale
+    );
+    const ribbonW = count * cardW * ribbonScale + (count - 1) * ribbonGap;
+    const ribbonX0 = (w - ribbonW) / 2;
+    const ribbonY = h - (mobile ? 118 : 48) - cardH * ribbonScale;
+    const scatterFactor = mobile ? 0.72 : 1;
+
+    layouts = new Map();
+    visibleCards.forEach((card, order) => {
+      const col = order % cols;
+      const row = Math.floor(order / cols);
+      const grid = {
+        x: gridX0 + col * (cardW + gapX) * gridScale,
+        y: gridY0 + row * (cardH + gapY) * gridScale,
+        rot: 0,
+        scale: gridScale
+      };
+      const offset = scatter[card.index % scatter.length];
+      const rank = sorted.indexOf(card);
+      layouts.set(card.el, {
+        rank,
+        scatter: {
+          x: grid.x + offset.dx * scatterFactor,
+          y: grid.y + offset.dy * scatterFactor,
+          rot: offset.rot,
+          scale: gridScale
+        },
+        grid,
+        sort: {
+          x: sortX,
+          y: sortY0 + rank * sortStep,
+          rot: 0,
+          scale: sortScale
+        },
+        ribbon: {
+          x: ribbonX0 + rank * (cardW * ribbonScale + ribbonGap),
+          y: ribbonY,
+          rot: 0,
+          scale: ribbonScale
+        }
+      });
+    });
+  }
+
+  function getPhase(progress) {
+    if (reduceQuery.matches) return "grid";
+    if (progress < 0.48) return "scattered";
+    if (progress < 0.56) return "grid";
+    if (progress < 0.75) return "sorted";
+    return "ribbon";
+  }
+
+  function updateIndicator(progress) {
+    const phase = getPhase(progress);
+    progressValue.textContent = `${Math.round(progress * 100)}%`;
+    progressBar.style.transform = `scaleX(${progress})`;
+    progressSteps.forEach((step) => {
+      step.classList.toggle("is-active", step.dataset.phase === phase);
+    });
+  }
+
+  function updateCards(progress) {
+    const p = reduceQuery.matches ? 0.5 : progress;
+    visibleCards.forEach((card) => {
+      const layout = layouts.get(card.el);
+      let pose;
+      if (p <= 0.5) {
+        pose = mixPose(layout.scatter, layout.grid, ease(p / 0.5));
+      } else if (p <= 0.75) {
+        pose = mixPose(layout.grid, layout.sort, ease((p - 0.5) / 0.25));
+      } else {
+        pose = mixPose(layout.sort, layout.ribbon, ease((p - 0.75) / 0.25));
+      }
+      card.el.style.transform = `translate3d(${pose.x}px, ${pose.y}px, 0) rotate(${pose.rot}deg) scale(${pose.scale})`;
+      card.el.style.zIndex = p < 0.5 ? String(30 + card.index) : String(80 + layout.rank);
+    });
+  }
+
+  function render() {
+    ticking = false;
+    if (needsLayout) {
+      computeLayouts();
+      needsLayout = false;
+    }
+    const progress = reduceQuery.matches ? 0.5 : getProgress();
+    updateCards(progress);
+    updateIndicator(progress);
+  }
+
+  function schedule(recompute = false) {
+    needsLayout = needsLayout || recompute;
+    if (!ticking) {
+      ticking = true;
+      requestAnimationFrame(render);
+    }
+  }
+
+  window.addEventListener("scroll", () => schedule(), { passive: true });
+  window.addEventListener("resize", () => schedule(true));
+  reduceQuery.addEventListener("change", () => schedule(true));
+  window.addEventListener("load", () => schedule(true));
+
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(() => schedule(true));
+  }
+
+  schedule(true);
+})();
+</script>
+</body>
+</html>

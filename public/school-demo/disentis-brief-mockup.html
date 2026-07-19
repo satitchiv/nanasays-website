@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Gymnasium &amp; Internat Kloster Disentis — A day, in brief</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="preload" as="image" href="https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?w=2000&q=80&auto=format&fit=crop" />
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<style>
+/* ─────────────────────────────────────────────────────────────────────
+   GYMNASIUM DISENTIS — The Brief
+   Swiss-modernist daily schedule. White + black + red #E7000E.
+   Left red rail fills as you scroll. Each timetable moment is a station.
+   ─────────────────────────────────────────────────────────────────── */
+
+:root {
+  --white: #FFFFFF;
+  --off: #F8F6F2;
+  --black: #12120D;
+  --black-soft: #2A2A24;
+  --red: #E7000E;
+  --red-deep: #B30009;
+  --gray: #6E6E68;
+  --gray-light: #B0B0AA;
+  --hairline: rgba(18,18,13,0.12);
+
+  --sans: 'Inter Tight', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--white);
+  color: var(--black);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::selection { background: var(--red); color: var(--white); }
+
+a { color: inherit; }
+
+/* ── LEFT RED RAIL — fills as you scroll ─────────────────────────── */
+
+.rail {
+  position: fixed;
+  top: 0; left: 0;
+  width: 4px;
+  height: 100vh;
+  background: var(--hairline);
+  z-index: 50;
+  pointer-events: none;
+}
+
+.rail-fill {
+  width: 100%;
+  height: 0;
+  background: var(--red);
+  transform-origin: top;
+  transition: height 0.1s linear;
+}
+
+/* ── NAV ─────────────────────────────────────────────────────────── */
+
+.nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  padding: 20px 36px 18px 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.nav-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--black);
+}
+
+.nav-logo-mark {
+  width: 36px; height: 36px;
+  background: var(--white);
+  position: relative;
+  flex-shrink: 0;
+}
+.nav-logo-mark::before, .nav-logo-mark::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--red);
+}
+.nav-logo-mark::before {
+  clip-path: polygon(0% 0%, 50% 50%, 0% 100%, 0% 75%, 25% 50%, 0% 25%);
+}
+.nav-logo-mark::after {
+  clip-path: polygon(100% 0%, 100% 25%, 75% 50%, 100% 75%, 100% 100%, 50% 50%);
+}
+
+.nav-logo-mark-top, .nav-logo-mark-bot {
+  position: absolute;
+  inset: 0;
+  background: var(--red);
+}
+.nav-logo-mark-top { clip-path: polygon(0% 0%, 100% 0%, 50% 50%, 25% 25%, 75% 25%, 50% 50%); }
+
+.nav-logo-name {
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+  color: var(--black);
+  white-space: nowrap;
+}
+
+.nav-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gray);
+}
+
+.nav-cta {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 18px;
+  background: var(--red);
+  color: var(--white);
+  text-decoration: none;
+  transition: background 0.2s, transform 0.2s;
+  letter-spacing: -0.005em;
+}
+.nav-cta:hover { background: var(--black); transform: translateY(-1px); }
+
+/* ── TIME PILL — updates as you scroll through the day ──────────── */
+
+.time-pill {
+  position: fixed;
+  top: 84px;
+  right: 36px;
+  z-index: 60;
+  background: var(--white);
+  border: 1px solid var(--black);
+  padding: 8px 16px 9px;
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  opacity: 0;
+  transform: translateY(-8px);
+  transition: opacity 0.4s, transform 0.4s;
+  pointer-events: none;
+}
+.time-pill.is-visible { opacity: 1; transform: translateY(0); }
+
+.time-pill-time {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: -0.018em;
+  color: var(--black);
+  font-feature-settings: 'tnum';
+}
+
+.time-pill-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+
+/* ── HERO ────────────────────────────────────────────────────────── */
+
+.hero {
+  position: relative;
+  min-height: 100vh;
+  padding: 130px 56px 80px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: center;
+  max-width: 1480px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.hero-eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.hero-eyebrow::before {
+  content: '';
+  width: 28px; height: 2px;
+  background: var(--red);
+}
+
+.hero-headline {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: clamp(56px, 8vw, 120px);
+  line-height: 0.92;
+  letter-spacing: -0.028em;
+  color: var(--black);
+  margin-bottom: 28px;
+}
+.hero-headline em { font-style: normal; color: var(--red); }
+
+.hero-deck {
+  font-size: 19px;
+  line-height: 1.5;
+  color: var(--black-soft);
+  max-width: 460px;
+  margin-bottom: 36px;
+  font-weight: 400;
+}
+
+.hero-bounds {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 18px 0;
+  border-top: 2px solid var(--black);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.hero-bound-num {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 44px;
+  line-height: 1;
+  letter-spacing: -0.022em;
+  color: var(--black);
+  font-feature-settings: 'tnum';
+}
+.hero-bound-num.is-red { color: var(--red); }
+.hero-bound-arrow {
+  font-family: var(--mono);
+  font-size: 14px;
+  letter-spacing: 0.2em;
+  color: var(--gray);
+}
+
+.hero-photo {
+  position: relative;
+  aspect-ratio: 5/6;
+  background-image: url('https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?w=2000&q=80&auto=format&fit=crop');
+  background-size: cover;
+  background-position: center;
+}
+
+.hero-photo-stamp {
+  position: absolute;
+  top: 18px; left: 18px;
+  background: var(--white);
+  padding: 6px 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--black);
+}
+
+.hero-photo-cap {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px 18px;
+  background: var(--red);
+  color: var(--white);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.hero-photo-cap strong {
+  display: block;
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: -0.005em;
+  text-transform: none;
+  margin-bottom: 2px;
+}
+
+.hero-scroll {
+  position: absolute;
+  bottom: 24px;
+  left: 56px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gray);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.hero-scroll::before {
+  content: '';
+  width: 28px; height: 1px;
+  background: var(--red);
+  animation: pulse 1.8s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; transform: scaleX(0.5); transform-origin: left; }
+  50% { opacity: 1; transform: scaleX(1); }
+}
+
+/* ── SECTION HEADER ──────────────────────────────────────────────── */
+
+.section-rule {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 0 56px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  padding-top: 80px;
+  padding-bottom: 28px;
+  border-top: 2px solid var(--black);
+}
+
+.section-rule-eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--red);
+}
+
+.section-rule-title {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: clamp(34px, 4vw, 56px);
+  line-height: 0.96;
+  letter-spacing: -0.022em;
+  color: var(--black);
+  margin-top: 6px;
+}
+.section-rule-title em { font-style: normal; color: var(--red); }
+
+.section-rule-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gray);
+  align-self: end;
+}
+
+/* ── TIMELINE ────────────────────────────────────────────────────── */
+
+.timeline {
+  position: relative;
+  padding: 40px 56px 100px;
+  max-width: 1480px;
+  margin: 0 auto;
+}
+
+.station {
+  display: grid;
+  grid-template-columns: 200px 1fr 1fr;
+  gap: 48px;
+  padding: 60px 0;
+  border-bottom: 1px solid var(--hairline);
+  align-items: start;
+}
+
+.station:last-child { border-bottom: none; }
+
+.station-meta {
+  position: sticky;
+  top: 130px;
+  align-self: start;
+}
+
+.station-time {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: clamp(48px, 5.5vw, 80px);
+  line-height: 0.94;
+  letter-spacing: -0.024em;
+  color: var(--black);
+  font-feature-settings: 'tnum';
+  margin-bottom: 8px;
+  transition: color 0.4s ease;
+}
+.station.is-active .station-time { color: var(--red); }
+
+.station-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gray);
+  padding-top: 12px;
+  border-top: 1px solid var(--hairline);
+  margin-bottom: 10px;
+  max-width: 170px;
+}
+
+.station-mood {
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--black-soft);
+  line-height: 1.4;
+  max-width: 170px;
+}
+
+.station-photo {
+  aspect-ratio: 4/5;
+  background-size: cover;
+  background-position: center;
+  filter: saturate(0.95) contrast(1.04);
+  position: relative;
+  overflow: hidden;
+  will-change: transform, opacity;
+}
+
+.station-photo-num {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  background: var(--red);
+  color: var(--white);
+  padding: 6px 10px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  z-index: 2;
+}
+
+.station-body { padding-top: 8px; }
+
+.station-title {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: clamp(28px, 3vw, 44px);
+  line-height: 1;
+  letter-spacing: -0.022em;
+  color: var(--black);
+  margin-bottom: 18px;
+}
+.station-title em { font-style: normal; color: var(--red); }
+
+.station-prose {
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--black-soft);
+  margin-bottom: 18px;
+}
+
+.station-prose em { font-style: normal; color: var(--red); font-weight: 500; }
+
+.station-quote {
+  font-family: var(--sans);
+  font-weight: 500;
+  font-size: 17px;
+  line-height: 1.45;
+  color: var(--black);
+  padding: 14px 0 14px 20px;
+  border-left: 4px solid var(--red);
+  max-width: 520px;
+  font-style: italic;
+}
+
+.station-rows {
+  margin-top: 20px;
+  display: grid;
+  gap: 0;
+  border-top: 2px solid var(--black);
+  max-width: 460px;
+}
+
+.station-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.station-row-k {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gray);
+  align-self: center;
+}
+
+.station-row-v {
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--black);
+  letter-spacing: -0.005em;
+}
+.station-row-v.is-red { color: var(--red); }
+
+/* Reveal animation — simple opacity+translate on enter */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.is-visible { opacity: 1; transform: translateY(0); }
+.reveal.delay-1 { transition-delay: 0.08s; }
+.reveal.delay-2 { transition-delay: 0.16s; }
+
+/* ── CTA ─────────────────────────────────────────────────────────── */
+
+.cta {
+  background: var(--black);
+  color: var(--white);
+  padding: 120px 56px 130px;
+  position: relative;
+}
+
+.cta-inner {
+  max-width: 1480px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: end;
+}
+
+.cta-eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.cta-eyebrow::before {
+  content: '';
+  width: 28px; height: 2px;
+  background: var(--red);
+}
+
+.cta-headline {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: clamp(48px, 7vw, 116px);
+  line-height: 0.92;
+  letter-spacing: -0.028em;
+  color: var(--white);
+}
+.cta-headline em { font-style: normal; color: var(--red); }
+
+.cta-sub {
+  font-size: 17px;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 30px;
+  line-height: 1.55;
+}
+
+.cta-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+.btn-red {
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 14px 26px;
+  background: var(--red);
+  color: var(--white);
+  text-decoration: none;
+  transition: background 0.2s, transform 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: -0.005em;
+}
+.btn-red::after { content: '→'; }
+.btn-red:hover { background: var(--white); color: var(--red); transform: translateY(-1px); }
+
+.btn-ghost {
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 14px 26px;
+  background: transparent;
+  color: var(--white);
+  text-decoration: none;
+  border: 1px solid rgba(255,255,255,0.3);
+  transition: border-color 0.2s;
+}
+.btn-ghost:hover { border-color: var(--white); }
+
+/* ── FOOTER ──────────────────────────────────────────────────────── */
+
+footer {
+  padding: 32px 56px 48px;
+  background: var(--black);
+  color: rgba(255,255,255,0.5);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  border-top: 1px solid rgba(255,255,255,0.1);
+}
+
+footer .copyright {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+footer .brand {
+  font-family: var(--sans);
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--white);
+  letter-spacing: -0.005em;
+}
+footer .brand b { color: var(--red); }
+
+/* ── Responsive ──────────────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  .hero-grid { grid-template-columns: 1fr; gap: 40px; }
+  .hero { padding: 110px 32px 60px; }
+  .station { grid-template-columns: 100px 1fr; gap: 24px; padding: 40px 0; }
+  .station-photo { grid-column: 1 / -1; aspect-ratio: 16/10; margin-top: 16px; }
+  .station-meta { position: static; }
+  .station-time { font-size: 38px; }
+  .station-title { font-size: 24px; }
+  .cta-inner { grid-template-columns: 1fr; }
+  .section-rule, .timeline, .cta { padding-left: 32px; padding-right: 32px; }
+  .nav { padding-left: 32px; padding-right: 24px; }
+}
+
+@media (max-width: 640px) {
+  .nav { padding: 14px 20px 14px 32px; }
+  .nav-meta { display: none; }
+  .time-pill { right: 16px; top: 76px; }
+  .hero { padding: 100px 20px 40px; }
+  .hero-scroll { left: 20px; }
+  .station { grid-template-columns: 70px 1fr; padding: 30px 0; gap: 16px; }
+  .station-time { font-size: 28px; }
+  .station-tag, .station-mood { font-size: 11px; max-width: none; }
+  .cta { padding: 80px 20px 100px; }
+  footer { padding: 24px 20px 36px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  .reveal { opacity: 1 !important; transform: none !important; }
+}
+
+</style>
+</head>
+<body>
+
+<!-- ============ LEFT RED RAIL ============ -->
+<div class="rail"><div class="rail-fill" id="railFill"></div></div>
+
+<!-- ============ NAV ============ -->
+<nav class="nav">
+  <a href="#" class="nav-logo">
+    <span class="nav-logo-mark"></span>
+    <span class="nav-logo-name">Gymnasium Disentis</span>
+  </a>
+  <span class="nav-meta">§ The Brief · A day in our valley</span>
+  <a href="#" class="nav-cta">Visit us →</a>
+</nav>
+
+<!-- ============ TIME PILL ============ -->
+<div class="time-pill" id="timePill">
+  <span class="time-pill-time" id="timePillTime">07:00</span>
+  <span class="time-pill-label">on the mountain</span>
+</div>
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="hero-grid">
+    <div>
+      <div class="hero-eyebrow">Via Sogn Sigisbert 1 · 7180 Disentis</div>
+      <h1 class="hero-headline">A day, <em>in brief</em>.</h1>
+      <p class="hero-deck">Seven moments from one weekday at the boarding house — from first light over the Surselva to lights-out in the dormitories.</p>
+      <div class="hero-bounds">
+        <span class="hero-bound-num">07:00</span>
+        <span class="hero-bound-arrow">— TO —</span>
+        <span class="hero-bound-num is-red">22:00</span>
+      </div>
+    </div>
+    <div class="hero-photo">
+      <span class="hero-photo-stamp">No. 01 / 07</span>
+      <div class="hero-photo-cap"><strong>Sunrise over the Surselva</strong>Sun instead of fog</div>
+    </div>
+  </div>
+  <div class="hero-scroll">Scroll to begin</div>
+</section>
+
+<!-- ============ TIMELINE ============ -->
+<div class="section-rule">
+  <div>
+    <div class="section-rule-eyebrow">§ 01 · The Day</div>
+    <h2 class="section-rule-title">Seven moments, <em>seven photos</em>.</h2>
+  </div>
+  <span class="section-rule-meta">07:00 → 22:00 · 15 hours</span>
+</div>
+
+<section class="timeline" id="timeline">
+
+  <article class="station" data-time="07:00">
+    <div class="station-meta">
+      <div class="station-time">07:00</div>
+      <div class="station-tag">— Breakfast</div>
+      <div class="station-mood">First light. Bell from the monastery church.</div>
+    </div>
+    <div class="station-body reveal">
+      <h3 class="station-title">First light, <em>warm bread</em>.</h3>
+      <p class="station-prose">Breakfast is served in the monastery refectory at seven sharp. Boarders gather from the Upper and Lower Houses; the bell from the monastery church marks the hour. Today's weather: <em>sun instead of fog</em>, as we say in Disentis.</p>
+      <div class="station-quote">"Life in our boarding school is a unique experience — a place where individuality and community go hand in hand."</div>
+    </div>
+    <div class="station-photo reveal delay-1" style="background-image:url('https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?w=1400&q=80&auto=format&fit=crop')">
+      <span class="station-photo-num">07:00</span>
+    </div>
+  </article>
+
+  <article class="station" data-time="07:45">
+    <div class="station-meta">
+      <div class="station-time">07:45</div>
+      <div class="station-tag">— Classes begin</div>
+      <div class="station-mood">Crisp mountain air. First period.</div>
+    </div>
+    <div class="station-body reveal">
+      <h3 class="station-title">The Matura, <em>step by step</em>.</h3>
+      <p class="station-prose">Our primary goal: to guide students through their Gymnasium years to successfully earn the Swiss Matura, granting direct access to university. Mornings begin with structured periods supported by mentoring and the prefect team.</p>
+      <div class="station-rows">
+        <div class="station-row"><span class="station-row-k">— First period</span><span class="station-row-v">07:45</span></div>
+        <div class="station-row"><span class="station-row-k">— Until</span><span class="station-row-v">11:45</span></div>
+        <div class="station-row"><span class="station-row-k">— Goal</span><span class="station-row-v is-red">Swiss Matura</span></div>
+      </div>
+    </div>
+    <div class="station-photo reveal delay-1" style="background-image:url('https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=1400&q=80&auto=format&fit=crop')">
+      <span class="station-photo-num">07:45</span>
+    </div>
+  </article>
+
+  <article class="station" data-time="11:45">
+    <div class="station-meta">
+      <div class="station-time">11:45</div>
+      <div class="station-tag">— Lunch</div>
+      <div class="station-mood">Sun at the zenith.</div>
+    </div>
+    <div class="station-body reveal">
+      <h3 class="station-title">Capuns, or <em>burgers</em>.</h3>
+      <p class="station-prose">Lunch at 11:45. Traditional local Capuns and Maluns, alongside pizza, burgers, and Chinese — everything is possible, and all are within a short walk of campus.</p>
+      <div class="station-quote">"Right next to our study hall is our very own cinema, complete with original cinema seats."</div>
+    </div>
+    <div class="station-photo reveal delay-1" style="background-image:url('https://images.unsplash.com/photo-1551524559-8af4e6624178?w=1400&q=80&auto=format&fit=crop')">
+      <span class="station-photo-num">11:45</span>
+    </div>
+  </article>
+
+  <article class="station" data-time="13:10">
+    <div class="station-meta">
+      <div class="station-time">13:10</div>
+      <div class="station-tag">— Afternoon</div>
+      <div class="station-mood">Long shadows on the slopes.</div>
+    </div>
+    <div class="station-body reveal">
+      <h3 class="station-title">Climbing wall, <em>natural grass</em>.</h3>
+      <p class="station-prose">Classes resume at 1:10 PM, then afternoon snack at 2:35. After 4:15 PM, free time begins: <em>gymnasium with climbing wall</em>, billiard, table tennis, fitness room, and a grass football pitch with mountain panorama.</p>
+      <div class="station-rows">
+        <div class="station-row"><span class="station-row-k">— Resume</span><span class="station-row-v">13:10</span></div>
+        <div class="station-row"><span class="station-row-k">— Snack</span><span class="station-row-v">14:35</span></div>
+        <div class="station-row"><span class="station-row-k">— Free time</span><span class="station-row-v is-red">from 16:15</span></div>
+      </div>
+    </div>
+    <div class="station-photo reveal delay-1" style="background-image:url('https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1400&q=80&auto=format&fit=crop')">
+      <span class="station-photo-num">13:10</span>
+    </div>
+  </article>
+
+  <article class="station" data-time="17:30">
+    <div class="station-meta">
+      <div class="station-time">17:30</div>
+      <div class="station-tag">— Study hall</div>
+      <div class="station-mood">Golden hour over the monastery roofs.</div>
+    </div>
+    <div class="station-body reveal">
+      <h3 class="station-title">1.5 to 2.5 hours, <em>at your desk</em>.</h3>
+      <p class="station-prose">Supervised study at 5:30 PM in our study halls. For students in 1st to 3rd Gymnasium, we recommend 1.5 to 2.5 hours per day. Once independent study habits are established, students may work in other rooms or in their own dormitories.</p>
+    </div>
+    <div class="station-photo reveal delay-1" style="background-image:url('https://images.unsplash.com/photo-1502786129293-79981df4e689?w=1400&q=80&auto=format&fit=crop')">
+      <span class="station-photo-num">17:30</span>
+    </div>
+  </article>
+
+  <article class="station" data-time="18:30">
+    <div class="station-meta">
+      <div class="station-time">18:30</div>
+      <div class="station-tag">— Dinner</div>
+      <div class="station-mood">Sky deepens. The valley quiets.</div>
+    </div>
+    <div class="station-body reveal">
+      <h3 class="station-title">Together at the <em>long tables</em>.</h3>
+      <p class="station-prose">Dinner at 6:30 PM, then a final study period from 7:30 to 8:30. After that: free time, late snack — and on autumn evenings, the cherished tradition of <em>hut evenings</em> in the surrounding mountains.</p>
+      <div class="station-rows">
+        <div class="station-row"><span class="station-row-k">— Dinner</span><span class="station-row-v">18:30</span></div>
+        <div class="station-row"><span class="station-row-k">— Final study</span><span class="station-row-v">19:30–20:30</span></div>
+        <div class="station-row"><span class="station-row-k">— Late snack</span><span class="station-row-v is-red">20:30</span></div>
+      </div>
+    </div>
+    <div class="station-photo reveal delay-1" style="background-image:url('https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=1400&q=80&auto=format&fit=crop')">
+      <span class="station-photo-num">18:30</span>
+    </div>
+  </article>
+
+  <article class="station" data-time="22:00">
+    <div class="station-meta">
+      <div class="station-time">22:00</div>
+      <div class="station-tag">— Lights out</div>
+      <div class="station-mood">Stars over the monastery.</div>
+    </div>
+    <div class="station-body reveal">
+      <h3 class="station-title">Single rooms, <em>private bathrooms</em>.</h3>
+      <p class="station-prose">Lights out at 10:00 PM. Each boarder has a single room with their own bathroom in the award-winning Upper and Lower Houses. The monastery's in-house infirmary — staffed by trained nursing professionals — is available day and night.</p>
+      <div class="station-quote">"Comfortable single rooms equipped with their own private bathroom — modern and thoughtfully designed living spaces."</div>
+    </div>
+    <div class="station-photo reveal delay-1" style="background-image:url('https://images.unsplash.com/photo-1488898517471-1d2b03c1b938?w=1400&q=80&auto=format&fit=crop')">
+      <span class="station-photo-num">22:00</span>
+    </div>
+  </article>
+
+</section>
+
+<!-- ============ CTA ============ -->
+<section class="cta">
+  <div class="cta-inner">
+    <div>
+      <div class="cta-eyebrow">Come on in</div>
+      <h2 class="cta-headline">Sun instead of <em>fog</em>.</h2>
+    </div>
+    <div>
+      <p class="cta-sub">A boarding school open every day of the year — in a Swiss alpine valley with sunshine and a mild climate. Visit us in person, or take the 360-degree virtual tour.</p>
+      <div class="cta-actions">
+        <a href="#" class="btn-red">Arrange a visit</a>
+        <a href="#" class="btn-ghost">360° virtual tour</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <span class="copyright">Gymnasium &amp; Internat Kloster Disentis · Via Sogn Sigisbert 1 · +41 81 929 68 68</span>
+  <span class="brand">Gymnasium <b>Disentis</b> · The Brief</span>
+</footer>
+
+<script>
+(() => {
+  'use strict';
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ── Simple, robust scroll handler with rAF throttle ──────────
+  const railFill = document.getElementById('railFill');
+  const timePill = document.getElementById('timePill');
+  const timePillTime = document.getElementById('timePillTime');
+  const stations = document.querySelectorAll('.station');
+  const timeline = document.getElementById('timeline');
+
+  let raf = null;
+  function schedule() { if (!raf) raf = requestAnimationFrame(tick); }
+
+  function tick() {
+    raf = null;
+    const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+    const scrollProgress = Math.max(0, Math.min(1, window.scrollY / docHeight));
+
+    // Rail fills with whole-page progress
+    railFill.style.height = (scrollProgress * 100) + '%';
+
+    // Time pill: show after first scroll
+    const showPill = window.scrollY > window.innerHeight * 0.6;
+    timePill.classList.toggle('is-visible', showPill);
+  }
+
+  window.addEventListener('scroll', schedule, { passive: true });
+  window.addEventListener('resize', schedule);
+  tick();
+
+  // ── Active station + time pill updates via IntersectionObserver ──
+  const activeIO = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting && e.intersectionRatio > 0.35) {
+        stations.forEach(s => s.classList.remove('is-active'));
+        e.target.classList.add('is-active');
+        const t = e.target.dataset.time;
+        if (t && timePillTime.textContent !== t) timePillTime.textContent = t;
+      }
+    });
+  }, { threshold: [0.35, 0.7], rootMargin: '-30% 0px -30% 0px' });
+
+  stations.forEach(s => activeIO.observe(s));
+
+  // ── Reveal-on-enter ───────────────────────────────────────────
+  const revealIO = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('is-visible');
+        revealIO.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.15, rootMargin: '0px 0px -8% 0px' });
+
+  document.querySelectorAll('.reveal').forEach(el => revealIO.observe(el));
+
+})();
+</script>
+
+</body>
+</html>

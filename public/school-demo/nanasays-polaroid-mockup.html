@@ -1,0 +1,1221 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nanasays — The Desk · Drag, scatter, flip</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=DM+Sans:wght@400;500;600;700&family=Special+Elite&display=swap" rel="stylesheet" />
+
+<style>
+/* ─────────────────────────────────────────────────────────────────────
+   THE DESK — tactile polaroid workbench
+   Drag any photo. Click to flip. Scatter, tidy, spread.
+   Warm paper desk with washi tape, handwritten margins, typewriter notes.
+   ─────────────────────────────────────────────────────────────────── */
+
+:root {
+  --desk: #C9B591;
+  --desk-deep: #9D8961;
+  --desk-shadow: #6D5C3C;
+  --paper: #FAF4E6;
+  --paper-warm: #F3EBD6;
+  --paper-back: #ECE3CA;
+  --ink: #2A2418;
+  --ink-soft: #5A4E38;
+  --ink-blue: #1F3A5F;
+  --ink-rust: #B5563D;
+  --washi-blue: #A8C6D6;
+  --washi-pink: #EBC3C0;
+  --washi-yellow: #E8D58A;
+  --washi-green: #B8C9A6;
+  --pencil: #555048;
+
+  --hand: 'Caveat', cursive;
+  --serif: 'Lora', 'Times New Roman', serif;
+  --sans: 'DM Sans', system-ui, sans-serif;
+  --type: 'Special Elite', 'Courier New', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--desk);
+  color: var(--ink);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+  /* Wood-paper desk texture */
+  background-image:
+    radial-gradient(ellipse 80% 70% at 30% 20%, rgba(157,137,97,0.4), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 80% 80%, rgba(109,92,60,0.3), transparent 60%),
+    linear-gradient(180deg, var(--desk) 0%, var(--desk-deep) 100%);
+}
+
+body::before {
+  /* Grain */
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.35;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='3' seed='1'/><feColorMatrix values='0 0 0 0 0.45 0 0 0 0 0.35 0 0 0 0 0.2 0 0 0 0.25 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  mix-blend-mode: multiply;
+}
+
+body::after {
+  /* Wood-grain horizontal striations */
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.12;
+  background-image: repeating-linear-gradient(90deg,
+    transparent 0px,
+    transparent 80px,
+    rgba(80,60,30,0.35) 80px,
+    rgba(80,60,30,0.35) 81px,
+    transparent 81px,
+    transparent 200px,
+    rgba(80,60,30,0.18) 200px,
+    rgba(80,60,30,0.18) 201px
+  );
+  mix-blend-mode: multiply;
+}
+
+::selection { background: var(--ink-rust); color: var(--paper); }
+
+/* ── NAV ─────────────────────────────────────────────────────────── */
+
+.nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  padding: 18px 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(201,181,145,0.5);
+  backdrop-filter: blur(12px) saturate(140%);
+  border-bottom: 1px solid rgba(45,30,15,0.18);
+}
+
+.nav-brand {
+  font-family: var(--hand);
+  font-weight: 700;
+  font-size: 30px;
+  color: var(--ink);
+  text-decoration: none;
+  letter-spacing: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  transform: rotate(-2deg);
+}
+.nav-brand sup {
+  font-family: var(--type);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-rust);
+  vertical-align: super;
+}
+
+.nav-controls { display: flex; gap: 8px; align-items: center; }
+
+.nav-btn {
+  font-family: var(--type);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  background: var(--paper);
+  color: var(--ink);
+  text-decoration: none;
+  border: 1px solid rgba(45,30,15,0.25);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s, box-shadow 0.2s;
+  box-shadow: 0 2px 0 rgba(45,30,15,0.15);
+}
+.nav-btn:hover { background: var(--paper-warm); transform: translate(-1px, -1px); box-shadow: 3px 3px 0 rgba(45,30,15,0.2); }
+.nav-btn:active { transform: translate(0, 0); box-shadow: 0 1px 0 rgba(45,30,15,0.15); }
+
+.nav-btn.primary {
+  background: var(--ink);
+  color: var(--paper);
+  border-color: var(--ink);
+}
+.nav-btn.primary:hover { background: var(--ink-rust); border-color: var(--ink-rust); }
+
+/* ── INTRO ───────────────────────────────────────────────────────── */
+
+.intro {
+  position: relative;
+  min-height: 100vh;
+  padding: 120px 40px 60px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+
+.intro-paper {
+  position: relative;
+  max-width: 760px;
+  background: var(--paper);
+  padding: 60px 56px 56px;
+  border-radius: 2px;
+  box-shadow:
+    0 30px 60px -20px rgba(45,30,15,0.4),
+    0 50px 100px -40px rgba(45,30,15,0.3);
+  transform: rotate(-1deg);
+}
+
+.intro-paper::before {
+  /* Top-left washi tape */
+  content: '';
+  position: absolute;
+  top: -16px;
+  left: 60px;
+  width: 110px;
+  height: 28px;
+  background: var(--washi-yellow);
+  opacity: 0.85;
+  transform: rotate(-3deg);
+  box-shadow: 0 2px 4px rgba(45,30,15,0.15);
+}
+
+.intro-paper::after {
+  /* Top-right washi tape */
+  content: '';
+  position: absolute;
+  top: -14px;
+  right: 80px;
+  width: 90px;
+  height: 24px;
+  background: var(--washi-blue);
+  opacity: 0.85;
+  transform: rotate(4deg);
+  box-shadow: 0 2px 4px rgba(45,30,15,0.15);
+}
+
+.intro-eyebrow {
+  font-family: var(--type);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink-rust);
+  margin-bottom: 24px;
+}
+
+.intro-headline {
+  font-family: var(--hand);
+  font-weight: 700;
+  font-size: clamp(58px, 9vw, 124px);
+  line-height: 1;
+  color: var(--ink);
+  margin-bottom: 18px;
+  letter-spacing: -0.005em;
+}
+.intro-headline em {
+  font-style: normal;
+  color: var(--ink-rust);
+  display: inline-block;
+  transform: rotate(-2deg);
+}
+
+.intro-deck {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 21px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  max-width: 540px;
+  margin: 0 auto 32px;
+}
+
+.intro-instructions {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 24px;
+}
+
+.intro-instr {
+  font-family: var(--type);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  padding: 8px 12px;
+  background: var(--paper-warm);
+  border: 1px dashed var(--ink-soft);
+}
+
+.intro-arrow {
+  margin-top: 36px;
+  font-family: var(--hand);
+  font-weight: 600;
+  font-size: 26px;
+  color: var(--ink-rust);
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  transform: rotate(-2deg);
+}
+.intro-arrow::after {
+  content: '↓';
+  display: inline-block;
+  font-size: 24px;
+  animation: bob 1.6s ease-in-out infinite;
+}
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(4px); }
+}
+
+/* ── THE DESK ────────────────────────────────────────────────────── */
+
+.desk-section {
+  position: relative;
+  min-height: 150vh;
+  padding: 80px 0 100px;
+  z-index: 2;
+}
+
+.desk-header {
+  max-width: 1280px;
+  margin: 0 auto 40px;
+  padding: 0 40px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 40px;
+  align-items: end;
+}
+
+.desk-title {
+  font-family: var(--hand);
+  font-weight: 700;
+  font-size: clamp(40px, 5vw, 64px);
+  line-height: 1;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+  margin-bottom: 8px;
+}
+.desk-title em {
+  font-style: normal;
+  color: var(--ink-rust);
+}
+
+.desk-sub {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 17px;
+  color: var(--ink-soft);
+  max-width: 480px;
+}
+
+.desk-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.desk-btn {
+  font-family: var(--type);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 10px 16px;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1.5px solid var(--ink);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.2s, background 0.2s, color 0.2s;
+  box-shadow: 2px 2px 0 var(--ink);
+}
+.desk-btn:hover { transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
+.desk-btn:active { transform: translate(1px, 1px); box-shadow: 0 0 0 var(--ink); }
+.desk-btn.primary { background: var(--ink); color: var(--paper); }
+.desk-btn.primary:hover { background: var(--ink-rust); border-color: var(--ink-rust); box-shadow: 4px 4px 0 rgba(45,30,15,0.4); }
+
+/* The desk stage */
+.desk-stage {
+  position: relative;
+  margin: 0 40px;
+  height: 720px;
+  background:
+    radial-gradient(ellipse 40% 30% at 30% 30%, rgba(255,255,255,0.05), transparent 60%),
+    radial-gradient(ellipse 40% 30% at 70% 70%, rgba(45,30,15,0.06), transparent 60%);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+/* Faint margin notes on the desk */
+.desk-stage::before {
+  content: 'a private workbench, not a marketplace.';
+  position: absolute;
+  top: 24px;
+  left: 32px;
+  font-family: var(--hand);
+  font-size: 22px;
+  color: rgba(45,30,15,0.35);
+  transform: rotate(-2deg);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.desk-stage::after {
+  content: '— pin · drag · flip · tidy';
+  position: absolute;
+  bottom: 24px;
+  right: 32px;
+  font-family: var(--type);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(45,30,15,0.35);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* ── POLAROID ────────────────────────────────────────────────────── */
+
+.polaroid {
+  position: absolute;
+  width: 220px;
+  height: 280px;
+  background: var(--paper);
+  padding: 14px 14px 0;
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.4) inset,
+    0 4px 8px rgba(45,30,15,0.18),
+    0 16px 32px -8px rgba(45,30,15,0.3);
+  cursor: grab;
+  will-change: transform;
+  user-select: none;
+  -webkit-user-select: none;
+  transform-style: preserve-3d;
+  transition: box-shadow 0.25s ease, filter 0.25s ease;
+}
+
+.polaroid.is-dragging { cursor: grabbing; box-shadow: 0 4px 8px rgba(45,30,15,0.2), 0 30px 60px -10px rgba(45,30,15,0.45); z-index: 50; }
+.polaroid:not(.is-dragging):hover { filter: brightness(1.03); box-shadow: 0 1px 0 rgba(255,255,255,0.4) inset, 0 8px 16px rgba(45,30,15,0.22), 0 24px 48px -10px rgba(45,30,15,0.4); }
+
+.polaroid-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.polaroid.is-flipped .polaroid-inner { transform: rotateY(180deg); }
+
+.polaroid-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.polaroid-photo {
+  flex: 1;
+  background-size: cover;
+  background-position: center;
+  filter: saturate(0.85) contrast(0.95);
+  position: relative;
+  border-bottom: 1px solid rgba(45,30,15,0.08);
+}
+.polaroid-photo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 60%, rgba(45,30,15,0.15));
+  pointer-events: none;
+}
+
+.polaroid-caption {
+  padding: 14px 4px 22px;
+  text-align: center;
+}
+
+.polaroid-name {
+  font-family: var(--hand);
+  font-weight: 600;
+  font-size: 22px;
+  color: var(--ink);
+  line-height: 1;
+  margin-bottom: 4px;
+  letter-spacing: -0.005em;
+}
+
+.polaroid-place {
+  font-family: var(--type);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* Back of polaroid */
+.polaroid-face.back {
+  transform: rotateY(180deg);
+  background: var(--paper-back);
+  padding: 18px 16px;
+  border-radius: 0;
+  background-image:
+    repeating-linear-gradient(180deg, transparent 0, transparent 21px, rgba(31,58,95,0.1) 22px),
+    linear-gradient(180deg, var(--paper-back), var(--paper-back));
+  background-position: 0 8px;
+  inset: -14px -14px 0 -14px;
+}
+
+.polaroid-face.back::before {
+  /* binder hole punch */
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  width: 6px; height: 6px;
+  background: var(--desk-deep);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(45,30,15,0.2) inset;
+}
+
+.polaroid-back-num {
+  font-family: var(--type);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-rust);
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px dashed rgba(45,30,15,0.2);
+  padding-bottom: 6px;
+}
+
+.polaroid-back-name {
+  font-family: var(--hand);
+  font-weight: 600;
+  font-size: 20px;
+  color: var(--ink);
+  line-height: 1.1;
+  margin-bottom: 8px;
+  letter-spacing: -0.005em;
+}
+
+.polaroid-back-list {
+  list-style: none;
+  font-family: var(--hand);
+  font-size: 16px;
+  line-height: 1.35;
+  color: var(--ink-blue);
+}
+.polaroid-back-list li {
+  padding: 5px 0;
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  gap: 4px;
+}
+.polaroid-back-list li::before {
+  content: '–';
+  color: var(--ink-rust);
+}
+
+.polaroid-back-stamp {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  font-family: var(--type);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ink-rust);
+  border: 1.2px solid var(--ink-rust);
+  padding: 3px 6px;
+  transform: rotate(-3deg);
+  opacity: 0.85;
+}
+
+/* Washi tape (alternates color per polaroid via :nth-child) */
+.polaroid::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: 30px;
+  width: 70px;
+  height: 22px;
+  background: var(--washi-yellow);
+  opacity: 0.88;
+  transform: rotate(-4deg);
+  box-shadow: 0 2px 3px rgba(45,30,15,0.15);
+  z-index: 4;
+  pointer-events: none;
+}
+
+.polaroid:nth-child(1)::before { background: var(--washi-blue);   left: 24px; transform: rotate(-3deg); }
+.polaroid:nth-child(2)::before { background: var(--washi-pink);   left: 70px; transform: rotate(2deg); }
+.polaroid:nth-child(3)::before { background: var(--washi-green);  left: 20px; transform: rotate(-5deg); }
+.polaroid:nth-child(4)::before { background: var(--washi-yellow); left: 100px; transform: rotate(4deg); }
+.polaroid:nth-child(5)::before { background: var(--washi-pink);   left: 36px; transform: rotate(-2deg); }
+.polaroid:nth-child(6)::before { background: var(--washi-blue);   left: 90px; transform: rotate(3deg); }
+.polaroid:nth-child(7)::before { background: var(--washi-green);  left: 30px; transform: rotate(-4deg); }
+.polaroid:nth-child(8)::before { background: var(--washi-yellow); left: 70px; transform: rotate(-1deg); }
+
+/* Hover instruction overlay (first-time hint) */
+.hint-bubble {
+  position: absolute;
+  top: 38%;
+  right: 12%;
+  z-index: 30;
+  font-family: var(--hand);
+  font-size: 26px;
+  color: var(--ink-rust);
+  transform: rotate(-6deg);
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  animation: hint-fade 4s ease 1s forwards;
+}
+
+@keyframes hint-fade {
+  0% { opacity: 0; transform: rotate(-6deg) translateY(8px); }
+  20% { opacity: 1; transform: rotate(-6deg) translateY(0); }
+  80% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.hint-bubble::before {
+  content: '←';
+  font-family: var(--serif);
+  font-size: 30px;
+  display: inline-block;
+  animation: nudge 1.8s ease-in-out infinite;
+}
+
+@keyframes nudge {
+  0%, 100% { transform: translateX(0); }
+  50% { transform: translateX(-6px); }
+}
+
+/* ── HANDWRITTEN PULL ───────────────────────────────────────────── */
+
+.pull-section {
+  position: relative;
+  padding: 100px 40px;
+  text-align: center;
+  z-index: 2;
+}
+
+.pull-paper {
+  display: inline-block;
+  position: relative;
+  background: var(--paper);
+  padding: 50px 60px;
+  max-width: 900px;
+  transform: rotate(0.8deg);
+  box-shadow: 0 30px 60px -20px rgba(45,30,15,0.35);
+}
+
+.pull-paper::before {
+  /* Tape */
+  content: '';
+  position: absolute;
+  top: -12px; left: 50%;
+  width: 100px; height: 24px;
+  background: var(--washi-pink);
+  opacity: 0.85;
+  transform: translateX(-50%) rotate(-2deg);
+}
+
+.pull-text {
+  font-family: var(--hand);
+  font-weight: 600;
+  font-size: clamp(34px, 4.5vw, 56px);
+  line-height: 1.15;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+}
+
+.pull-text em {
+  font-style: normal;
+  color: var(--ink-rust);
+}
+
+.pull-attr {
+  margin-top: 20px;
+  font-family: var(--type);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* ── CTA ─────────────────────────────────────────────────────────── */
+
+.cta {
+  padding: 80px 40px 120px;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+}
+
+.cta-paper {
+  display: inline-block;
+  position: relative;
+  background: var(--paper);
+  padding: 60px 80px 64px;
+  max-width: 760px;
+  text-align: center;
+  box-shadow: 0 30px 60px -20px rgba(45,30,15,0.4);
+  transform: rotate(-0.6deg);
+}
+
+.cta-paper::before, .cta-paper::after {
+  content: '';
+  position: absolute;
+  width: 100px; height: 22px;
+  top: -10px;
+  background: var(--washi-yellow);
+  opacity: 0.85;
+}
+.cta-paper::before { left: 12%; transform: rotate(-4deg); }
+.cta-paper::after  { right: 12%; transform: rotate(3deg); background: var(--washi-blue); }
+
+.cta-eyebrow {
+  font-family: var(--type);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink-rust);
+  margin-bottom: 24px;
+}
+
+.cta-headline {
+  font-family: var(--hand);
+  font-weight: 700;
+  font-size: clamp(42px, 6vw, 80px);
+  line-height: 1;
+  color: var(--ink);
+  margin-bottom: 22px;
+  letter-spacing: -0.005em;
+}
+.cta-headline em { font-style: normal; color: var(--ink-rust); }
+
+.cta-sub {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 18px;
+  color: var(--ink-soft);
+  max-width: 480px;
+  margin: 0 auto 36px;
+  line-height: 1.5;
+}
+
+.cta-actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+
+.btn-rust {
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 14px 24px;
+  border: 2px solid var(--ink-rust);
+  background: var(--ink-rust);
+  color: var(--paper);
+  text-decoration: none;
+  border-radius: 2px;
+  transition: transform 0.15s, box-shadow 0.2s;
+  box-shadow: 4px 4px 0 var(--ink);
+}
+.btn-rust:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 var(--ink); }
+
+.btn-ink-ghost {
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 14px 24px;
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  text-decoration: none;
+  border-radius: 2px;
+  transition: transform 0.15s, box-shadow 0.2s;
+  box-shadow: 4px 4px 0 rgba(45,30,15,0.25);
+}
+.btn-ink-ghost:hover { transform: translate(-2px, -2px); box-shadow: 6px 6px 0 rgba(45,30,15,0.4); }
+
+/* ── FOOTER ──────────────────────────────────────────────────────── */
+
+footer {
+  padding: 32px 40px 48px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  position: relative;
+  z-index: 2;
+  border-top: 1px dashed rgba(45,30,15,0.25);
+}
+
+footer .copyright {
+  font-family: var(--type);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(45,30,15,0.6);
+}
+
+footer .brand-mark {
+  font-family: var(--hand);
+  font-weight: 600;
+  font-size: 22px;
+  color: var(--ink);
+  transform: rotate(-1deg);
+}
+
+/* ── Responsive ──────────────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  .desk-stage { height: 1100px; margin: 0 20px; }
+  .desk-header { grid-template-columns: 1fr; padding: 0 20px; gap: 24px; }
+  .polaroid { width: 180px; height: 230px; }
+}
+
+@media (max-width: 640px) {
+  .nav { padding: 12px 16px; }
+  .nav-controls { gap: 6px; }
+  .nav-btn { padding: 7px 10px; font-size: 10px; }
+  .intro-paper { padding: 40px 28px; }
+  .desk-stage { height: 1200px; }
+  .polaroid { width: 160px; height: 210px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+</style>
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<nav class="nav">
+  <a href="#" class="nav-brand">nanasays<sup>uk</sup></a>
+  <div class="nav-controls">
+    <a href="#" class="nav-btn">Schools</a>
+    <a href="#" class="nav-btn">How it works</a>
+    <a href="#" class="nav-btn primary">Try Nana →</a>
+  </div>
+</nav>
+
+<!-- ============ INTRO ============ -->
+<section class="intro">
+  <div class="intro-paper">
+    <div class="intro-eyebrow">Vol. I · Sketches from the Desk</div>
+    <h1 class="intro-headline">
+      Our school <em>shortlist</em>, <br />on the kitchen table.
+    </h1>
+    <p class="intro-deck">
+      Eight schools. Eight photographs. Eight handwritten back-of-card notes.
+      Drag them around. Click any to flip and read the marginalia.
+    </p>
+    <div class="intro-instructions">
+      <span class="intro-instr">↕ click to flip</span>
+      <span class="intro-instr">✋ drag to move</span>
+      <span class="intro-instr">↻ scatter / tidy</span>
+    </div>
+    <div class="intro-arrow">to the desk</div>
+  </div>
+</section>
+
+<!-- ============ THE DESK ============ -->
+<section class="desk-section">
+  <div class="desk-header">
+    <div>
+      <h2 class="desk-title">The <em>workbench</em>.</h2>
+      <p class="desk-sub">Pin a photo with washi tape. Flip it over to see what we wrote on the back. Or scatter the lot and start again.</p>
+    </div>
+    <div class="desk-controls">
+      <button class="desk-btn" id="btnTidy">↕ Tidy in rows</button>
+      <button class="desk-btn" id="btnScatter">↻ Scatter</button>
+      <button class="desk-btn primary" id="btnFlipAll">✶ Flip all</button>
+    </div>
+  </div>
+
+  <div class="desk-stage" id="deskStage">
+
+    <span class="hint-bubble">drag me!</span>
+
+    <article class="polaroid" data-x="40"  data-y="40"  data-rot="-4">
+      <div class="polaroid-inner">
+        <div class="polaroid-face">
+          <div class="polaroid-photo" style="background-image:url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=600&q=80&auto=format&fit=crop')"></div>
+          <div class="polaroid-caption">
+            <div class="polaroid-name">Wycombe Abbey</div>
+            <div class="polaroid-place">Buckinghamshire · 0001</div>
+          </div>
+        </div>
+        <div class="polaroid-face back">
+          <div class="polaroid-back-num"><span>No. 0001</span><span>£15,950/t</span></div>
+          <div class="polaroid-back-name">Wycombe Abbey</div>
+          <ul class="polaroid-back-list">
+            <li>A-level A*/A: 82% — top decile</li>
+            <li>Sat. school: mandatory (even weekly boarders)</li>
+            <li>Bursaries to 100% means-tested</li>
+            <li>ISI 2024: Safeguarding Excellent</li>
+          </ul>
+          <span class="polaroid-back-stamp">Read · 2026</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="polaroid" data-x="290" data-y="80"  data-rot="3">
+      <div class="polaroid-inner">
+        <div class="polaroid-face">
+          <div class="polaroid-photo" style="background-image:url('https://images.unsplash.com/photo-1568667256549-094345857637?w=600&q=80&auto=format&fit=crop')"></div>
+          <div class="polaroid-caption">
+            <div class="polaroid-name">Eton College</div>
+            <div class="polaroid-place">Berkshire · 0014</div>
+          </div>
+        </div>
+        <div class="polaroid-face back">
+          <div class="polaroid-back-num"><span>No. 0014</span><span>£16,668/t</span></div>
+          <div class="polaroid-back-name">Eton College</div>
+          <ul class="polaroid-back-list">
+            <li>25 houses, master-led</li>
+            <li>12-day fortnight rhythm</li>
+            <li>Sat. school optional (upper years)</li>
+            <li>Bursaries to 100%</li>
+          </ul>
+          <span class="polaroid-back-stamp">Read · 2026</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="polaroid" data-x="560" data-y="50"  data-rot="-2">
+      <div class="polaroid-inner">
+        <div class="polaroid-face">
+          <div class="polaroid-photo" style="background-image:url('https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=600&q=80&auto=format&fit=crop')"></div>
+          <div class="polaroid-caption">
+            <div class="polaroid-name">Benenden</div>
+            <div class="polaroid-place">Kent · 0023</div>
+          </div>
+        </div>
+        <div class="polaroid-face back">
+          <div class="polaroid-back-num"><span>No. 0023</span><span>£14,995/t</span></div>
+          <div class="polaroid-back-name">Benenden School</div>
+          <ul class="polaroid-back-list">
+            <li>Cohort ~550 (smaller than Wycombe)</li>
+            <li>GSA-affiliated society</li>
+            <li>Named LGBTQ+ pastoral lead</li>
+            <li>Sat. mornings only</li>
+          </ul>
+          <span class="polaroid-back-stamp">Read · 2026</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="polaroid" data-x="820" data-y="100" data-rot="4">
+      <div class="polaroid-inner">
+        <div class="polaroid-face">
+          <div class="polaroid-photo" style="background-image:url('https://images.unsplash.com/photo-1571260899304-425eee4c7efc?w=600&q=80&auto=format&fit=crop')"></div>
+          <div class="polaroid-caption">
+            <div class="polaroid-name">Winchester</div>
+            <div class="polaroid-place">Hampshire · 0029</div>
+          </div>
+        </div>
+        <div class="polaroid-face back">
+          <div class="polaroid-back-num"><span>No. 0029</span><span>£16,490/t</span></div>
+          <div class="polaroid-back-name">Winchester College</div>
+          <ul class="polaroid-back-list">
+            <li>Co-ed since 2022</li>
+            <li>12-day fortnight rhythm</li>
+            <li>Fellows' Library predates the school</li>
+            <li>"Division" — unstructured enquiry hour</li>
+          </ul>
+          <span class="polaroid-back-stamp">Read · 2026</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="polaroid" data-x="100" data-y="370" data-rot="2">
+      <div class="polaroid-inner">
+        <div class="polaroid-face">
+          <div class="polaroid-photo" style="background-image:url('https://images.unsplash.com/photo-1607237138185-eedd9c632b0b?w=600&q=80&auto=format&fit=crop')"></div>
+          <div class="polaroid-caption">
+            <div class="polaroid-name">Marlborough</div>
+            <div class="polaroid-place">Wiltshire · 0041</div>
+          </div>
+        </div>
+        <div class="polaroid-face back">
+          <div class="polaroid-back-num"><span>No. 0041</span><span>£15,580/t</span></div>
+          <div class="polaroid-back-name">Marlborough College</div>
+          <ul class="polaroid-back-list">
+            <li>30 houses, mixed system</li>
+            <li>Full boarding only</li>
+            <li>Sat. school mandatory all years</li>
+            <li>A-level A*/A: 76%</li>
+          </ul>
+          <span class="polaroid-back-stamp">Read · 2026</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="polaroid" data-x="380" data-y="400" data-rot="-3">
+      <div class="polaroid-inner">
+        <div class="polaroid-face">
+          <div class="polaroid-photo" style="background-image:url('https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=600&q=80&auto=format&fit=crop')"></div>
+          <div class="polaroid-caption">
+            <div class="polaroid-name">Radley</div>
+            <div class="polaroid-place">Oxfordshire · 0034</div>
+          </div>
+        </div>
+        <div class="polaroid-face back">
+          <div class="polaroid-back-num"><span>No. 0034</span><span>£14,950/t</span></div>
+          <div class="polaroid-back-name">Radley College</div>
+          <ul class="polaroid-back-list">
+            <li>Boys only, full-boarding</li>
+            <li>Rugby tier-one squad</li>
+            <li>Strong poetry tradition</li>
+            <li>Sat. school: mandatory</li>
+          </ul>
+          <span class="polaroid-back-stamp">Read · 2026</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="polaroid" data-x="650" data-y="380" data-rot="3">
+      <div class="polaroid-inner">
+        <div class="polaroid-face">
+          <div class="polaroid-photo" style="background-image:url('https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=600&q=80&auto=format&fit=crop')"></div>
+          <div class="polaroid-caption">
+            <div class="polaroid-name">Fettes</div>
+            <div class="polaroid-place">Edinburgh · 0058</div>
+          </div>
+        </div>
+        <div class="polaroid-face back">
+          <div class="polaroid-back-num"><span>No. 0058</span><span>£13,995/t</span></div>
+          <div class="polaroid-back-name">Fettes College</div>
+          <ul class="polaroid-back-list">
+            <li>Scottish boarding (7–18)</li>
+            <li>IB + A-levels offered</li>
+            <li>Tony Blair's alma mater</li>
+            <li>A-level A*/A: 69%</li>
+          </ul>
+          <span class="polaroid-back-stamp">Read · 2026</span>
+        </div>
+      </div>
+    </article>
+
+    <article class="polaroid" data-x="900" data-y="430" data-rot="-2">
+      <div class="polaroid-inner">
+        <div class="polaroid-face">
+          <div class="polaroid-photo" style="background-image:url('https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=600&q=80&auto=format&fit=crop')"></div>
+          <div class="polaroid-caption">
+            <div class="polaroid-name">Sherborne Girls</div>
+            <div class="polaroid-place">Dorset · 0049</div>
+          </div>
+        </div>
+        <div class="polaroid-face back">
+          <div class="polaroid-back-num"><span>No. 0049</span><span>£14,250/t</span></div>
+          <div class="polaroid-back-name">Sherborne Girls</div>
+          <ul class="polaroid-back-list">
+            <li>Cohort ~470, paired with boys' school</li>
+            <li>A-level A*/A: 70%</li>
+            <li>Sat. school: morning only</li>
+            <li>Strong arts &amp; sciences split</li>
+          </ul>
+          <span class="polaroid-back-stamp">Read · 2026</span>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<!-- ============ PULL QUOTE ============ -->
+<section class="pull-section">
+  <div class="pull-paper">
+    <p class="pull-text">
+      "The right school isn't the one with the best photos. <br />
+      It's the one whose <em>back-of-card</em> still feels right."
+    </p>
+    <div class="pull-attr">— a working principle</div>
+  </div>
+</section>
+
+<!-- ============ CTA ============ -->
+<section class="cta">
+  <div class="cta-paper">
+    <div class="cta-eyebrow">begin · always free</div>
+    <h2 class="cta-headline">
+      Pin your <em>own</em> shortlist.
+    </h2>
+    <p class="cta-sub">
+      Browse all 154 schools. Save your favourites. Ask Nana the questions
+      the brochures don't answer.
+    </p>
+    <div class="cta-actions">
+      <a href="#" class="btn-rust">Try Nana free →</a>
+      <a href="#" class="btn-ink-ghost">Browse the catalogue</a>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <span class="copyright">MMXXVI · Nanasays · Made in the United Kingdom</span>
+  <span class="brand-mark">— a workbench, not a marketplace</span>
+</footer>
+
+<script>
+(() => {
+  'use strict';
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const stage = document.getElementById('deskStage');
+  if (!stage) return;
+  const polaroids = stage.querySelectorAll('.polaroid');
+
+  // Position each polaroid based on data-x/y/rot
+  function applyPosition(p, x, y, rot) {
+    p.style.transform = `translate3d(${x}px, ${y}px, 0) rotate(${rot}deg)`;
+    p.dataset.x = x; p.dataset.y = y; p.dataset.rot = rot;
+  }
+
+  polaroids.forEach(p => {
+    applyPosition(p, parseFloat(p.dataset.x), parseFloat(p.dataset.y), parseFloat(p.dataset.rot));
+  });
+
+  /* ── DRAG + CLICK-TO-FLIP ───────────────────────────────────── */
+
+  let zCounter = 10;
+
+  polaroids.forEach(p => {
+    let isDown = false;
+    let startX, startY;
+    let baseX = 0, baseY = 0;
+    let moved = false;
+    let downAt = 0;
+
+    function onDown(e) {
+      isDown = true;
+      moved = false;
+      downAt = Date.now();
+      const pt = e.touches ? e.touches[0] : e;
+      startX = pt.clientX;
+      startY = pt.clientY;
+      baseX = parseFloat(p.dataset.x);
+      baseY = parseFloat(p.dataset.y);
+      p.classList.add('is-dragging');
+      zCounter += 1;
+      p.style.zIndex = zCounter;
+      // hide the drag-me hint
+      const hint = document.querySelector('.hint-bubble');
+      if (hint) hint.style.display = 'none';
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('touchmove', onMove, { passive: false });
+      document.addEventListener('mouseup', onUp);
+      document.addEventListener('touchend', onUp);
+    }
+
+    function onMove(e) {
+      if (!isDown) return;
+      e.preventDefault();
+      const pt = e.touches ? e.touches[0] : e;
+      const dx = pt.clientX - startX;
+      const dy = pt.clientY - startY;
+      if (Math.hypot(dx, dy) > 5) moved = true;
+      const newX = baseX + dx;
+      const newY = baseY + dy;
+      const rot = parseFloat(p.dataset.rot);
+      p.style.transform = `translate3d(${newX}px, ${newY}px, 0) rotate(${rot}deg)`;
+      p.dataset.x = newX;
+      p.dataset.y = newY;
+    }
+
+    function onUp(e) {
+      if (!isDown) return;
+      isDown = false;
+      p.classList.remove('is-dragging');
+      const dt = Date.now() - downAt;
+      // Treat as click → flip
+      if (!moved && dt < 500) {
+        p.classList.toggle('is-flipped');
+      }
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('touchmove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.removeEventListener('touchend', onUp);
+    }
+
+    p.addEventListener('mousedown', onDown);
+    p.addEventListener('touchstart', onDown, { passive: true });
+  });
+
+  /* ── TIDY → arrange in rows ─────────────────────────────────── */
+  function tidy() {
+    const cols = 4;
+    const cellW = 250;
+    const cellH = 320;
+    const startX = 40;
+    const startY = 60;
+    polaroids.forEach((p, i) => {
+      const x = startX + (i % cols) * cellW;
+      const y = startY + Math.floor(i / cols) * cellH;
+      p.style.transition = 'transform 0.7s cubic-bezier(0.22, 1, 0.36, 1)';
+      requestAnimationFrame(() => applyPosition(p, x, y, 0));
+      setTimeout(() => p.style.transition = '', 720);
+    });
+  }
+
+  /* ── SCATTER → randomize ────────────────────────────────────── */
+  function scatter() {
+    const w = stage.clientWidth;
+    const h = stage.clientHeight;
+    polaroids.forEach((p, i) => {
+      const x = 30 + Math.random() * (w - 280);
+      const y = 30 + Math.random() * (h - 320);
+      const rot = (Math.random() * 16) - 8;
+      p.style.transition = 'transform 0.85s cubic-bezier(0.22, 1, 0.36, 1)';
+      requestAnimationFrame(() => applyPosition(p, x, y, rot));
+      setTimeout(() => p.style.transition = '', 870);
+    });
+  }
+
+  /* ── FLIP ALL ───────────────────────────────────────────────── */
+  function flipAll() {
+    const anyFront = Array.from(polaroids).some(p => !p.classList.contains('is-flipped'));
+    polaroids.forEach((p, i) => {
+      setTimeout(() => p.classList.toggle('is-flipped', anyFront), i * 80);
+    });
+  }
+
+  document.getElementById('btnTidy').addEventListener('click', tidy);
+  document.getElementById('btnScatter').addEventListener('click', scatter);
+  document.getElementById('btnFlipAll').addEventListener('click', flipAll);
+
+})();
+</script>
+
+</body>
+</html>

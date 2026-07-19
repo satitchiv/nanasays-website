@@ -1,0 +1,1434 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nanasays — The Composition · Wycombe Abbey, assembled by scroll</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<style>
+/* ─────────────────────────────────────────────────────────────────────
+   THE COMPOSITION — single-school profile, fully scroll-choreographed
+   Cream paper. Navy ink. Teal/amber accents. Nanasays brand.
+   Every section's elements TRAVEL into their final formation as you scroll.
+   ─────────────────────────────────────────────────────────────────── */
+
+:root {
+  --paper: #F4EFE3;
+  --paper-warm: #ECE3CC;
+  --paper-deep: #DDD2B0;
+  --ink: #1B3252;
+  --ink-soft: #2A4566;
+  --ink-pale: #5A6A82;
+  --gray: #8A8478;
+  --teal: #34C3A0;
+  --teal-deep: #1F8E72;
+  --amber: #C9956A;
+  --amber-bright: #F5A623;
+  --oxblood: #7C2F2F;
+  --hairline: rgba(27,50,82,0.14);
+
+  --serif: 'Cormorant Garamond', 'Times New Roman', serif;
+  --sans: 'Manrope', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.32;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='5'/><feColorMatrix values='0 0 0 0 0.55 0 0 0 0 0.45 0 0 0 0 0.28 0 0 0 0.15 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  mix-blend-mode: multiply;
+}
+
+::selection { background: var(--teal); color: var(--ink); }
+
+/* Utilities */
+.mono { font-family: var(--mono); font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; }
+.serif-italic { font-family: var(--serif); font-style: italic; }
+
+/* ── NAV ─────────────────────────────────────────────────────────── */
+
+.nav {
+  position: fixed;
+  top: 18px; left: 24px; right: 24px;
+  z-index: 100;
+  padding: 12px 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(244,239,227,0.82);
+  backdrop-filter: blur(14px) saturate(160%);
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+}
+
+.nav-brand {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 22px;
+  color: var(--ink);
+  text-decoration: none;
+  letter-spacing: -0.005em;
+}
+
+.nav-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-pale);
+}
+
+.nav-cta {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--teal);
+  color: var(--ink);
+  text-decoration: none;
+  transition: background 0.2s, transform 0.2s;
+}
+.nav-cta:hover { background: var(--ink); color: var(--paper); transform: translateY(-1px); }
+
+/* Sticky page-title bar (appears after hero) */
+.sticky-title {
+  position: fixed;
+  top: 78px;
+  left: 24px;
+  z-index: 50;
+  padding: 8px 14px;
+  background: rgba(244,239,227,0.92);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  opacity: 0;
+  transform: translateY(-12px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  pointer-events: none;
+}
+.sticky-title.is-visible { opacity: 1; transform: translateY(0); }
+.sticky-title-name {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 16px;
+  color: var(--ink);
+}
+.sticky-title-section {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--teal-deep);
+  border-left: 1px solid var(--hairline);
+  padding-left: 12px;
+}
+
+/* ── HERO ────────────────────────────────────────────────────────── */
+
+.hero {
+  position: relative;
+  height: 100vh;
+  min-height: 720px;
+  overflow: hidden;
+}
+
+.hero-photo {
+  position: absolute;
+  inset: -6%;
+  background-image: url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=2400&q=85&auto=format&fit=crop');
+  background-size: cover;
+  background-position: center;
+  z-index: 1;
+  animation: ken-burns 20s ease-in-out infinite alternate;
+  filter: saturate(0.85) contrast(1.04);
+}
+
+@keyframes ken-burns {
+  0%   { transform: scale(1.04); }
+  100% { transform: scale(1.12); }
+}
+
+.hero-photo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(244,239,227,0.55) 0%, transparent 25%, rgba(244,239,227,0.2) 60%, rgba(244,239,227,0.85) 100%),
+    radial-gradient(ellipse 70% 60% at center, transparent 30%, rgba(244,239,227,0.5) 100%);
+}
+
+.hero-content {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  padding: 0 32px;
+}
+
+.hero-eyebrow {
+  margin-bottom: 28px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.hero-eyebrow::before, .hero-eyebrow::after {
+  content: '';
+  width: 32px; height: 1px;
+  background: var(--teal);
+}
+.hero-eyebrow .mono { color: var(--teal-deep); }
+
+.hero-headline {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: clamp(72px, 12vw, 220px);
+  line-height: 0.9;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin-bottom: 16px;
+  will-change: transform, opacity;
+}
+.hero-headline em { font-style: italic; color: var(--oxblood); font-weight: 400; }
+
+.hero-deck {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: clamp(18px, 1.6vw, 24px);
+  line-height: 1.45;
+  color: var(--ink-soft);
+  max-width: 640px;
+  will-change: transform, opacity;
+}
+
+/* Corner stat callouts — they DETACH and migrate downward on scroll */
+.hero-corner-stat {
+  position: absolute;
+  z-index: 3;
+  color: var(--ink);
+  will-change: transform, opacity;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hero-corner-stat .label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--teal-deep);
+}
+.hero-corner-stat .value {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 38px;
+  line-height: 1;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.hero-corner-stat.tl { top: 100px;  left: 40px; }
+.hero-corner-stat.tr { top: 100px;  right: 40px; text-align: right; }
+.hero-corner-stat.bl { bottom: 60px; left: 40px; }
+.hero-corner-stat.br { bottom: 60px; right: 40px; text-align: right; }
+
+.hero-scroll-hint {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 4;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--ink-pale);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.hero-scroll-hint::after {
+  content: '';
+  width: 1px; height: 32px;
+  background: var(--teal);
+  animation: drop 1.8s ease-in-out infinite;
+}
+@keyframes drop {
+  0%, 100% { transform: scaleY(0.4); transform-origin: top; opacity: 0.4; }
+  50% { transform: scaleY(1); opacity: 1; }
+}
+
+/* ── NUMBERS — tiles converge from corners ───────────────────────── */
+
+.numbers {
+  position: relative;
+  padding: 140px 32px 120px;
+  z-index: 2;
+}
+
+.numbers-head {
+  max-width: 1240px;
+  margin: 0 auto 60px;
+  text-align: center;
+}
+
+.numbers-eyebrow { margin-bottom: 14px; display: inline-flex; gap: 12px; }
+.numbers-eyebrow::before { content: '§ 01'; font-family: var(--mono); font-size: 10px; letter-spacing: 0.22em; color: var(--ink-pale); padding-right: 14px; border-right: 1px solid var(--hairline); }
+.numbers-eyebrow .mono { color: var(--teal-deep); }
+
+.numbers-title {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: clamp(40px, 5vw, 76px);
+  line-height: 0.98;
+  letter-spacing: -0.018em;
+  color: var(--ink);
+}
+.numbers-title em { font-style: italic; color: var(--oxblood); font-weight: 400; }
+
+.numbers-grid {
+  max-width: 1240px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  border-top: 2px solid var(--ink);
+  position: relative;
+}
+
+.numbers-grid::after {
+  /* Teal sweep underline */
+  content: '';
+  position: absolute;
+  bottom: -1px; left: 0;
+  height: 2px;
+  width: 0;
+  background: var(--teal);
+  transition: width 1.5s cubic-bezier(0.22, 1, 0.36, 1) 0.6s;
+}
+.numbers-grid.is-assembled::after { width: 100%; }
+
+.number-tile {
+  padding: 36px 26px 36px;
+  border-right: 1px solid var(--hairline);
+  position: relative;
+  will-change: transform, opacity;
+}
+.number-tile:last-child { border-right: none; }
+
+.number-tile-num {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(56px, 6.5vw, 104px);
+  line-height: 0.96;
+  color: var(--ink);
+  letter-spacing: -0.018em;
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 16px;
+  display: block;
+}
+.number-tile-num em { font-style: italic; color: var(--teal-deep); }
+
+.number-tile-key {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-pale);
+  margin-bottom: 6px;
+}
+
+.number-tile-sub {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 14px;
+  color: var(--gray);
+  line-height: 1.4;
+}
+
+/* ── PROSE ───────────────────────────────────────────────────────── */
+
+.prose {
+  padding: 80px 32px 100px;
+  max-width: 1080px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 2;
+}
+
+.prose-grid {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 60px;
+}
+
+.prose-meta {
+  position: sticky;
+  top: 130px;
+  align-self: start;
+}
+
+.prose-meta-num {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 80px;
+  color: var(--oxblood);
+  line-height: 0.9;
+  margin-bottom: 6px;
+}
+
+.prose-meta-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-pale);
+  margin-bottom: 22px;
+}
+
+.prose-meta-tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  padding-top: 16px;
+  border-top: 1px solid var(--hairline);
+  max-width: 200px;
+}
+
+.prose-body {
+  max-width: 700px;
+}
+
+.prose-head {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: clamp(36px, 4.5vw, 60px);
+  line-height: 1.04;
+  letter-spacing: -0.014em;
+  color: var(--ink);
+  margin-bottom: 32px;
+}
+.prose-head em { font-style: italic; color: var(--oxblood); font-weight: 400; }
+
+.prose-p {
+  font-family: var(--serif);
+  font-size: 20px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  margin-bottom: 18px;
+}
+
+.prose-p:first-of-type::first-letter {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 82px;
+  line-height: 0.85;
+  float: left;
+  margin: 8px 12px 0 -4px;
+  color: var(--oxblood);
+}
+
+/* ── PHOTO COLLAGE — photos snap into formation ─────────────────── */
+
+.collage {
+  padding: 100px 32px 120px;
+  max-width: 1320px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 2;
+}
+
+.collage-head {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: end;
+  margin-bottom: 60px;
+  padding-top: 30px;
+  border-top: 2px solid var(--ink);
+}
+
+.collage-head-eyebrow { display: inline-flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.collage-head-eyebrow::before { content: '§ 02'; font-family: var(--mono); font-size: 10px; letter-spacing: 0.22em; color: var(--ink-pale); padding-right: 14px; border-right: 1px solid var(--hairline); }
+.collage-head-eyebrow .mono { color: var(--teal-deep); }
+
+.collage-title {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: clamp(40px, 5vw, 72px);
+  line-height: 0.98;
+  letter-spacing: -0.014em;
+  color: var(--ink);
+}
+.collage-title em { font-style: italic; color: var(--oxblood); font-weight: 400; }
+
+.collage-deck {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--ink-pale);
+  max-width: 420px;
+}
+
+.collage-stage {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 18px;
+  height: 700px;
+  perspective: 1400px;
+}
+
+.collage-photo {
+  position: relative;
+  overflow: hidden;
+  background-size: cover;
+  background-position: center;
+  filter: saturate(0.88) contrast(1.05);
+  border-radius: 2px;
+  will-change: transform;
+  box-shadow: 0 12px 32px -12px rgba(27,50,82,0.3);
+}
+
+.collage-photo:nth-child(1) { grid-row: span 2; }
+
+.collage-photo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 60%, rgba(27,50,82,0.85));
+}
+
+.collage-photo-cap {
+  position: absolute;
+  left: 16px;
+  bottom: 14px;
+  z-index: 2;
+  color: var(--paper);
+}
+
+.collage-photo-cap strong {
+  display: block;
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 22px;
+  letter-spacing: -0.005em;
+  margin-bottom: 4px;
+}
+
+.collage-photo-cap span {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(244,239,227,0.75);
+}
+
+/* ── OFF CAMPUS — photo + panel converge ────────────────────────── */
+
+.convergence {
+  padding: 100px 32px 120px;
+  max-width: 1320px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 2;
+}
+
+.convergence-head {
+  margin-bottom: 60px;
+  padding-top: 30px;
+  border-top: 2px solid var(--ink);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: end;
+}
+
+.convergence-head-eyebrow { display: inline-flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.convergence-head-eyebrow::before { content: '§ 03'; font-family: var(--mono); font-size: 10px; letter-spacing: 0.22em; color: var(--ink-pale); padding-right: 14px; border-right: 1px solid var(--hairline); }
+.convergence-head-eyebrow .mono { color: var(--teal-deep); }
+
+.convergence-title {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: clamp(40px, 5vw, 72px);
+  line-height: 0.98;
+  letter-spacing: -0.014em;
+  color: var(--ink);
+}
+.convergence-title em { font-style: italic; color: var(--oxblood); font-weight: 400; }
+
+.convergence-deck {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--ink-pale);
+  max-width: 420px;
+}
+
+.convergence-stage {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 24px;
+  align-items: stretch;
+  min-height: 480px;
+}
+
+.convergence-photo {
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  background-image: url('https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=1600&q=85&auto=format&fit=crop');
+  filter: saturate(0.85);
+  border-radius: 2px;
+  overflow: hidden;
+  will-change: transform;
+}
+
+.convergence-photo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 50%, rgba(27,50,82,0.6));
+}
+
+.convergence-pin {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+}
+.convergence-pin-dot {
+  width: 14px; height: 14px;
+  background: var(--teal);
+  border-radius: 50%;
+  box-shadow: 0 0 0 5px rgba(52,195,160,0.25), 0 0 20px var(--teal);
+  position: relative;
+}
+.convergence-pin-dot::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border: 1px solid var(--teal);
+  border-radius: 50%;
+  animation: ping 2.4s ease-out infinite;
+}
+@keyframes ping {
+  0% { transform: scale(0.7); opacity: 0.8; }
+  100% { transform: scale(2.5); opacity: 0; }
+}
+
+.convergence-photo-cap {
+  position: absolute;
+  left: 16px;
+  bottom: 14px;
+  z-index: 3;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--paper);
+}
+
+.convergence-data {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 30px 32px;
+  background: var(--paper-warm);
+  border: 1px solid var(--hairline);
+  border-radius: 2px;
+  will-change: transform;
+}
+
+.convergence-data-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 20px;
+  align-items: baseline;
+  padding: 14px 0;
+  border-bottom: 1px dashed var(--hairline);
+}
+.convergence-data-row:last-child { border-bottom: none; }
+
+.convergence-data-row-key {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-pale);
+}
+
+.convergence-data-row-val {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 26px;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.convergence-data-row-val.is-teal { color: var(--teal-deep); }
+
+/* ── CRESTS — staggered fall-in grid ─────────────────────────────── */
+
+.crests {
+  padding: 100px 32px 120px;
+  max-width: 1320px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 2;
+}
+
+.crests-head {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: end;
+  margin-bottom: 60px;
+  padding-top: 30px;
+  border-top: 2px solid var(--ink);
+}
+
+.crests-head-eyebrow { display: inline-flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+.crests-head-eyebrow::before { content: '§ 04'; font-family: var(--mono); font-size: 10px; letter-spacing: 0.22em; color: var(--ink-pale); padding-right: 14px; border-right: 1px solid var(--hairline); }
+.crests-head-eyebrow .mono { color: var(--teal-deep); }
+
+.crests-title {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: clamp(40px, 5vw, 72px);
+  line-height: 0.98;
+  letter-spacing: -0.014em;
+  color: var(--ink);
+}
+.crests-title em { font-style: italic; color: var(--oxblood); font-weight: 400; }
+
+.crests-deck {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 18px;
+  line-height: 1.55;
+  color: var(--ink-pale);
+  max-width: 420px;
+}
+
+.crests-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.crest {
+  position: relative;
+  aspect-ratio: 4/5;
+  background: var(--ink);
+  border-radius: 2px;
+  overflow: hidden;
+  filter: saturate(0.85) contrast(1.04);
+  will-change: transform, opacity;
+  cursor: pointer;
+  transition: filter 0.4s ease, transform 0.4s ease;
+}
+
+.crest:hover { filter: saturate(1) brightness(1.05); transform: translateY(-4px); }
+
+.crest-img {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+}
+
+.crest::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 50%, rgba(27,50,82,0.9));
+}
+
+.crest-tag {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--teal);
+}
+
+.crest-name {
+  position: absolute;
+  bottom: 14px;
+  left: 14px;
+  right: 14px;
+  z-index: 2;
+  color: var(--paper);
+}
+.crest-name strong {
+  display: block;
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 20px;
+  letter-spacing: -0.005em;
+  margin-bottom: 4px;
+}
+.crest-name span {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(244,239,227,0.75);
+}
+
+/* ── CTA ─────────────────────────────────────────────────────────── */
+
+.cta {
+  padding: 120px 32px 140px;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+  background: var(--paper-warm);
+  border-top: 1px solid var(--hairline);
+}
+
+.cta-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.cta-eyebrow::before, .cta-eyebrow::after {
+  content: '';
+  width: 32px; height: 1px;
+  background: var(--teal);
+}
+.cta-eyebrow .mono { color: var(--teal-deep); }
+
+.cta-headline {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: clamp(50px, 8vw, 132px);
+  line-height: 0.96;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  max-width: 1200px;
+  margin: 0 auto 28px;
+}
+.cta-headline em { font-style: italic; color: var(--oxblood); font-weight: 400; }
+
+.cta-sub {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 19px;
+  color: var(--ink-pale);
+  max-width: 560px;
+  margin: 0 auto 40px;
+  line-height: 1.5;
+}
+
+.cta-actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+
+.btn-teal {
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 15px 28px;
+  border-radius: 999px;
+  background: var(--teal);
+  color: var(--ink);
+  text-decoration: none;
+  border: 1px solid var(--teal);
+  transition: background 0.2s, transform 0.2s, box-shadow 0.3s;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.btn-teal::after { content: '→'; }
+.btn-teal:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); transform: translateY(-1px); }
+
+.btn-ghost {
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 15px 28px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink);
+  text-decoration: none;
+  border: 1px solid var(--hairline);
+  transition: border-color 0.2s, background 0.2s;
+}
+.btn-ghost:hover { border-color: var(--ink); background: rgba(27,50,82,0.04); }
+
+/* ── FOOTER ──────────────────────────────────────────────────────── */
+
+footer {
+  padding: 32px 32px 48px;
+  border-top: 1px solid var(--hairline);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+footer .copyright {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-pale);
+}
+
+footer .brand-mark {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--ink);
+}
+
+/* ── Responsive ──────────────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  .hero-corner-stat { font-size: 0.8em; }
+  .hero-corner-stat .value { font-size: 26px; }
+  .numbers-grid { grid-template-columns: repeat(2, 1fr); }
+  .numbers-grid > .number-tile:nth-child(2) { border-right: none; }
+  .numbers-grid > .number-tile { border-bottom: 1px solid var(--hairline); }
+  .collage-stage { grid-template-columns: 1fr; grid-template-rows: auto; height: auto; }
+  .collage-photo { aspect-ratio: 4/3; }
+  .collage-photo:nth-child(1) { grid-row: auto; }
+  .convergence-stage, .collage-head, .convergence-head, .crests-head { grid-template-columns: 1fr; gap: 20px; }
+  .prose-grid { grid-template-columns: 1fr; gap: 30px; }
+  .prose-meta { position: static; }
+  .crests-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 640px) {
+  .nav { padding: 10px 14px; left: 12px; right: 12px; }
+  .nav-meta { display: none; }
+  .hero-corner-stat { font-size: 0.7em; }
+  .hero-corner-stat.tl, .hero-corner-stat.bl { left: 20px; }
+  .hero-corner-stat.tr, .hero-corner-stat.br { right: 20px; }
+  .sticky-title { left: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  /* Force all choreographed elements to their final state */
+  [data-anim] { transform: none !important; opacity: 1 !important; }
+}
+
+</style>
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<nav class="nav">
+  <a href="#" class="nav-brand">Nanasays</a>
+  <span class="nav-meta">§ A composition · Vol. I</span>
+  <a href="#" class="nav-cta">Try Nana</a>
+</nav>
+
+<!-- Sticky title (appears after hero) -->
+<div class="sticky-title" id="stickyTitle">
+  <span class="sticky-title-name">Wycombe Abbey</span>
+  <span class="sticky-title-section" id="stickyTitleSection">§ 01 / NUMBERS</span>
+</div>
+
+<!-- ============ HERO ============ -->
+<section class="hero" id="hero">
+  <div class="hero-photo"></div>
+
+  <div class="hero-corner-stat tl" data-anim="hero-corner" data-from="0,0" data-to="-200,260">
+    <span class="label">FOUNDED</span>
+    <span class="value">1896</span>
+  </div>
+  <div class="hero-corner-stat tr" data-anim="hero-corner" data-from="0,0" data-to="200,260">
+    <span class="label">PUPILS</span>
+    <span class="value">650</span>
+  </div>
+  <div class="hero-corner-stat bl" data-anim="hero-corner" data-from="0,0" data-to="-200,-260">
+    <span class="label">GIRLS · AGE</span>
+    <span class="value">11–18</span>
+  </div>
+  <div class="hero-corner-stat br" data-anim="hero-corner" data-from="0,0" data-to="200,-260">
+    <span class="label">ISI</span>
+    <span class="value">Excellent</span>
+  </div>
+
+  <div class="hero-content">
+    <div class="hero-eyebrow"><span class="mono">— No. 0001 · An honest read</span></div>
+    <h1 class="hero-headline" id="heroHeadline">Wycombe <em>Abbey</em></h1>
+    <p class="hero-deck" id="heroDeck">A girls' boarding school in the Chilterns, founded 1896. Read end-to-end — the inspection, the policies, the small print of the boarding handbook.</p>
+  </div>
+
+  <div class="hero-scroll-hint">Scroll to assemble</div>
+</section>
+
+<!-- ============ NUMBERS — tiles converge ============ -->
+<section class="numbers" id="numbers">
+  <div class="numbers-head">
+    <div class="numbers-eyebrow"><span class="mono">— By the numbers</span></div>
+    <h2 class="numbers-title">Four figures from <em>the small print</em>.</h2>
+  </div>
+
+  <div class="numbers-grid" id="numbersGrid">
+    <div class="number-tile" data-anim="tile-converge" data-from="-300,-200" data-rot="-6">
+      <span class="number-tile-num" data-count="82" data-suffix="%">0%</span>
+      <div class="number-tile-key">A-LEVEL A*/A</div>
+      <div class="number-tile-sub">3-year average, top decile nationally.</div>
+    </div>
+    <div class="number-tile" data-anim="tile-converge" data-from="300,-200" data-rot="6">
+      <span class="number-tile-num" data-count="15950" data-prefix="£" data-comma>£0</span>
+      <div class="number-tile-key">FEE / TERM</div>
+      <div class="number-tile-sub">Full boarding, confirmed in fee schedule.</div>
+    </div>
+    <div class="number-tile" data-anim="tile-converge" data-from="-300,200" data-rot="6">
+      <span class="number-tile-num" data-count="100" data-suffix="%">0%</span>
+      <div class="number-tile-key">BURSARY CAP</div>
+      <div class="number-tile-sub">Means-tested. Up to the full fee.</div>
+    </div>
+    <div class="number-tile" data-anim="tile-converge" data-from="300,200" data-rot="-6">
+      <span class="number-tile-num" data-count="28">0</span>
+      <div class="number-tile-key">OXBRIDGE · 3YR</div>
+      <div class="number-tile-sub">Confirmed offers, last 3 admissions cycles.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PROSE ============ -->
+<section class="prose">
+  <div class="prose-grid">
+    <div class="prose-meta">
+      <div class="prose-meta-num"><span class="serif-italic">02</span></div>
+      <div class="prose-meta-label">— The reading</div>
+      <div class="prose-meta-tag">From the ISI report, the fee schedule, and the boarding handbook.</div>
+    </div>
+    <div class="prose-body">
+      <h2 class="prose-head">What the <em>brochure</em> leaves out.</h2>
+      <p class="prose-p">Saturday school is mandatory at Wycombe Abbey — and that includes weekly boarders. The brochure phrases it as "a full and varied week"; the boarding handbook lists 8.30 to 12.20 on the Saturday timetable.</p>
+      <p class="prose-p">The bursary cap reaches 100%. The pastoral lead is named in the 2024 ISI report. The library is open seven days a week. These are the kinds of things that decide a fit — not the architecture in the prospectus photographs.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ COLLAGE — photos snap into formation ============ -->
+<section class="collage">
+  <div class="collage-head">
+    <div>
+      <div class="collage-head-eyebrow"><span class="mono">— § 02 · On Campus</span></div>
+      <h2 class="collage-title">A week, in <em>three frames</em>.</h2>
+    </div>
+    <p class="collage-deck">Photos start scattered. As you scroll, they settle into formation — the way a careful editor might lay out a magazine spread.</p>
+  </div>
+
+  <div class="collage-stage">
+    <div class="collage-photo" data-anim="photo-converge" data-from="-200,-100" data-rot="-8" style="background-image:url('https://images.unsplash.com/photo-1568667256549-094345857637?w=1400&q=80&auto=format&fit=crop')">
+      <div class="collage-photo-cap"><strong>The Library</strong><span>Open 7am–10pm · 6 days</span></div>
+    </div>
+    <div class="collage-photo" data-anim="photo-converge" data-from="200,-80" data-rot="6" style="background-image:url('https://images.unsplash.com/photo-1607237138185-eedd9c632b0b?w=1000&q=80&auto=format&fit=crop')">
+      <div class="collage-photo-cap"><strong>Studio Block</strong><span>Art &amp; D&amp;T</span></div>
+    </div>
+    <div class="collage-photo" data-anim="photo-converge" data-from="180,120" data-rot="-5" style="background-image:url('https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=1000&q=80&auto=format&fit=crop')">
+      <div class="collage-photo-cap"><strong>House Garden</strong><span>Quiet hours · 7–9 pm</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ OFF CAMPUS — photo + panel converge ============ -->
+<section class="convergence" id="convergence">
+  <div class="convergence-head">
+    <div>
+      <div class="convergence-head-eyebrow"><span class="mono">— § 03 · Off Campus</span></div>
+      <h2 class="convergence-title">170 acres, <em>High Wycombe</em>.</h2>
+    </div>
+    <p class="convergence-deck">A ten-minute taxi from the station, twenty-eight by train to Marylebone. The kind of figure a prospectus calls "well-connected".</p>
+  </div>
+
+  <div class="convergence-stage">
+    <div class="convergence-photo" data-anim="converge-left">
+      <div class="convergence-pin"><div class="convergence-pin-dot"></div></div>
+      <div class="convergence-photo-cap">Wycombe · 51.6293° N, 0.7484° W</div>
+    </div>
+
+    <div class="convergence-data" data-anim="converge-right">
+      <div class="convergence-data-row">
+        <span class="convergence-data-row-key">From London · Marylebone</span>
+        <span class="convergence-data-row-val is-teal">28 min</span>
+      </div>
+      <div class="convergence-data-row">
+        <span class="convergence-data-row-key">Nearest station · walk</span>
+        <span class="convergence-data-row-val">8 min</span>
+      </div>
+      <div class="convergence-data-row">
+        <span class="convergence-data-row-key">Nearest airport · LHR</span>
+        <span class="convergence-data-row-val">25 min</span>
+      </div>
+      <div class="convergence-data-row">
+        <span class="convergence-data-row-key">Estate</span>
+        <span class="convergence-data-row-val is-teal">170 acres</span>
+      </div>
+      <div class="convergence-data-row">
+        <span class="convergence-data-row-key">Nearest town</span>
+        <span class="convergence-data-row-val">High Wycombe</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CRESTS — staggered fall-in ============ -->
+<section class="crests">
+  <div class="crests-head">
+    <div>
+      <div class="crests-head-eyebrow"><span class="mono">— § 04 · Eight more in the library</span></div>
+      <h2 class="crests-title">Read alongside <em>seven peers</em>.</h2>
+    </div>
+    <p class="crests-deck">Each one given the same patient reading. They fall in as you scroll — eight portraits, eight files, eight honest reads.</p>
+  </div>
+
+  <div class="crests-grid" id="crestsGrid">
+    <article class="crest" data-anim="crest-fall" data-delay="0">
+      <div class="crest-img" style="background-image:url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=900&q=80&auto=format&fit=crop')"></div>
+      <span class="crest-tag">No. 0001</span>
+      <div class="crest-name"><strong>Wycombe Abbey</strong><span>Buckinghamshire · Girls</span></div>
+    </article>
+    <article class="crest" data-anim="crest-fall" data-delay="1">
+      <div class="crest-img" style="background-image:url('https://images.unsplash.com/photo-1568667256549-094345857637?w=900&q=80&auto=format&fit=crop')"></div>
+      <span class="crest-tag">No. 0014</span>
+      <div class="crest-name"><strong>Eton College</strong><span>Berkshire · Boys</span></div>
+    </article>
+    <article class="crest" data-anim="crest-fall" data-delay="2">
+      <div class="crest-img" style="background-image:url('https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=900&q=80&auto=format&fit=crop')"></div>
+      <span class="crest-tag">No. 0023</span>
+      <div class="crest-name"><strong>Benenden</strong><span>Kent · Girls</span></div>
+    </article>
+    <article class="crest" data-anim="crest-fall" data-delay="3">
+      <div class="crest-img" style="background-image:url('https://images.unsplash.com/photo-1571260899304-425eee4c7efc?w=900&q=80&auto=format&fit=crop')"></div>
+      <span class="crest-tag">No. 0029</span>
+      <div class="crest-name"><strong>Winchester</strong><span>Hampshire · Co-ed</span></div>
+    </article>
+    <article class="crest" data-anim="crest-fall" data-delay="4">
+      <div class="crest-img" style="background-image:url('https://images.unsplash.com/photo-1607237138185-eedd9c632b0b?w=900&q=80&auto=format&fit=crop')"></div>
+      <span class="crest-tag">No. 0041</span>
+      <div class="crest-name"><strong>Marlborough</strong><span>Wiltshire · Co-ed</span></div>
+    </article>
+    <article class="crest" data-anim="crest-fall" data-delay="5">
+      <div class="crest-img" style="background-image:url('https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=900&q=80&auto=format&fit=crop')"></div>
+      <span class="crest-tag">No. 0034</span>
+      <div class="crest-name"><strong>Radley College</strong><span>Oxfordshire · Boys</span></div>
+    </article>
+    <article class="crest" data-anim="crest-fall" data-delay="6">
+      <div class="crest-img" style="background-image:url('https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=900&q=80&auto=format&fit=crop')"></div>
+      <span class="crest-tag">No. 0058</span>
+      <div class="crest-name"><strong>Fettes College</strong><span>Edinburgh · Co-ed</span></div>
+    </article>
+    <article class="crest" data-anim="crest-fall" data-delay="7">
+      <div class="crest-img" style="background-image:url('https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=900&q=80&auto=format&fit=crop')"></div>
+      <span class="crest-tag">No. 0049</span>
+      <div class="crest-name"><strong>Sherborne Girls</strong><span>Dorset · Girls</span></div>
+    </article>
+  </div>
+</section>
+
+<!-- ============ CTA ============ -->
+<section class="cta">
+  <div class="cta-eyebrow"><span class="mono">— Begin reading</span></div>
+  <h2 class="cta-headline">154 schools, all <em>composed</em> like this.</h2>
+  <p class="cta-sub">Free to browse every profile. Free to ask Nana the first questions. No paid placement, ever.</p>
+  <div class="cta-actions">
+    <a href="#" class="btn-teal">Try Nana free</a>
+    <a href="#" class="btn-ghost">Browse all 154</a>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <span class="copyright">MMXXVI · Nanasays · Made in the United Kingdom</span>
+  <span class="brand-mark">The Composition — Vol. I</span>
+</footer>
+
+<script>
+(() => {
+  'use strict';
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ── Scroll-progress utility ────────────────────────────────────
+  function progress(el, options = {}) {
+    const r = el.getBoundingClientRect();
+    const vh = window.innerHeight;
+    const startOffset = options.start ?? vh * 0.9;        // start animating when section is 90% into viewport
+    const endOffset = options.end ?? vh * 0.4;            // finish when section is 40% above
+    const total = startOffset + r.height - endOffset;
+    if (total <= 0) return 0;
+    const passed = startOffset - r.top;
+    return Math.max(0, Math.min(1, passed / total));
+  }
+
+  function ease(t) { return 1 - Math.pow(1 - t, 3); }    // ease-out-cubic
+  function lerp(a, b, t) { return a + (b - a) * t; }
+
+  let rafScheduled = false;
+  let scrollY = 0;
+
+  function schedule() {
+    if (!rafScheduled) {
+      rafScheduled = true;
+      requestAnimationFrame(tick);
+    }
+  }
+
+  // ── HERO: corners detach and fly out + sticky-title appear ────
+  const hero = document.getElementById('hero');
+  const headline = document.getElementById('heroHeadline');
+  const deck = document.getElementById('heroDeck');
+  const corners = document.querySelectorAll('.hero-corner-stat');
+  const stickyTitle = document.getElementById('stickyTitle');
+  const stickyTitleSection = document.getElementById('stickyTitleSection');
+
+  // ── NUMBERS: tiles converge from corners ──────────────────────
+  const numbers = document.getElementById('numbers');
+  const numbersGrid = document.getElementById('numbersGrid');
+  const tiles = document.querySelectorAll('.number-tile');
+  const tileNums = document.querySelectorAll('.number-tile-num');
+  let tilesCountedUp = false;
+
+  // ── COLLAGE: photos converge ──────────────────────────────────
+  const collagePhotos = document.querySelectorAll('.collage-photo');
+
+  // ── CONVERGENCE: photo + panel approach from edges ────────────
+  const convergencePhoto = document.querySelector('.convergence-photo');
+  const convergenceData = document.querySelector('.convergence-data');
+  const convergenceSection = document.getElementById('convergence');
+
+  // ── CRESTS: staggered fall-in ─────────────────────────────────
+  const crests = document.querySelectorAll('.crest');
+  const crestsGrid = document.getElementById('crestsGrid');
+
+  // ── Section labels for sticky title ───────────────────────────
+  const sections = [
+    { el: document.getElementById('numbers'),       label: '§ 01 / NUMBERS' },
+    { el: document.querySelector('.prose'),         label: '§ 02 / THE READING' },
+    { el: document.querySelector('.collage'),       label: '§ 03 / ON CAMPUS' },
+    { el: document.getElementById('convergence'),   label: '§ 04 / OFF CAMPUS' },
+    { el: document.querySelector('.crests'),        label: '§ 05 / THE LIBRARY' },
+    { el: document.querySelector('.cta'),           label: '§ 06 / BEGIN' },
+  ];
+
+  function tick() {
+    rafScheduled = false;
+
+    // HERO: headline fades + scales as we scroll out
+    const heroRect = hero.getBoundingClientRect();
+    const heroProg = Math.max(0, Math.min(1, -heroRect.top / window.innerHeight));
+    const heroEase = ease(heroProg);
+
+    if (!reduce) {
+      headline.style.transform = `translateY(${heroEase * -40}px) scale(${1 - heroEase * 0.15})`;
+      headline.style.opacity = String(1 - heroEase * 0.85);
+      deck.style.opacity = String(1 - heroEase * 1.5);
+      deck.style.transform = `translateY(${heroEase * -20}px)`;
+
+      // Corners migrate outward then fade
+      corners.forEach(c => {
+        const to = c.dataset.to.split(',').map(parseFloat);
+        const tx = lerp(0, to[0], heroEase);
+        const ty = lerp(0, to[1], heroEase);
+        c.style.transform = `translate(${tx}px, ${ty}px)`;
+        c.style.opacity = String(1 - heroEase * 1.3);
+      });
+    }
+
+    // Sticky title appears after hero
+    stickyTitle.classList.toggle('is-visible', heroProg > 0.85);
+
+    // Update sticky title section label based on which section is in view
+    let activeLabel = '§ 01 / NUMBERS';
+    for (const s of sections) {
+      if (!s.el) continue;
+      const r = s.el.getBoundingClientRect();
+      if (r.top < window.innerHeight * 0.5 && r.bottom > window.innerHeight * 0.3) {
+        activeLabel = s.label;
+        break;
+      }
+    }
+    if (stickyTitleSection.textContent !== activeLabel) stickyTitleSection.textContent = activeLabel;
+
+    // NUMBERS: tiles travel from offset to (0,0) as section progresses
+    if (!reduce) {
+      const numProg = progress(numbers, { start: window.innerHeight * 0.95, end: window.innerHeight * 0.45 });
+      const numEase = ease(numProg);
+
+      tiles.forEach(t => {
+        const from = t.dataset.from.split(',').map(parseFloat);
+        const fromRot = parseFloat(t.dataset.rot || 0);
+        const tx = lerp(from[0], 0, numEase);
+        const ty = lerp(from[1], 0, numEase);
+        const rot = lerp(fromRot, 0, numEase);
+        const op = lerp(0, 1, numEase);
+        t.style.transform = `translate(${tx}px, ${ty}px) rotate(${rot}deg)`;
+        t.style.opacity = String(op);
+      });
+
+      if (numProg > 0.85 && !tilesCountedUp) {
+        tilesCountedUp = true;
+        numbersGrid.classList.add('is-assembled');
+        tileNums.forEach(countUp);
+      }
+    } else {
+      tiles.forEach(t => { t.style.transform = ''; t.style.opacity = '1'; });
+      if (!tilesCountedUp) {
+        tilesCountedUp = true;
+        numbersGrid.classList.add('is-assembled');
+        tileNums.forEach(el => el.textContent = formatTarget(el));
+      }
+    }
+
+    // COLLAGE: photos travel into formation
+    if (!reduce) {
+      collagePhotos.forEach(p => {
+        const collageSec = p.closest('.collage');
+        const cProg = progress(collageSec, { start: window.innerHeight * 0.95, end: window.innerHeight * 0.3 });
+        const cEase = ease(cProg);
+        const from = p.dataset.from.split(',').map(parseFloat);
+        const fromRot = parseFloat(p.dataset.rot || 0);
+        const tx = lerp(from[0], 0, cEase);
+        const ty = lerp(from[1], 0, cEase);
+        const rot = lerp(fromRot, 0, cEase);
+        const op = lerp(0.2, 1, cEase);
+        p.style.transform = `translate(${tx}px, ${ty}px) rotate(${rot}deg)`;
+        p.style.opacity = String(op);
+      });
+    }
+
+    // CONVERGENCE: photo from left, data from right, meet in middle
+    if (!reduce && convergencePhoto && convergenceData) {
+      const cProg = progress(convergenceSection, { start: window.innerHeight * 0.9, end: window.innerHeight * 0.4 });
+      const cEase = ease(cProg);
+      // Photo starts at translateX(-180) → 0
+      convergencePhoto.style.transform = `translateX(${lerp(-180, 0, cEase)}px)`;
+      convergencePhoto.style.opacity = String(lerp(0.4, 1, cEase));
+      // Data starts at translateX(+180) → 0
+      convergenceData.style.transform = `translateX(${lerp(180, 0, cEase)}px)`;
+      convergenceData.style.opacity = String(lerp(0.4, 1, cEase));
+    }
+
+    // CRESTS: staggered fall-in by data-delay
+    if (!reduce) {
+      const cProg = progress(crestsGrid.closest('.crests'), { start: window.innerHeight * 0.9, end: window.innerHeight * 0.2 });
+      crests.forEach(c => {
+        const delay = parseFloat(c.dataset.delay) / 8;       // 0 .. 0.875
+        const localProg = Math.max(0, Math.min(1, (cProg - delay * 0.6) / 0.4));
+        const localEase = ease(localProg);
+        const ty = lerp(-120, 0, localEase);
+        const op = lerp(0, 1, localEase);
+        const rot = lerp(-8, 0, localEase);
+        c.style.transform = `translateY(${ty}px) rotate(${rot}deg)`;
+        c.style.opacity = String(op);
+      });
+    }
+  }
+
+  // ── Count-up helper ────────────────────────────────────────────
+  function formatTarget(el) {
+    const t = parseInt(el.dataset.count, 10);
+    const prefix = el.dataset.prefix || '';
+    const suffix = el.dataset.suffix || '';
+    const comma = el.hasAttribute('data-comma');
+    const fmt = comma ? t.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') : t.toString();
+    return `${prefix}${fmt}${suffix}`;
+  }
+
+  function countUp(el) {
+    const target = parseInt(el.dataset.count, 10);
+    const prefix = el.dataset.prefix || '';
+    const suffix = el.dataset.suffix || '';
+    const comma = el.hasAttribute('data-comma');
+    const start = performance.now();
+    const dur = 1400;
+    function step(now) {
+      const t = Math.min(1, (now - start) / dur);
+      const e = ease(t);
+      const v = Math.round(e * target);
+      const fmt = comma ? v.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',') : v.toString();
+      el.textContent = `${prefix}${fmt}${suffix}`;
+      if (t < 1) requestAnimationFrame(step);
+      else el.textContent = formatTarget(el);
+    }
+    requestAnimationFrame(step);
+  }
+
+  // ── Init ───────────────────────────────────────────────────────
+  // Set initial offset transforms so they don't flicker
+  if (!reduce) {
+    tiles.forEach(t => {
+      const from = t.dataset.from.split(',').map(parseFloat);
+      const rot = parseFloat(t.dataset.rot || 0);
+      t.style.transform = `translate(${from[0]}px, ${from[1]}px) rotate(${rot}deg)`;
+      t.style.opacity = '0';
+    });
+    collagePhotos.forEach(p => {
+      const from = p.dataset.from.split(',').map(parseFloat);
+      const rot = parseFloat(p.dataset.rot || 0);
+      p.style.transform = `translate(${from[0]}px, ${from[1]}px) rotate(${rot}deg)`;
+      p.style.opacity = '0.2';
+    });
+    convergencePhoto.style.transform = 'translateX(-180px)';
+    convergencePhoto.style.opacity = '0.4';
+    convergenceData.style.transform = 'translateX(180px)';
+    convergenceData.style.opacity = '0.4';
+    crests.forEach(c => { c.style.transform = 'translateY(-120px) rotate(-8deg)'; c.style.opacity = '0'; });
+  }
+
+  window.addEventListener('scroll', schedule, { passive: true });
+  window.addEventListener('resize', schedule);
+  tick();
+})();
+</script>
+
+</body>
+</html>

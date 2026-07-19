@@ -15,5 +15,6 @@ Disallow: /nana/research-room
 Disallow: /claim
 Disallow: /admin
 Disallow: /demo
+Disallow: /school-demo/
 
 Sitemap: https://nanasays.school/sitemap.xml

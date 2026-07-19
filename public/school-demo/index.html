@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet" />
+<meta name="googlebot" content="noindex, nofollow" />
+<meta name="bingbot" content="noindex, nofollow" />
+<title>School Demo — Interactive mockup gallery</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<style>
+:root {
+  --paper: #F4EFE3;
+  --paper-warm: #ECE3CC;
+  --paper-deep: #DDD2B0;
+  --ink: #1B3252;
+  --ink-soft: #2A4566;
+  --ink-pale: #5A6A82;
+  --gray: #8A8478;
+  --teal: #34C3A0;
+  --teal-deep: #1F8E72;
+  --amber: #C9956A;
+  --oxblood: #7C2F2F;
+  --hairline: rgba(27,50,82,0.14);
+
+  --serif: 'Cormorant Garamond', 'Times New Roman', serif;
+  --sans: 'Manrope', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.3;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='4'/><feColorMatrix values='0 0 0 0 0.55 0 0 0 0 0.45 0 0 0 0 0.28 0 0 0 0.15 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  mix-blend-mode: multiply;
+}
+
+::selection { background: var(--teal); color: var(--ink); }
+
+/* ── HEADER ──────────────────────────────────────────────────────── */
+
+.masthead {
+  padding: 60px 40px 36px;
+  border-bottom: 1px solid var(--hairline);
+  position: relative;
+  z-index: 2;
+}
+
+.masthead-inner {
+  max-width: 1320px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 60px;
+  align-items: end;
+}
+
+.masthead-brand {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 26px;
+  color: var(--ink);
+  text-decoration: none;
+  letter-spacing: -0.005em;
+  margin-bottom: 30px;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 12px;
+}
+.masthead-brand-sub {
+  font-family: var(--mono);
+  font-style: normal;
+  font-size: 9px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink-pale);
+}
+
+.masthead-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 16px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--teal-deep);
+}
+.masthead-eyebrow::before {
+  content: '';
+  width: 32px; height: 1px;
+  background: var(--teal);
+}
+
+.masthead-title {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: clamp(48px, 7vw, 108px);
+  line-height: 0.94;
+  letter-spacing: -0.022em;
+  color: var(--ink);
+  max-width: 980px;
+}
+.masthead-title em { font-style: italic; color: var(--oxblood); font-weight: 400; }
+
+.masthead-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  text-align: right;
+}
+
+.masthead-meta-count {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 64px;
+  line-height: 1;
+  color: var(--oxblood);
+  letter-spacing: -0.02em;
+}
+
+.masthead-meta-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-pale);
+}
+
+.masthead-deck {
+  margin-top: 32px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 20px;
+  line-height: 1.5;
+  color: var(--ink-pale);
+  max-width: 720px;
+  padding-top: 24px;
+  border-top: 1px solid var(--hairline);
+}
+
+/* ── SECTION HEADERS ─────────────────────────────────────────────── */
+
+.section-head {
+  max-width: 1320px;
+  margin: 80px auto 32px;
+  padding: 0 40px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  align-items: end;
+}
+
+.section-head-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--teal-deep);
+}
+.section-head-eyebrow::before {
+  content: '';
+  width: 28px; height: 1px;
+  background: var(--teal);
+}
+
+.section-head-title {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: clamp(34px, 4vw, 56px);
+  line-height: 1;
+  letter-spacing: -0.014em;
+  color: var(--ink);
+}
+.section-head-title em { font-style: italic; color: var(--oxblood); font-weight: 400; }
+
+.section-head-count {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-pale);
+  padding: 6px 10px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+}
+
+/* ── GRID ────────────────────────────────────────────────────────── */
+
+.gallery {
+  max-width: 1320px;
+  margin: 0 auto 80px;
+  padding: 0 40px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  text-decoration: none;
+  background: var(--paper-warm);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  overflow: hidden;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.3s ease,
+              box-shadow 0.4s ease;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  border-color: var(--teal);
+  box-shadow: 0 24px 50px -20px rgba(27,50,82,0.25);
+}
+
+.card-photo {
+  position: relative;
+  aspect-ratio: 16/10;
+  background-size: cover;
+  background-position: center;
+  filter: saturate(0.85) contrast(1.05);
+  overflow: hidden;
+}
+
+.card-photo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, transparent 30%, rgba(27,50,82,0.85) 100%);
+  transition: opacity 0.3s ease;
+}
+
+.card:hover .card-photo::after { opacity: 0.6; }
+
+.card-photo-num {
+  position: absolute;
+  top: 14px; left: 14px;
+  z-index: 2;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--paper);
+  padding: 5px 9px;
+  background: rgba(27,50,82,0.6);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(244,239,227,0.25);
+  border-radius: 999px;
+}
+
+.card-photo-tag {
+  position: absolute;
+  bottom: 14px; left: 14px;
+  right: 14px;
+  z-index: 2;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(244,239,227,0.85);
+}
+
+.card-body {
+  padding: 22px 22px 24px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-name {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 26px;
+  letter-spacing: -0.012em;
+  line-height: 1.04;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+.card-name em { font-style: italic; color: var(--oxblood); font-weight: 400; }
+
+.card-sub {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--teal-deep);
+  margin-bottom: 14px;
+}
+
+.card-desc {
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: var(--ink-pale);
+  margin-bottom: 18px;
+  flex: 1;
+}
+
+.card-footer {
+  margin-top: auto;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-top: 1px dashed var(--hairline);
+  padding-top: 14px;
+}
+
+.card-tags {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.card-tag {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-pale);
+  padding: 4px 8px;
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+}
+
+.card-open {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--ink);
+  transition: color 0.2s, transform 0.2s;
+}
+.card-open::after { content: ' ↗'; transition: transform 0.2s; }
+.card:hover .card-open { color: var(--oxblood); }
+.card:hover .card-open::after { transform: translate(2px, -2px); }
+
+/* ── ABOUT SECTION ───────────────────────────────────────────────── */
+
+.about {
+  max-width: 1320px;
+  margin: 100px auto 80px;
+  padding: 60px 40px;
+  background: var(--paper-warm);
+  border: 1px solid var(--hairline);
+  border-radius: 4px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+}
+
+.about-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--teal-deep);
+}
+.about-eyebrow::before {
+  content: '';
+  width: 28px; height: 1px;
+  background: var(--teal);
+}
+
+.about-title {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-size: 38px;
+  line-height: 1.04;
+  letter-spacing: -0.014em;
+  color: var(--ink);
+  margin-bottom: 18px;
+}
+.about-title em { font-style: italic; color: var(--oxblood); font-weight: 400; }
+
+.about-prose {
+  font-family: var(--serif);
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--ink-soft);
+  margin-bottom: 14px;
+}
+
+.about-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-top: 2px solid var(--ink);
+  padding-top: 18px;
+}
+
+.about-list li {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 16px;
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--hairline);
+  align-items: baseline;
+}
+.about-list li:last-child { border-bottom: none; }
+
+.about-list-key {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-pale);
+}
+
+.about-list-val {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 17px;
+  color: var(--ink);
+}
+
+/* ── FOOTER ──────────────────────────────────────────────────────── */
+
+footer {
+  padding: 30px 40px 56px;
+  border-top: 1px solid var(--hairline);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  position: relative;
+  z-index: 2;
+}
+
+footer .copyright {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-pale);
+}
+
+footer .brand-mark {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.notice {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-pale);
+  text-align: center;
+  padding: 8px 0;
+  border-top: 1px solid var(--hairline);
+  background: var(--paper-warm);
+  position: relative;
+  z-index: 2;
+}
+
+/* ── Responsive ──────────────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  .gallery { grid-template-columns: repeat(2, 1fr); }
+  .masthead-inner, .about { grid-template-columns: 1fr; gap: 24px; }
+  .section-head { grid-template-columns: 1fr; gap: 12px; }
+  .about { padding: 40px 28px; }
+}
+@media (max-width: 640px) {
+  .gallery { grid-template-columns: 1fr; }
+  .masthead, .section-head, .gallery, .about { padding-left: 20px; padding-right: 20px; }
+  .masthead-meta-count { font-size: 44px; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ MASTHEAD ============ -->
+<header class="masthead">
+  <div class="masthead-inner">
+    <div>
+      <a href="#" class="masthead-brand">Nanasays<span class="masthead-brand-sub">School demo</span></a>
+      <div class="masthead-eyebrow">A portfolio of seventeen interactive concepts</div>
+      <h1 class="masthead-title">Mockup <em>gallery</em></h1>
+      <p class="masthead-deck">A working set of interactive scroll-choreographed and direct-manipulation concepts for school directories and individual school sites. Built to demonstrate what a school website could look like beyond the brochure.</p>
+    </div>
+    <div class="masthead-meta">
+      <div class="masthead-meta-count">17</div>
+      <div class="masthead-meta-label">concepts · all interactive</div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ LIVE AGENT DEMO (Disentis) ============ -->
+<div style="margin: 32px 40px 0; padding: 24px 28px; background: linear-gradient(135deg, #1B3252 0%, #2A4566 100%); border-radius: 16px; box-shadow: 0 6px 24px rgba(27,50,82,0.18); color: #fff; max-width: calc(100% - 80px); box-sizing: border-box;">
+  <div style="display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
+    <div style="flex: 1; min-width: 280px;">
+      <div style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; color: #34C3A0; margin-bottom: 10px;">★ Live · School Partner Workspace</div>
+      <h2 style="font-family: 'Cormorant Garamond', serif; font-size: 32px; font-weight: 600; margin-bottom: 8px; line-height: 1.15;">Disentis · agent demo</h2>
+      <p style="font-size: 14px; line-height: 1.55; color: rgba(255,255,255,0.75); margin-bottom: 18px;">The actual chatbot agents will use to send Disentis info to parents on WhatsApp. Locked to one school, scoped via per-prospect token. Brochures, fees, rules, summer camps, location + map all in one place.</p>
+      <div style="display: flex; gap: 12px; flex-wrap: wrap; align-items: center;">
+        <a href="https://flowers-preferred-way-earn.trycloudflare.com/portal/demo/assistant?demo=89fb36b2b1dc81f5840e1a59f6088f92e54b7ca2995f351f3d0ca7f35acc4230" target="_blank" rel="noopener" style="display: inline-block; padding: 11px 22px; background: #34C3A0; color: #fff; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 14px;">Open the live demo →</a>
+        <span style="font-size: 11px; color: rgba(255,255,255,0.55); font-family: 'JetBrains Mono', monospace;">Token expires 2026-06-12 · Disentis only</span>
+      </div>
+    </div>
+    <div style="flex-basis: 240px; padding: 16px 20px; background: rgba(255,255,255,0.06); border-radius: 10px; font-size: 12px; line-height: 1.6; color: rgba(255,255,255,0.78);">
+      <div style="font-weight: 700; color: #fff; margin-bottom: 6px;">Try asking:</div>
+      <div>· Send me the brochure</div>
+      <div>· What are the boarding fees?</div>
+      <div>· Where is the school located?</div>
+      <div>· Do you offer summer camps?</div>
+      <div>· What's the application process?</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ NANASAYS DIRECTORY ============ -->
+<div class="section-head">
+  <div>
+    <div class="section-head-eyebrow">Nanasays directory · 11</div>
+    <h2 class="section-head-title">For the <em>directory</em>.</h2>
+  </div>
+  <span class="section-head-count">11 concepts</span>
+</div>
+
+<div class="gallery">
+
+  <a href="nanasays-opal-mockup.html" class="card">
+    <div class="card-photo" style="background-image:url('https://images.unsplash.com/photo-1568667256549-094345857637?w=900&q=80&auto=format&fit=crop')">
+      <span class="card-photo-num">01</span>
+      <span class="card-photo-tag">Scroll-pinned · Comparative</span>
+    </div>
+    <div class="card-body">
+      <h3 class="card-name">The <em>Opal</em></h3>
+      <p class="card-sub">Premium product-page restraint</p>
+      <p class="card-desc">Opal Tadpole channel. Scroll-pinned Nana chat reveals messages one at a time; comparative section where brochure quotes fade and verified facts pop in.</p>
+      <div class="card-footer">
+        <div class="card-tags"><span class="card-tag">Scroll-pinned</span><span class="card-tag">Compare</span></div>
+        <span class="card-open">Open</span>
+      </div>
+    </div>
+  </a>
+
+  <a href="nanasays-almanac-mockup.html" class="card">
+    <div class="card-photo" style="background-image:url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=900&q=80&auto=format&fit=crop')">
+      <span class="card-photo-num">02</span>
+      <span class="card-photo-tag">Photo stack · Horizontal pan</span>
+    </div>
+    <div class="card-body">
+      <h3 class="card-name">The <em>Almanac</em></h3>
+      <p class="card-sub">Editorial magazine, image-heavy</p>
+      <p class="card-desc">A school yearbook editorial. Photo stack fans out on scroll, plus a horizontal-pan strip of school photos driven by vertical scroll.</p>
+      <div class="card-footer">
+        <div class="card-tags"><span class="card-tag">Photo-stack</span><span class="card-tag">H-pan</span></div>
+        <span class="card-open">Open</span>
+      </div>
+    </div>
+  </a>
+
+  <a href="nanasays-fieldbook-mockup.html" class="card">
+    <div class="card-photo" style="background-image:url('https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=900&q=80&auto=format&fit=crop')">
+      <span class="card-photo-num">03</span>
+      <span class="card-photo-tag">Drag-pan · Flip-cards</span>
+    </div>
+    <div class="card-body">
+      <h3 class="card-name">The <em>Field Book</em></h3>
+      <p class="card-sub">Cartographic almanac · archival</p>
+      <p class="card-desc">Draggable UK map with flying index-card popups. Three index cards flip on click to reveal handwritten marginalia.</p>
+      <div class="card-footer">
+        <div class="card-tags"><span class="card-tag">Drag</span><span class="card-tag">Flip</span></div>
+        <span class="card-open">Open</span>
+      </div>
+    </div>
+  </a>
+
+  <a href="nanasays-hall-mockup.html" class="card">
+    <div class="card-photo" style="background-image:url('https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=900&q=80&auto=format&fit=crop')">
+      <span class="card-photo-num">04</span>
+      <span class="card-photo-tag">3D tilt · Cursor-proximity</span>
+    </div>
+    <div class="card-body">
+      <h3 class="card-name">The <em>Hall</em></h3>
+      <p class="card-sub">24 portraits that look back</p>
+      <p class="card-desc">A wall of 24 school portraits that tilt in 3D to face your cursor. Tiles closer to the cursor flatten, farther tiles tilt strongly. Click to expand fullscreen.</p>
+      <div class="card-footer">
+        <div class="card-tags"><span class="card-tag">3D-tilt</span><span class="card-tag">Hover</span></div>
+        <span class="card-open">Open</span>
+      </div>
+    </div>
+  </a>
+
+  <a href="nanasays-polaroid-mockup.html" class="card">
+    <div class="card-photo" style="background-image:url('https://images.unsplash.com/photo-1607237138185-eedd9c632b0b?w=900&q=80&auto=format&fit=crop')">
+      <span class="card-photo-num">05</span>
+      <span class="card-photo-tag">Drag · Flip · Scatter</span>
+    </div>
+    <div class="card-body">
+      <h3 class="card-name">The <em>Polaroid Desk</em></h3>
+      <p class="card-sub">Tactile virtual workbench</p>
+      <p class="card-desc">A wood desk strewn with school polaroids pinned with washi tape. Drag any to reposition, click to flip and read marginalia. Tidy / Scatter / Flip-all controls.</p>
+      <div class="card-footer">
+        <div class="card-tags"><span class="card-tag">Drag</span><span class="card-tag">Flip</span></div>
+        <span class="card-open">Open</span>
+      </div>
+    </div>
+  </a>
+
+  <a href="codex-zoom-mockup.html" class="card">
+    <div class="card-photo" style="background-image:url('https://images.unsplash.com/photo-1571260899304-425eee4c7efc?w=900&q=80&auto=format&fit=crop')">
+      <span class="card-photo-num">06</span>
+      <span class="card-photo-tag">Mousewheel zoom · Pan</span>
+    </div>
+    <div class="card-body">
+      <h3 class="card-name">The <em>Zoom Wall</em></h3>
+      <p class="card-sub">A wall you can zoom into</p>
+      <p class="card-desc">Mousewheel zoom into a wall of 16 school tiles, focused on your cursor (Figma/Google-Maps style). Click-and-drag to pan. Click any tile for detail.</p>
+      <div class="card-footer">
+        <div class="card-tags"><span class="card-tag">Zoom</span><span class="card-tag">Pan</span></div>
+        <span class="card-open">Open</span>
+      </div>
+    </div>
+  </a>
+
+  <a href="nanasays-reel-mockup.html" class="card">
+    <div class="card-photo" style="background-image:url('https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=900&q=80&auto=format&fit=crop')">
+      <span class="card-photo-num">07</span>
+      <span class="card-photo-tag">Drag-momentum · Parallax</span>
+    </div>
+    <div class="card-body">
+      <h3 class="card-name">The <em>Reel</em></h3>
+      <p class="card-sub">A draggable photo carousel</p>
+      <p class="card-desc">Drag-momentum horizontal carousel of big photo cards. Inside each card, the image parallaxes against its frame as you drag. Click to expand fullscreen.</p>
+      <div class="card-footer">
+        <div class="card-tags"><span class="card-tag">Drag</span><span class="card-tag">Parallax</span></div>
+        <span class="card-open">Open</span>
+      </div>
+    </div>
+  </a>
+
+  <a href="nanasays-composition-mockup.html" class="card">
+    <div class="card-photo" style="background-image:url('https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=900&q=80&auto=format&fit=crop')">
+      <span class="card-photo-num">08</span>
+      <span class="card-photo-tag">Scroll-choreographed</span>
+    </div>
+    <div class="card-body">
+      <h3 class="card-name">The <em>Composition</em></h3>
+      <p class="card-sub">Every section assembles itself</p>
+      <p class="card-desc">Single school profile where every element — corner stats, number tiles, photos, data panels, crest grid — assembles itself as you scroll.</p>
+      <div class="card-footer">
+        <div class="card-tags"><span class="card-tag">Scroll-assemble</span></div>
+        <span class="card-open">Open</span>
+      </div>
+    </div>
+  </a>
+
+  <a href="nanasays-procession-mockup.html" class="card">
+    <div class="card-photo" style="background-image:url('https://images.unsplash.com/photo-1568667256549-094345857637?w=900&q=80&auto=format&fit=crop')">
+      <span class="card-photo-num">09</span>
+      <span class="card-photo-tag">Scroll-drawn line · Stations</span>
+    </div>
+    <div class="card-body">
+      <h3 class="card-name">The <em>Procession</em></h3>
+      <p class="card-sub">A line drawn down the page</p>
+      <p class="card-desc">A vertical track-line draws itself down the centre as you scroll, threading through six schools. Each station's content slides in from alternating edges.</p>
+      <div class="card-footer">
+        <div class="card-tags"><span class="card-tag">Track-line</span><span class="card-tag">Scroll</span></div>
+        <span class="card-open">Open</span>
+      </div>
+    </div>
+  </a>
+
+  <a href="codex-index-mockup.html" class="card">
+    <div class="card-photo" style="background-image:url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=900&q=80&auto=format&fit=crop')">
+      <span class="card-photo-num">10</span>
+      <span class="card-photo-tag">TOC fill · Convergence</span>
+    </div>
+    <div class="card-body">
+      <h3 class="card-name">The <em>Index</em></h3>
+      <p class="card-sub">An editorial index that fills in</p>
+      <p class="card-desc">Editorial table of contents that fills line-by-line as you scroll. Each entry's photo slides in from the left; stats stagger in left-to-right. Photos converge into a 4×2 footer grid at the end.</p>
+      <div class="card-footer">
+        <div class="card-tags"><span class="card-tag">Scroll</span><span class="card-tag">Stagger</span></div>
+        <span class="card-open">Open</span>
+      </div>
+    </div>
+  </a>
+
+  <a href="codex-field-mockup.html" class="card">
+    <div class="card-photo" style="background-image:url('https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=900&q=80&auto=format&fit=crop')">
+      <span class="card-photo-num">11</span>
+      <span class="card-photo-tag">Scattered → grid → sorted</span>
+    </div>
+    <div class="card-body">
+      <h3 class="card-name">The <em>Field</em></h3>
+      <p class="card-sub">A shortlist assembling itself</p>
+      <p class="card-desc">12 cards start scattered with random rotations. As you scroll a pinned section: they converge into a grid, then sort into a fee-ascending column, then spread into a ribbon.</p>
+      <div class="card-footer">
+        <div class="card-tags"><span class="card-tag">Pin</span><span class="card-tag">Sort</span></div>
+        <span class="card-open">Open</span>
+      </div>
+    </div>
+  </a>
+
+</div>
+
+<!-- ============ DISENTIS BOARDING ============ -->
+<div class="section-head">
+  <div>
+    <div class="section-head-eyebrow">Gymnasium Disentis · Swiss alpine</div>
+    <h2 class="section-head-title">For one <em>school</em>.</h2>
+  </div>
+  <span class="section-head-count">6 concepts</span>
+</div>
+
+<div class="gallery">
+
+  <a href="disentis-brief-mockup.html" class="card">
+    <div class="card-photo" style="background-image:url('https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?w=900&q=80&auto=format&fit=crop')">
+      <span class="card-photo-num">12</span>
+      <span class="card-photo-tag">Left red rail · Time stations</span>
+    </div>
+    <div class="card-body">
+      <h3 class="card-name">The <em>Brief</em></h3>
+      <p class="card-sub">A day, in seven moments</p>
+      <p class="card-desc">Swiss-modernist take on the daily schedule. A vertical red rail fills down the left edge as you scroll. Seven timetable moments from 07:00 to 22:00, each with its photo, headline, and pull quote.</p>
+      <div class="card-footer">
+        <div class="card-tags"><span class="card-tag">Scroll-rail</span><span class="card-tag">Swiss</span></div>
+        <span class="card-open">Open</span>
+      </div>
+    </div>
+  </a>
+
+  <a href="disentis-cross-mockup.html" class="card">
+    <div class="card-photo" style="background-image:url('https://images.unsplash.com/photo-1568667256549-094345857637?w=900&q=80&auto=format&fit=crop')">
+      <span class="card-photo-num">13</span>
+      <span class="card-photo-tag">Heraldic saltire · Four quadrants</span>
+    </div>
+    <div class="card-body">
+      <h3 class="card-name">The <em>Cross</em></h3>
+      <p class="card-sub">A logo that opens into four worlds</p>
+      <p class="card-desc">Hero is the school's red saltire mark at full bleed. As you scroll, the four triangles fly outward and become four panel-sections — Living, Learning, Doing, Belonging.</p>
+      <div class="card-footer">
+        <div class="card-tags"><span class="card-tag">Saltire</span><span class="card-tag">Quadrants</span></div>
+        <span class="card-open">Open</span>
+      </div>
+    </div>
+  </a>
+
+  <a href="disentis-wall-mockup.html" class="card">
+    <div class="card-photo" style="background-image:url('https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=900&q=80&auto=format&fit=crop')">
+      <span class="card-photo-num">14</span>
+      <span class="card-photo-tag">Vertical → horizontal pan</span>
+    </div>
+    <div class="card-body">
+      <h3 class="card-name">The <em>Wall</em></h3>
+      <p class="card-sub">Eight photographs you walk past</p>
+      <p class="card-desc">Horizontal scroll-driven photo essay. Vertical scroll drives a horizontal track of eight cinematic 16:9 photos of the school — monastery, houses, infirmary, study hall, climbing wall, Ski Arena, Lindenplatz.</p>
+      <div class="card-footer">
+        <div class="card-tags"><span class="card-tag">H-pan</span><span class="card-tag">Cinematic</span></div>
+        <span class="card-open">Open</span>
+      </div>
+    </div>
+  </a>
+
+  <a href="disentis-pillars-mockup.html" class="card">
+    <div class="card-photo" style="background-image:url('https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?w=900&q=80&auto=format&fit=crop')">
+      <span class="card-photo-num">15</span>
+      <span class="card-photo-tag">Sticky pin · Slabs retract</span>
+    </div>
+    <div class="card-body">
+      <h3 class="card-name">The <em>Pillars</em></h3>
+      <p class="card-sub">Five columns rise in sequence</p>
+      <p class="card-desc">Five full-height red slabs cover the viewport. Scroll, and they retract upward one by one — each opening reveals an alpine scene and unlocks a fact-card overlay. Sticky-pinned cinematic reveal.</p>
+      <div class="card-footer">
+        <div class="card-tags"><span class="card-tag">Sticky</span><span class="card-tag">Slab-reveal</span></div>
+        <span class="card-open">Open</span>
+      </div>
+    </div>
+  </a>
+
+  <a href="disentis-window-mockup.html" class="card">
+    <div class="card-photo" style="background-image:url('https://images.unsplash.com/photo-1483728642387-6c3bdd6c93e5?w=900&q=80&auto=format&fit=crop')">
+      <span class="card-photo-num">16</span>
+      <span class="card-photo-tag">Clip-path zoom · Nested windows</span>
+    </div>
+    <div class="card-body">
+      <h3 class="card-name">The <em>Window</em></h3>
+      <p class="card-sub">Walk through three doorways</p>
+      <p class="card-desc">Three nested red windowframes. Sticky-pinned. Each stage: a small frame at centre grows until it fills the viewport via clip-path, revealing the next scene through it. Alpine → village → single room.</p>
+      <div class="card-footer">
+        <div class="card-tags"><span class="card-tag">Clip-path</span><span class="card-tag">Zoom-through</span></div>
+        <span class="card-open">Open</span>
+      </div>
+    </div>
+  </a>
+
+  <a href="disentis-phase-mockup.html" class="card">
+    <div class="card-photo" style="background-image:url('https://images.unsplash.com/photo-1568667256549-094345857637?w=900&q=80&auto=format&fit=crop')">
+      <span class="card-photo-num">17</span>
+      <span class="card-photo-tag">Five phases · Continuous morph</span>
+    </div>
+    <div class="card-body">
+      <h3 class="card-name">The <em>Phase</em></h3>
+      <p class="card-sub">One mark, five transformations</p>
+      <p class="card-desc">One red saltire. Five phases — the mark rotates, splits, scatters to four corners, fades, and becomes the school's four-quadrant content layout. Continuous sculptural transformation across one long sticky pin.</p>
+      <div class="card-footer">
+        <div class="card-tags"><span class="card-tag">Sculptural</span><span class="card-tag">Multi-phase</span></div>
+        <span class="card-open">Open</span>
+      </div>
+    </div>
+  </a>
+
+</div>
+
+<!-- ============ ABOUT ============ -->
+<div class="about">
+  <div>
+    <div class="about-eyebrow">— Notes on the gallery</div>
+    <h2 class="about-title">A working portfolio of <em>school-website ideas</em>.</h2>
+    <p class="about-prose">Every mockup here is a different answer to the same question: <em>how could a school feel on the web, beyond the brochure?</em></p>
+    <p class="about-prose">The first eleven explore directory-scale interactions — for browsing many schools at once. The final six are built for a single school, Gymnasium &amp; Internat Kloster Disentis, drawing on their own content as a worked example.</p>
+    <p class="about-prose">All are interactive. Many are scroll-choreographed. None require a click to make the page come alive.</p>
+  </div>
+  <div>
+    <ul class="about-list">
+      <li><span class="about-list-key">Total mocks</span><span class="about-list-val">Seventeen</span></li>
+      <li><span class="about-list-key">Directory set</span><span class="about-list-val">Eleven</span></li>
+      <li><span class="about-list-key">Single-school set</span><span class="about-list-val">Six · Disentis</span></li>
+      <li><span class="about-list-key">Scroll-choreographed</span><span class="about-list-val">Eleven</span></li>
+      <li><span class="about-list-key">Drag interactions</span><span class="about-list-val">Four</span></li>
+      <li><span class="about-list-key">3D / depth effects</span><span class="about-list-val">Two</span></li>
+      <li><span class="about-list-key">Crawlable</span><span class="about-list-val" style="color: var(--oxblood);">No · noindex</span></li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <span class="copyright">MMXXVI · Nanasays · A working portfolio</span>
+  <span class="brand-mark">School demo — Vol. I</span>
+</footer>
+
+<div class="notice">This page is set to noindex,nofollow · Not crawled · Not searchable</div>
+
+</body>
+</html>

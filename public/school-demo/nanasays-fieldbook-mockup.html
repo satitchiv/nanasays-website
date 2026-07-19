@@ -1,0 +1,1473 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nanasays — The Field Book of British Independent Schools</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Caveat:wght@400;600&family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<style>
+/* ─────────────────────────────────────────────────────────────────────
+   THE FIELD BOOK — cartographic almanac, archival aesthetic
+   Cream paper, ink navy, oxblood, hand-drawn flourishes.
+   Signature: draggable UK map with school markers + index card workbench.
+   ─────────────────────────────────────────────────────────────────── */
+
+:root {
+  --paper: #EFE6CC;
+  --paper-light: #F6EFDC;
+  --paper-dark: #DDD0AC;
+  --ink: #1E3147;
+  --ink-pale: #4A5A70;
+  --oxblood: #7C2F2F;
+  --sepia: #8B6F4E;
+  --moss: #5A6B3D;
+  --hairline: rgba(30,49,71,0.18);
+  --rule: rgba(30,49,71,0.45);
+
+  --serif: 'DM Serif Display', 'Times New Roman', serif;
+  --sans: 'Manrope', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+  --hand: 'Caveat', cursive;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Paper grain + faint horizontal rules (like ledger lines) */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.4;
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='5'/><feColorMatrix values='0 0 0 0 0.45  0 0 0 0 0.36  0 0 0 0 0.22  0 0 0 0.18 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  mix-blend-mode: multiply;
+}
+
+::selection { background: var(--oxblood); color: var(--paper); }
+
+/* ── Type utilities ──────────────────────────────────────────────── */
+
+.label-mono {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--oxblood);
+  font-weight: 500;
+}
+
+.label-hand {
+  font-family: var(--hand);
+  font-size: 22px;
+  color: var(--oxblood);
+  transform: rotate(-2deg);
+  display: inline-block;
+}
+
+/* ── MASTHEAD ────────────────────────────────────────────────────── */
+
+.masthead {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  padding: 18px 40px 16px;
+  background: rgba(239,230,204,0.88);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.masthead::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0;
+  bottom: -4px;
+  height: 1px;
+  background: var(--hairline);
+}
+
+.masthead-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.masthead-brand-name {
+  font-family: var(--serif);
+  font-size: 26px;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.005em;
+}
+
+.masthead-brand-sub {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  color: var(--sepia);
+}
+
+.masthead-nav { display: flex; gap: 26px; align-items: center; }
+
+.masthead-link {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink);
+  text-decoration: none;
+  opacity: 0.75;
+  transition: opacity 0.2s, color 0.2s;
+}
+.masthead-link:hover { opacity: 1; color: var(--oxblood); }
+
+.masthead-cta {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  text-decoration: none;
+  padding: 9px 16px;
+  background: var(--ink);
+  color: var(--paper);
+  border-radius: 2px;
+  position: relative;
+  transition: background 0.2s, transform 0.2s;
+}
+.masthead-cta:hover { background: var(--oxblood); transform: translateY(-1px); }
+
+/* ── HERO — open compass + headline ──────────────────────────────── */
+
+.hero {
+  padding: 160px 0 80px;
+  position: relative;
+  z-index: 2;
+}
+
+.hero-inner {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 48px;
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 80px;
+  align-items: center;
+  min-height: 78vh;
+}
+
+.hero-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+}
+.hero-eyebrow::before, .hero-eyebrow::after {
+  content: '';
+  width: 32px; height: 1px;
+  background: var(--rule);
+}
+
+.hero-headline {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(54px, 8vw, 124px);
+  line-height: 0.94;
+  letter-spacing: -0.018em;
+  color: var(--ink);
+  margin-bottom: 28px;
+}
+.hero-headline em {
+  font-style: italic;
+  color: var(--oxblood);
+}
+
+.hero-deck {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 21px;
+  line-height: 1.5;
+  color: var(--ink-pale);
+  max-width: 520px;
+  margin-bottom: 36px;
+}
+
+.hero-stamp {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 12px;
+}
+
+.hero-stamp-box {
+  border: 2px solid var(--oxblood);
+  padding: 6px 12px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--oxblood);
+  transform: rotate(-3deg);
+  opacity: 0.85;
+}
+
+.hero-stamp-text {
+  font-family: var(--hand);
+  font-size: 22px;
+  color: var(--oxblood);
+}
+
+/* Compass / Hero visual */
+.hero-compass-wrap {
+  position: relative;
+  height: 520px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.hero-compass {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+.compass-ring {
+  animation: spin-slow 60s linear infinite;
+  transform-origin: center;
+}
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.compass-pin {
+  position: absolute;
+  width: 9px; height: 9px;
+  background: var(--oxblood);
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px rgba(124,47,47,0.18);
+  transform: translate(-50%, -50%);
+}
+
+.compass-pin.p1 { top: 28%; left: 52%; }
+.compass-pin.p2 { top: 44%; left: 38%; }
+.compass-pin.p3 { top: 60%; left: 62%; }
+.compass-pin.p4 { top: 72%; left: 48%; }
+
+.compass-pin::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px solid var(--oxblood);
+  animation: ping 2.6s ease-out infinite;
+}
+.compass-pin.p2::after { animation-delay: 0.8s; }
+.compass-pin.p3::after { animation-delay: 1.4s; }
+.compass-pin.p4::after { animation-delay: 2s; }
+
+@keyframes ping {
+  0% { transform: scale(0.7); opacity: 0.7; }
+  100% { transform: scale(2.4); opacity: 0; }
+}
+
+/* ── MAP SECTION ─────────────────────────────────────────────────── */
+
+.map-section {
+  padding: 100px 0 80px;
+  background: var(--paper-light);
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  position: relative;
+  z-index: 2;
+}
+
+.map-head {
+  max-width: 1240px;
+  margin: 0 auto 32px;
+  padding: 0 48px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 40px;
+  align-items: end;
+}
+
+.map-title {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(36px, 5vw, 60px);
+  line-height: 1.04;
+  letter-spacing: -0.014em;
+  color: var(--ink);
+}
+.map-title em {
+  font-style: italic;
+  color: var(--oxblood);
+}
+
+.map-deck {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 18px;
+  color: var(--ink-pale);
+  max-width: 340px;
+}
+
+/* The map viewport — pannable */
+.map-stage {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 48px;
+  position: relative;
+}
+
+.map-frame {
+  position: relative;
+  height: 640px;
+  border: 1px solid var(--rule);
+  background: var(--paper);
+  overflow: hidden;
+  cursor: grab;
+  border-radius: 2px;
+  background-image:
+    linear-gradient(rgba(30,49,71,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(30,49,71,0.06) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-position: -1px -1px;
+}
+.map-frame:active { cursor: grabbing; }
+
+.map-frame::before {
+  /* corner crosshairs */
+  content: '';
+  position: absolute;
+  top: 14px; left: 14px;
+  width: 18px; height: 18px;
+  border-top: 1px solid var(--rule);
+  border-left: 1px solid var(--rule);
+  z-index: 4;
+}
+.map-frame::after {
+  content: '';
+  position: absolute;
+  bottom: 14px; right: 14px;
+  width: 18px; height: 18px;
+  border-bottom: 1px solid var(--rule);
+  border-right: 1px solid var(--rule);
+  z-index: 4;
+}
+
+.map-canvas {
+  position: absolute;
+  width: 1200px;
+  height: 1000px;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  user-select: none;
+  will-change: transform;
+  transition: none;
+}
+
+/* Compass + scale */
+.map-compass-mini {
+  position: absolute;
+  top: 24px;
+  right: 24px;
+  width: 60px;
+  height: 60px;
+  z-index: 5;
+  opacity: 0.6;
+}
+
+.map-scale {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink-pale);
+  z-index: 5;
+}
+
+.map-scale-bar {
+  width: 80px;
+  height: 6px;
+  background: linear-gradient(90deg, var(--ink) 0% 25%, var(--paper) 25% 50%, var(--ink) 50% 75%, var(--paper) 75% 100%);
+  border: 1px solid var(--ink);
+}
+
+.map-drag-hint {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  font-family: var(--hand);
+  font-size: 22px;
+  color: var(--oxblood);
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transform: rotate(-2deg);
+}
+.map-drag-hint::before {
+  content: '✎';
+  font-family: var(--serif);
+  font-size: 18px;
+}
+
+/* Markers */
+.marker {
+  position: absolute;
+  width: 14px; height: 14px;
+  background: var(--oxblood);
+  border: 2px solid var(--paper);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(30,49,71,0.3);
+  transition: transform 0.2s, background 0.2s;
+  z-index: 3;
+}
+.marker:hover {
+  background: var(--ink);
+  transform: translate(-50%, -50%) scale(1.4);
+  z-index: 6;
+}
+.marker::after {
+  content: '';
+  position: absolute;
+  inset: -8px;
+  border: 1px solid var(--oxblood);
+  border-radius: 50%;
+  opacity: 0;
+  animation: marker-ping 3s ease-out infinite;
+}
+@keyframes marker-ping {
+  0% { transform: scale(0.6); opacity: 0.6; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+/* Flying index card */
+.card-popup {
+  position: absolute;
+  width: 240px;
+  background: var(--paper-light);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 16px 18px 18px;
+  box-shadow: 0 16px 32px -10px rgba(30,49,71,0.35), 0 4px 8px rgba(30,49,71,0.15);
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, -100%) translateY(-18px) rotate(-1deg);
+  transition: opacity 0.25s, transform 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  z-index: 10;
+  font-family: var(--sans);
+}
+.card-popup.is-visible {
+  opacity: 1;
+  transform: translate(-50%, -100%) translateY(-26px) rotate(-1deg);
+}
+.card-popup::before {
+  /* paperclip */
+  content: '';
+  position: absolute;
+  top: -10px; left: 16px;
+  width: 4px; height: 20px;
+  background: linear-gradient(180deg, transparent 0%, transparent 35%, #9aa0a8 35%, #9aa0a8 100%);
+  border-radius: 4px 4px 0 0;
+}
+.card-popup::after {
+  content: '';
+  position: absolute;
+  bottom: -8px; left: 50%;
+  width: 16px; height: 16px;
+  background: var(--paper-light);
+  border-right: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.card-popup-num {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--sepia);
+  margin-bottom: 6px;
+}
+
+.card-popup-name {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-style: italic;
+  font-size: 19px;
+  line-height: 1.1;
+  color: var(--ink);
+  margin-bottom: 8px;
+  letter-spacing: -0.005em;
+}
+
+.card-popup-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--hairline);
+}
+.card-popup-row:last-of-type { border-bottom: none; }
+
+.card-popup-key { color: var(--ink-pale); }
+.card-popup-val { font-family: var(--mono); color: var(--ink); font-weight: 500; }
+.card-popup-val.good { color: var(--moss); }
+.card-popup-val.warn { color: var(--oxblood); }
+
+.card-popup-stamp {
+  margin-top: 10px;
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--oxblood);
+  border: 1.5px solid var(--oxblood);
+  padding: 3px 8px;
+  transform: rotate(-2deg);
+}
+
+/* Legend */
+.map-legend {
+  margin-top: 22px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ink-pale);
+}
+
+.map-legend-key { display: flex; gap: 24px; align-items: center; }
+
+.map-legend-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  background: var(--oxblood);
+  border: 2px solid var(--paper);
+  border-radius: 50%;
+  vertical-align: middle;
+  margin-right: 6px;
+  box-shadow: 0 1px 3px rgba(30,49,71,0.3);
+}
+
+/* ── WORKBENCH — index cards ─────────────────────────────────────── */
+
+.workbench {
+  padding: 120px 0 100px;
+  position: relative;
+  z-index: 2;
+}
+
+.workbench-head {
+  max-width: 1240px;
+  margin: 0 auto 48px;
+  padding: 0 48px;
+  text-align: center;
+}
+
+.workbench-headline {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(36px, 5vw, 60px);
+  line-height: 1.04;
+  letter-spacing: -0.014em;
+  color: var(--ink);
+  margin-top: 14px;
+  max-width: 820px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.workbench-headline em { font-style: italic; color: var(--oxblood); }
+
+.workbench-grid {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 48px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 32px;
+}
+
+/* Flippable index card */
+.index-card {
+  height: 320px;
+  perspective: 1200px;
+  cursor: pointer;
+}
+
+.index-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transform-style: preserve-3d;
+  transition: transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.index-card.is-flipped .index-card-inner {
+  transform: rotateY(180deg);
+}
+
+.index-card-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background: var(--paper-light);
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  padding: 26px 24px;
+  box-shadow: 0 16px 32px -16px rgba(30,49,71,0.3);
+  background-image:
+    repeating-linear-gradient(180deg, transparent 0, transparent 22px, rgba(30,49,71,0.08) 23px),
+    linear-gradient(180deg, var(--paper-light), var(--paper-light));
+  background-position: 0 50px;
+  display: flex;
+  flex-direction: column;
+}
+
+.index-card-face.back {
+  transform: rotateY(180deg);
+  background: var(--ink);
+  color: var(--paper);
+  background-image: none;
+}
+
+.index-card-tab {
+  position: absolute;
+  top: -1px;
+  right: 24px;
+  background: var(--oxblood);
+  color: var(--paper);
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  padding: 5px 10px 6px;
+  border-radius: 0 0 4px 4px;
+  font-weight: 600;
+}
+
+.index-card-classmark {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: var(--sepia);
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.index-card-name {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-style: italic;
+  font-size: 28px;
+  letter-spacing: -0.01em;
+  line-height: 1.05;
+  color: var(--ink);
+  margin-bottom: 4px;
+}
+
+.index-card-place {
+  font-family: var(--hand);
+  font-size: 22px;
+  color: var(--oxblood);
+  margin-bottom: 18px;
+  transform: rotate(-1deg);
+  display: inline-block;
+}
+
+.index-card-pairs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 18px;
+  margin-top: auto;
+  font-size: 12px;
+}
+
+.index-card-pair-key {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--sepia);
+}
+
+.index-card-pair-val {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+
+.index-card-flip-hint {
+  position: absolute;
+  bottom: 16px;
+  right: 18px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--sepia);
+  opacity: 0.7;
+}
+
+.index-card-face.back .index-card-classmark { color: rgba(239,230,204,0.6); }
+.index-card-face.back .index-card-name { color: var(--paper); }
+.index-card-face.back .index-card-place { color: rgba(239,230,204,0.7); }
+
+.index-card-back-list {
+  list-style: none;
+  margin-top: 12px;
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 17px;
+  line-height: 1.4;
+  color: rgba(239,230,204,0.85);
+}
+.index-card-back-list li {
+  padding: 8px 0;
+  border-bottom: 1px dashed rgba(239,230,204,0.2);
+}
+.index-card-back-list li:last-child { border-bottom: none; }
+.index-card-back-list li::before {
+  content: '— ';
+  color: var(--oxblood);
+  font-style: normal;
+  font-weight: 600;
+}
+
+/* ── FOOTNOTE / PULL — handwritten margin note ───────────────────── */
+
+.margin-note {
+  max-width: 1240px;
+  margin: 60px auto;
+  padding: 0 48px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 80px;
+  align-items: center;
+  position: relative;
+  z-index: 2;
+}
+
+.margin-note-text {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(28px, 3.8vw, 44px);
+  line-height: 1.18;
+  color: var(--ink);
+  letter-spacing: -0.008em;
+}
+
+.margin-note-text em { color: var(--oxblood); }
+
+.margin-note-hand {
+  font-family: var(--hand);
+  font-size: 28px;
+  color: var(--oxblood);
+  max-width: 240px;
+  line-height: 1.1;
+  transform: rotate(-3deg);
+  border-left: 2px solid var(--oxblood);
+  padding-left: 18px;
+}
+
+/* ── STAMP CTA ───────────────────────────────────────────────────── */
+
+.cta {
+  padding: 120px 0 140px;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+  border-top: 1px solid var(--hairline);
+}
+
+.cta-eyebrow {
+  margin-bottom: 22px;
+}
+
+.cta-headline {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(44px, 6.5vw, 88px);
+  line-height: 0.98;
+  letter-spacing: -0.018em;
+  color: var(--ink);
+  margin-bottom: 30px;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.cta-headline em { font-style: italic; color: var(--oxblood); }
+
+.cta-sub {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 19px;
+  color: var(--ink-pale);
+  max-width: 540px;
+  margin: 0 auto 44px;
+}
+
+.cta-actions { display: flex; justify-content: center; gap: 16px; flex-wrap: wrap; align-items: center; }
+
+.btn-stamp {
+  position: relative;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  padding: 16px 32px;
+  background: var(--oxblood);
+  color: var(--paper);
+  text-decoration: none;
+  border: none;
+  border-radius: 2px;
+  overflow: hidden;
+  transition: transform 0.2s;
+}
+.btn-stamp::before {
+  /* faint paper texture overlay */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='100' height='100'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' seed='8'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/></svg>");
+  opacity: 0.15;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+}
+.btn-stamp:hover { transform: translateY(-2px) rotate(-0.5deg); box-shadow: 0 12px 24px -10px rgba(124,47,47,0.5); }
+
+.btn-stamp-ghost {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  padding: 16px 32px;
+  background: transparent;
+  color: var(--ink);
+  text-decoration: none;
+  border: 1.5px solid var(--ink);
+  border-radius: 2px;
+  transition: background 0.2s, color 0.2s;
+}
+.btn-stamp-ghost:hover { background: var(--ink); color: var(--paper); }
+
+/* ── COLOPHON ────────────────────────────────────────────────────── */
+
+footer {
+  padding: 40px 48px 60px;
+  border-top: 1px solid var(--hairline);
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  background: var(--paper-light);
+}
+
+footer .copyright {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-pale);
+}
+
+footer .brand-mark {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 18px;
+  color: var(--ink);
+  letter-spacing: -0.005em;
+}
+
+/* Reveal */
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 1s cubic-bezier(0.22, 1, 0.36, 1), transform 1s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.is-visible { opacity: 1; transform: translateY(0); }
+.reveal.delay-1 { transition-delay: 0.1s; }
+.reveal.delay-2 { transition-delay: 0.22s; }
+
+/* ── Responsive ──────────────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  .hero-inner { grid-template-columns: 1fr; gap: 40px; }
+  .hero-compass-wrap { height: 360px; }
+  .workbench-grid { grid-template-columns: 1fr; gap: 24px; }
+  .map-head { grid-template-columns: 1fr; }
+  .map-frame { height: 480px; }
+  .map-canvas { width: 900px; height: 800px; }
+  .margin-note { grid-template-columns: 1fr; gap: 24px; }
+}
+
+@media (max-width: 640px) {
+  .masthead { padding: 14px 20px; }
+  .masthead-nav { gap: 14px; }
+  .masthead-link { display: none; }
+  .hero-inner, .map-head, .map-stage, .workbench-head, .workbench-grid, .margin-note { padding: 0 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+</style>
+</head>
+<body>
+
+<!-- ============ MASTHEAD ============ -->
+<header class="masthead">
+  <a href="#" class="masthead-brand">
+    <span class="masthead-brand-name">Nanasays</span>
+    <span class="masthead-brand-sub">The Field Book · MMXXVI</span>
+  </a>
+  <nav class="masthead-nav">
+    <a href="#" class="masthead-link">The Atlas</a>
+    <a href="#" class="masthead-link">Catalogue</a>
+    <a href="#" class="masthead-link">Notes &amp; Marginalia</a>
+    <a href="#" class="masthead-cta">Try Nana</a>
+  </nav>
+</header>
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="hero-eyebrow">
+        <span class="label-mono">A British Survey · Edition I</span>
+      </div>
+
+      <h1 class="hero-headline">
+        A field book of <em>British</em> independent schools.
+      </h1>
+
+      <p class="hero-deck">
+        Drawn from inspection reports, fee schedules and policy folios — and
+        marked with our own notes in the margins. For the families who would
+        rather see the working.
+      </p>
+
+      <div class="hero-stamp">
+        <span class="hero-stamp-box">Verified · ISI</span>
+        <span class="hero-stamp-text">no paid placement, ever ↗</span>
+      </div>
+    </div>
+
+    <div class="hero-compass-wrap">
+      <svg class="hero-compass" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+        <!-- Outer ring -->
+        <g class="compass-ring">
+          <circle cx="200" cy="200" r="180" fill="none" stroke="#1E3147" stroke-width="0.7" opacity="0.5"/>
+          <circle cx="200" cy="200" r="166" fill="none" stroke="#1E3147" stroke-width="0.4" opacity="0.4"/>
+          <!-- Tick marks every 15deg -->
+          <g stroke="#1E3147" stroke-width="0.6" opacity="0.5">
+            <line x1="200" y1="20" x2="200" y2="34"/>
+            <line x1="200" y1="380" x2="200" y2="366"/>
+            <line x1="20" y1="200" x2="34" y2="200"/>
+            <line x1="380" y1="200" x2="366" y2="200"/>
+            <line x1="73" y1="73" x2="83" y2="83"/>
+            <line x1="327" y1="73" x2="317" y2="83"/>
+            <line x1="73" y1="327" x2="83" y2="317"/>
+            <line x1="327" y1="327" x2="317" y2="317"/>
+          </g>
+          <!-- N S E W -->
+          <text x="200" y="14" text-anchor="middle" font-family="DM Serif Display" font-size="14" font-style="italic" fill="#7C2F2F">N</text>
+          <text x="200" y="396" text-anchor="middle" font-family="DM Serif Display" font-size="14" font-style="italic" fill="#1E3147">S</text>
+          <text x="392" y="206" text-anchor="middle" font-family="DM Serif Display" font-size="14" font-style="italic" fill="#1E3147">E</text>
+          <text x="8" y="206" text-anchor="middle" font-family="DM Serif Display" font-size="14" font-style="italic" fill="#1E3147">W</text>
+        </g>
+
+        <!-- Inner static rose -->
+        <g>
+          <circle cx="200" cy="200" r="120" fill="none" stroke="#1E3147" stroke-width="0.5" opacity="0.4"/>
+          <circle cx="200" cy="200" r="60"  fill="none" stroke="#1E3147" stroke-width="0.5" opacity="0.4"/>
+          <!-- Compass star -->
+          <polygon points="200,80 215,200 200,320 185,200" fill="#1E3147" opacity="0.8"/>
+          <polygon points="80,200 200,185 320,200 200,215" fill="#1E3147" opacity="0.5"/>
+          <circle cx="200" cy="200" r="6" fill="#7C2F2F"/>
+        </g>
+
+        <!-- Decorative labels -->
+        <text x="200" y="60" text-anchor="middle" font-family="JetBrains Mono" font-size="8" letter-spacing="2" fill="#7C2F2F">154 SCHOOLS · UK</text>
+      </svg>
+
+      <span class="compass-pin p1" title="London"></span>
+      <span class="compass-pin p2" title="Oxford"></span>
+      <span class="compass-pin p3" title="Cambridge"></span>
+      <span class="compass-pin p4" title="Brighton"></span>
+    </div>
+  </div>
+</section>
+
+<!-- ============ THE MAP ============ -->
+<section class="map-section">
+  <div class="map-head">
+    <div>
+      <div class="label-mono" style="margin-bottom: 14px;">Plate I · A General Map</div>
+      <h2 class="map-title">One hundred and fifty-four schools, <em>plotted</em>.</h2>
+    </div>
+    <p class="map-deck">
+      Click and drag to wander. Hover any pin for a card — every one drawn
+      from primary sources, signed and stamped.
+    </p>
+  </div>
+
+  <div class="map-stage">
+    <div class="map-frame" id="mapFrame">
+      <div class="map-canvas" id="mapCanvas">
+
+        <!-- Stylised UK outline (simplified) -->
+        <svg viewBox="0 0 1200 1000" xmlns="http://www.w3.org/2000/svg" width="1200" height="1000" style="position:absolute; inset:0; pointer-events:none;">
+          <!-- Faint sea grid lines already on .map-frame -->
+
+          <!-- Wales / England / Scotland stylised silhouette -->
+          <path d="M 510 60
+                   C 540 80, 560 110, 590 140
+                   L 620 180
+                   C 640 210, 650 240, 640 270
+                   L 670 310
+                   C 700 340, 720 380, 700 420
+                   L 730 460
+                   C 740 500, 720 540, 690 570
+                   L 720 610
+                   C 740 660, 700 700, 660 720
+                   L 680 760
+                   C 700 800, 660 840, 600 855
+                   L 540 860
+                   C 480 850, 430 820, 410 770
+                   L 360 720
+                   C 320 670, 310 620, 340 580
+                   L 300 540
+                   C 270 500, 280 460, 310 430
+                   L 290 380
+                   C 270 330, 290 290, 330 270
+                   L 360 220
+                   C 380 180, 420 140, 450 110
+                   L 480 80
+                   C 495 65, 505 60, 510 60 Z"
+                fill="#DDD0AC" stroke="#1E3147" stroke-width="1.4" stroke-linejoin="round" opacity="0.92"/>
+
+          <!-- Inland hatch lines for texture -->
+          <g stroke="#1E3147" stroke-width="0.4" opacity="0.18">
+            <line x1="380" y1="500" x2="640" y2="500"/>
+            <line x1="380" y1="540" x2="660" y2="540"/>
+            <line x1="380" y1="580" x2="660" y2="580"/>
+            <line x1="380" y1="620" x2="660" y2="620"/>
+            <line x1="400" y1="660" x2="640" y2="660"/>
+            <line x1="420" y1="700" x2="620" y2="700"/>
+            <line x1="450" y1="740" x2="600" y2="740"/>
+          </g>
+
+          <!-- Region labels in serif italic -->
+          <text x="510" y="320" font-family="DM Serif Display" font-style="italic" font-size="18" fill="#1E3147" opacity="0.7">Scotland</text>
+          <text x="450" y="490" font-family="DM Serif Display" font-style="italic" font-size="18" fill="#1E3147" opacity="0.7">The North</text>
+          <text x="500" y="620" font-family="DM Serif Display" font-style="italic" font-size="18" fill="#1E3147" opacity="0.7">The Midlands</text>
+          <text x="380" y="680" font-family="DM Serif Display" font-style="italic" font-size="16" fill="#1E3147" opacity="0.6">Wales</text>
+          <text x="540" y="780" font-family="DM Serif Display" font-style="italic" font-size="20" fill="#7C2F2F" opacity="0.85">London &amp; the Home Counties</text>
+          <text x="450" y="830" font-family="DM Serif Display" font-style="italic" font-size="16" fill="#1E3147" opacity="0.6">The West Country</text>
+
+          <!-- Decorative ship / sea labels -->
+          <text x="180" y="300" font-family="Caveat" font-size="22" fill="#7C2F2F" opacity="0.6" transform="rotate(-8 180 300)">Atlantic ↗</text>
+          <text x="820" y="500" font-family="Caveat" font-size="22" fill="#7C2F2F" opacity="0.6" transform="rotate(6 820 500)">North Sea</text>
+          <text x="450" y="900" font-family="Caveat" font-size="20" fill="#7C2F2F" opacity="0.6" transform="rotate(-3 450 900)">English Channel</text>
+
+          <!-- Crossed line accents -->
+          <line x1="180" y1="340" x2="220" y2="380" stroke="#7C2F2F" stroke-width="1" opacity="0.5"/>
+          <line x1="200" y1="340" x2="220" y2="320" stroke="#7C2F2F" stroke-width="1" opacity="0.5"/>
+        </svg>
+
+        <!-- School markers (positioned on the silhouette) -->
+        <button class="marker" style="top: 750px; left: 600px;" data-i="0" data-name="Wycombe Abbey" data-place="Buckinghamshire" data-type="Girls · Boarding · 11–18" data-fee="£15,950/term" data-isi="Excellent"></button>
+        <button class="marker" style="top: 780px; left: 640px;" data-i="1" data-name="Eton College" data-place="Berkshire" data-type="Boys · Boarding · 13–18" data-fee="£16,668/term" data-isi="Excellent"></button>
+        <button class="marker" style="top: 810px; left: 680px;" data-i="2" data-name="Benenden School" data-place="Kent" data-type="Girls · Boarding · 11–18" data-fee="£14,995/term" data-isi="Excellent"></button>
+        <button class="marker" style="top: 790px; left: 580px;" data-i="3" data-name="Radley College" data-place="Oxfordshire" data-type="Boys · Boarding · 13–18" data-fee="£14,950/term" data-isi="Excellent"></button>
+        <button class="marker" style="top: 760px; left: 550px;" data-i="4" data-name="Marlborough" data-place="Wiltshire" data-type="Co-ed · Boarding · 13–18" data-fee="£15,580/term" data-isi="Excellent"></button>
+        <button class="marker" style="top: 830px; left: 530px;" data-i="5" data-name="Sherborne Girls" data-place="Dorset" data-type="Girls · Boarding · 11–18" data-fee="£14,250/term" data-isi="Good"></button>
+        <button class="marker" style="top: 700px; left: 550px;" data-i="6" data-name="Repton" data-place="Derbyshire" data-type="Co-ed · Boarding · 13–18" data-fee="£13,890/term" data-isi="Good"></button>
+        <button class="marker" style="top: 650px; left: 530px;" data-i="7" data-name="Rugby School" data-place="Warwickshire" data-type="Co-ed · Boarding · 13–18" data-fee="£15,180/term" data-isi="Excellent"></button>
+        <button class="marker" style="top: 600px; left: 480px;" data-i="8" data-name="Sedbergh" data-place="Cumbria" data-type="Co-ed · Boarding · 13–18" data-fee="£14,250/term" data-isi="Good"></button>
+        <button class="marker" style="top: 560px; left: 520px;" data-i="9" data-name="Ampleforth" data-place="N. Yorkshire" data-type="Co-ed · Boarding · 11–18" data-fee="£13,720/term" data-isi="Good"></button>
+        <button class="marker" style="top: 470px; left: 500px;" data-i="10" data-name="Fettes" data-place="Edinburgh" data-type="Co-ed · Boarding · 7–18" data-fee="£13,995/term" data-isi="Excellent"></button>
+        <button class="marker" style="top: 730px; left: 720px;" data-i="11" data-name="Tonbridge" data-place="Kent" data-type="Boys · Boarding · 13–18" data-fee="£15,420/term" data-isi="Excellent"></button>
+
+        <!-- Card popup (positioned by JS) -->
+        <div class="card-popup" id="cardPopup">
+          <div class="card-popup-num">№ 0001 · Wycombe Abbey</div>
+          <div class="card-popup-name">Wycombe <em>Abbey</em></div>
+          <div class="card-popup-row"><span class="card-popup-key">Place</span><span class="card-popup-val" id="popupPlace">—</span></div>
+          <div class="card-popup-row"><span class="card-popup-key">Type</span><span class="card-popup-val" id="popupType">—</span></div>
+          <div class="card-popup-row"><span class="card-popup-key">Fee</span><span class="card-popup-val" id="popupFee">—</span></div>
+          <div class="card-popup-row"><span class="card-popup-key">ISI</span><span class="card-popup-val good" id="popupIsi">—</span></div>
+          <span class="card-popup-stamp">Read in full →</span>
+        </div>
+      </div>
+
+      <svg class="map-compass-mini" viewBox="0 0 60 60">
+        <circle cx="30" cy="30" r="27" fill="none" stroke="#1E3147" stroke-width="0.8"/>
+        <polygon points="30,8 33,30 30,52 27,30" fill="#1E3147"/>
+        <polygon points="8,30 30,28 52,30 30,32" fill="#1E3147" opacity="0.4"/>
+        <text x="30" y="6" text-anchor="middle" font-family="DM Serif Display" font-size="8" font-style="italic" fill="#7C2F2F">N</text>
+      </svg>
+
+      <div class="map-scale">
+        <span>0</span>
+        <div class="map-scale-bar"></div>
+        <span>100 mi</span>
+      </div>
+
+      <div class="map-drag-hint">drag to explore</div>
+    </div>
+
+    <div class="map-legend">
+      <div class="map-legend-key">
+        <span><span class="map-legend-dot"></span>School · marker</span>
+        <span>↻ Drag to pan</span>
+        <span>⤓ Hover to read</span>
+      </div>
+      <div>154 plotted · last revised May 2026</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ WORKBENCH — flippable index cards ============ -->
+<section class="workbench">
+  <div class="workbench-head">
+    <div class="label-mono">Plate II · The Catalogue</div>
+    <h2 class="workbench-headline">Each school has its own card. <em>Turn one over.</em></h2>
+  </div>
+
+  <div class="workbench-grid">
+
+    <article class="index-card" data-flip>
+      <div class="index-card-inner">
+        <div class="index-card-face">
+          <div class="index-card-tab">No. 0001</div>
+          <div class="index-card-classmark">Ref · WYC.ABB.GBR</div>
+          <h3 class="index-card-name">Wycombe <span style="font-style:normal;">Abbey</span></h3>
+          <div class="index-card-place">Buckinghamshire ✎</div>
+          <div class="index-card-pairs">
+            <div>
+              <div class="index-card-pair-key">Type</div>
+              <div class="index-card-pair-val">Girls · Boarding</div>
+            </div>
+            <div>
+              <div class="index-card-pair-key">Ages</div>
+              <div class="index-card-pair-val">11–18</div>
+            </div>
+            <div>
+              <div class="index-card-pair-key">Fee/term</div>
+              <div class="index-card-pair-val">£15,950</div>
+            </div>
+            <div>
+              <div class="index-card-pair-key">ISI</div>
+              <div class="index-card-pair-val">Excellent</div>
+            </div>
+          </div>
+          <div class="index-card-flip-hint">tap to flip ↺</div>
+        </div>
+        <div class="index-card-face back">
+          <div class="index-card-tab">Marginalia</div>
+          <div class="index-card-classmark">Notes from the file</div>
+          <h3 class="index-card-name">Wycombe Abbey</h3>
+          <div class="index-card-place" style="color: rgba(239,230,204,0.7);">— what the brochure didn't say</div>
+          <ul class="index-card-back-list">
+            <li>Saturday school mandatory; weekly boarders included.</li>
+            <li>Bursaries to 100% means-tested.</li>
+            <li>Pastoral lead named in ISI 2024.</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <article class="index-card" data-flip>
+      <div class="index-card-inner">
+        <div class="index-card-face">
+          <div class="index-card-tab">No. 0014</div>
+          <div class="index-card-classmark">Ref · ETN.COL.GBR</div>
+          <h3 class="index-card-name">Eton College</h3>
+          <div class="index-card-place">Berkshire ✎</div>
+          <div class="index-card-pairs">
+            <div>
+              <div class="index-card-pair-key">Type</div>
+              <div class="index-card-pair-val">Boys · Boarding</div>
+            </div>
+            <div>
+              <div class="index-card-pair-key">Ages</div>
+              <div class="index-card-pair-val">13–18</div>
+            </div>
+            <div>
+              <div class="index-card-pair-key">Fee/term</div>
+              <div class="index-card-pair-val">£16,668</div>
+            </div>
+            <div>
+              <div class="index-card-pair-key">ISI</div>
+              <div class="index-card-pair-val">Excellent</div>
+            </div>
+          </div>
+          <div class="index-card-flip-hint">tap to flip ↺</div>
+        </div>
+        <div class="index-card-face back">
+          <div class="index-card-tab">Marginalia</div>
+          <div class="index-card-classmark">Notes from the file</div>
+          <h3 class="index-card-name">Eton College</h3>
+          <div class="index-card-place" style="color: rgba(239,230,204,0.7);">— what the brochure didn't say</div>
+          <ul class="index-card-back-list">
+            <li>Twelve-day fortnight; no Saturday school for upper years.</li>
+            <li>House system: 25 houses, master-led.</li>
+            <li>Means-tested bursaries available to 100%.</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+    <article class="index-card" data-flip>
+      <div class="index-card-inner">
+        <div class="index-card-face">
+          <div class="index-card-tab">No. 0023</div>
+          <div class="index-card-classmark">Ref · BEN.SCH.GBR</div>
+          <h3 class="index-card-name">Benenden</h3>
+          <div class="index-card-place">Kent ✎</div>
+          <div class="index-card-pairs">
+            <div>
+              <div class="index-card-pair-key">Type</div>
+              <div class="index-card-pair-val">Girls · Boarding</div>
+            </div>
+            <div>
+              <div class="index-card-pair-key">Ages</div>
+              <div class="index-card-pair-val">11–18</div>
+            </div>
+            <div>
+              <div class="index-card-pair-key">Fee/term</div>
+              <div class="index-card-pair-val">£14,995</div>
+            </div>
+            <div>
+              <div class="index-card-pair-key">ISI</div>
+              <div class="index-card-pair-val">Excellent</div>
+            </div>
+          </div>
+          <div class="index-card-flip-hint">tap to flip ↺</div>
+        </div>
+        <div class="index-card-face back">
+          <div class="index-card-tab">Marginalia</div>
+          <div class="index-card-classmark">Notes from the file</div>
+          <h3 class="index-card-name">Benenden</h3>
+          <div class="index-card-place" style="color: rgba(239,230,204,0.7);">— what the brochure didn't say</div>
+          <ul class="index-card-back-list">
+            <li>Smaller cohort (~550) than Wycombe Abbey.</li>
+            <li>GSA-affiliated; LGBTQ+ society and named lead.</li>
+            <li>Full boarding only; Saturday school morning.</li>
+          </ul>
+        </div>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+<!-- ============ MARGIN NOTE ============ -->
+<section class="margin-note">
+  <p class="margin-note-text">
+    "Read the school the way a careful traveller reads a country —
+    by its <em>maps</em>, its <em>guides</em>, its <em>signs</em>,
+    and the marks left by those who came before."
+  </p>
+  <p class="margin-note-hand">
+    a guiding principle, scribbled in pencil
+  </p>
+</section>
+
+<!-- ============ CTA ============ -->
+<section class="cta">
+  <div class="cta-eyebrow">
+    <span class="label-mono">Begin</span>
+  </div>
+  <h2 class="cta-headline">
+    Open the field book, <em>and find your school</em>.
+  </h2>
+  <p class="cta-sub">
+    Free to read every entry. Free to ask Nana the first questions.
+    No paid placement, no sponsored schools — ever.
+  </p>
+  <div class="cta-actions">
+    <a href="#" class="btn-stamp">Try Nana free</a>
+    <a href="#" class="btn-stamp-ghost">Browse the catalogue</a>
+  </div>
+</section>
+
+<!-- ============ COLOPHON ============ -->
+<footer>
+  <span class="copyright">MMXXVI · Nanasays · Made in the United Kingdom</span>
+  <span class="brand-mark">Nanasays — The Field Book</span>
+</footer>
+
+<script>
+(() => {
+  'use strict';
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ── Reveal ────────────────────────────────────────────────── */
+  const io = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { e.target.classList.add('is-visible'); io.unobserve(e.target); }
+    });
+  }, { threshold: 0.18, rootMargin: '0px 0px -8% 0px' });
+  document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+  /* ── DRAGGABLE MAP ──────────────────────────────────────────── */
+  const frame = document.getElementById('mapFrame');
+  const canvas = document.getElementById('mapCanvas');
+  const popup = document.getElementById('cardPopup');
+  const popupPlace = document.getElementById('popupPlace');
+  const popupType = document.getElementById('popupType');
+  const popupFee = document.getElementById('popupFee');
+  const popupIsi = document.getElementById('popupIsi');
+
+  if (frame && canvas) {
+    let isDragging = false;
+    let startX = 0, startY = 0;
+    let baseX = 0, baseY = 0;
+    let curX = 0, curY = 0;
+
+    function setTransform() {
+      canvas.style.transform = `translate(calc(-50% + ${curX}px), calc(-50% + ${curY}px))`;
+    }
+
+    function onDown(e) {
+      isDragging = true;
+      frame.style.cursor = 'grabbing';
+      const pt = e.touches ? e.touches[0] : e;
+      startX = pt.clientX;
+      startY = pt.clientY;
+      baseX = curX;
+      baseY = curY;
+      hidePopup();
+    }
+
+    function onMove(e) {
+      if (!isDragging) return;
+      e.preventDefault();
+      const pt = e.touches ? e.touches[0] : e;
+      const dx = pt.clientX - startX;
+      const dy = pt.clientY - startY;
+      // clamp range so user can't drag off canvas entirely
+      curX = Math.max(-260, Math.min(260, baseX + dx));
+      curY = Math.max(-220, Math.min(220, baseY + dy));
+      setTransform();
+    }
+
+    function onUp() {
+      isDragging = false;
+      frame.style.cursor = 'grab';
+    }
+
+    frame.addEventListener('mousedown', onDown);
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+
+    frame.addEventListener('touchstart', onDown, { passive: true });
+    window.addEventListener('touchmove', onMove, { passive: false });
+    window.addEventListener('touchend', onUp);
+  }
+
+  /* ── MARKER HOVER → POPUP ──────────────────────────────────── */
+  function hidePopup() { if (popup) popup.classList.remove('is-visible'); }
+
+  document.querySelectorAll('.marker').forEach(m => {
+    m.addEventListener('mouseenter', () => {
+      if (!popup) return;
+      popup.style.left = m.style.left;
+      popup.style.top  = m.style.top;
+      const name = m.dataset.name || '';
+      const place = m.dataset.place || '';
+      const type = m.dataset.type || '';
+      const fee = m.dataset.fee || '';
+      const isi = m.dataset.isi || '';
+
+      popup.querySelector('.card-popup-num').textContent = `№ ${String(parseInt(m.dataset.i,10) + 1).padStart(4,'0')} · ${name}`;
+      // Render the name with last word italicised
+      const parts = name.trim().split(' ');
+      const last = parts.pop();
+      popup.querySelector('.card-popup-name').innerHTML = parts.join(' ') + ' <em>' + last + '</em>';
+      popupPlace.textContent = place;
+      popupType.textContent = type;
+      popupFee.textContent = fee;
+      popupIsi.textContent = isi;
+      popupIsi.className = 'card-popup-val ' + (isi === 'Excellent' ? 'good' : 'warn');
+      popup.classList.add('is-visible');
+    });
+    m.addEventListener('mouseleave', () => {
+      setTimeout(() => {
+        if (!popup.matches(':hover')) hidePopup();
+      }, 80);
+    });
+  });
+
+  /* ── FLIP CARDS ────────────────────────────────────────────── */
+  document.querySelectorAll('[data-flip]').forEach(card => {
+    card.addEventListener('click', () => card.classList.toggle('is-flipped'));
+    card.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        card.classList.toggle('is-flipped');
+      }
+    });
+    card.setAttribute('tabindex', '0');
+    card.setAttribute('role', 'button');
+  });
+
+})();
+</script>
+
+</body>
+</html>

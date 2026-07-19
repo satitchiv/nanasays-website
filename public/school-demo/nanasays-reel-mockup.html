@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nanasays — The Reel · A draggable photo journey</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght,SOFT,WONK@9..144,300..800,0..100,0..1&family=Inter+Tight:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<style>
+/* ─────────────────────────────────────────────────────────────────────
+   THE REEL — drag-momentum horizontal carousel
+   Big photos, mouse-drag with physics, interior image parallax,
+   click to enter fullscreen with depth layers.
+   ─────────────────────────────────────────────────────────────────── */
+
+:root {
+  --ink: #0E1A2A;
+  --ink-soft: #28384C;
+  --cream: #F4EFE3;
+  --cream-warm: #ECE3CC;
+  --paper: #FBF6E9;
+  --teal: #34C3A0;
+  --teal-deep: #1B7059;
+  --rust: #B5563D;
+  --gold: #C9A86A;
+  --gray: #6A7385;
+  --hairline: rgba(14,26,42,0.14);
+  --hairline-light: rgba(244,239,227,0.16);
+
+  --serif: 'Fraunces', 'Times New Roman', serif;
+  --sans: 'Inter Tight', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--cream);
+  color: var(--ink);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::selection { background: var(--teal); color: var(--ink); }
+
+/* ── NAV ─────────────────────────────────────────────────────────── */
+
+.nav {
+  position: fixed;
+  top: 20px;
+  left: 24px;
+  right: 24px;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: rgba(244,239,227,0.78);
+  backdrop-filter: blur(14px) saturate(160%);
+  border: 1px solid var(--hairline);
+  border-radius: 999px;
+}
+
+.nav-brand {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 22px;
+  color: var(--ink);
+  text-decoration: none;
+  letter-spacing: -0.01em;
+  font-variation-settings: 'opsz' 24, 'SOFT' 50;
+}
+
+.nav-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.nav-meta::before, .nav-meta::after {
+  content: '';
+  width: 22px; height: 1px;
+  background: var(--ink-soft);
+}
+
+.nav-cta {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 18px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--cream);
+  text-decoration: none;
+  transition: background 0.2s, transform 0.2s;
+}
+.nav-cta:hover { background: var(--rust); transform: translateY(-1px); }
+
+/* ── INTRO ───────────────────────────────────────────────────────── */
+
+.intro {
+  padding: 130px 40px 40px;
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 60px;
+  align-items: end;
+}
+
+.intro-eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--rust);
+  margin-bottom: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.intro-eyebrow::before {
+  content: '';
+  width: 28px; height: 1px;
+  background: var(--rust);
+}
+
+.intro-headline {
+  font-family: var(--serif);
+  font-weight: 350;
+  font-size: clamp(48px, 7vw, 116px);
+  line-height: 0.94;
+  letter-spacing: -0.024em;
+  color: var(--ink);
+  font-variation-settings: 'opsz' 144, 'SOFT' 30;
+}
+.intro-headline em {
+  font-style: italic;
+  font-weight: 350;
+  color: var(--rust);
+  font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1;
+}
+
+.intro-deck {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 18px;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  max-width: 320px;
+  font-variation-settings: 'opsz' 24, 'SOFT' 100, 'WONK' 1;
+}
+
+/* ── THE REEL ────────────────────────────────────────────────────── */
+
+.reel-section {
+  position: relative;
+  padding: 40px 0 24px;
+  z-index: 2;
+}
+
+.reel-stage {
+  position: relative;
+  height: 78vh;
+  min-height: 580px;
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.reel-stage.is-dragging { cursor: grabbing; }
+
+.reel-track {
+  position: absolute;
+  top: 0;
+  height: 100%;
+  display: flex;
+  gap: 32px;
+  padding: 0 20vw 0 8vw;
+  will-change: transform;
+}
+
+.reel-card {
+  position: relative;
+  flex: 0 0 auto;
+  width: 58vw;
+  max-width: 920px;
+  height: 100%;
+  border-radius: 6px;
+  overflow: hidden;
+  background: var(--ink);
+  box-shadow:
+    0 30px 60px -20px rgba(14,26,42,0.4),
+    0 60px 120px -40px rgba(14,26,42,0.25);
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.reel-card.is-active {
+  transform: scale(1.015);
+  box-shadow:
+    0 40px 80px -20px rgba(14,26,42,0.5),
+    0 80px 160px -40px rgba(14,26,42,0.35);
+}
+
+.reel-card-img {
+  position: absolute;
+  inset: -10%;        /* extra room for parallax shift */
+  background-size: cover;
+  background-position: center;
+  filter: saturate(0.85) contrast(1.05);
+  will-change: transform;
+  transition: transform 0.2s ease-out;
+}
+
+.reel-card-img::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, transparent 0%, transparent 40%, rgba(14,26,42,0.85) 100%),
+    linear-gradient(90deg, rgba(14,26,42,0.45) 0%, transparent 35%);
+}
+
+.reel-card-meta {
+  position: absolute;
+  top: 28px;
+  left: 28px;
+  z-index: 3;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--cream);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.reel-card-meta-num {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 22px;
+  color: var(--gold);
+  letter-spacing: -0.005em;
+  text-transform: none;
+  font-variation-settings: 'opsz' 24, 'SOFT' 100, 'WONK' 1;
+}
+
+.reel-card-body {
+  position: absolute;
+  left: 32px;
+  right: 32px;
+  bottom: 36px;
+  z-index: 3;
+  color: var(--cream);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 40px;
+  align-items: end;
+}
+
+.reel-card-name {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(36px, 4.5vw, 64px);
+  line-height: 0.98;
+  letter-spacing: -0.02em;
+  color: var(--cream);
+  margin-bottom: 6px;
+  font-variation-settings: 'opsz' 72, 'SOFT' 30;
+}
+.reel-card-name em {
+  font-style: italic;
+  color: var(--gold);
+  font-variation-settings: 'opsz' 72, 'SOFT' 100, 'WONK' 1;
+}
+
+.reel-card-place {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(244,239,227,0.7);
+}
+
+.reel-card-stats {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  text-align: right;
+}
+
+.reel-card-stat-v {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 26px;
+  color: var(--gold);
+  line-height: 1;
+  font-variation-settings: 'opsz' 36, 'SOFT' 100, 'WONK' 1;
+}
+
+.reel-card-stat-k {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: rgba(244,239,227,0.55);
+  margin-top: 2px;
+}
+
+.reel-card-expand {
+  position: absolute;
+  top: 28px;
+  right: 28px;
+  z-index: 3;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: rgba(244,239,227,0.15);
+  border: 1px solid rgba(244,239,227,0.3);
+  color: var(--cream);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: background 0.2s, transform 0.2s;
+  font-size: 16px;
+}
+.reel-card.is-active .reel-card-expand:hover { background: var(--cream); color: var(--ink); transform: scale(1.05); }
+
+/* ── REEL CONTROLS ───────────────────────────────────────────────── */
+
+.reel-controls {
+  position: relative;
+  margin: 0 40px;
+  padding-top: 28px;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 20px;
+  align-items: center;
+}
+
+.reel-counter {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+.reel-counter .now {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 26px;
+  color: var(--rust);
+  font-variation-settings: 'opsz' 36, 'SOFT' 100, 'WONK' 1;
+}
+.reel-counter .total {
+  font-size: 13px;
+  color: var(--ink-soft);
+  letter-spacing: 0.1em;
+}
+
+.reel-progress {
+  height: 2px;
+  background: var(--hairline);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+.reel-progress-fill {
+  position: absolute;
+  top: 0; left: 0;
+  height: 100%;
+  background: var(--rust);
+  width: 0%;
+  transition: width 0.15s ease-out;
+}
+
+.reel-btn {
+  width: 48px; height: 48px;
+  border-radius: 50%;
+  border: 1px solid var(--ink);
+  background: var(--cream);
+  cursor: pointer;
+  font-size: 18px;
+  color: var(--ink);
+  display: grid;
+  place-items: center;
+  transition: background 0.2s, transform 0.2s, color 0.2s;
+}
+.reel-btn:hover { background: var(--ink); color: var(--cream); transform: translateY(-1px); }
+.reel-btn:active { transform: scale(0.96); }
+.reel-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.reel-btn:disabled:hover { background: var(--cream); color: var(--ink); transform: none; }
+
+.reel-hint {
+  position: absolute;
+  bottom: 36px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(244,239,227,0.65);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  z-index: 4;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 0.5s;
+}
+.reel-stage.has-interacted .reel-hint { opacity: 0; }
+
+.reel-hint::before, .reel-hint::after {
+  content: '';
+  width: 24px; height: 1px;
+  background: rgba(244,239,227,0.5);
+}
+
+/* ── POST-REEL EDITORIAL ─────────────────────────────────────────── */
+
+.post-reel {
+  padding: 120px 40px;
+  position: relative;
+}
+
+.post-reel-grid {
+  max-width: 1240px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: center;
+}
+
+.post-reel-text-eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--rust);
+  margin-bottom: 22px;
+}
+
+.post-reel-headline {
+  font-family: var(--serif);
+  font-weight: 350;
+  font-size: clamp(36px, 4.5vw, 64px);
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin-bottom: 24px;
+  font-variation-settings: 'opsz' 72, 'SOFT' 30;
+}
+.post-reel-headline em {
+  font-style: italic;
+  color: var(--rust);
+  font-variation-settings: 'opsz' 72, 'SOFT' 100, 'WONK' 1;
+}
+
+.post-reel-body {
+  font-family: var(--serif);
+  font-size: 19px;
+  line-height: 1.6;
+  color: var(--ink-soft);
+  margin-bottom: 16px;
+  font-variation-settings: 'opsz' 24;
+}
+
+.post-reel-quote {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 350;
+  font-size: clamp(28px, 3.5vw, 44px);
+  line-height: 1.15;
+  color: var(--ink);
+  padding: 36px 40px;
+  border-top: 2px solid var(--ink);
+  border-bottom: 2px solid var(--ink);
+  letter-spacing: -0.012em;
+  font-variation-settings: 'opsz' 60, 'SOFT' 100, 'WONK' 1;
+}
+.post-reel-quote em { color: var(--rust); }
+
+.post-reel-attr {
+  margin-top: 18px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* ── FULLSCREEN MODAL ────────────────────────────────────────────── */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+  background: var(--ink);
+}
+.modal.is-open { opacity: 1; pointer-events: auto; }
+
+.modal-photo {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: saturate(0.9);
+  transform: scale(1.08);
+  transition: transform 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.modal.is-open .modal-photo { transform: scale(1); }
+
+.modal-photo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, transparent 0%, transparent 40%, rgba(14,26,42,0.9) 100%),
+    linear-gradient(90deg, rgba(14,26,42,0.5) 0%, transparent 30%);
+}
+
+.modal-content {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  padding: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: var(--cream);
+}
+
+.modal-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-num {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(244,239,227,0.7);
+}
+
+.modal-close {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: rgba(244,239,227,0.15);
+  border: 1px solid rgba(244,239,227,0.3);
+  color: var(--cream);
+  font-size: 18px;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  transition: background 0.2s, transform 0.2s, color 0.2s;
+}
+.modal-close:hover { background: var(--cream); color: var(--ink); transform: scale(1.05); }
+
+.modal-bottom {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 60px;
+  align-items: end;
+}
+
+.modal-name {
+  font-family: var(--serif);
+  font-weight: 350;
+  font-size: clamp(48px, 7vw, 108px);
+  line-height: 0.94;
+  letter-spacing: -0.022em;
+  color: var(--cream);
+  margin-bottom: 14px;
+  font-variation-settings: 'opsz' 144, 'SOFT' 30;
+}
+.modal-name em {
+  font-style: italic;
+  color: var(--gold);
+  font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1;
+}
+
+.modal-deck {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 19px;
+  line-height: 1.45;
+  color: rgba(244,239,227,0.78);
+  max-width: 540px;
+  font-variation-settings: 'opsz' 24, 'SOFT' 100, 'WONK' 1;
+}
+
+.modal-stats {
+  display: grid;
+  gap: 14px;
+}
+
+.modal-stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(244,239,227,0.18);
+}
+
+.modal-stats-key {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(244,239,227,0.55);
+}
+
+.modal-stats-val {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 22px;
+  color: var(--gold);
+  font-variation-settings: 'opsz' 36, 'SOFT' 100, 'WONK' 1;
+}
+
+/* ── CTA ─────────────────────────────────────────────────────────── */
+
+.cta {
+  padding: 100px 40px 130px;
+  text-align: center;
+  background: var(--ink);
+  color: var(--cream);
+  position: relative;
+}
+
+.cta-eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: 22px;
+}
+
+.cta-headline {
+  font-family: var(--serif);
+  font-weight: 350;
+  font-size: clamp(46px, 6.5vw, 96px);
+  line-height: 0.96;
+  letter-spacing: -0.022em;
+  color: var(--cream);
+  max-width: 1100px;
+  margin: 0 auto 28px;
+  font-variation-settings: 'opsz' 144, 'SOFT' 30;
+}
+.cta-headline em {
+  font-style: italic;
+  color: var(--gold);
+  font-variation-settings: 'opsz' 144, 'SOFT' 100, 'WONK' 1;
+}
+
+.cta-sub {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 18px;
+  color: rgba(244,239,227,0.7);
+  max-width: 520px;
+  margin: 0 auto 40px;
+}
+
+.cta-actions { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; }
+
+.btn-gold {
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 14px 26px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: var(--ink);
+  text-decoration: none;
+  border: 1px solid var(--gold);
+  transition: transform 0.2s, background 0.2s;
+}
+.btn-gold:hover { background: var(--cream); border-color: var(--cream); transform: translateY(-1px); }
+
+.btn-ghost-cream {
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 14px 26px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cream);
+  text-decoration: none;
+  border: 1px solid rgba(244,239,227,0.3);
+  transition: border-color 0.2s;
+}
+.btn-ghost-cream:hover { border-color: var(--cream); }
+
+/* ── FOOTER ──────────────────────────────────────────────────────── */
+
+footer {
+  padding: 32px 40px 48px;
+  background: var(--ink);
+  color: rgba(244,239,227,0.5);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  border-top: 1px solid rgba(244,239,227,0.08);
+}
+
+footer .copyright {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+footer .brand-mark {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--cream);
+}
+
+/* ── Responsive ──────────────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  .intro { grid-template-columns: 1fr; }
+  .post-reel-grid, .modal-bottom { grid-template-columns: 1fr; gap: 40px; }
+  .reel-card { width: 78vw; }
+  .modal-content { padding: 40px 24px; }
+}
+
+@media (max-width: 640px) {
+  .nav { left: 12px; right: 12px; padding: 10px 14px; }
+  .nav-meta { display: none; }
+  .intro { padding: 110px 20px 30px; }
+  .reel-card { width: 86vw; }
+  .reel-controls { margin: 0 20px; }
+  .post-reel { padding: 80px 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+</style>
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<nav class="nav">
+  <a href="#" class="nav-brand">Nanasays</a>
+  <span class="nav-meta">The Reel · 08 of 154</span>
+  <a href="#" class="nav-cta">Try Nana</a>
+</nav>
+
+<!-- ============ INTRO ============ -->
+<section class="intro">
+  <div>
+    <div class="intro-eyebrow">Volume I · The Reel</div>
+    <h1 class="intro-headline">Drag your way <em>across</em> the country.</h1>
+  </div>
+  <p class="intro-deck">
+    Eight independent schools, sized big and lined up west to east. Click and
+    drag to scroll. Fling for momentum. Click any photo to enter.
+  </p>
+</section>
+
+<!-- ============ THE REEL ============ -->
+<section class="reel-section">
+  <div class="reel-stage" id="reelStage">
+    <div class="reel-track" id="reelTrack">
+
+      <article class="reel-card" data-i="0"
+        data-name="Wycombe Abbey" data-place="Buckinghamshire · Girls · 11–18"
+        data-fee="£15,950" data-grade="82%" data-isi="Excellent" data-deck="A girls' boarding school for 11–18. Saturday school mandatory; bursaries reach 100% means-tested."
+        data-photo="1541339907198-e08756dedf3f">
+        <div class="reel-card-img" style="background-image:url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=1600&q=80&auto=format&fit=crop')"></div>
+        <div class="reel-card-meta">
+          <span class="reel-card-meta-num">No. 0001</span>
+          <span>Buckinghamshire · 1896</span>
+        </div>
+        <button class="reel-card-expand" aria-label="Open detail">↗</button>
+        <div class="reel-card-body">
+          <div>
+            <h2 class="reel-card-name">Wycombe <em>Abbey</em></h2>
+            <div class="reel-card-place">Girls · Boarding · 11–18</div>
+          </div>
+          <div class="reel-card-stats">
+            <div><div class="reel-card-stat-v">82%</div><div class="reel-card-stat-k">A-level A*/A</div></div>
+            <div><div class="reel-card-stat-v">£15,950</div><div class="reel-card-stat-k">Fee · term</div></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="reel-card" data-i="1"
+        data-name="Eton College" data-place="Berkshire · Boys · 13–18"
+        data-fee="£16,668" data-grade="78%" data-isi="Excellent" data-deck="A boys' boarding school for 13–18. A twelve-day fortnight; twenty-five houses; bursaries to 100%."
+        data-photo="1568667256549-094345857637">
+        <div class="reel-card-img" style="background-image:url('https://images.unsplash.com/photo-1568667256549-094345857637?w=1600&q=80&auto=format&fit=crop')"></div>
+        <div class="reel-card-meta">
+          <span class="reel-card-meta-num">No. 0014</span>
+          <span>Berkshire · 1440</span>
+        </div>
+        <button class="reel-card-expand" aria-label="Open detail">↗</button>
+        <div class="reel-card-body">
+          <div>
+            <h2 class="reel-card-name">Eton <em>College</em></h2>
+            <div class="reel-card-place">Boys · Boarding · 13–18</div>
+          </div>
+          <div class="reel-card-stats">
+            <div><div class="reel-card-stat-v">78%</div><div class="reel-card-stat-k">A-level A*/A</div></div>
+            <div><div class="reel-card-stat-v">£16,668</div><div class="reel-card-stat-k">Fee · term</div></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="reel-card" data-i="2"
+        data-name="Benenden" data-place="Kent · Girls · 11–18"
+        data-fee="£14,995" data-grade="74%" data-isi="Excellent" data-deck="A girls' boarding school for 11–18. A smaller cohort, a lighter Saturday, a named pastoral lead in the policy."
+        data-photo="1497633762265-9d179a990aa6">
+        <div class="reel-card-img" style="background-image:url('https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=1600&q=80&auto=format&fit=crop')"></div>
+        <div class="reel-card-meta">
+          <span class="reel-card-meta-num">No. 0023</span>
+          <span>Kent · 1923</span>
+        </div>
+        <button class="reel-card-expand" aria-label="Open detail">↗</button>
+        <div class="reel-card-body">
+          <div>
+            <h2 class="reel-card-name">Benenden</h2>
+            <div class="reel-card-place">Girls · Boarding · 11–18</div>
+          </div>
+          <div class="reel-card-stats">
+            <div><div class="reel-card-stat-v">74%</div><div class="reel-card-stat-k">A-level A*/A</div></div>
+            <div><div class="reel-card-stat-v">£14,995</div><div class="reel-card-stat-k">Fee · term</div></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="reel-card" data-i="3"
+        data-name="Winchester College" data-place="Hampshire · Co-ed · 13–18"
+        data-fee="£16,490" data-grade="81%" data-isi="Excellent" data-deck="A co-ed boarding school for 13–18. Co-ed since 2022; a twelve-day fortnight; one of the country's oldest libraries."
+        data-photo="1571260899304-425eee4c7efc">
+        <div class="reel-card-img" style="background-image:url('https://images.unsplash.com/photo-1571260899304-425eee4c7efc?w=1600&q=80&auto=format&fit=crop')"></div>
+        <div class="reel-card-meta">
+          <span class="reel-card-meta-num">No. 0029</span>
+          <span>Hampshire · 1382</span>
+        </div>
+        <button class="reel-card-expand" aria-label="Open detail">↗</button>
+        <div class="reel-card-body">
+          <div>
+            <h2 class="reel-card-name">Winchester <em>College</em></h2>
+            <div class="reel-card-place">Co-ed · Boarding · 13–18</div>
+          </div>
+          <div class="reel-card-stats">
+            <div><div class="reel-card-stat-v">81%</div><div class="reel-card-stat-k">A-level A*/A</div></div>
+            <div><div class="reel-card-stat-v">£16,490</div><div class="reel-card-stat-k">Fee · term</div></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="reel-card" data-i="4"
+        data-name="Marlborough" data-place="Wiltshire · Co-ed · 13–18"
+        data-fee="£15,580" data-grade="76%" data-isi="Excellent" data-deck="A co-ed boarding school for 13–18. Thirty houses, mixed system; full boarding; Saturday school all years."
+        data-photo="1607237138185-eedd9c632b0b">
+        <div class="reel-card-img" style="background-image:url('https://images.unsplash.com/photo-1607237138185-eedd9c632b0b?w=1600&q=80&auto=format&fit=crop')"></div>
+        <div class="reel-card-meta">
+          <span class="reel-card-meta-num">No. 0041</span>
+          <span>Wiltshire · 1843</span>
+        </div>
+        <button class="reel-card-expand" aria-label="Open detail">↗</button>
+        <div class="reel-card-body">
+          <div>
+            <h2 class="reel-card-name">Marlborough</h2>
+            <div class="reel-card-place">Co-ed · Boarding · 13–18</div>
+          </div>
+          <div class="reel-card-stats">
+            <div><div class="reel-card-stat-v">76%</div><div class="reel-card-stat-k">A-level A*/A</div></div>
+            <div><div class="reel-card-stat-v">£15,580</div><div class="reel-card-stat-k">Fee · term</div></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="reel-card" data-i="5"
+        data-name="Radley College" data-place="Oxfordshire · Boys · 13–18"
+        data-fee="£14,950" data-grade="71%" data-isi="Excellent" data-deck="A boys' boarding school for 13–18. A poet's library, a rugby tier-one squad, Saturday school mandatory."
+        data-photo="1503676260728-1c00da094a0b">
+        <div class="reel-card-img" style="background-image:url('https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=1600&q=80&auto=format&fit=crop')"></div>
+        <div class="reel-card-meta">
+          <span class="reel-card-meta-num">No. 0034</span>
+          <span>Oxfordshire · 1847</span>
+        </div>
+        <button class="reel-card-expand" aria-label="Open detail">↗</button>
+        <div class="reel-card-body">
+          <div>
+            <h2 class="reel-card-name">Radley <em>College</em></h2>
+            <div class="reel-card-place">Boys · Boarding · 13–18</div>
+          </div>
+          <div class="reel-card-stats">
+            <div><div class="reel-card-stat-v">71%</div><div class="reel-card-stat-k">A-level A*/A</div></div>
+            <div><div class="reel-card-stat-v">£14,950</div><div class="reel-card-stat-k">Fee · term</div></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="reel-card" data-i="6"
+        data-name="Fettes College" data-place="Edinburgh · Co-ed · 7–18"
+        data-fee="£13,995" data-grade="69%" data-isi="Excellent" data-deck="A Scottish co-ed boarding school for 7–18. IB + A-levels offered. Tony Blair's alma mater."
+        data-photo="1523050854058-8df90110c9f1">
+        <div class="reel-card-img" style="background-image:url('https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=1600&q=80&auto=format&fit=crop')"></div>
+        <div class="reel-card-meta">
+          <span class="reel-card-meta-num">No. 0058</span>
+          <span>Edinburgh · 1870</span>
+        </div>
+        <button class="reel-card-expand" aria-label="Open detail">↗</button>
+        <div class="reel-card-body">
+          <div>
+            <h2 class="reel-card-name">Fettes <em>College</em></h2>
+            <div class="reel-card-place">Co-ed · Boarding · 7–18</div>
+          </div>
+          <div class="reel-card-stats">
+            <div><div class="reel-card-stat-v">69%</div><div class="reel-card-stat-k">A-level A*/A</div></div>
+            <div><div class="reel-card-stat-v">£13,995</div><div class="reel-card-stat-k">Fee · term</div></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="reel-card" data-i="7"
+        data-name="Sherborne Girls" data-place="Dorset · Girls · 11–18"
+        data-fee="£14,250" data-grade="70%" data-isi="Good" data-deck="A girls' boarding school for 11–18. Paired with the boys' school across town. Strong arts and sciences split."
+        data-photo="1481627834876-b7833e8f5570">
+        <div class="reel-card-img" style="background-image:url('https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=1600&q=80&auto=format&fit=crop')"></div>
+        <div class="reel-card-meta">
+          <span class="reel-card-meta-num">No. 0049</span>
+          <span>Dorset · 1899</span>
+        </div>
+        <button class="reel-card-expand" aria-label="Open detail">↗</button>
+        <div class="reel-card-body">
+          <div>
+            <h2 class="reel-card-name">Sherborne <em>Girls</em></h2>
+            <div class="reel-card-place">Girls · Boarding · 11–18</div>
+          </div>
+          <div class="reel-card-stats">
+            <div><div class="reel-card-stat-v">70%</div><div class="reel-card-stat-k">A-level A*/A</div></div>
+            <div><div class="reel-card-stat-v">£14,250</div><div class="reel-card-stat-k">Fee · term</div></div>
+          </div>
+        </div>
+      </article>
+
+    </div>
+
+    <div class="reel-hint">Click and drag — or fling</div>
+  </div>
+
+  <div class="reel-controls">
+    <div class="reel-counter">
+      <span class="now" id="reelNow">01</span>
+      <span>/</span>
+      <span class="total">08</span>
+    </div>
+    <div class="reel-progress"><div class="reel-progress-fill" id="reelProgress"></div></div>
+    <button class="reel-btn" id="reelPrev" aria-label="Previous">←</button>
+    <button class="reel-btn" id="reelNext" aria-label="Next">→</button>
+  </div>
+</section>
+
+<!-- ============ POST-REEL EDITORIAL ============ -->
+<section class="post-reel">
+  <div class="post-reel-grid">
+    <div>
+      <div class="post-reel-text-eyebrow">An honest read</div>
+      <h2 class="post-reel-headline">The reel is the <em>shortlist</em>.</h2>
+      <p class="post-reel-body">
+        Every photograph above is a school we've read end to end — the inspection,
+        the fee schedule, the safeguarding policy, the boarding handbook. The
+        figures aren't from the brochure. They're from the small print.
+      </p>
+      <p class="post-reel-body">
+        No paid placement, no sponsored entries. Just one hundred and fifty-four
+        schools, each given the same patient reading.
+      </p>
+    </div>
+    <div>
+      <p class="post-reel-quote">"A school is what it does on a Wednesday. <em>Not what it says on a Saturday</em>."</p>
+      <div class="post-reel-attr">— a working principle</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ FULLSCREEN MODAL ============ -->
+<div class="modal" id="modal" aria-hidden="true">
+  <div class="modal-photo" id="modalPhoto"></div>
+  <div class="modal-content">
+    <div class="modal-top">
+      <div>
+        <div class="modal-num" id="modalNum">No. 0001 · Buckinghamshire</div>
+      </div>
+      <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-bottom">
+      <div>
+        <h2 class="modal-name" id="modalName">Wycombe <em>Abbey</em></h2>
+        <p class="modal-deck" id="modalDeck">A girls' boarding school for 11–18.</p>
+      </div>
+      <div class="modal-stats">
+        <div class="modal-stats-row"><span class="modal-stats-key">A-level A*/A</span><span class="modal-stats-val" id="modalGrade">82%</span></div>
+        <div class="modal-stats-row"><span class="modal-stats-key">Fee · term</span><span class="modal-stats-val" id="modalFee">£15,950</span></div>
+        <div class="modal-stats-row"><span class="modal-stats-key">ISI safeguarding</span><span class="modal-stats-val" id="modalIsi">Excellent</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ CTA ============ -->
+<section class="cta">
+  <div class="cta-eyebrow">◆ Begin reading</div>
+  <h2 class="cta-headline">154 schools, <em>all dragged through the same reading</em>.</h2>
+  <p class="cta-sub">Free to browse the reel. Free to ask Nana the first questions. No paid placement, ever.</p>
+  <div class="cta-actions">
+    <a href="#" class="btn-gold">Try Nana free →</a>
+    <a href="#" class="btn-ghost-cream">Browse all 154 schools</a>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <span class="copyright">MMXXVI · Nanasays · Made in the United Kingdom</span>
+  <span class="brand-mark">The Reel — Vol. I</span>
+</footer>
+
+<script>
+(() => {
+  'use strict';
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const stage = document.getElementById('reelStage');
+  const track = document.getElementById('reelTrack');
+  const cards = Array.from(track.querySelectorAll('.reel-card'));
+  const progress = document.getElementById('reelProgress');
+  const counterNow = document.getElementById('reelNow');
+  const prevBtn = document.getElementById('reelPrev');
+  const nextBtn = document.getElementById('reelNext');
+
+  // ── Physics state ─────────────────────────────────────────────
+  let x = 0;            // current translateX
+  let targetX = 0;
+  let velocity = 0;
+  let isDown = false;
+  let dragStartX = 0;
+  let lastPointerX = 0;
+  let lastT = 0;
+  let raf = null;
+
+  // ── Layout helpers ────────────────────────────────────────────
+  function getMinX() {
+    // furthest negative x — last card's left edge near viewport left
+    return -(track.scrollWidth - stage.clientWidth);
+  }
+  function getMaxX() { return 0; }
+
+  function cardCenters() {
+    // For each card, return the track-X at which that card is centred in the stage
+    const stageW = stage.clientWidth;
+    return cards.map(c => {
+      // c.offsetLeft is its position within track
+      const cardCenter = c.offsetLeft + c.offsetWidth / 2;
+      return -(cardCenter - stageW / 2);
+    });
+  }
+
+  function activeIndex(currentX) {
+    const centers = cardCenters();
+    let bestI = 0, bestD = Infinity;
+    centers.forEach((cx, i) => {
+      const d = Math.abs(cx - currentX);
+      if (d < bestD) { bestD = d; bestI = i; }
+    });
+    return bestI;
+  }
+
+  function applyTransform() {
+    track.style.transform = `translate3d(${x}px, 0, 0)`;
+
+    // Interior parallax: shift each card's image based on its offset from stage center
+    const stageRect = stage.getBoundingClientRect();
+    const stageCenter = stageRect.left + stageRect.width / 2;
+    cards.forEach(c => {
+      const r = c.getBoundingClientRect();
+      const cardCenter = r.left + r.width / 2;
+      const offset = (cardCenter - stageCenter) / stageRect.width; // -1 … 1
+      const img = c.querySelector('.reel-card-img');
+      if (img) img.style.transform = `translate3d(${-offset * 60}px, 0, 0) scale(1.1)`;
+    });
+
+    // Progress + counter + active state
+    const total = getMinX();
+    const prog = total === 0 ? 0 : Math.max(0, Math.min(1, x / total));
+    progress.style.width = (prog * 100) + '%';
+
+    const idx = activeIndex(x);
+    cards.forEach((c, i) => c.classList.toggle('is-active', i === idx));
+    counterNow.textContent = String(idx + 1).padStart(2, '0');
+
+    prevBtn.disabled = idx === 0;
+    nextBtn.disabled = idx === cards.length - 1;
+  }
+
+  // ── Animation loop (momentum + spring-to-snap) ─────────────────
+  function loop() {
+    raf = null;
+    if (isDown) {
+      x = targetX;
+      applyTransform();
+      raf = requestAnimationFrame(loop);
+      return;
+    }
+
+    // Apply friction to velocity, integrate
+    velocity *= 0.92;
+    x += velocity;
+
+    // Boundary spring
+    const min = getMinX();
+    const max = getMaxX();
+    if (x > max) {
+      x += (max - x) * 0.25;
+      velocity = 0;
+    } else if (x < min) {
+      x += (min - x) * 0.25;
+      velocity = 0;
+    }
+
+    // Snap-to-nearest when velocity is small
+    if (Math.abs(velocity) < 0.6) {
+      const centers = cardCenters();
+      const idx = activeIndex(x);
+      const target = centers[idx];
+      x += (target - x) * 0.12;
+      // Stop when essentially settled
+      if (Math.abs(target - x) < 0.4 && Math.abs(velocity) < 0.3) {
+        x = target;
+        velocity = 0;
+        applyTransform();
+        return;
+      }
+    }
+
+    applyTransform();
+    raf = requestAnimationFrame(loop);
+  }
+
+  function kick() { if (!raf) raf = requestAnimationFrame(loop); }
+
+  // ── Pointer (mouse + touch) drag ───────────────────────────────
+  function pointerDown(e) {
+    isDown = true;
+    stage.classList.add('is-dragging', 'has-interacted');
+    const pt = e.touches ? e.touches[0] : e;
+    dragStartX = pt.clientX;
+    lastPointerX = pt.clientX;
+    lastT = performance.now();
+    targetX = x;
+    velocity = 0;
+    kick();
+  }
+
+  function pointerMove(e) {
+    if (!isDown) return;
+    e.preventDefault?.();
+    const pt = e.touches ? e.touches[0] : e;
+    const dx = pt.clientX - lastPointerX;
+    const now = performance.now();
+    const dt = Math.max(1, now - lastT);
+    velocity = (dx / dt) * 16;        // ~per-frame velocity
+    targetX = x + dx;
+    lastPointerX = pt.clientX;
+    lastT = now;
+  }
+
+  function pointerUp() {
+    if (!isDown) return;
+    isDown = false;
+    stage.classList.remove('is-dragging');
+    kick();
+  }
+
+  stage.addEventListener('mousedown', pointerDown);
+  window.addEventListener('mousemove', pointerMove);
+  window.addEventListener('mouseup', pointerUp);
+
+  stage.addEventListener('touchstart', pointerDown, { passive: true });
+  window.addEventListener('touchmove', pointerMove, { passive: false });
+  window.addEventListener('touchend', pointerUp);
+
+  // ── Wheel: trackpad horizontal scroll ──────────────────────────
+  stage.addEventListener('wheel', (e) => {
+    // Allow horizontal wheel/trackpad swipes to scroll the reel
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+      e.preventDefault();
+      x -= e.deltaX;
+      velocity = -e.deltaX * 0.4;
+      targetX = x;
+      kick();
+    }
+  }, { passive: false });
+
+  // ── Nav buttons ────────────────────────────────────────────────
+  function goTo(i) {
+    const centers = cardCenters();
+    const clamped = Math.max(0, Math.min(cards.length - 1, i));
+    velocity = 0;
+    targetX = centers[clamped];
+    // Animate toward it
+    function step() {
+      x += (targetX - x) * 0.18;
+      applyTransform();
+      if (Math.abs(targetX - x) > 0.5) requestAnimationFrame(step);
+      else { x = targetX; applyTransform(); }
+    }
+    step();
+  }
+  prevBtn.addEventListener('click', () => goTo(activeIndex(x) - 1));
+  nextBtn.addEventListener('click', () => goTo(activeIndex(x) + 1));
+
+  // ── Keyboard ───────────────────────────────────────────────────
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') goTo(activeIndex(x) - 1);
+    if (e.key === 'ArrowRight') goTo(activeIndex(x) + 1);
+    if (e.key === 'Escape') closeModal();
+  });
+
+  // ── Modal ──────────────────────────────────────────────────────
+  const modal = document.getElementById('modal');
+  const modalPhoto = document.getElementById('modalPhoto');
+  const modalNum = document.getElementById('modalNum');
+  const modalName = document.getElementById('modalName');
+  const modalDeck = document.getElementById('modalDeck');
+  const modalGrade = document.getElementById('modalGrade');
+  const modalFee = document.getElementById('modalFee');
+  const modalIsi = document.getElementById('modalIsi');
+  const modalClose = document.getElementById('modalClose');
+
+  function openModal(card) {
+    const d = card.dataset;
+    modalPhoto.style.backgroundImage = `url('https://images.unsplash.com/photo-${d.photo}?w=2400&q=85&auto=format&fit=crop')`;
+    modalNum.textContent = `No. ${String(parseInt(d.i,10)+1).padStart(4,'0')} · ${d.place.split('·')[0].trim()}`;
+    // Italicise the last word in the name
+    const parts = d.name.trim().split(' ');
+    const last = parts.pop();
+    modalName.innerHTML = `${parts.join(' ')} <em>${last}</em>`;
+    modalDeck.textContent = d.deck;
+    modalGrade.textContent = d.grade;
+    modalFee.textContent = d.fee;
+    modalIsi.textContent = d.isi;
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal() {
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+  modalClose.addEventListener('click', closeModal);
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+
+  // Card clicks → modal (but only if not dragging)
+  cards.forEach(c => {
+    let downAt = 0, downX = 0;
+    c.addEventListener('mousedown', (e) => { downAt = performance.now(); downX = e.clientX; });
+    c.addEventListener('click', (e) => {
+      const dt = performance.now() - downAt;
+      const dx = Math.abs(e.clientX - downX);
+      if (dt < 350 && dx < 5) openModal(c);
+    });
+    const expandBtn = c.querySelector('.reel-card-expand');
+    expandBtn.addEventListener('click', (e) => { e.stopPropagation(); openModal(c); });
+  });
+
+  // ── Init ───────────────────────────────────────────────────────
+  window.addEventListener('resize', () => { applyTransform(); });
+  // Snap to first card on load
+  requestAnimationFrame(() => {
+    const centers = cardCenters();
+    x = centers[0];
+    targetX = x;
+    applyTransform();
+  });
+
+})();
+</script>
+
+</body>
+</html>

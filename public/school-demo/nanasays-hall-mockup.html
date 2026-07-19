@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nanasays — The Hall · A wall of schools that looks back</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Manrope:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<style>
+/* ─────────────────────────────────────────────────────────────────────
+   THE HALL — a 24-tile photo wall that looks back
+   Each tile tilts in 3D to point its face toward the cursor.
+   Hover any tile to scale it. Click to expand fullscreen.
+   ─────────────────────────────────────────────────────────────────── */
+
+:root {
+  --paper: #F4EFE3;
+  --paper-warm: #ECE3CC;
+  --paper-edge: #DCD2B4;
+  --ink: #0E1A2A;
+  --ink-soft: #28384C;
+  --gray: #6A7385;
+  --gold: #C9A86A;
+  --gold-deep: #A18044;
+  --rust: #B5563D;
+  --teal: #1B7059;
+  --hairline: rgba(14,26,42,0.14);
+
+  --serif: 'Cormorant Garamond', 'Times New Roman', serif;
+  --sans: 'Manrope', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--paper);
+  color: var(--ink);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.18;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='3'/><feColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.42 0 0 0 0 0.28 0 0 0 0.16 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");
+  mix-blend-mode: multiply;
+}
+
+::selection { background: var(--rust); color: var(--paper); }
+
+/* ── NAV ─────────────────────────────────────────────────────────── */
+
+.nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  padding: 18px 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(244,239,227,0.78);
+  backdrop-filter: blur(12px) saturate(160%);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.nav-brand {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 500;
+  font-size: 24px;
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.nav-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.nav-cta {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 9px 18px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  text-decoration: none;
+  transition: background 0.2s, transform 0.2s;
+}
+.nav-cta:hover { background: var(--rust); transform: translateY(-1px); }
+
+/* ── INTRO ───────────────────────────────────────────────────────── */
+
+.intro {
+  padding: 130px 40px 30px;
+  max-width: 1400px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 60px;
+  align-items: end;
+  position: relative;
+  z-index: 2;
+}
+
+.intro-eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--rust);
+  margin-bottom: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.intro-eyebrow::before {
+  content: '';
+  width: 28px; height: 1px;
+  background: var(--rust);
+}
+
+.intro-headline {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(48px, 7vw, 116px);
+  line-height: 0.94;
+  letter-spacing: -0.018em;
+  color: var(--ink);
+}
+.intro-headline em { font-style: italic; color: var(--rust); }
+
+.intro-deck {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 19px;
+  color: var(--ink-soft);
+  max-width: 360px;
+  line-height: 1.5;
+}
+
+/* ── THE HALL ────────────────────────────────────────────────────── */
+
+.hall-section {
+  position: relative;
+  padding: 40px 0 60px;
+  z-index: 2;
+}
+
+.hall-frame {
+  position: relative;
+  margin: 0 24px;
+  height: 86vh;
+  min-height: 640px;
+  background: var(--ink);
+  border-radius: 6px;
+  overflow: hidden;
+  perspective: 1200px;
+  perspective-origin: 50% 50%;
+  cursor: none;
+}
+
+.hall-frame::before {
+  /* gallery ambience: vignette */
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 50%, transparent 0%, rgba(0,0,0,0.4) 100%),
+    linear-gradient(180deg, rgba(0,0,0,0.2) 0%, transparent 30%, rgba(0,0,0,0.4) 100%);
+  pointer-events: none;
+  z-index: 5;
+}
+
+.hall-grid {
+  position: absolute;
+  inset: 40px;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  grid-template-rows: repeat(4, 1fr);
+  gap: 16px;
+  transform-style: preserve-3d;
+}
+
+.tile {
+  position: relative;
+  background: var(--ink-soft);
+  border-radius: 4px;
+  overflow: hidden;
+  transform-style: preserve-3d;
+  will-change: transform;
+  cursor: pointer;
+  transition: filter 0.4s ease;
+  filter: brightness(0.85) saturate(0.85);
+}
+
+.tile.is-focused {
+  filter: brightness(1.08) saturate(1.05);
+  z-index: 10;
+}
+
+.tile-img {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.tile.is-focused .tile-img { transform: scale(1.06); }
+
+.tile::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, transparent 0%, transparent 50%, rgba(14,26,42,0.85) 100%);
+  pointer-events: none;
+}
+
+.tile-meta {
+  position: absolute;
+  bottom: 12px;
+  left: 14px;
+  right: 14px;
+  color: var(--paper);
+  z-index: 2;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.tile.is-focused .tile-meta { opacity: 1; transform: translateY(0); }
+
+.tile-name {
+  font-family: var(--serif);
+  font-weight: 500;
+  font-style: italic;
+  font-size: 17px;
+  letter-spacing: -0.005em;
+  line-height: 1.1;
+  color: var(--paper);
+  margin-bottom: 4px;
+}
+
+.tile-place {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(244,239,227,0.7);
+}
+
+.tile-num {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(244,239,227,0.55);
+  z-index: 2;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.tile.is-focused .tile-num { opacity: 1; }
+
+/* Custom cursor for the hall */
+.hall-cursor {
+  position: fixed;
+  top: 0; left: 0;
+  width: 36px; height: 36px;
+  margin: -18px 0 0 -18px;
+  pointer-events: none;
+  z-index: 150;
+  border-radius: 50%;
+  border: 1.5px solid var(--gold);
+  background: rgba(201,168,106,0.08);
+  opacity: 0;
+  transition: opacity 0.3s, width 0.25s, height 0.25s;
+  will-change: transform;
+}
+.hall-cursor::before {
+  content: '';
+  position: absolute;
+  inset: 14px;
+  border-radius: 50%;
+  background: var(--gold);
+}
+
+.hall-cursor.is-visible { opacity: 1; }
+.hall-cursor.is-over-tile {
+  width: 56px; height: 56px;
+  margin: -28px 0 0 -28px;
+  background: rgba(201,168,106,0.15);
+}
+
+@media (hover: none) {
+  .hall-cursor { display: none; }
+  .hall-frame { cursor: pointer; }
+  .tile-meta, .tile-num { opacity: 1 !important; transform: none !important; }
+}
+
+/* Hall labels */
+.hall-label-tl {
+  position: absolute;
+  top: 18px;
+  left: 22px;
+  z-index: 6;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(244,239,227,0.55);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.hall-label-tl::before {
+  content: '';
+  width: 24px; height: 1px;
+  background: rgba(244,239,227,0.4);
+}
+
+.hall-label-br {
+  position: absolute;
+  bottom: 18px;
+  right: 22px;
+  z-index: 6;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(244,239,227,0.55);
+}
+
+/* ── MODAL (click any tile) ──────────────────────────────────────── */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.5s ease;
+  background: var(--ink);
+}
+.modal.is-open { opacity: 1; pointer-events: auto; }
+
+.modal-photo {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: saturate(0.9);
+  transform: scale(1.08);
+  transition: transform 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.modal.is-open .modal-photo { transform: scale(1); }
+
+.modal-photo::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, transparent 0%, transparent 40%, rgba(14,26,42,0.92) 100%),
+    linear-gradient(90deg, rgba(14,26,42,0.55) 0%, transparent 35%);
+}
+
+.modal-content {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  padding: 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  color: var(--paper);
+}
+
+.modal-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-num {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: rgba(244,239,227,0.7);
+}
+
+.modal-close {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: rgba(244,239,227,0.15);
+  border: 1px solid rgba(244,239,227,0.3);
+  color: var(--paper);
+  font-size: 18px;
+  cursor: pointer;
+  backdrop-filter: blur(12px);
+  transition: background 0.2s, color 0.2s, transform 0.2s;
+}
+.modal-close:hover { background: var(--paper); color: var(--ink); transform: scale(1.05); }
+
+.modal-bottom {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 60px;
+  align-items: end;
+}
+
+.modal-name {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(48px, 7vw, 108px);
+  line-height: 0.94;
+  letter-spacing: -0.022em;
+  color: var(--paper);
+  margin-bottom: 14px;
+}
+.modal-name em { font-style: italic; color: var(--gold); }
+
+.modal-deck {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 19px;
+  line-height: 1.45;
+  color: rgba(244,239,227,0.78);
+  max-width: 540px;
+}
+
+.modal-stats {
+  display: grid;
+  gap: 14px;
+}
+
+.modal-stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(244,239,227,0.2);
+}
+
+.modal-stats-key {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(244,239,227,0.55);
+}
+
+.modal-stats-val {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 22px;
+  color: var(--gold);
+}
+
+/* ── EDITORIAL POST ──────────────────────────────────────────────── */
+
+.editorial {
+  padding: 120px 40px;
+  max-width: 1080px;
+  margin: 0 auto;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+}
+
+.editorial-eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--rust);
+  margin-bottom: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+.editorial-eyebrow::before, .editorial-eyebrow::after {
+  content: '';
+  width: 32px; height: 1px;
+  background: var(--rust);
+}
+
+.editorial-quote {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(34px, 5vw, 60px);
+  line-height: 1.15;
+  color: var(--ink);
+  letter-spacing: -0.012em;
+}
+.editorial-quote em { color: var(--rust); }
+
+.editorial-attr {
+  margin-top: 28px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+/* ── CTA ─────────────────────────────────────────────────────────── */
+
+.cta {
+  padding: 80px 40px 130px;
+  text-align: center;
+  background: var(--ink);
+  color: var(--paper);
+  position: relative;
+}
+
+.cta-headline {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(46px, 6.5vw, 96px);
+  line-height: 0.96;
+  letter-spacing: -0.022em;
+  color: var(--paper);
+  max-width: 1080px;
+  margin: 0 auto 26px;
+}
+.cta-headline em { font-style: italic; color: var(--gold); }
+
+.cta-sub {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 18px;
+  color: rgba(244,239,227,0.7);
+  max-width: 540px;
+  margin: 0 auto 40px;
+}
+
+.cta-actions { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; }
+
+.btn-gold {
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 14px 26px;
+  border-radius: 999px;
+  background: var(--gold);
+  color: var(--ink);
+  text-decoration: none;
+  border: 1px solid var(--gold);
+  transition: background 0.2s, transform 0.2s;
+}
+.btn-gold:hover { background: var(--paper); transform: translateY(-1px); }
+
+.btn-ghost {
+  font-family: var(--sans);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 14px 26px;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--paper);
+  text-decoration: none;
+  border: 1px solid rgba(244,239,227,0.3);
+  transition: border-color 0.2s;
+}
+.btn-ghost:hover { border-color: var(--paper); }
+
+/* ── FOOTER ──────────────────────────────────────────────────────── */
+
+footer {
+  padding: 32px 40px 48px;
+  background: var(--ink);
+  color: rgba(244,239,227,0.5);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  border-top: 1px solid rgba(244,239,227,0.08);
+}
+
+footer .copyright {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+footer .brand-mark {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--paper);
+}
+
+/* ── Responsive ──────────────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  .intro { grid-template-columns: 1fr; }
+  .hall-grid { grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(6, 1fr); inset: 24px; }
+  .modal-bottom { grid-template-columns: 1fr; gap: 30px; }
+  .modal-content { padding: 30px; }
+}
+
+@media (max-width: 640px) {
+  .nav { padding: 12px 16px; }
+  .nav-meta { display: none; }
+  .intro { padding: 110px 20px 24px; }
+  .hall-frame { margin: 0 16px; height: 76vh; }
+  .hall-grid { grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(8, 1fr); inset: 16px; gap: 10px; }
+  .editorial { padding: 80px 20px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  .tile { transform: none !important; }
+}
+
+</style>
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<nav class="nav">
+  <a href="#" class="nav-brand">Nanasays</a>
+  <span class="nav-meta">The Hall · 24 of 154</span>
+  <a href="#" class="nav-cta">Try Nana</a>
+</nav>
+
+<!-- ============ INTRO ============ -->
+<section class="intro">
+  <div>
+    <div class="intro-eyebrow">Volume I · The Hall</div>
+    <h1 class="intro-headline">A wall of <em>portraits</em> that follows your eye.</h1>
+  </div>
+  <p class="intro-deck">
+    Twenty-four British independent schools, hung as portraits. Move your cursor —
+    every tile rotates to face you. Click any one to step into the room.
+  </p>
+</section>
+
+<!-- ============ THE HALL ============ -->
+<section class="hall-section">
+  <div class="hall-frame" id="hallFrame">
+
+    <span class="hall-label-tl">Plate I · Twenty-four portraits</span>
+    <span class="hall-label-br">↺ click any portrait to enter</span>
+
+    <div class="hall-grid" id="hallGrid">
+      <!-- 24 tiles. Schools cycle through the set. -->
+    </div>
+
+    <div class="hall-cursor" id="hallCursor"></div>
+  </div>
+</section>
+
+<!-- ============ FULLSCREEN MODAL ============ -->
+<div class="modal" id="modal" aria-hidden="true">
+  <div class="modal-photo" id="modalPhoto"></div>
+  <div class="modal-content">
+    <div class="modal-top">
+      <div class="modal-num" id="modalNum">No. 0001 · Buckinghamshire</div>
+      <button class="modal-close" id="modalClose" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-bottom">
+      <div>
+        <h2 class="modal-name" id="modalName">Wycombe <em>Abbey</em></h2>
+        <p class="modal-deck" id="modalDeck">A girls' boarding school for 11–18.</p>
+      </div>
+      <div class="modal-stats">
+        <div class="modal-stats-row"><span class="modal-stats-key">A-level A*/A</span><span class="modal-stats-val" id="modalGrade">82%</span></div>
+        <div class="modal-stats-row"><span class="modal-stats-key">Fee · term</span><span class="modal-stats-val" id="modalFee">£15,950</span></div>
+        <div class="modal-stats-row"><span class="modal-stats-key">ISI safeguarding</span><span class="modal-stats-val" id="modalIsi">Excellent</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ EDITORIAL ============ -->
+<section class="editorial">
+  <div class="editorial-eyebrow">Look and be looked at</div>
+  <p class="editorial-quote">
+    "A wall is a kind of <em>archive</em> — every portrait is a fact that
+    refuses to be forgotten."
+  </p>
+  <div class="editorial-attr">A working principle</div>
+</section>
+
+<!-- ============ CTA ============ -->
+<section class="cta">
+  <h2 class="cta-headline">154 schools, <em>all looking back</em>.</h2>
+  <p class="cta-sub">Free to browse the Hall. Free to ask Nana the first questions.</p>
+  <div class="cta-actions">
+    <a href="#" class="btn-gold">Try Nana free →</a>
+    <a href="#" class="btn-ghost">Browse all 154 schools</a>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <span class="copyright">MMXXVI · Nanasays · Made in the United Kingdom</span>
+  <span class="brand-mark">The Hall — Vol. I</span>
+</footer>
+
+<script>
+(() => {
+  'use strict';
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isCoarse = matchMedia('(hover: none)').matches;
+
+  // ── SCHOOL DATA ───────────────────────────────────────────────
+  const SCHOOLS = [
+    { num: '0001', name: 'Wycombe Abbey',   place: 'Buckinghamshire', type: 'Girls · Boarding · 11–18', fee: '£15,950', grade: '82%', isi: 'Excellent', photo: '1541339907198-e08756dedf3f', deck: 'Top-decile A-levels, full boarding, mandatory Saturday school — and bursaries that reach 100%.' },
+    { num: '0014', name: 'Eton College',    place: 'Berkshire',       type: 'Boys · Boarding · 13–18',  fee: '£16,668', grade: '78%', isi: 'Excellent', photo: '1568667256549-094345857637', deck: 'Twelve-day fortnight, twenty-five houses, and a bursary programme that quietly reaches the full fee.' },
+    { num: '0023', name: 'Benenden',        place: 'Kent',            type: 'Girls · Boarding · 11–18', fee: '£14,995', grade: '74%', isi: 'Excellent', photo: '1497633762265-9d179a990aa6', deck: 'A smaller cohort, a lighter Saturday, and a named pastoral lead in the safeguarding policy.' },
+    { num: '0029', name: 'Winchester',      place: 'Hampshire',       type: 'Co-ed · Boarding · 13–18', fee: '£16,490', grade: '81%', isi: 'Excellent', photo: '1571260899304-425eee4c7efc', deck: 'Co-ed since 2022. A twelve-day fortnight and a Fellows\' Library that predates the school.' },
+    { num: '0041', name: 'Marlborough',     place: 'Wiltshire',       type: 'Co-ed · Boarding · 13–18', fee: '£15,580', grade: '76%', isi: 'Excellent', photo: '1607237138185-eedd9c632b0b', deck: 'Thirty houses on a mixed system, full boarding, and Saturday school across all years.' },
+    { num: '0034', name: 'Radley College',  place: 'Oxfordshire',     type: 'Boys · Boarding · 13–18',  fee: '£14,950', grade: '71%', isi: 'Excellent', photo: '1503676260728-1c00da094a0b', deck: 'A poet\'s library, a rugby tier-one squad, Saturday school mandatory across the years.' },
+    { num: '0058', name: 'Fettes College',  place: 'Edinburgh',       type: 'Co-ed · Boarding · 7–18',  fee: '£13,995', grade: '69%', isi: 'Excellent', photo: '1523050854058-8df90110c9f1', deck: 'A Scottish boarding school offering both IB and A-levels.' },
+    { num: '0049', name: 'Sherborne Girls', place: 'Dorset',          type: 'Girls · Boarding · 11–18', fee: '£14,250', grade: '70%', isi: 'Good',      photo: '1481627834876-b7833e8f5570', deck: 'Paired with the boys\' school across town. Strong arts and sciences split.' },
+  ];
+
+  // Generate 24 tiles by cycling and varying
+  const TILES = [];
+  for (let i = 0; i < 24; i++) {
+    const s = SCHOOLS[i % SCHOOLS.length];
+    TILES.push({ ...s });
+  }
+
+  // ── Render the grid ──────────────────────────────────────────
+  const grid = document.getElementById('hallGrid');
+  grid.innerHTML = TILES.map((s, i) => `
+    <article class="tile" data-i="${i}"
+      data-name="${s.name}" data-place="${s.place}" data-type="${s.type}"
+      data-fee="${s.fee}" data-grade="${s.grade}" data-isi="${s.isi}"
+      data-photo="${s.photo}" data-deck="${s.deck}">
+      <div class="tile-img" style="background-image: url('https://images.unsplash.com/photo-${s.photo}?w=600&q=80&auto=format&fit=crop')"></div>
+      <span class="tile-num">No. ${s.num}</span>
+      <div class="tile-meta">
+        <div class="tile-name">${s.name}</div>
+        <div class="tile-place">${s.place}</div>
+      </div>
+    </article>
+  `).join('');
+
+  const tiles = Array.from(grid.querySelectorAll('.tile'));
+
+  // ── CURSOR-TRACKED 3D TILT ───────────────────────────────────
+  const frame = document.getElementById('hallFrame');
+  const cursor = document.getElementById('hallCursor');
+  let cursorX = 0, cursorY = 0;
+  let rafScheduled = false;
+  let tileRects = [];
+
+  function cacheRects() {
+    tileRects = tiles.map(t => {
+      const r = t.getBoundingClientRect();
+      return { el: t, cx: r.left + r.width/2, cy: r.top + r.height/2, w: r.width, h: r.height };
+    });
+  }
+
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+  function update() {
+    rafScheduled = false;
+    let focusedTile = null;
+    let minDist = Infinity;
+
+    tileRects.forEach(rec => {
+      const dx = cursorX - rec.cx;
+      const dy = cursorY - rec.cy;
+      const dist = Math.hypot(dx, dy);
+      // Each tile "looks at" the cursor: surface-normal points toward cursor
+      // rotateY = -atan2(dx, D);  rotateX = atan2(-dy, D);
+      const D = 700;
+      const rotY = clamp(-Math.atan2(dx, D) * 180 / Math.PI, -28, 28);
+      const rotX = clamp( Math.atan2(-dy, D) * 180 / Math.PI, -20, 20);
+
+      // Scale-up when cursor is inside tile bounds
+      const isInside = Math.abs(dx) < rec.w/2 && Math.abs(dy) < rec.h/2;
+      const scale = isInside ? 1.07 : 1;
+      const tz = isInside ? 30 : 0;
+
+      rec.el.style.transform = `translateZ(${tz}px) scale(${scale}) rotateX(${rotX}deg) rotateY(${rotY}deg)`;
+      rec.el.classList.toggle('is-focused', isInside);
+
+      if (isInside && dist < minDist) { minDist = dist; focusedTile = rec.el; }
+    });
+
+    // Cursor visual state
+    cursor.style.transform = `translate3d(${cursorX}px, ${cursorY}px, 0)`;
+    cursor.classList.toggle('is-over-tile', !!focusedTile);
+  }
+
+  function schedule() {
+    if (!rafScheduled) {
+      rafScheduled = true;
+      requestAnimationFrame(update);
+    }
+  }
+
+  if (!isCoarse && !reduce) {
+    frame.addEventListener('mouseenter', () => {
+      cacheRects();
+      cursor.classList.add('is-visible');
+    });
+    frame.addEventListener('mouseleave', () => {
+      cursor.classList.remove('is-visible');
+      // Reset all tiles
+      tiles.forEach(t => { t.style.transform = ''; t.classList.remove('is-focused'); });
+    });
+    frame.addEventListener('mousemove', (e) => {
+      cursorX = e.clientX;
+      cursorY = e.clientY;
+      schedule();
+    }, { passive: true });
+  }
+
+  window.addEventListener('resize', cacheRects);
+  window.addEventListener('scroll', cacheRects, { passive: true });
+
+  // ── MODAL ────────────────────────────────────────────────────
+  const modal = document.getElementById('modal');
+  const modalPhoto = document.getElementById('modalPhoto');
+  const modalNum = document.getElementById('modalNum');
+  const modalName = document.getElementById('modalName');
+  const modalDeck = document.getElementById('modalDeck');
+  const modalGrade = document.getElementById('modalGrade');
+  const modalFee = document.getElementById('modalFee');
+  const modalIsi = document.getElementById('modalIsi');
+  const modalClose = document.getElementById('modalClose');
+
+  function openModal(tile) {
+    const d = tile.dataset;
+    modalPhoto.style.backgroundImage = `url('https://images.unsplash.com/photo-${d.photo}?w=2400&q=85&auto=format&fit=crop')`;
+    modalNum.textContent = `No. ${String(parseInt(d.i,10)+1).padStart(4,'0')} · ${d.place}`;
+    const parts = d.name.trim().split(' ');
+    const last = parts.pop();
+    modalName.innerHTML = `${parts.join(' ')} <em>${last}</em>`;
+    modalDeck.textContent = d.deck;
+    modalGrade.textContent = d.grade;
+    modalFee.textContent = d.fee;
+    modalIsi.textContent = d.isi;
+    modal.classList.add('is-open');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+  }
+  function closeModal() {
+    modal.classList.remove('is-open');
+    modal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+
+  tiles.forEach(t => t.addEventListener('click', () => openModal(t)));
+  modalClose.addEventListener('click', closeModal);
+  modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+  window.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+})();
+</script>
+
+</body>
+</html>

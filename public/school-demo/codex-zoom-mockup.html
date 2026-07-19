@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Nanasays - Zoomable School Library</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Inter+Tight:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+:root{--paper:#f1eadb;--paper-light:#f8f1e4;--paper-warm:#e6d8bf;--ink:#17253a;--ink-soft:#435168;--navy:#101a2a;--brass:#a46f2d;--brass-dark:#7d4d1d;--rust:#a3482e;--chalk:rgba(248,241,228,.92);--hairline:rgba(23,37,58,.16);--rule:rgba(23,37,58,.35);--shadow:rgba(16,26,42,.32);--serif:'Cormorant Garamond','Times New Roman',serif;--sans:'Inter Tight',system-ui,sans-serif;--mono:'JetBrains Mono',ui-monospace,monospace;}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{scroll-behavior:smooth;}
+body{min-height:100vh;overflow-x:hidden;background:radial-gradient(circle at 14% 8%,rgba(164,111,45,.12),transparent 28vw),linear-gradient(180deg,var(--paper-light) 0%,var(--paper) 44%,#eadfc9 100%);color:var(--ink);font-family:var(--sans);line-height:1.5;-webkit-font-smoothing:antialiased;}
+body::before{content:'';position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.34;mix-blend-mode:multiply;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' seed='13'/><feColorMatrix values='0 0 0 0 0.48 0 0 0 0 0.39 0 0 0 0 0.25 0 0 0 0.16 0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)'/></svg>");}
+::selection{background:var(--rust);color:var(--paper-light);}
+a{color:inherit;}
+button{font:inherit;}
+.page-shell{position:relative;z-index:2;}
+.display{font-family:var(--serif);font-weight:400;letter-spacing:-.015em;line-height:.96;}
+.eyebrow{display:inline-flex;align-items:center;gap:12px;color:var(--brass-dark);font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.24em;line-height:1;text-transform:uppercase;}
+.eyebrow::before,.eyebrow::after{content:'';width:28px;height:1px;background:currentColor;opacity:.52;}
+.masthead{position:fixed;top:0;left:0;right:0;z-index:50;display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:24px;padding:18px 46px 16px;border-bottom:1px solid var(--hairline);background:rgba(241,234,219,.86);backdrop-filter:blur(14px);}
+.masthead-left,.masthead-right{display:flex;align-items:center;gap:26px;}
+.masthead-right{justify-content:flex-end;}
+.masthead-brand{color:var(--ink);font-family:var(--serif);font-size:28px;font-style:italic;font-weight:500;letter-spacing:-.01em;text-decoration:none;}
+.masthead-brand span{display:block;margin-top:-1px;color:var(--brass-dark);font-family:var(--mono);font-size:8px;font-style:normal;font-weight:500;letter-spacing:.22em;text-align:center;text-transform:uppercase;}
+.masthead-link{color:var(--ink-soft);font-family:var(--mono);font-size:10px;font-weight:500;letter-spacing:.18em;text-decoration:none;text-transform:uppercase;transition:color .18s ease;}
+.masthead-link:hover{color:var(--rust);}
+.masthead-cta{display:inline-flex;align-items:center;min-height:34px;padding:0 16px;border:1px solid var(--ink);border-radius:999px;background:var(--ink);color:var(--paper-light);font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.18em;text-decoration:none;text-transform:uppercase;}
+.masthead-cta:hover{border-color:var(--rust);background:var(--rust);}
+.hero{position:relative;min-height:94vh;padding:158px 48px 72px;display:grid;align-items:end;}
+.hero-inner{width:min(1220px,100%);margin:0 auto;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(320px,.8fr);gap:70px;align-items:end;}
+.hero-copy{max-width:760px;}
+.hero-title{margin-top:24px;color:var(--ink);font-size:clamp(64px,9vw,144px);}
+.hero-title em{color:var(--rust);font-style:italic;font-weight:400;}
+.hero-deck{max-width:620px;margin-top:28px;color:var(--ink-soft);font-family:var(--serif);font-size:clamp(22px,2.2vw,31px);font-style:italic;line-height:1.35;}
+.hero-proof{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;margin-top:44px;border:1px solid var(--hairline);background:var(--hairline);}
+.proof-cell{min-height:106px;padding:18px 18px 16px;background:rgba(248,241,228,.62);}
+.proof-number{color:var(--ink);font-family:var(--serif);font-size:38px;font-style:italic;line-height:1;}
+.proof-label{display:block;margin-top:12px;color:var(--ink-soft);font-family:var(--mono);font-size:9px;letter-spacing:.18em;line-height:1.45;text-transform:uppercase;}
+.hero-aside{position:relative;min-height:490px;border:1px solid var(--rule);background:var(--navy);box-shadow:0 40px 80px -42px var(--shadow);overflow:hidden;}
+.hero-aside::before{content:'';position:absolute;inset:18px;z-index:2;border:1px solid rgba(248,241,228,.28);pointer-events:none;}
+.hero-aside-photo{position:absolute;inset:0;background-image:linear-gradient(180deg,rgba(16,26,42,.1),rgba(16,26,42,.72)),url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?auto=format&fit=crop&w=1000&q=80');background-position:center;background-size:cover;filter:saturate(.74) contrast(1.08);}
+.hero-aside-caption{position:absolute;left:34px;right:34px;bottom:36px;z-index:3;color:var(--chalk);}
+.aside-kicker{display:block;margin-bottom:14px;color:rgba(248,241,228,.72);font-family:var(--mono);font-size:9px;letter-spacing:.2em;text-transform:uppercase;}
+.aside-title{font-family:var(--serif);font-size:42px;font-style:italic;font-weight:400;line-height:1;}
+.aside-note{max-width:300px;margin-top:16px;color:rgba(248,241,228,.78);font-size:14px;line-height:1.55;}
+.wall-section{position:relative;padding:92px 0 118px;border-top:1px solid var(--hairline);border-bottom:1px solid var(--hairline);background:linear-gradient(180deg,rgba(23,37,58,.05),transparent 26%),var(--paper);}
+.wall-head{width:min(1220px,calc(100% - 96px));margin:0 auto 34px;display:grid;grid-template-columns:minmax(0,1fr) minmax(300px,420px);gap:46px;align-items:end;}
+.wall-title{margin-top:14px;color:var(--ink);font-size:clamp(44px,5.8vw,82px);}
+.wall-title em{color:var(--rust);font-style:italic;}
+.wall-instructions{color:var(--ink-soft);font-family:var(--serif);font-size:21px;font-style:italic;line-height:1.42;}
+.wall-rail{width:min(1420px,calc(100% - 42px));margin:0 auto;padding:18px;border:1px solid var(--rule);background:rgba(248,241,228,.46);box-shadow:0 32px 90px -60px var(--shadow);}
+.wall-frame{position:relative;width:80vw;max-width:1280px;height:80vh;min-height:560px;max-height:820px;margin:0 auto;overflow:hidden;border:1px solid rgba(248,241,228,.28);background:linear-gradient(rgba(248,241,228,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(248,241,228,.04) 1px,transparent 1px),#0f1827;background-size:36px 36px;cursor:grab;touch-action:none;user-select:none;}
+.wall-frame.is-dragging{cursor:grabbing;}
+.wall-frame::before,.wall-frame::after{content:'';position:absolute;z-index:8;width:26px;height:26px;pointer-events:none;}
+.wall-frame::before{top:18px;left:18px;border-top:1px solid rgba(248,241,228,.55);border-left:1px solid rgba(248,241,228,.55);}
+.wall-frame::after{right:18px;bottom:18px;border-right:1px solid rgba(248,241,228,.55);border-bottom:1px solid rgba(248,241,228,.55);}
+.wall-vignette{position:absolute;inset:0;z-index:6;pointer-events:none;background:radial-gradient(circle at 50% 44%,transparent 34%,rgba(15,24,39,.3) 78%,rgba(15,24,39,.68) 100%),linear-gradient(180deg,rgba(15,24,39,.25),transparent 20%,transparent 72%,rgba(15,24,39,.34));}
+.photo-wall{position:absolute;top:50%;left:50%;width:min(1120px,74vw);height:min(690px,64vh);display:grid;grid-template-columns:repeat(4,1fr);grid-template-rows:repeat(4,1fr);gap:14px;will-change:transform,opacity;transform-origin:center center;transform-style:preserve-3d;transition:opacity .42s ease,filter .42s ease;}
+.wall-frame.is-detail .photo-wall{opacity:0;filter:blur(8px);pointer-events:none;}
+.photo-tile{position:relative;overflow:hidden;border:1px solid rgba(248,241,228,.26);background:var(--navy);box-shadow:0 1px 0 rgba(248,241,228,.18) inset,0 20px 42px -28px rgba(0,0,0,.72);cursor:pointer;transform-style:preserve-3d;will-change:transform;transition:border-color .16s ease,box-shadow .16s ease;}
+.photo-tile:hover{border-color:rgba(248,241,228,.68);box-shadow:0 1px 0 rgba(248,241,228,.3) inset,0 26px 54px -28px rgba(0,0,0,.78);}
+.tile-image{position:absolute;inset:0;background-position:center;background-size:cover;filter:saturate(.68) contrast(1.08) brightness(.86);transform:scale(1.03);}
+.tile-image::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(16,26,42,.02) 24%,rgba(16,26,42,.74) 100%),radial-gradient(circle at 50% 35%,transparent 42%,rgba(16,26,42,.42) 100%);}
+.tile-index{position:absolute;top:10px;left:10px;z-index:2;color:rgba(248,241,228,.68);font-family:var(--mono);font-size:9px;letter-spacing:.14em;}
+.tile-label{position:absolute;left:11px;right:11px;bottom:11px;z-index:3;display:grid;gap:5px;opacity:0;transform:translateY(8px);transition:opacity .18s ease,transform .18s ease;}
+.wall-frame.has-labels .tile-label{opacity:1;transform:translateY(0);}
+.tile-name{color:var(--chalk);font-family:var(--serif);font-size:clamp(14px,1.4vw,22px);font-style:italic;font-weight:500;letter-spacing:-.005em;line-height:1.04;}
+.tile-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.tile-pill{display:inline-flex;align-items:center;min-height:18px;padding:3px 6px 2px;border:1px solid rgba(248,241,228,.25);background:rgba(16,26,42,.58);color:rgba(248,241,228,.78);font-family:var(--mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase;}
+.reset-button{position:absolute;top:20px;right:20px;z-index:10;display:inline-flex;align-items:center;gap:8px;height:36px;padding:0 14px;border:1px solid rgba(248,241,228,.3);background:rgba(16,26,42,.72);color:var(--chalk);cursor:pointer;font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;backdrop-filter:blur(10px);}
+.reset-button:hover{border-color:rgba(248,241,228,.68);background:rgba(164,111,45,.86);}
+.wall-hud{position:absolute;left:22px;right:22px;bottom:20px;z-index:9;display:flex;justify-content:space-between;align-items:center;pointer-events:none;}
+.zoom-meter,.wall-caption{display:inline-flex;align-items:center;min-height:34px;border:1px solid rgba(248,241,228,.22);background:rgba(16,26,42,.72);color:rgba(248,241,228,.78);backdrop-filter:blur(10px);font-family:var(--mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;}
+.zoom-meter{gap:10px;padding:0 12px;}
+.zoom-track{width:90px;height:2px;background:rgba(248,241,228,.2);}
+.zoom-fill{display:block;width:0%;height:100%;background:var(--brass);transition:width .12s ease;}
+.wall-caption{padding:0 13px;}
+.detail-panel{position:absolute;top:50%;left:50%;z-index:12;width:min(620px,calc(100% - 52px));max-height:calc(100% - 74px);overflow:auto;opacity:0;pointer-events:none;transform:translate3d(calc(-50% + var(--detail-x,0px)),calc(-50% + var(--detail-y,0px)),0) scale(.2);transform-origin:center center;transition:opacity .26s ease,transform .54s cubic-bezier(.22,1,.36,1);}
+.wall-frame.is-detail .detail-panel{opacity:1;pointer-events:auto;transform:translate3d(-50%,-50%,0) scale(1);}
+.detail-card{border:1px solid rgba(248,241,228,.42);background:linear-gradient(180deg,rgba(248,241,228,.98),rgba(234,223,201,.98));box-shadow:0 50px 90px -42px rgba(0,0,0,.62);color:var(--ink);}
+.detail-photo{position:relative;height:250px;background-position:center;background-size:cover;filter:saturate(.74) contrast(1.05);}
+.detail-photo::after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(16,26,42,.05),rgba(16,26,42,.76));}
+.detail-back{position:absolute;top:18px;left:18px;z-index:2;display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border:1px solid rgba(248,241,228,.46);border-radius:50%;background:rgba(16,26,42,.62);color:var(--paper-light);cursor:pointer;font-size:22px;}
+.detail-back:hover{background:var(--rust);}
+.detail-overprint{position:absolute;left:26px;right:26px;bottom:24px;z-index:2;color:var(--paper-light);}
+.detail-kicker{display:block;margin-bottom:10px;color:rgba(248,241,228,.72);font-family:var(--mono);font-size:9px;letter-spacing:.2em;text-transform:uppercase;}
+.detail-name{font-family:var(--serif);font-size:clamp(42px,6vw,66px);font-style:italic;font-weight:400;letter-spacing:-.02em;line-height:.95;}
+.detail-body{padding:28px 30px 32px;}
+.detail-summary{color:var(--ink-soft);font-family:var(--serif);font-size:22px;font-style:italic;line-height:1.38;}
+.fact-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1px;margin-top:24px;border:1px solid var(--hairline);background:var(--hairline);}
+.fact{min-height:74px;padding:14px 15px 12px;background:rgba(248,241,228,.72);}
+.fact-key{display:block;color:var(--brass-dark);font-family:var(--mono);font-size:9px;font-weight:600;letter-spacing:.18em;text-transform:uppercase;}
+.fact-val{display:block;margin-top:8px;color:var(--ink);font-size:15px;font-weight:600;line-height:1.25;}
+.detail-note{margin-top:22px;padding-top:18px;border-top:1px solid var(--hairline);color:var(--ink-soft);font-size:14px;line-height:1.65;}
+.wall-footnote{width:min(1220px,calc(100% - 96px));margin:24px auto 0;display:flex;justify-content:space-between;gap:28px;color:var(--ink-soft);font-family:var(--mono);font-size:10px;letter-spacing:.16em;text-transform:uppercase;}
+.editorial{position:relative;padding:122px 48px 118px;background:var(--paper-light);}
+.editorial-inner{width:min(820px,100%);margin:0 auto;}
+.chapter-mark{display:grid;grid-template-columns:auto 1fr;gap:22px;align-items:center;margin-bottom:34px;}
+.chapter-number{color:var(--rust);font-family:var(--serif);font-size:86px;font-style:italic;font-weight:300;letter-spacing:-.03em;line-height:.9;}
+.chapter-line{height:1px;background:var(--hairline);}
+.editorial-title{color:var(--ink);font-family:var(--serif);font-size:clamp(44px,6vw,78px);font-weight:400;letter-spacing:-.018em;line-height:1.02;}
+.editorial-title em{color:var(--rust);font-style:italic;}
+.editorial-caption{margin:18px 0 34px;color:var(--brass-dark);font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;}
+.editorial-copy{color:var(--ink-soft);font-family:var(--serif);font-size:clamp(21px,2vw,25px);line-height:1.58;}
+.editorial-copy p + p{margin-top:24px;}
+.editorial-copy p:first-of-type::first-letter{float:left;margin:9px 13px 0 -4px;color:var(--rust);font-family:var(--serif);font-size:92px;font-style:italic;line-height:.78;}
+.cta{position:relative;padding:110px 48px 106px;background:var(--ink);color:var(--paper-light);overflow:hidden;}
+.cta::before{content:'';position:absolute;inset:0;opacity:.18;background-image:linear-gradient(rgba(248,241,228,.1) 1px,transparent 1px),linear-gradient(90deg,rgba(248,241,228,.1) 1px,transparent 1px);background-size:44px 44px;}
+.cta-inner{position:relative;width:min(1120px,100%);margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:48px;align-items:center;}
+.cta-label{color:rgba(248,241,228,.62);font-family:var(--mono);font-size:10px;letter-spacing:.22em;text-transform:uppercase;}
+.cta-title{max-width:760px;margin-top:14px;font-family:var(--serif);font-size:clamp(48px,6.5vw,92px);font-weight:400;letter-spacing:-.018em;line-height:.96;}
+.cta-title em{color:#d7a45e;font-style:italic;}
+.cta-actions{display:flex;flex-direction:column;gap:14px;min-width:260px;}
+.cta-button{display:inline-flex;align-items:center;justify-content:space-between;gap:20px;min-height:54px;padding:0 18px 0 20px;border:1px solid rgba(248,241,228,.42);color:var(--paper-light);font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.16em;text-decoration:none;text-transform:uppercase;}
+.cta-button.primary{border-color:var(--paper-light);background:var(--paper-light);color:var(--ink);}
+.cta-button:hover{border-color:#d7a45e;background:#d7a45e;color:var(--ink);}
+.footer{padding:34px 48px 40px;border-top:1px solid var(--hairline);background:#e8ddc7;color:var(--ink-soft);}
+.footer-inner{width:min(1220px,100%);margin:0 auto;display:flex;justify-content:space-between;gap:24px;align-items:center;}
+.footer-brand{color:var(--ink);font-family:var(--serif);font-size:26px;font-style:italic;line-height:1;}
+.footer-links{display:flex;gap:24px;align-items:center;}
+.footer-link,.footer-small{color:var(--ink-soft);font-family:var(--mono);font-size:10px;letter-spacing:.18em;text-decoration:none;text-transform:uppercase;}
+@media (max-width:900px){.masthead{grid-template-columns:auto 1fr;padding:16px 24px 14px;}
+.masthead-left{display:none;}
+.masthead-right{gap:18px;}
+.hero{min-height:auto;padding:132px 28px 70px;}
+.hero-inner,.wall-head,.cta-inner{grid-template-columns:1fr;}
+.hero-aside{min-height:420px;}
+.wall-head,.wall-footnote{width:min(100% - 44px,1220px);}
+.wall-frame{width:calc(100vw - 78px);height:74vh;min-height:500px;}
+.photo-wall{width:min(900px,70vw);height:min(780px,62vh);}
+}
+@media (max-width:640px){html{scroll-behavior:auto;}
+.masthead{display:flex;justify-content:space-between;padding:13px 16px 12px;}
+.masthead-link{display:none;}
+.masthead-brand{font-size:24px;}
+.masthead-cta{min-height:32px;padding:0 12px;font-size:9px;}
+.hero{padding:116px 20px 58px;}
+.hero-title{font-size:clamp(54px,18vw,76px);}
+.hero-proof{grid-template-columns:1fr;}
+.hero-aside{min-height:360px;}
+.wall-section{padding:70px 0 88px;}
+.wall-head{width:calc(100% - 34px);gap:24px;margin-bottom:26px;}
+.wall-rail{width:calc(100% - 20px);padding:10px;}
+.wall-frame{width:calc(100vw - 40px);height:72vh;min-height:430px;max-height:none;}
+.photo-wall{width:calc(100vw - 68px);height:60vh;gap:8px;}
+.tile-index{top:7px;left:7px;font-size:7px;}
+.tile-name{font-size:13px;}
+.tile-pill{display:none;}
+.wall-hud{left:12px;right:12px;bottom:12px;}
+.wall-caption{display:none;}
+.reset-button{top:12px;right:12px;height:34px;padding:0 11px;}
+.detail-panel{width:calc(100% - 26px);max-height:calc(100% - 40px);}
+.detail-photo{height:220px;}
+.fact-grid{grid-template-columns:1fr;}
+.wall-footnote{width:calc(100% - 34px);flex-direction:column;gap:10px;}
+.editorial{padding:82px 22px 86px;}
+.chapter-number{font-size:68px;}
+.editorial-copy p:first-of-type::first-letter{font-size:74px;}
+.cta{padding:78px 22px 76px;}
+.cta-actions{min-width:0;}
+.footer{padding:30px 22px 34px;}
+.footer-inner,.footer-links{align-items:flex-start;flex-direction:column;}
+}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto !important;transition-duration:.001ms !important;animation-duration:.001ms !important;animation-iteration-count:1 !important;}
+}
+</style>
+</head>
+<body>
+<div class="page-shell">
+  <header class="masthead" aria-label="Nanasays navigation">
+    <nav class="masthead-left" aria-label="Primary">
+      <a class="masthead-link" href="#wall">The Wall</a>
+      <a class="masthead-link" href="#notes">Notes</a>
+    </nav>
+    <a class="masthead-brand" href="#">Nanasays<span>Independent schools</span></a>
+    <nav class="masthead-right" aria-label="Actions">
+      <a class="masthead-link" href="#library">Library</a>
+      <a class="masthead-cta" href="#cta">Try Nana</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-inner">
+        <div class="hero-copy">
+          <span class="eyebrow">Prototype room 04</span>
+          <h1 class="hero-title display" id="hero-title">Look at the whole <em>library</em> at once.</h1>
+          <p class="hero-deck">A searchable schools directory should feel less like a spreadsheet and more like a reading room. Zoom out for the pattern; zoom in for the particulars; click a photograph when one school begins to pull focus.</p>
+          <div class="hero-proof" aria-label="Library summary">
+            <div class="proof-cell"><strong class="proof-number">154</strong><span class="proof-label">independent schools in the first catalogue</span></div>
+            <div class="proof-cell"><strong class="proof-number">16</strong><span class="proof-label">featured wall studies in this prototype</span></div>
+            <div class="proof-cell"><strong class="proof-number">4x</strong><span class="proof-label">maximum inspection zoom with pan and pinch</span></div>
+          </div>
+        </div>
+        <aside class="hero-aside" aria-label="Editorial preview">
+          <div class="hero-aside-photo"></div>
+          <div class="hero-aside-caption">
+            <span class="aside-kicker">Directory as exhibition</span>
+            <h2 class="aside-title">A wall of doors, courts, cloisters and lawns.</h2>
+            <p class="aside-note">The interaction borrows from image archives and map rooms: large enough to browse spatially, precise enough to reward a closer look.</p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="wall-section" id="wall" aria-labelledby="wall-title">
+      <div class="wall-head">
+        <div>
+          <span class="eyebrow">The Wall</span>
+          <h2 class="wall-title display" id="wall-title">Sixteen schools, <em>one canvas.</em></h2>
+        </div>
+        <p class="wall-instructions">Use the mouse wheel over the frame to zoom toward your cursor. Drag while zoomed to pan. On touch screens, pinch and drag. Labels appear when there is enough scale to read them.</p>
+      </div>
+
+      <div class="wall-rail">
+        <div class="wall-frame" id="wallFrame" aria-label="Zoomable school photo wall">
+          <button class="reset-button" type="button" id="resetButton" aria-label="Reset the photo wall"><span aria-hidden="true">↺</span>Reset</button>
+          <div class="photo-wall" id="photoWall" aria-live="polite"></div>
+          <div class="wall-vignette" aria-hidden="true"></div>
+
+          <div class="detail-panel" id="detailPanel" aria-hidden="true">
+            <article class="detail-card">
+              <div class="detail-photo" id="detailPhoto">
+                <button class="detail-back" type="button" id="backButton" aria-label="Return to the photo wall">‹</button>
+                <div class="detail-overprint">
+                  <span class="detail-kicker" id="detailKicker">School file</span>
+                  <h3 class="detail-name" id="detailName">Wycombe Abbey</h3>
+                </div>
+              </div>
+              <div class="detail-body">
+                <p class="detail-summary" id="detailSummary"></p>
+                <div class="fact-grid" id="factGrid"></div>
+                <p class="detail-note" id="detailNote"></p>
+              </div>
+            </article>
+          </div>
+
+          <div class="wall-hud" aria-hidden="true">
+            <div class="zoom-meter"><span id="zoomText">1.00x</span><span class="zoom-track"><span class="zoom-fill" id="zoomFill"></span></span></div>
+            <div class="wall-caption">Wheel zoom follows cursor - drag to pan - click to enter</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="wall-footnote">
+        <span>Clipped viewport: 80vw by 80vh desktop</span>
+        <span>Transforms: single wall translate3d plus scale</span>
+      </div>
+    </section>
+
+    <section class="editorial" id="notes" aria-labelledby="editorial-title">
+      <div class="editorial-inner">
+        <div class="chapter-mark"><span class="chapter-number">II</span><span class="chapter-line"></span></div>
+        <h2 class="editorial-title" id="editorial-title">The directory should preserve <em>the pleasure of browsing.</em></h2>
+        <p class="editorial-caption">Caption: prototype notes for the Nanasays reading room</p>
+        <div class="editorial-copy">
+          <p>Independent-school search is usually compressed into a narrow funnel: a form, a ranking, a list of cards whose differences are flattened by identical templates. That is useful when a family already knows what it is looking for. It is less useful at the beginning, when the work is not yet comparison but orientation. A good directory should let a parent notice patterns before asking for filters. It should make geography, atmosphere, rhythm and institutional personality legible without demanding a spreadsheet mindset from the first click.</p>
+          <p>This wall treats the catalogue as a field of visual evidence. From a distance, the schools read as one archive: greens, brick, chapel stone, quadrangles, long drives, water, windows, playing fields. Zooming in changes the task. Names become available. Counties, boarding models and headline stats emerge only when the viewer has chosen a region of attention. That staged disclosure is deliberate. It keeps the first encounter generous and then rewards intent with detail, the way a museum label waits beside the object rather than shouting over the room.</p>
+          <p>The fly-in card is the bridge between atmosphere and decision. It does not ask the photograph to do analytical work alone; it turns a clicked tile into a concise school file with type, county, fee or outcome signal, setting and editorial note. For Nanasays, the pattern is important: the product can be rigorous without becoming cold. It can hold data, search and guidance inside a calmer visual system that respects the stakes of choosing a school while still making the act of discovery feel human.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="cta" id="cta" aria-labelledby="cta-title">
+      <div class="cta-inner">
+        <div>
+          <span class="cta-label">Begin with the whole shelf</span>
+          <h2 class="cta-title" id="cta-title">Find the school that keeps catching <em>your eye.</em></h2>
+        </div>
+        <div class="cta-actions">
+          <a class="cta-button primary" href="#">Try Nana <span aria-hidden="true">→</span></a>
+          <a class="cta-button" href="#library" id="library">Browse all 154 schools <span aria-hidden="true">→</span></a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-inner">
+      <div>
+        <div class="footer-brand">Nanasays</div>
+        <div class="footer-small">UK independent-schools directory</div>
+      </div>
+      <nav class="footer-links" aria-label="Footer">
+        <a class="footer-link" href="#wall">Zoom room</a>
+        <a class="footer-link" href="#notes">Editorial notes</a>
+        <a class="footer-link" href="#cta">Try Nana</a>
+      </nav>
+    </div>
+  </footer>
+</div>
+
+<script>
+(() => {
+  const schools = [
+    {
+      name:'Wycombe Abbey',
+      county:'Buckinghamshire',
+      type:'Girls · Boarding',
+      stat:'A* 48%',
+      fee:'£51k boarding',
+      founded:'1896',
+      ages:'11-18',
+      setting:'Hilltop campus',
+      note:'A high-achieving girls boarding school with a distinctive house culture and a strong academic reputation.',
+      image:'1541339907198-e08756dedf3f'
+    },
+    {
+      name:'Eton College',
+      county:'Berkshire',
+      type:'Boys · Boarding',
+      stat:'£52k fees',
+      fee:'£52k boarding',
+      founded:'1440',
+      ages:'13-18',
+      setting:'Historic riverside town',
+      note:'A full-boarding boys school whose traditions, house life and co-curricular breadth shape the experience.',
+      image:'1568667256549-094345857637'
+    },
+    {
+      name:'Benenden',
+      county:'Kent',
+      type:'Girls · Boarding',
+      stat:'A* 43%',
+      fee:'£49k boarding',
+      founded:'1923',
+      ages:'11-18',
+      setting:'Kentish parkland',
+      note:'A boarding-first girls school known for confidence, breadth and a polished senior-school rhythm.',
+      image:'1497633762265-9d179a990aa6'
+    },
+    {
+      name:'Winchester College',
+      county:'Hampshire',
+      type:'Boys · Boarding',
+      stat:'A* 46%',
+      fee:'£50k boarding',
+      founded:'1382',
+      ages:'13-18',
+      setting:'Cathedral city',
+      note:'An academically serious school with deep collegiate traditions and a strong intellectual identity.',
+      image:'1571260899304-425eee4c7efc'
+    },
+    {
+      name:'Marlborough',
+      county:'Wiltshire',
+      type:'Co-ed · Boarding',
+      stat:'£48k fees',
+      fee:'£48k boarding',
+      founded:'1843',
+      ages:'13-18',
+      setting:'Market town campus',
+      note:'A large co-educational boarding school with scale, arts, sport and a broad academic programme.',
+      image:'1607237138185-eedd9c632b0b'
+    },
+    {
+      name:'Radley',
+      county:'Oxfordshire',
+      type:'Boys · Boarding',
+      stat:'A* 41%',
+      fee:'£51k boarding',
+      founded:'1847',
+      ages:'13-18',
+      setting:'Village estate',
+      note:'A boys full-boarding school with a close pastoral structure and a campus built around collegiate houses.',
+      image:'1503676260728-1c00da094a0b'
+    },
+    {
+      name:'Fettes',
+      county:'Edinburgh',
+      type:'Co-ed · Boarding',
+      stat:'IB 39 pts',
+      fee:'£47k boarding',
+      founded:'1870',
+      ages:'7-18',
+      setting:'Capital city estate',
+      note:'A Scottish boarding and day school with a grand architectural presence and international curriculum routes.',
+      image:'1523050854058-8df90110c9f1'
+    },
+    {
+      name:'Sherborne Girls',
+      county:'Dorset',
+      type:'Girls · Boarding',
+      stat:'A* 38%',
+      fee:'£46k boarding',
+      founded:'1899',
+      ages:'11-18',
+      setting:'Abbey town',
+      note:'A girls boarding school with creative breadth and the unusual benefit of a close relationship with Sherborne School.',
+      image:'1481627834876-b7833e8f5570'
+    },
+    {
+      name:'Charterhouse',
+      county:'Surrey',
+      type:'Co-ed · Boarding',
+      stat:'A* 40%',
+      fee:'£50k boarding',
+      founded:'1611',
+      ages:'13-18',
+      setting:'Surrey hills',
+      note:'A historic school with a broad sixth-form culture, major facilities and an expansive campus near Godalming.',
+      image:'1541339907198-e08756dedf3f'
+    },
+    {
+      name:'Harrow',
+      county:'London',
+      type:'Boys · Boarding',
+      stat:'£53k fees',
+      fee:'£53k boarding',
+      founded:'1572',
+      ages:'13-18',
+      setting:'Hilltop village',
+      note:'A full-boarding boys school with highly visible traditions, strong house identity and close access to London.',
+      image:'1568667256549-094345857637'
+    },
+    {
+      name:'Rugby',
+      county:'Warwickshire',
+      type:'Co-ed · Boarding',
+      stat:'A* 36%',
+      fee:'£47k boarding',
+      founded:'1567',
+      ages:'13-18',
+      setting:'Midlands town',
+      note:'A co-educational boarding school with a famous sporting history and a sizeable academic and activities offer.',
+      image:'1497633762265-9d179a990aa6'
+    },
+    {
+      name:'Cheltenham Ladies',
+      county:'Gloucestershire',
+      type:'Girls · Boarding',
+      stat:'A* 44%',
+      fee:'£48k boarding',
+      founded:'1853',
+      ages:'11-18',
+      setting:'Spa town',
+      note:'A large girls school with boarding, day and international pathways, known for ambition and academic range.',
+      image:'1571260899304-425eee4c7efc'
+    },
+    {
+      name:'Stowe',
+      county:'Buckinghamshire',
+      type:'Co-ed · Boarding',
+      stat:'£46k fees',
+      fee:'£46k boarding',
+      founded:'1923',
+      ages:'13-18',
+      setting:'Landscape garden',
+      note:'A co-educational school set in a celebrated estate, with a visual identity defined by scale and landscape.',
+      image:'1607237138185-eedd9c632b0b'
+    },
+    {
+      name:'Repton',
+      county:'Derbyshire',
+      type:'Co-ed · Boarding',
+      stat:'A* 32%',
+      fee:'£45k boarding',
+      founded:'1557',
+      ages:'13-18',
+      setting:'Derbyshire village',
+      note:'A co-educational boarding school with a strong village setting, active sport and a recognisable house system.',
+      image:'1503676260728-1c00da094a0b'
+    },
+    {
+      name:'Ampleforth',
+      county:'North Yorkshire',
+      type:'Co-ed · Boarding',
+      stat:'£43k fees',
+      fee:'£43k boarding',
+      founded:'1802',
+      ages:'11-18',
+      setting:'Yorkshire valley',
+      note:'A Catholic boarding school whose setting, monastic links and rural campus give it a distinctive atmosphere.',
+      image:'1523050854058-8df90110c9f1'
+    },
+    {
+      name:'Tonbridge',
+      county:'Kent',
+      type:'Boys · Boarding',
+      stat:'A* 45%',
+      fee:'£49k boarding',
+      founded:'1553',
+      ages:'13-18',
+      setting:'Kent town',
+      note:'A boys school with day and boarding routes, strong academic outcomes and a compact town-centre campus.',
+      image:'1481627834876-b7833e8f5570'
+    }
+  ];
+
+  const frame = document.getElementById('wallFrame');
+  const wall = document.getElementById('photoWall');
+  const resetButton = document.getElementById('resetButton');
+  const backButton = document.getElementById('backButton');
+  const detailPanel = document.getElementById('detailPanel');
+  const detailPhoto = document.getElementById('detailPhoto');
+  const detailKicker = document.getElementById('detailKicker');
+  const detailName = document.getElementById('detailName');
+  const detailSummary = document.getElementById('detailSummary');
+  const detailNote = document.getElementById('detailNote');
+  const factGrid = document.getElementById('factGrid');
+  const zoomText = document.getElementById('zoomText');
+  const zoomFill = document.getElementById('zoomFill');
+  const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const minScale = 1;
+  const maxScale = 4;
+
+  const state = {
+    scale:1,
+    x:0,
+    y:0,
+    targetScale:1,
+    targetX:0,
+    targetY:0,
+    pointerDown:false,
+    dragging:false,
+    activePointer:null,
+    startX:0,
+    startY:0,
+    startPanX:0,
+    startPanY:0,
+    lastTapTarget:null,
+    pinchStartDistance:0,
+    pinchStartScale:1
+  };
+
+  function imageUrl(id, width = 900) {
+    return `https://images.unsplash.com/photo-${id}?auto=format&fit=crop&w=${width}&q=82`;
+  }
+
+  function renderTiles() {
+    wall.innerHTML = schools.map((school, index) => `
+      <button class="photo-tile" type="button" data-index="${index}" aria-label="Open ${school.name}">
+        <span class="tile-image" style="background-image:url('${imageUrl(school.image)}')"></span>
+        <span class="tile-index">${String(index + 1).padStart(2, '0')}</span>
+        <span class="tile-label">
+          <span class="tile-name">${school.name}</span>
+          <span class="tile-meta">
+            <span class="tile-pill">${school.county}</span>
+            <span class="tile-pill">${school.type}</span>
+            <span class="tile-pill">${school.stat}</span>
+          </span>
+        </span>
+      </button>
+    `).join('');
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  function boundsFor(scale) {
+    const frameRect = frame.getBoundingClientRect();
+    const wallWidth = wall.offsetWidth || 1;
+    const wallHeight = wall.offsetHeight || 1;
+    return {
+      x:Math.max(0, (wallWidth * scale - frameRect.width) / 2),
+      y:Math.max(0, (wallHeight * scale - frameRect.height) / 2)
+    };
+  }
+
+  function clampPan() {
+    const bounds = boundsFor(state.targetScale);
+    state.targetX = clamp(state.targetX, -bounds.x, bounds.x);
+    state.targetY = clamp(state.targetY, -bounds.y, bounds.y);
+  }
+
+  function setTarget(scale, x, y) {
+    state.targetScale = clamp(scale, minScale, maxScale);
+    state.targetX = x;
+    state.targetY = y;
+    clampPan();
+    frame.classList.toggle('has-labels', state.targetScale > 1.5);
+  }
+
+  function zoomAt(clientX, clientY, nextScale) {
+    const rect = frame.getBoundingClientRect();
+    const pointX = clientX - rect.left - rect.width / 2;
+    const pointY = clientY - rect.top - rect.height / 2;
+    const scale = clamp(nextScale, minScale, maxScale);
+    const localX = (pointX - state.targetX) / state.targetScale;
+    const localY = (pointY - state.targetY) / state.targetScale;
+    setTarget(scale, pointX - localX * scale, pointY - localY * scale);
+  }
+
+  function updateTransform() {
+    const ease = prefersReduced.matches ? 1 : 0.18;
+    state.scale += (state.targetScale - state.scale) * ease;
+    state.x += (state.targetX - state.x) * ease;
+    state.y += (state.targetY - state.y) * ease;
+    if (Math.abs(state.scale - state.targetScale) < 0.001) state.scale = state.targetScale;
+    if (Math.abs(state.x - state.targetX) < 0.05) state.x = state.targetX;
+    if (Math.abs(state.y - state.targetY) < 0.05) state.y = state.targetY;
+    wall.style.transform = `translate3d(calc(-50% + ${state.x}px), calc(-50% + ${state.y}px), 0) scale(${state.scale})`;
+    zoomText.textContent = `${state.scale.toFixed(2)}x`;
+    zoomFill.style.width = `${((state.scale - minScale) / (maxScale - minScale)) * 100}%`;
+    frame.classList.toggle('has-labels', state.scale > 1.5);
+    requestAnimationFrame(updateTransform);
+  }
+
+  function updateTileTilt(clientX, clientY) {
+    const tiles = document.querySelectorAll('.photo-tile');
+    if (state.scale <= 1.08 || frame.classList.contains('is-detail')) {
+      tiles.forEach(tile => { tile.style.transform = ''; });
+      return;
+    }
+    tiles.forEach(tile => {
+      const rect = tile.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const dx = clientX - centerX;
+      const dy = clientY - centerY;
+      const influence = clamp(1 - Math.hypot(dx, dy) / 380, 0, 1);
+      const rotateY = clamp(dx / rect.width, -1, 1) * 5 * influence;
+      const rotateX = clamp(-dy / rect.height, -1, 1) * 5 * influence;
+      const lift = 8 * influence;
+      tile.style.transform = `perspective(900px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg) translateZ(${lift.toFixed(2)}px)`;
+    });
+  }
+
+  function resetWall() {
+    setTarget(1, 0, 0);
+    document.querySelectorAll('.photo-tile').forEach(tile => { tile.style.transform = ''; });
+  }
+
+  function openDetail(index, tile) {
+    const school = schools[index];
+    const frameRect = frame.getBoundingClientRect();
+    const tileRect = tile.getBoundingClientRect();
+    const originX = tileRect.left + tileRect.width / 2 - (frameRect.left + frameRect.width / 2);
+    const originY = tileRect.top + tileRect.height / 2 - (frameRect.top + frameRect.height / 2);
+    detailPanel.style.setProperty('--detail-x', `${originX}px`);
+    detailPanel.style.setProperty('--detail-y', `${originY}px`);
+    detailPhoto.style.backgroundImage = `url('${imageUrl(school.image, 1200)}')`;
+    detailKicker.textContent = `${school.county} · ${school.type}`;
+    detailName.textContent = school.name;
+    detailSummary.textContent = school.note;
+    detailNote.textContent = 'Nanasays combines qualitative school notes with comparison data, so the first impression can be tested against practical family constraints.';
+    factGrid.innerHTML = [
+      ['County', school.county],
+      ['School type', school.type],
+      ['Headline stat', school.stat],
+      ['Fees signal', school.fee],
+      ['Founded', school.founded],
+      ['Ages', school.ages],
+      ['Setting', school.setting],
+      ['Directory status', 'Featured file']
+    ].map(([key, value]) => `
+      <div class="fact">
+        <span class="fact-key">${key}</span>
+        <span class="fact-val">${value}</span>
+      </div>
+    `).join('');
+    detailPanel.setAttribute('aria-hidden', 'false');
+    frame.classList.add('is-detail');
+    backButton.focus({ preventScroll:true });
+  }
+
+  function closeDetail() {
+    frame.classList.remove('is-detail');
+    detailPanel.setAttribute('aria-hidden', 'true');
+  }
+
+  function distance(a, b) {
+    return Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+  }
+
+  function midpoint(a, b) {
+    return { x:(a.clientX + b.clientX) / 2, y:(a.clientY + b.clientY) / 2 };
+  }
+
+  renderTiles();
+  setTarget(1, 0, 0);
+  requestAnimationFrame(updateTransform);
+
+  frame.addEventListener('wheel', event => {
+    if (frame.classList.contains('is-detail')) return;
+    event.preventDefault();
+    const zoomIntensity = event.deltaMode === 1 ? 0.14 : 0.0024;
+    const factor = Math.exp(-event.deltaY * zoomIntensity);
+    zoomAt(event.clientX, event.clientY, state.targetScale * factor);
+    updateTileTilt(event.clientX, event.clientY);
+  }, { passive:false });
+
+  frame.addEventListener('pointerdown', event => {
+    if (frame.classList.contains('is-detail')) return;
+    state.pointerDown = true;
+    state.dragging = false;
+    state.activePointer = event.pointerId;
+    state.startX = event.clientX;
+    state.startY = event.clientY;
+    state.startPanX = state.targetX;
+    state.startPanY = state.targetY;
+    state.lastTapTarget = event.target.closest('.photo-tile');
+    frame.classList.add('is-dragging');
+    frame.setPointerCapture(event.pointerId);
+  });
+
+  frame.addEventListener('pointermove', event => {
+    updateTileTilt(event.clientX, event.clientY);
+    if (!state.pointerDown || state.activePointer !== event.pointerId || frame.classList.contains('is-detail')) return;
+    const dx = event.clientX - state.startX;
+    const dy = event.clientY - state.startY;
+    if (Math.hypot(dx, dy) > 4) state.dragging = true;
+    if (state.targetScale > 1.01) setTarget(state.targetScale, state.startPanX + dx, state.startPanY + dy);
+  });
+
+  frame.addEventListener('pointerup', event => {
+    if (state.activePointer !== event.pointerId) return;
+    frame.classList.remove('is-dragging');
+    frame.releasePointerCapture(event.pointerId);
+    const targetTile = event.target.closest('.photo-tile');
+    if (!state.dragging && targetTile && targetTile === state.lastTapTarget) openDetail(Number(targetTile.dataset.index), targetTile);
+    state.pointerDown = false;
+    state.activePointer = null;
+  });
+
+  frame.addEventListener('pointercancel', () => {
+    state.pointerDown = false;
+    state.activePointer = null;
+    frame.classList.remove('is-dragging');
+  });
+
+  frame.addEventListener('touchstart', event => {
+    if (frame.classList.contains('is-detail')) return;
+    if (event.touches.length === 2) {
+      event.preventDefault();
+      const [first, second] = event.touches;
+      state.pinchStartDistance = distance(first, second);
+      state.pinchStartScale = state.targetScale;
+    }
+  }, { passive:false });
+
+  frame.addEventListener('touchmove', event => {
+    if (frame.classList.contains('is-detail')) return;
+    if (event.touches.length === 2) {
+      event.preventDefault();
+      const [first, second] = event.touches;
+      const center = midpoint(first, second);
+      const factor = distance(first, second) / Math.max(1, state.pinchStartDistance);
+      zoomAt(center.x, center.y, state.pinchStartScale * factor);
+      updateTileTilt(center.x, center.y);
+    }
+  }, { passive:false });
+
+  resetButton.addEventListener('click', resetWall);
+  backButton.addEventListener('click', closeDetail);
+  window.addEventListener('resize', clampPan);
+  window.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && frame.classList.contains('is-detail')) closeDetail();
+    if (event.key === '0' && !frame.classList.contains('is-detail')) resetWall();
+  });
+})();
+</script>
+</body>
+</html>

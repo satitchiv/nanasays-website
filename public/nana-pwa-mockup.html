@@ -1,0 +1,1759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nana PWA — iPhone mockups</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=SF+Pro+Display:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Nunito', sans-serif;
+    background:
+      radial-gradient(circle at 20% 10%, #fdf2e9 0%, transparent 50%),
+      radial-gradient(circle at 80% 90%, #e8f0fe 0%, transparent 50%),
+      #faf7f2;
+    min-height: 100vh;
+    padding: 60px 24px;
+    color: #2c2416;
+  }
+  .page-header {
+    max-width: 1200px;
+    margin: 0 auto 48px;
+    text-align: center;
+  }
+  .page-header h1 {
+    font-family: 'Nunito', sans-serif;
+    font-size: 36px;
+    font-weight: 800;
+    color: #2c2416;
+    margin-bottom: 12px;
+    letter-spacing: -0.02em;
+  }
+  .page-header p {
+    font-family: 'Nunito', sans-serif;
+    font-size: 17px;
+    color: #6b5a3e;
+    max-width: 640px;
+    margin: 0 auto;
+    line-height: 1.5;
+  }
+  .phone-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 56px 32px;
+    max-width: 1500px;
+    margin: 0 auto;
+    align-items: start;
+  }
+  .phone-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .phone-caption {
+    margin-top: 24px;
+    text-align: center;
+    max-width: 320px;
+  }
+  .phone-caption .step {
+    display: inline-block;
+    background: #2c2416;
+    color: #faf7f2;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    padding: 4px 10px;
+    border-radius: 6px;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+  .phone-caption h3 {
+    font-family: 'Nunito', sans-serif;
+    font-size: 17px;
+    font-weight: 700;
+    color: #2c2416;
+    margin-bottom: 6px;
+  }
+  .phone-caption p {
+    font-family: 'Nunito', sans-serif;
+    font-size: 14px;
+    color: #6b5a3e;
+    line-height: 1.45;
+  }
+
+  /* iPhone frame */
+  .iphone {
+    width: 320px;
+    height: 660px;
+    background: #0a0a0a;
+    border-radius: 48px;
+    padding: 11px;
+    box-shadow:
+      0 30px 60px -15px rgba(44, 36, 22, 0.25),
+      0 0 0 1px rgba(0, 0, 0, 0.08),
+      inset 0 0 0 2px #1a1a1a;
+    position: relative;
+  }
+  .iphone-screen {
+    width: 100%;
+    height: 100%;
+    background: #fff;
+    border-radius: 38px;
+    overflow: hidden;
+    position: relative;
+  }
+  .dynamic-island {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 105px;
+    height: 30px;
+    background: #000;
+    border-radius: 20px;
+    z-index: 100;
+  }
+  .status-bar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 50px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 28px 0;
+    font-family: -apple-system, 'SF Pro Display', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    z-index: 50;
+  }
+  .status-bar.dark { color: #fff; }
+  .status-bar.light { color: #000; }
+  .status-right { display: flex; gap: 5px; align-items: center; }
+  .signal-bars { display: flex; gap: 2px; align-items: flex-end; height: 10px; }
+  .signal-bars span {
+    width: 3px; background: currentColor; border-radius: 1px;
+  }
+  .signal-bars span:nth-child(1) { height: 4px; }
+  .signal-bars span:nth-child(2) { height: 6px; }
+  .signal-bars span:nth-child(3) { height: 8px; }
+  .signal-bars span:nth-child(4) { height: 10px; }
+  .battery {
+    width: 22px; height: 11px;
+    border: 1px solid currentColor;
+    border-radius: 3px;
+    position: relative;
+    padding: 1px;
+  }
+  .battery::after {
+    content: '';
+    position: absolute;
+    right: -3px; top: 3px;
+    width: 2px; height: 4px;
+    background: currentColor;
+    border-radius: 0 1px 1px 0;
+  }
+  .battery-fill {
+    height: 100%; width: 80%;
+    background: currentColor;
+    border-radius: 1px;
+  }
+
+  /* ========== PHONE 1: HOME SCREEN ========== */
+  .home-screen {
+    height: 100%;
+    background:
+      linear-gradient(180deg, #c9b8a8 0%, #e8d9c2 35%, #f2e4ce 60%, #e0c9a8 100%);
+    position: relative;
+    padding: 60px 22px 100px;
+  }
+  .app-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 22px 16px;
+    margin-bottom: 30px;
+  }
+  .app-icon {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+  }
+  .app-icon .icon-box {
+    width: 56px; height: 56px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.12);
+    font-size: 26px;
+    font-weight: 700;
+    color: #fff;
+  }
+  .app-icon .label {
+    font-family: -apple-system, 'SF Pro Display', sans-serif;
+    font-size: 11px;
+    color: #fff;
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  }
+  .icon-messages { background: linear-gradient(180deg, #5fdc6c, #2ec24a); }
+  .icon-safari { background: linear-gradient(180deg, #19a0fa, #1366d4); position: relative; }
+  .icon-safari::after { content: '🧭'; font-size: 28px; }
+  .icon-photos { background: linear-gradient(135deg, #ff5e62, #ff9966, #ffd16a, #4fc3f7, #7b61ff); }
+  .icon-settings { background: linear-gradient(180deg, #b9bcc1, #5e6168); position: relative; }
+  .icon-settings::after { content: '⚙'; font-size: 32px; color: #fff; }
+  .icon-mail { background: linear-gradient(180deg, #4fc3f7, #1976d2); position: relative; }
+  .icon-mail::after { content: '✉'; font-size: 26px; }
+  .icon-calendar { background: #fff; color: #ff3b30; flex-direction: column; gap: 0; }
+  .icon-calendar::before { content: 'WED'; font-size: 9px; font-weight: 700; color: #ff3b30; margin-top: 4px; }
+  .icon-calendar::after { content: '21'; font-size: 24px; font-weight: 600; color: #1c1c1e; line-height: 1; }
+  .icon-notes { background: linear-gradient(180deg, #fff5b8, #f5d949); }
+  .icon-notes::after { content: '📝'; font-size: 24px; }
+  .icon-nana {
+    background: linear-gradient(135deg, #f4a259 0%, #d97757 50%, #b85c38 100%);
+    position: relative;
+    overflow: hidden;
+  }
+  .icon-nana::before {
+    content: '';
+    position: absolute;
+    top: -10px; right: -10px;
+    width: 40px; height: 40px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 50%;
+  }
+  .icon-nana::after {
+    content: 'N';
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 28px;
+    color: #fff;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    position: relative;
+    z-index: 1;
+  }
+  .nana-highlight {
+    position: relative;
+  }
+  .nana-highlight::before {
+    content: '';
+    position: absolute;
+    inset: -8px;
+    border: 2px dashed #d97757;
+    border-radius: 22px;
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.05); }
+  }
+  .dock {
+    position: absolute;
+    bottom: 24px; left: 16px; right: 16px;
+    background: rgba(255,255,255,0.25);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border-radius: 24px;
+    padding: 12px 18px;
+    display: flex;
+    justify-content: space-around;
+  }
+  .dock .icon-box { width: 50px; height: 50px; }
+  .home-indicator {
+    position: absolute;
+    bottom: 8px; left: 50%;
+    transform: translateX(-50%);
+    width: 120px; height: 4px;
+    background: #1c1c1e;
+    border-radius: 4px;
+    opacity: 0.6;
+  }
+
+  /* ========== PHONE 2: SAFARI + SHARE SHEET ========== */
+  .safari-screen {
+    height: 100%;
+    background: #f2f2f7;
+    position: relative;
+    overflow: hidden;
+  }
+  .safari-bg-content {
+    position: absolute;
+    inset: 0;
+    padding: 60px 20px 20px;
+    opacity: 0.4;
+  }
+  .safari-bg-content .url-bar {
+    background: #fff;
+    border-radius: 12px;
+    padding: 10px 14px;
+    font-family: -apple-system, sans-serif;
+    font-size: 13px;
+    color: #6e6e73;
+    margin-bottom: 16px;
+  }
+  .safari-bg-content .url-bar strong { color: #1c1c1e; }
+  .share-sheet {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: #f2f2f7;
+    border-radius: 14px 14px 0 0;
+    padding: 12px 16px 30px;
+    box-shadow: 0 -8px 30px rgba(0,0,0,0.15);
+    height: 76%;
+  }
+  .share-handle {
+    width: 36px; height: 5px;
+    background: #c7c7cc;
+    border-radius: 3px;
+    margin: 0 auto 16px;
+  }
+  .share-preview {
+    background: #fff;
+    border-radius: 12px;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .share-preview .preview-icon {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, #f4a259, #d97757);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 22px;
+  }
+  .share-preview .preview-text {
+    flex: 1;
+    font-family: -apple-system, sans-serif;
+  }
+  .share-preview .preview-text .title {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1c1c1e;
+    margin-bottom: 2px;
+  }
+  .share-preview .preview-text .url {
+    font-size: 12px;
+    color: #6e6e73;
+  }
+  .share-apps-row {
+    display: flex;
+    gap: 14px;
+    overflow-x: auto;
+    margin-bottom: 16px;
+    padding-bottom: 4px;
+  }
+  .share-app {
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    min-width: 60px;
+  }
+  .share-app .app-circle {
+    width: 50px; height: 50px;
+    border-radius: 12px;
+    background: #25d366;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 22px;
+  }
+  .share-app.imessage .app-circle { background: linear-gradient(180deg, #5fdc6c, #2ec24a); }
+  .share-app.mail .app-circle { background: linear-gradient(180deg, #4fc3f7, #1976d2); }
+  .share-app.copy .app-circle { background: #8e8e93; }
+  .share-app .label {
+    font-family: -apple-system, sans-serif;
+    font-size: 10px;
+    color: #1c1c1e;
+    text-align: center;
+  }
+  .share-actions {
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .share-action {
+    padding: 14px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 0.5px solid #e5e5ea;
+    font-family: -apple-system, sans-serif;
+    font-size: 15px;
+    color: #1c1c1e;
+  }
+  .share-action:last-child { border-bottom: none; }
+  .share-action.highlighted {
+    background: linear-gradient(90deg, #fff3e6, #ffe4cc);
+    position: relative;
+  }
+  .share-action.highlighted::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border: 2.5px solid #d97757;
+    border-radius: 12px;
+    pointer-events: none;
+    animation: pulse-share 1.8s ease-in-out infinite;
+  }
+  @keyframes pulse-share {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+  .share-action .icon {
+    font-size: 20px;
+    width: 28px;
+    text-align: center;
+  }
+  .tap-pointer {
+    position: absolute;
+    z-index: 200;
+    pointer-events: none;
+    font-size: 36px;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+    animation: tap 1.8s ease-in-out infinite;
+  }
+  @keyframes tap {
+    0%, 100% { transform: translate(0, 0); }
+    50% { transform: translate(-4px, -4px) scale(1.1); }
+  }
+
+  /* ========== PHONE 3 & 4: NANA APP ========== */
+  .nana-app {
+    height: 100%;
+    background: #faf7f2;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+  }
+  .nana-header {
+    padding: 56px 18px 14px;
+    background: linear-gradient(180deg, #fff 0%, #faf7f2 100%);
+    border-bottom: 1px solid #ede5d5;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .nana-avatar {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #f4a259, #d97757);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .nana-header-text {
+    flex: 1;
+    font-family: 'Nunito', sans-serif;
+  }
+  .nana-header-text .name {
+    font-size: 15px;
+    font-weight: 700;
+    color: #2c2416;
+    line-height: 1.2;
+  }
+  .nana-header-text .context {
+    font-size: 11px;
+    color: #8a7556;
+    line-height: 1.3;
+    margin-top: 2px;
+  }
+  .nana-header-text .context .dot {
+    display: inline-block;
+    width: 6px; height: 6px;
+    background: #2ec24a;
+    border-radius: 50%;
+    margin-right: 4px;
+    vertical-align: middle;
+  }
+  .chat-area {
+    flex: 1;
+    overflow-y: auto;
+    padding: 18px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .bubble {
+    max-width: 78%;
+    padding: 10px 14px;
+    border-radius: 18px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 13.5px;
+    line-height: 1.45;
+    word-wrap: break-word;
+  }
+  .bubble.nana {
+    background: #fff;
+    color: #2c2416;
+    align-self: flex-start;
+    border-bottom-left-radius: 6px;
+    box-shadow: 0 1px 2px rgba(44,36,22,0.06);
+  }
+  .bubble.parent {
+    background: linear-gradient(135deg, #f4a259, #d97757);
+    color: #fff;
+    align-self: flex-end;
+    border-bottom-right-radius: 6px;
+  }
+  .bubble.nana .small {
+    font-size: 11px;
+    color: #8a7556;
+    margin-top: 6px;
+    font-weight: 600;
+  }
+  .citation-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: #fff3e6;
+    color: #b85c38;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 700;
+    margin-top: 6px;
+  }
+  .suggestion-chips {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 4px;
+    align-self: flex-start;
+    max-width: 90%;
+  }
+  .chip {
+    background: #fff;
+    border: 1px solid #ede5d5;
+    padding: 9px 14px;
+    border-radius: 16px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 12.5px;
+    color: #5a4a30;
+    font-weight: 600;
+    text-align: left;
+  }
+  .school-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 12px;
+    align-self: flex-start;
+    max-width: 90%;
+    border: 1px solid #ede5d5;
+    box-shadow: 0 2px 6px rgba(44,36,22,0.05);
+  }
+  .school-card .school-name {
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 14px;
+    color: #2c2416;
+    margin-bottom: 6px;
+  }
+  .school-card .school-meta {
+    font-family: 'Nunito', sans-serif;
+    font-size: 11px;
+    color: #8a7556;
+    margin-bottom: 8px;
+  }
+  .school-card .strengths {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .strength-tag {
+    background: #f5ede0;
+    color: #6b5a3e;
+    font-family: 'Nunito', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 8px;
+  }
+  .typing-indicator {
+    background: #fff;
+    padding: 12px 16px;
+    border-radius: 18px;
+    border-bottom-left-radius: 6px;
+    align-self: flex-start;
+    display: flex;
+    gap: 4px;
+    box-shadow: 0 1px 2px rgba(44,36,22,0.06);
+  }
+  .typing-indicator span {
+    width: 7px; height: 7px;
+    background: #c4b59a;
+    border-radius: 50%;
+    animation: typing 1.4s ease-in-out infinite;
+  }
+  .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes typing {
+    0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+    30% { opacity: 1; transform: translateY(-4px); }
+  }
+  .input-bar {
+    padding: 10px 14px 24px;
+    background: #fff;
+    border-top: 1px solid #ede5d5;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .input-field {
+    flex: 1;
+    background: #f5ede0;
+    border-radius: 20px;
+    padding: 9px 14px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 13px;
+    color: #8a7556;
+  }
+  .send-button {
+    width: 34px; height: 34px;
+    background: linear-gradient(135deg, #f4a259, #d97757);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  /* footer notes */
+  .footer-notes {
+    max-width: 800px;
+    margin: 80px auto 0;
+    padding: 32px;
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 4px 20px rgba(44,36,22,0.06);
+  }
+  .footer-notes h2 {
+    font-family: 'Nunito', sans-serif;
+    font-size: 20px;
+    font-weight: 800;
+    color: #2c2416;
+    margin-bottom: 16px;
+  }
+  .footer-notes ul {
+    list-style: none;
+    padding: 0;
+  }
+  .footer-notes li {
+    font-family: 'Nunito', sans-serif;
+    font-size: 14px;
+    color: #5a4a30;
+    line-height: 1.6;
+    padding: 8px 0;
+    padding-left: 24px;
+    position: relative;
+    border-bottom: 1px solid #f5ede0;
+  }
+  .footer-notes li:last-child { border-bottom: none; }
+  .footer-notes li::before {
+    content: '✓';
+    position: absolute;
+    left: 0;
+    color: #d97757;
+    font-weight: 800;
+  }
+  .footer-notes strong { color: #2c2416; }
+
+  @media (max-width: 700px) {
+    .phone-grid { gap: 40px 0; }
+    .iphone { width: 290px; height: 600px; }
+  }
+
+  /* ========== SECTION DIVIDER ========== */
+  .section-divider {
+    max-width: 1000px;
+    margin: 100px auto 48px;
+    text-align: center;
+    padding: 0 24px;
+  }
+  .section-divider .eyebrow {
+    display: inline-block;
+    background: #2c2416;
+    color: #faf7f2;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    padding: 5px 12px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    text-transform: uppercase;
+  }
+  .section-divider h2 {
+    font-family: 'Nunito', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+    color: #2c2416;
+    margin-bottom: 12px;
+    letter-spacing: -0.02em;
+  }
+  .section-divider p {
+    font-family: 'Nunito', sans-serif;
+    font-size: 16px;
+    color: #6b5a3e;
+    max-width: 580px;
+    margin: 0 auto;
+    line-height: 1.5;
+  }
+
+  /* ========== ADD CHILD — INTERVIEW STYLE ========== */
+  .year-chips, .interest-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-self: flex-end;
+    max-width: 88%;
+  }
+  .interest-chips { align-self: flex-start; }
+  .year-chip {
+    background: rgba(255,255,255,0.95);
+    border: 1px solid #ede5d5;
+    padding: 6px 10px;
+    border-radius: 12px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #5a4a30;
+    font-family: 'Nunito', sans-serif;
+  }
+  .year-chip.selected {
+    background: linear-gradient(135deg, #f4a259, #d97757);
+    color: #fff;
+    border-color: transparent;
+  }
+  .interest-chip {
+    background: #fff;
+    border: 1px solid #ede5d5;
+    padding: 6px 10px;
+    border-radius: 13px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #5a4a30;
+    font-family: 'Nunito', sans-serif;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .interest-chip.selected {
+    background: #fff3e6;
+    color: #b85c38;
+    border-color: #d97757;
+  }
+  .progress-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 6px;
+    padding: 0 2px;
+  }
+  .progress-row .dot {
+    width: 18px; height: 4px;
+    background: #ede5d5;
+    border-radius: 2px;
+    flex: 1;
+  }
+  .progress-row .dot.active {
+    background: linear-gradient(90deg, #f4a259, #d97757);
+  }
+  .progress-row .dot.done { background: #d97757; }
+  .progress-label {
+    font-family: 'Nunito', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    color: #8a7556;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+  }
+
+  /* ========== CHILD BRIEF ========== */
+  .brief-screen {
+    padding: 56px 16px 24px;
+    height: 100%;
+    background: #faf7f2;
+    overflow-y: auto;
+  }
+  .brief-avatar-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  .brief-avatar {
+    width: 60px; height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #c4dbf6, #7aa7e0);
+    color: #fff;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .brief-name {
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 19px;
+    color: #2c2416;
+    line-height: 1.1;
+  }
+  .brief-meta {
+    font-family: 'Nunito', sans-serif;
+    font-size: 12px;
+    color: #8a7556;
+    margin-top: 3px;
+  }
+  .brief-edit {
+    margin-left: auto;
+    font-family: 'Nunito', sans-serif;
+    font-size: 11px;
+    color: #d97757;
+    font-weight: 700;
+    background: #fff3e6;
+    padding: 5px 9px;
+    border-radius: 8px;
+  }
+  .brief-section { margin-bottom: 16px; }
+  .brief-section-title {
+    font-family: 'Nunito', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: #8a7556;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .brief-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+  }
+  .brief-tag {
+    background: #fff;
+    border: 1px solid #ede5d5;
+    padding: 5px 10px;
+    border-radius: 10px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 11.5px;
+    color: #5a4a30;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+  }
+  .brief-tag.warm { background: #fff3e6; color: #b85c38; border-color: #f4a259; }
+  .brief-tag.cool { background: #e8f0fe; color: #3a5fa3; border-color: #b8d0f5; }
+  .brief-tag.note { background: #fef3c7; color: #92400e; border-color: #fde68a; }
+  .brief-quote {
+    background: #fff;
+    border-radius: 12px;
+    padding: 11px 13px;
+    border-left: 3px solid #d97757;
+    font-family: 'Nunito', sans-serif;
+    font-size: 12.5px;
+    color: #5a4a30;
+    line-height: 1.5;
+    font-style: italic;
+  }
+  .brief-quote .by {
+    font-style: normal;
+    font-size: 10px;
+    color: #8a7556;
+    font-weight: 700;
+    margin-top: 4px;
+    display: block;
+  }
+
+  /* ========== COMPARISON TABLE ========== */
+  .compare-screen {
+    padding: 50px 0 0;
+    height: 100%;
+    background: #faf7f2;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .compare-top {
+    padding: 4px 14px 10px;
+  }
+  .compare-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+  }
+  .compare-title {
+    font-family: 'Nunito', sans-serif;
+    font-size: 15px;
+    font-weight: 800;
+    color: #2c2416;
+  }
+  .rerank-pill {
+    background: #2c2416;
+    color: #fff;
+    font-family: 'Nunito', sans-serif;
+    font-size: 9.5px;
+    font-weight: 700;
+    padding: 4px 9px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .compare-sub {
+    font-family: 'Nunito', sans-serif;
+    font-size: 11px;
+    color: #8a7556;
+  }
+  .compare-table {
+    display: grid;
+    grid-template-columns: 70px 1fr 1fr 1fr;
+    gap: 1px;
+    background: #ede5d5;
+    flex: 1;
+    overflow-y: auto;
+    border-top: 1px solid #ede5d5;
+  }
+  .compare-cell {
+    background: #faf7f2;
+    padding: 8px 5px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 10px;
+    color: #2c2416;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+  .compare-cell.header-cell {
+    background: #2c2416;
+    color: #fff;
+    font-weight: 700;
+    font-size: 9.5px;
+    text-align: center;
+    padding: 10px 4px;
+    line-height: 1.2;
+  }
+  .compare-cell.header-cell .sub {
+    font-weight: 500;
+    font-size: 8.5px;
+    opacity: 0.7;
+    margin-top: 2px;
+  }
+  .compare-cell.row-label {
+    background: #f5ede0;
+    font-weight: 700;
+    color: #6b5a3e;
+    font-size: 9.5px;
+    line-height: 1.2;
+  }
+  .compare-cell.value {
+    text-align: center;
+    align-items: center;
+  }
+  .compare-cell.value strong {
+    font-size: 12px;
+    color: #2c2416;
+  }
+  .compare-cell.value .meta {
+    font-size: 9px;
+    color: #8a7556;
+    margin-top: 1px;
+  }
+  .compare-cell.best {
+    background: #fff3e6;
+    position: relative;
+  }
+  .compare-cell.best::after {
+    content: '★';
+    position: absolute;
+    top: 3px;
+    right: 5px;
+    color: #d97757;
+    font-size: 10px;
+  }
+
+  /* ========== VERDICT ========== */
+  .verdict-screen {
+    padding: 50px 16px 24px;
+    height: 100%;
+    overflow-y: auto;
+    background: linear-gradient(180deg, #faf7f2 0%, #fff 100%);
+  }
+  .verdict-back {
+    font-family: 'Nunito', sans-serif;
+    font-size: 12px;
+    color: #d97757;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .verdict-school {
+    font-family: 'Nunito', sans-serif;
+    font-size: 21px;
+    font-weight: 800;
+    color: #2c2416;
+    line-height: 1.1;
+  }
+  .verdict-school-sub {
+    font-family: 'Nunito', sans-serif;
+    font-size: 11.5px;
+    color: #8a7556;
+    margin-top: 4px;
+    margin-bottom: 14px;
+  }
+  .verdict-badge {
+    background: linear-gradient(135deg, #4ade80, #16a34a);
+    color: #fff;
+    border-radius: 14px;
+    padding: 12px 14px;
+    margin-bottom: 16px;
+    box-shadow: 0 4px 12px rgba(22,163,74,0.2);
+  }
+  .verdict-badge .label {
+    font-family: 'Nunito', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    opacity: 0.9;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  .verdict-badge .text {
+    font-family: 'Nunito', sans-serif;
+    font-size: 17px;
+    font-weight: 800;
+    margin-top: 3px;
+    line-height: 1.2;
+  }
+  .verdict-badge .conf {
+    margin-top: 8px;
+    background: rgba(255,255,255,0.25);
+    border-radius: 8px;
+    height: 5px;
+    overflow: hidden;
+  }
+  .verdict-badge .conf-fill {
+    background: #fff;
+    height: 100%;
+    width: 82%;
+    border-radius: 8px;
+  }
+  .verdict-section { margin-bottom: 14px; }
+  .verdict-section-title {
+    font-family: 'Nunito', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: #8a7556;
+    text-transform: uppercase;
+    margin-bottom: 6px;
+  }
+  .verdict-bullet {
+    font-family: 'Nunito', sans-serif;
+    font-size: 12px;
+    color: #2c2416;
+    line-height: 1.45;
+    padding: 4px 0 4px 18px;
+    position: relative;
+  }
+  .verdict-bullet::before {
+    content: '';
+    position: absolute;
+    left: 4px;
+    top: 10px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #16a34a;
+  }
+  .verdict-bullet.watch::before { background: #f59e0b; }
+  .verdict-cta {
+    background: linear-gradient(135deg, #f4a259, #d97757);
+    color: #fff;
+    padding: 12px;
+    border-radius: 14px;
+    text-align: center;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 13px;
+    margin-top: 14px;
+    box-shadow: 0 4px 12px rgba(217,119,87,0.25);
+  }
+
+  /* ========== PARENT BRIEF ========== */
+  .brief-doc {
+    padding: 50px 16px 24px;
+    height: 100%;
+    background: #fff8eb;
+    overflow-y: auto;
+  }
+  .brief-doc-header {
+    text-align: center;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px dashed #ede5d5;
+  }
+  .brief-doc-eyebrow {
+    font-family: 'Nunito', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    color: #b85c38;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .brief-doc-title {
+    font-family: 'Nunito', sans-serif;
+    font-size: 17px;
+    font-weight: 800;
+    color: #2c2416;
+    line-height: 1.15;
+  }
+  .brief-doc-sub {
+    font-family: 'Nunito', sans-serif;
+    font-size: 10.5px;
+    color: #8a7556;
+    margin-top: 4px;
+    font-style: italic;
+  }
+  .brief-summary {
+    background: #fff;
+    border-radius: 12px;
+    padding: 11px 13px;
+    margin-bottom: 14px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 11.5px;
+    color: #5a4a30;
+    line-height: 1.5;
+    border-left: 3px solid #d97757;
+  }
+  .brief-school-card {
+    background: #fff;
+    border-radius: 12px;
+    padding: 11px;
+    margin-bottom: 8px;
+    border: 1px solid #ede5d5;
+  }
+  .brief-school-rank-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+  .brief-school-rank {
+    background: #d97757;
+    color: #fff;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 9px;
+    padding: 2px 7px;
+    border-radius: 6px;
+  }
+  .brief-school-rank.silver { background: #8a7556; }
+  .brief-school-rank.bronze { background: #b85c38; opacity: 0.8; }
+  .brief-school-fit {
+    font-family: 'Nunito', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    color: #16a34a;
+  }
+  .brief-school-name {
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 13px;
+    color: #2c2416;
+    margin-bottom: 3px;
+  }
+  .brief-school-line {
+    font-family: 'Nunito', sans-serif;
+    font-size: 10.5px;
+    color: #5a4a30;
+    line-height: 1.4;
+  }
+  .brief-share-btn {
+    background: #2c2416;
+    color: #fff;
+    padding: 11px;
+    border-radius: 12px;
+    text-align: center;
+    font-family: 'Nunito', sans-serif;
+    font-size: 12.5px;
+    font-weight: 800;
+    margin-top: 14px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 6px;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Nana as a home-screen app</h1>
+  <p>How it would look on a parent's iPhone after they install Nana as a Progressive Web App — no App Store needed.</p>
+</div>
+
+<div class="phone-grid">
+
+  <!-- PHONE 1: HOME SCREEN -->
+  <div class="phone-wrapper">
+    <div class="iphone">
+      <div class="dynamic-island"></div>
+      <div class="iphone-screen">
+        <div class="status-bar light">
+          <span>9:41</span>
+          <div class="status-right">
+            <div class="signal-bars"><span></span><span></span><span></span><span></span></div>
+            <span style="font-size: 11px;">5G</span>
+            <div class="battery"><div class="battery-fill"></div></div>
+          </div>
+        </div>
+        <div class="home-screen">
+          <div class="app-grid">
+            <div class="app-icon"><div class="icon-box icon-calendar"></div><span class="label">Calendar</span></div>
+            <div class="app-icon"><div class="icon-box icon-photos">📷</div><span class="label">Photos</span></div>
+            <div class="app-icon"><div class="icon-box icon-mail"></div><span class="label">Mail</span></div>
+            <div class="app-icon"><div class="icon-box icon-notes"></div><span class="label">Notes</span></div>
+
+            <div class="app-icon nana-highlight">
+              <div class="icon-box icon-nana"></div>
+              <span class="label">Nana</span>
+            </div>
+            <div class="app-icon"><div class="icon-box icon-settings"></div><span class="label">Settings</span></div>
+            <div class="app-icon"><div class="icon-box" style="background: linear-gradient(180deg, #ffd16a, #ff9e2d); color: #fff; font-size: 28px;">☁</div><span class="label">Weather</span></div>
+            <div class="app-icon"><div class="icon-box" style="background: linear-gradient(180deg, #ff5e62, #c92a2e); color: #fff; font-size: 24px;">♥</div><span class="label">Health</span></div>
+          </div>
+          <div class="dock">
+            <div class="app-icon"><div class="icon-box icon-messages">💬</div></div>
+            <div class="app-icon"><div class="icon-box icon-safari"></div></div>
+            <div class="app-icon"><div class="icon-box" style="background: linear-gradient(180deg, #3ad4f5, #007aff); color: #fff; font-size: 24px;">🎵</div></div>
+            <div class="app-icon"><div class="icon-box" style="background: linear-gradient(180deg, #34c759, #248a3d); color: #fff; font-size: 24px;">📞</div></div>
+          </div>
+          <div class="home-indicator"></div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-caption">
+      <span class="step">Step 4 · Done</span>
+      <h3>Nana lives on the home screen</h3>
+      <p>Same icon position as Messages or Safari. One tap, no browser bar.</p>
+    </div>
+  </div>
+
+  <!-- PHONE 2: SAFARI + SHARE SHEET -->
+  <div class="phone-wrapper">
+    <div class="iphone">
+      <div class="dynamic-island"></div>
+      <div class="iphone-screen">
+        <div class="status-bar light">
+          <span>9:41</span>
+          <div class="status-right">
+            <div class="signal-bars"><span></span><span></span><span></span><span></span></div>
+            <span style="font-size: 11px;">5G</span>
+            <div class="battery"><div class="battery-fill"></div></div>
+          </div>
+        </div>
+        <div class="safari-screen">
+          <div class="safari-bg-content">
+            <div class="url-bar">🔒 <strong>nanasays.school</strong></div>
+          </div>
+          <div class="share-sheet">
+            <div class="share-handle"></div>
+            <div class="share-preview">
+              <div class="preview-icon">N</div>
+              <div class="preview-text">
+                <div class="title">Nana — School advice</div>
+                <div class="url">nanasays.school</div>
+              </div>
+            </div>
+            <div class="share-apps-row">
+              <div class="share-app imessage"><div class="app-circle">💬</div><span class="label">Messages</span></div>
+              <div class="share-app"><div class="app-circle">📱</div><span class="label">WhatsApp</span></div>
+              <div class="share-app mail"><div class="app-circle">✉</div><span class="label">Mail</span></div>
+              <div class="share-app copy"><div class="app-circle">🔗</div><span class="label">Copy</span></div>
+            </div>
+            <div class="share-actions">
+              <div class="share-action">
+                <span class="icon">🔖</span>
+                <span style="flex:1; margin-left: 8px;">Add Bookmark</span>
+              </div>
+              <div class="share-action highlighted">
+                <span class="icon">➕</span>
+                <span style="flex:1; margin-left: 8px;"><strong>Add to Home Screen</strong></span>
+              </div>
+              <div class="share-action">
+                <span class="icon">🖨</span>
+                <span style="flex:1; margin-left: 8px;">Print</span>
+              </div>
+            </div>
+          </div>
+          <div class="tap-pointer" style="top: 70%; left: 60%;">👆</div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-caption">
+      <span class="step">Step 2 · One tap</span>
+      <h3>Parent taps "Add to Home Screen"</h3>
+      <p>From Safari's share menu. iOS handles the rest — no install, no App Store.</p>
+    </div>
+  </div>
+
+  <!-- PHONE 3: NANA APP - CHAT START -->
+  <div class="phone-wrapper">
+    <div class="iphone">
+      <div class="dynamic-island"></div>
+      <div class="iphone-screen">
+        <div class="status-bar light">
+          <span>9:41</span>
+          <div class="status-right">
+            <div class="signal-bars"><span></span><span></span><span></span><span></span></div>
+            <span style="font-size: 11px;">5G</span>
+            <div class="battery"><div class="battery-fill"></div></div>
+          </div>
+        </div>
+        <div class="nana-app">
+          <div class="nana-header">
+            <div class="nana-avatar">N</div>
+            <div class="nana-header-text">
+              <div class="name">Nana</div>
+              <div class="context"><span class="dot"></span>Reading about Eton College</div>
+            </div>
+          </div>
+          <div class="chat-area">
+            <div class="bubble nana">
+              Hi! I'm Nana 👋 I've read everything we have on Eton — fees, pastoral notes, sport, ISI reports. What would you like to know?
+            </div>
+            <div class="suggestion-chips">
+              <div class="chip">Is the boarding atmosphere strict or warm?</div>
+              <div class="chip">How competitive is the entrance exam?</div>
+              <div class="chip">What's the music programme like?</div>
+              <div class="chip">Compare to Harrow on pastoral care</div>
+            </div>
+          </div>
+          <div class="input-bar">
+            <div class="input-field">Ask Nana anything…</div>
+            <div class="send-button">↑</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-caption">
+      <span class="step">Open · First view</span>
+      <h3>Opens like an app</h3>
+      <p>Full screen, no Safari bar, no URL. Parent sees Nana ready, with suggestion chips for what to ask.</p>
+    </div>
+  </div>
+
+  <!-- PHONE 4: MID CONVERSATION -->
+  <div class="phone-wrapper">
+    <div class="iphone">
+      <div class="dynamic-island"></div>
+      <div class="iphone-screen">
+        <div class="status-bar light">
+          <span>9:42</span>
+          <div class="status-right">
+            <div class="signal-bars"><span></span><span></span><span></span><span></span></div>
+            <span style="font-size: 11px;">5G</span>
+            <div class="battery"><div class="battery-fill"></div></div>
+          </div>
+        </div>
+        <div class="nana-app">
+          <div class="nana-header">
+            <div class="nana-avatar">N</div>
+            <div class="nana-header-text">
+              <div class="name">Nana</div>
+              <div class="context"><span class="dot"></span>Comparing 3 schools for Theo</div>
+            </div>
+          </div>
+          <div class="chat-area">
+            <div class="bubble parent">
+              Theo loves rugby and is a bit shy. Which of my shortlist would suit him best?
+            </div>
+            <div class="bubble nana">
+              Based on what I know, <strong>Sherborne</strong> stands out. Their pastoral notes mention "house-based wellbeing" and rugby is a core 1st-XI sport with a feeder pathway.
+              <div class="citation-chip">📄 ISI Report 2025</div>
+            </div>
+            <div class="school-card">
+              <div class="school-name">Sherborne School</div>
+              <div class="school-meta">Boys' boarding · Dorset · Year 9 entry</div>
+              <div class="strengths">
+                <span class="strength-tag">🏉 Rugby strength</span>
+                <span class="strength-tag">🤝 Pastoral A+</span>
+                <span class="strength-tag">🏠 House system</span>
+              </div>
+            </div>
+            <div class="typing-indicator">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+          <div class="input-bar">
+            <div class="input-field">Tell me more about the house system…</div>
+            <div class="send-button">↑</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-caption">
+      <span class="step">In use · Real chat</span>
+      <h3>WhatsApp-style conversation</h3>
+      <p>Bubbles, typing indicator, citations, school cards inline. Same Nana, native phone feel.</p>
+    </div>
+  </div>
+
+</div>
+
+<div class="section-divider">
+  <span class="eyebrow">More flows</span>
+  <h2>Inside the app — what parents can actually do</h2>
+  <p>The same flows that already live in Nana today, shown here in the home-screen app shell.</p>
+</div>
+
+<div class="phone-grid">
+
+  <!-- PHONE 5: ADD CHILD (interview style) -->
+  <div class="phone-wrapper">
+    <div class="iphone">
+      <div class="dynamic-island"></div>
+      <div class="iphone-screen">
+        <div class="status-bar light">
+          <span>9:43</span>
+          <div class="status-right">
+            <div class="signal-bars"><span></span><span></span><span></span><span></span></div>
+            <span style="font-size: 11px;">5G</span>
+            <div class="battery"><div class="battery-fill"></div></div>
+          </div>
+        </div>
+        <div class="nana-app">
+          <div class="nana-header">
+            <div class="nana-avatar">N</div>
+            <div class="nana-header-text">
+              <div class="name">Add a child</div>
+              <div class="context">Step 3 of 5 · Tell me about Theo</div>
+            </div>
+          </div>
+          <div style="padding: 12px 14px 0;">
+            <div class="progress-row">
+              <div class="dot done"></div>
+              <div class="dot done"></div>
+              <div class="dot active"></div>
+              <div class="dot"></div>
+              <div class="dot"></div>
+            </div>
+          </div>
+          <div class="chat-area" style="padding-top: 8px;">
+            <div class="bubble nana">
+              Got it, Theo's in <strong>Year 8</strong>. Last question on basics — what does Theo love? Pick a few:
+            </div>
+            <div class="interest-chips">
+              <div class="interest-chip selected">🏉 Rugby</div>
+              <div class="interest-chip">⚽ Football</div>
+              <div class="interest-chip selected">🎨 Art</div>
+              <div class="interest-chip selected">🎭 Drama</div>
+              <div class="interest-chip">🎵 Music</div>
+              <div class="interest-chip">📐 Maths</div>
+              <div class="interest-chip">🔬 Science</div>
+              <div class="interest-chip">💻 Coding</div>
+              <div class="interest-chip">📚 Reading</div>
+            </div>
+            <div class="bubble parent">
+              Rugby, art, drama 👍
+            </div>
+            <div class="bubble nana">
+              Lovely mix — sporty <em>and</em> creative. One more question coming up about boarding…
+            </div>
+          </div>
+          <div class="input-bar">
+            <div class="input-field">Reply or skip…</div>
+            <div class="send-button">↑</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-caption">
+      <span class="step">Add child</span>
+      <h3>Conversational onboarding</h3>
+      <p>No forms. Nana asks five questions in chat, parent taps chips or types — same as today's onboarding.</p>
+    </div>
+  </div>
+
+  <!-- PHONE 6: CHILD BRIEF -->
+  <div class="phone-wrapper">
+    <div class="iphone">
+      <div class="dynamic-island"></div>
+      <div class="iphone-screen">
+        <div class="status-bar light">
+          <span>9:44</span>
+          <div class="status-right">
+            <div class="signal-bars"><span></span><span></span><span></span><span></span></div>
+            <span style="font-size: 11px;">5G</span>
+            <div class="battery"><div class="battery-fill"></div></div>
+          </div>
+        </div>
+        <div class="brief-screen">
+          <div class="brief-avatar-row">
+            <div class="brief-avatar">T</div>
+            <div>
+              <div class="brief-name">Theo</div>
+              <div class="brief-meta">Year 8 · age 13 · day pupil</div>
+            </div>
+            <div class="brief-edit">Edit</div>
+          </div>
+
+          <div class="brief-section">
+            <div class="brief-section-title">Loves</div>
+            <div class="brief-tags">
+              <span class="brief-tag warm">🏉 Rugby</span>
+              <span class="brief-tag warm">🎨 Art</span>
+              <span class="brief-tag warm">🎭 Drama</span>
+            </div>
+          </div>
+
+          <div class="brief-section">
+            <div class="brief-section-title">Looking for</div>
+            <div class="brief-tags">
+              <span class="brief-tag cool">🏠 Boarding · weekly</span>
+              <span class="brief-tag cool">📍 SW England</span>
+              <span class="brief-tag cool">👫 Co-ed preferred</span>
+            </div>
+          </div>
+
+          <div class="brief-section">
+            <div class="brief-section-title">Watch for</div>
+            <div class="brief-tags">
+              <span class="brief-tag note">😰 Bit shy at first</span>
+              <span class="brief-tag note">📖 Mild dyslexia</span>
+            </div>
+          </div>
+
+          <div class="brief-section">
+            <div class="brief-section-title">From Nana</div>
+            <div class="brief-quote">
+              Theo will likely thrive in a smaller house system where teachers know him by name. Strong rugby AND drama narrows the shortlist usefully.
+              <span class="by">— Nana, updated today</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-caption">
+      <span class="step">Child brief</span>
+      <h3>Theo at a glance</h3>
+      <p>Everything Nana knows about Theo — drives recommendations, comparison ranking, and the parent brief.</p>
+    </div>
+  </div>
+
+  <!-- PHONE 7: COMPARISON TABLE -->
+  <div class="phone-wrapper">
+    <div class="iphone">
+      <div class="dynamic-island"></div>
+      <div class="iphone-screen">
+        <div class="status-bar light">
+          <span>9:45</span>
+          <div class="status-right">
+            <div class="signal-bars"><span></span><span></span><span></span><span></span></div>
+            <span style="font-size: 11px;">5G</span>
+            <div class="battery"><div class="battery-fill"></div></div>
+          </div>
+        </div>
+        <div class="compare-screen">
+          <div class="compare-top">
+            <div class="compare-title-row">
+              <div class="compare-title">Compare</div>
+              <div class="rerank-pill">⟲ Re-rank for Theo</div>
+            </div>
+            <div class="compare-sub">3 schools · ranked by fit</div>
+          </div>
+          <div class="compare-table">
+            <div class="compare-cell header-cell"></div>
+            <div class="compare-cell header-cell">Sherborne<div class="sub">★ Best fit</div></div>
+            <div class="compare-cell header-cell">Marlborough<div class="sub">Co-ed</div></div>
+            <div class="compare-cell header-cell">Bryanston<div class="sub">Liberal</div></div>
+
+            <div class="compare-cell row-label">Fees<br>(termly)</div>
+            <div class="compare-cell value"><strong>£14,940</strong><span class="meta">boarding</span></div>
+            <div class="compare-cell value"><strong>£16,165</strong><span class="meta">boarding</span></div>
+            <div class="compare-cell value"><strong>£15,510</strong><span class="meta">boarding</span></div>
+
+            <div class="compare-cell row-label">Pupils</div>
+            <div class="compare-cell value"><strong>590</strong><span class="meta">boys</span></div>
+            <div class="compare-cell value"><strong>910</strong><span class="meta">co-ed</span></div>
+            <div class="compare-cell value"><strong>695</strong><span class="meta">co-ed</span></div>
+
+            <div class="compare-cell row-label">Rugby</div>
+            <div class="compare-cell value best"><strong>A+</strong><span class="meta">1st-XI</span></div>
+            <div class="compare-cell value"><strong>A</strong><span class="meta">strong</span></div>
+            <div class="compare-cell value"><strong>B</strong><span class="meta">recreational</span></div>
+
+            <div class="compare-cell row-label">Pastoral</div>
+            <div class="compare-cell value best"><strong>A+</strong><span class="meta">house-led</span></div>
+            <div class="compare-cell value"><strong>A</strong><span class="meta">tutor system</span></div>
+            <div class="compare-cell value"><strong>A</strong><span class="meta">strong</span></div>
+
+            <div class="compare-cell row-label">GCSE 9-7</div>
+            <div class="compare-cell value"><strong>78%</strong></div>
+            <div class="compare-cell value"><strong>82%</strong></div>
+            <div class="compare-cell value"><strong>71%</strong></div>
+
+            <div class="compare-cell row-label">SEN<br>support</div>
+            <div class="compare-cell value"><strong>Good</strong><span class="meta">SpLD</span></div>
+            <div class="compare-cell value"><strong>OK</strong></div>
+            <div class="compare-cell value best"><strong>Excellent</strong><span class="meta">dyslexia</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-caption">
+      <span class="step">Compare</span>
+      <h3>Side-by-side, ranked for the child</h3>
+      <p>Tap "Re-rank for Theo" and the column order shifts to fit him. Stars mark the best cell per row.</p>
+    </div>
+  </div>
+
+  <!-- PHONE 8: VERDICT -->
+  <div class="phone-wrapper">
+    <div class="iphone">
+      <div class="dynamic-island"></div>
+      <div class="iphone-screen">
+        <div class="status-bar light">
+          <span>9:46</span>
+          <div class="status-right">
+            <div class="signal-bars"><span></span><span></span><span></span><span></span></div>
+            <span style="font-size: 11px;">5G</span>
+            <div class="battery"><div class="battery-fill"></div></div>
+          </div>
+        </div>
+        <div class="verdict-screen">
+          <div class="verdict-back">← Back to shortlist</div>
+          <div class="verdict-school">Sherborne School</div>
+          <div class="verdict-school-sub">Boys' boarding · Dorset · for Theo, Year 8</div>
+
+          <div class="verdict-badge">
+            <div class="label">Nana's verdict</div>
+            <div class="text">Strong fit · worth visiting</div>
+            <div class="conf"><div class="conf-fill"></div></div>
+          </div>
+
+          <div class="verdict-section">
+            <div class="verdict-section-title">Why it works for Theo</div>
+            <div class="verdict-bullet">House-based pastoral system — small enough that staff know shy newcomers by name within a fortnight.</div>
+            <div class="verdict-bullet">Rugby is core: 1st-XI feeder pathway, daily training in Y9-Y10.</div>
+            <div class="verdict-bullet">Strong art &amp; drama departments — recent OFSTED-equivalent praised the Y9 art rotation specifically.</div>
+          </div>
+
+          <div class="verdict-section">
+            <div class="verdict-section-title">Watch for</div>
+            <div class="verdict-bullet watch">Single-sex — if Theo wants co-ed, Marlborough is the closer match.</div>
+            <div class="verdict-bullet watch">SEN support is "good not excellent" for dyslexia. Ask their SENCO directly.</div>
+          </div>
+
+          <div class="verdict-cta">+ Add to parent brief</div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-caption">
+      <span class="step">Verdict</span>
+      <h3>One clear recommendation, sourced</h3>
+      <p>Nana's call on whether the school fits this child — green points, amber points, no waffle.</p>
+    </div>
+  </div>
+
+  <!-- PHONE 9: PARENT BRIEF -->
+  <div class="phone-wrapper">
+    <div class="iphone">
+      <div class="dynamic-island"></div>
+      <div class="iphone-screen">
+        <div class="status-bar light">
+          <span>9:47</span>
+          <div class="status-right">
+            <div class="signal-bars"><span></span><span></span><span></span><span></span></div>
+            <span style="font-size: 11px;">5G</span>
+            <div class="battery"><div class="battery-fill"></div></div>
+          </div>
+        </div>
+        <div class="brief-doc">
+          <div class="brief-doc-header">
+            <div class="brief-doc-eyebrow">Parent Brief</div>
+            <div class="brief-doc-title">Theo's School Search</div>
+            <div class="brief-doc-sub">Prepared with Nana · 21 May 2026</div>
+          </div>
+
+          <div class="brief-summary">
+            Theo (Y8) is looking for a boarding school in SW England with strong rugby and good pastoral support. Co-ed preferred but flexible. 3 schools on the shortlist.
+          </div>
+
+          <div class="brief-school-card">
+            <div class="brief-school-rank-row">
+              <span class="brief-school-rank">#1</span>
+              <span class="brief-school-fit">★ Strong fit</span>
+            </div>
+            <div class="brief-school-name">Sherborne School</div>
+            <div class="brief-school-line">Boys' boarding · Dorset · House-based pastoral. Rugby A+. Visit booked.</div>
+          </div>
+
+          <div class="brief-school-card">
+            <div class="brief-school-rank-row">
+              <span class="brief-school-rank silver">#2</span>
+              <span class="brief-school-fit">★ Good fit</span>
+            </div>
+            <div class="brief-school-name">Marlborough College</div>
+            <div class="brief-school-line">Co-ed boarding · Wiltshire · Larger, tutor-based system. Stronger academics.</div>
+          </div>
+
+          <div class="brief-school-card">
+            <div class="brief-school-rank-row">
+              <span class="brief-school-rank bronze">#3</span>
+              <span class="brief-school-fit" style="color: #b85c38;">⚠ Worth comparing</span>
+            </div>
+            <div class="brief-school-name">Bryanston School</div>
+            <div class="brief-school-line">Co-ed boarding · Dorset · Best SEN support. Lighter on rugby.</div>
+          </div>
+
+          <div class="brief-share-btn">⬆ Share with partner</div>
+        </div>
+      </div>
+    </div>
+    <div class="phone-caption">
+      <span class="step">Parent brief</span>
+      <h3>The shareable summary</h3>
+      <p>One-page brief for the other parent / grandparents — exportable, no Nana branding when shared.</p>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer-notes">
+  <h2>What this is — and isn't</h2>
+  <ul>
+    <li><strong>This IS</strong> what a PWA of Nana would feel like on iPhone. Same code as the website, just installed to the home screen.</li>
+    <li><strong>This IS NOT</strong> in the App Store. Parents install it directly from Safari → Share → Add to Home Screen.</li>
+    <li><strong>Works offline-ish</strong> — last-viewed school reports cached. New chats need internet (Nana lives on the server).</li>
+    <li><strong>Push notifications work on iOS 16.4+</strong> — but only after the parent installs to home screen first.</li>
+    <li><strong>Build effort</strong> — a manifest file, a service worker, some icons. Maybe a day of work end-to-end, no app-store review.</li>
+  </ul>
+</div>
+
+</body>
+</html>

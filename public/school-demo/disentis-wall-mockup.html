@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Gymnasium &amp; Internat Kloster Disentis — The Wall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+
+<style>
+/* ─────────────────────────────────────────────────────────────────────
+   GYMNASIUM DISENTIS — The Wall
+   Horizontal scroll-driven photo essay. Vertical scroll pans the track.
+   Eight photos of the campus. Swiss-modernist white + black + red.
+   ─────────────────────────────────────────────────────────────────── */
+
+:root {
+  --white: #FFFFFF;
+  --off: #F8F6F2;
+  --black: #12120D;
+  --black-soft: #2A2A24;
+  --red: #E7000E;
+  --red-deep: #B30009;
+  --gray: #6E6E68;
+  --gray-light: #B0B0AA;
+  --hairline: rgba(18,18,13,0.12);
+  --hairline-light: rgba(255,255,255,0.16);
+
+  --sans: 'Inter Tight', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--sans);
+  background: var(--white);
+  color: var(--black);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+::selection { background: var(--red); color: var(--white); }
+
+/* ── NAV ─────────────────────────────────────────────────────────── */
+
+.nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  padding: 20px 36px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255,255,255,0.92);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.nav-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--black);
+}
+
+.nav-logo-mark {
+  width: 36px; height: 36px;
+  background: var(--white);
+  position: relative;
+  flex-shrink: 0;
+}
+.nav-logo-mark::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: var(--red);
+  clip-path: polygon(0 0, 100% 0, 50% 50%, 100% 100%, 0 100%, 50% 50%);
+}
+
+.nav-logo-name {
+  font-weight: 600;
+  font-size: 16px;
+  letter-spacing: -0.01em;
+}
+
+.nav-meta {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gray);
+}
+
+.nav-cta {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 10px 18px;
+  background: var(--red);
+  color: var(--white);
+  text-decoration: none;
+  transition: background 0.2s, transform 0.2s;
+  letter-spacing: -0.005em;
+}
+.nav-cta:hover { background: var(--black); transform: translateY(-1px); }
+
+/* ── HERO ────────────────────────────────────────────────────────── */
+
+.hero {
+  min-height: 100vh;
+  padding: 130px 56px 60px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+}
+
+.hero-inner {
+  max-width: 1480px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.hero-eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.hero-eyebrow::before {
+  content: '';
+  width: 36px; height: 2px;
+  background: var(--red);
+}
+
+.hero-headline {
+  font-weight: 800;
+  font-size: clamp(72px, 11vw, 184px);
+  line-height: 0.9;
+  letter-spacing: -0.028em;
+  color: var(--black);
+  margin-bottom: 32px;
+  max-width: 14ch;
+}
+.hero-headline em { font-style: normal; color: var(--red); }
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 60px;
+  align-items: end;
+  margin-top: 24px;
+  padding-top: 32px;
+  border-top: 2px solid var(--black);
+}
+
+.hero-deck {
+  font-size: 19px;
+  line-height: 1.55;
+  color: var(--black-soft);
+  max-width: 460px;
+  font-weight: 400;
+}
+
+.hero-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: right;
+}
+
+.hero-meta-num {
+  font-weight: 700;
+  font-size: 64px;
+  line-height: 0.94;
+  letter-spacing: -0.024em;
+  color: var(--red);
+  font-feature-settings: 'tnum';
+}
+
+.hero-meta-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gray);
+}
+
+.hero-scroll {
+  position: absolute;
+  bottom: 24px;
+  left: 56px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--gray);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.hero-scroll::before {
+  content: '';
+  width: 28px; height: 1px;
+  background: var(--red);
+  animation: pulse 1.8s ease-in-out infinite;
+}
+.hero-scroll::after { content: '↓ THEN →'; }
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; transform: scaleX(0.5); transform-origin: left; }
+  50% { opacity: 1; transform: scaleX(1); }
+}
+
+/* ── THE WALL (sticky horizontal-pan) ───────────────────────────── */
+
+.wall-section {
+  position: relative;
+  height: 700vh;       /* scroll runway: 8 cards × ~85vh + transitions */
+  background: var(--black);
+}
+
+.wall-pin {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+  background: var(--black);
+  color: var(--white);
+}
+
+.wall-pin::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.05) 0%, transparent 30%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.wall-overlay {
+  position: absolute;
+  top: 40px;
+  left: 56px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.wall-overlay-tag {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--red);
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.wall-overlay-tag::before {
+  content: '';
+  width: 28px; height: 2px;
+  background: var(--red);
+}
+
+.wall-overlay-title {
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: -0.018em;
+  color: var(--white);
+}
+
+.wall-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 0 6vw;
+  will-change: transform;
+}
+
+.wall-card {
+  flex: 0 0 auto;
+  width: 64vw;
+  max-width: 980px;
+  height: 78vh;
+  position: relative;
+  background: var(--black-soft);
+  overflow: hidden;
+  box-shadow: 0 30px 60px -20px rgba(0,0,0,0.5);
+}
+
+.wall-card-img {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: saturate(0.92) contrast(1.05);
+  will-change: transform;
+}
+
+.wall-card-img::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, transparent 30%, rgba(18,18,13,0.85) 100%),
+    linear-gradient(90deg, rgba(18,18,13,0.45) 0%, transparent 30%);
+}
+
+.wall-card-num {
+  position: absolute;
+  top: 28px;
+  left: 28px;
+  z-index: 2;
+  background: var(--red);
+  color: var(--white);
+  padding: 8px 12px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.wall-card-stamp {
+  position: absolute;
+  top: 28px;
+  right: 28px;
+  z-index: 2;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.3);
+  color: var(--white);
+  padding: 7px 12px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  backdrop-filter: blur(6px);
+}
+
+.wall-card-body {
+  position: absolute;
+  left: 32px;
+  right: 32px;
+  bottom: 36px;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 40px;
+  align-items: end;
+  color: var(--white);
+}
+
+.wall-card-name {
+  font-weight: 700;
+  font-size: clamp(34px, 4.2vw, 64px);
+  line-height: 0.96;
+  letter-spacing: -0.024em;
+  color: var(--white);
+  margin-bottom: 8px;
+}
+.wall-card-name em { font-style: normal; color: var(--red); }
+
+.wall-card-cap {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.75);
+}
+
+.wall-card-stats {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 4px;
+  text-align: right;
+  min-width: 180px;
+}
+
+.wall-card-stat-v {
+  font-weight: 700;
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: -0.018em;
+  color: var(--white);
+  font-feature-settings: 'tnum';
+}
+.wall-card-stat-v.is-red { color: var(--red); }
+
+.wall-card-stat-k {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.55);
+  margin-top: 2px;
+}
+
+/* ── PROGRESS DOTS ───────────────────────────────────────────────── */
+
+.wall-progress {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 12px 22px;
+  background: rgba(18,18,13,0.7);
+  border: 1px solid rgba(255,255,255,0.2);
+  backdrop-filter: blur(8px);
+}
+
+.wall-progress-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.7);
+}
+.wall-progress-label .now {
+  font-weight: 700;
+  color: var(--red);
+}
+
+.wall-progress-dots {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.wall-progress-dot {
+  width: 10px;
+  height: 10px;
+  background: rgba(255,255,255,0.25);
+  transition: background 0.3s ease, transform 0.3s ease, width 0.3s ease;
+}
+
+.wall-progress-dot.is-active {
+  background: var(--red);
+  width: 28px;
+}
+
+.wall-progress-dot.is-passed { background: var(--red-deep); }
+
+.wall-hint {
+  position: absolute;
+  bottom: 40px;
+  right: 36px;
+  z-index: 6;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.6);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  opacity: 1;
+  transition: opacity 0.5s;
+}
+.wall-hint::before {
+  content: '';
+  width: 24px; height: 1px;
+  background: var(--red);
+}
+.wall-hint.is-hidden { opacity: 0; }
+
+/* ── AFTERMATH section ───────────────────────────────────────────── */
+
+.aftermath {
+  padding: 130px 56px 100px;
+  background: var(--white);
+  border-top: 2px solid var(--black);
+}
+
+.aftermath-inner {
+  max-width: 1480px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: end;
+}
+
+.aftermath-eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--red);
+  margin-bottom: 22px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.aftermath-eyebrow::before {
+  content: '';
+  width: 28px; height: 2px;
+  background: var(--red);
+}
+
+.aftermath-headline {
+  font-weight: 700;
+  font-size: clamp(40px, 5.5vw, 80px);
+  line-height: 0.96;
+  letter-spacing: -0.024em;
+  color: var(--black);
+}
+.aftermath-headline em { font-style: normal; color: var(--red); }
+
+.aftermath-prose {
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--black-soft);
+  margin-bottom: 14px;
+  max-width: 460px;
+}
+
+/* ── CTA ─────────────────────────────────────────────────────────── */
+
+.cta {
+  padding: 130px 56px 140px;
+  background: var(--red);
+  color: var(--white);
+  text-align: center;
+}
+
+.cta-headline {
+  font-weight: 800;
+  font-size: clamp(56px, 9vw, 156px);
+  line-height: 0.9;
+  letter-spacing: -0.028em;
+  color: var(--white);
+  max-width: 1200px;
+  margin: 0 auto 28px;
+}
+
+.cta-sub {
+  font-size: 18px;
+  color: rgba(255,255,255,0.8);
+  max-width: 560px;
+  margin: 0 auto 40px;
+  line-height: 1.5;
+}
+
+.cta-actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+
+.btn-white {
+  font-size: 14px;
+  font-weight: 600;
+  padding: 14px 26px;
+  background: var(--white);
+  color: var(--red);
+  text-decoration: none;
+  transition: background 0.2s, transform 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: -0.005em;
+}
+.btn-white::after { content: '→'; }
+.btn-white:hover { background: var(--black); color: var(--white); transform: translateY(-1px); }
+
+.btn-ghost-white {
+  font-size: 14px;
+  font-weight: 500;
+  padding: 14px 26px;
+  background: transparent;
+  color: var(--white);
+  text-decoration: none;
+  border: 1px solid rgba(255,255,255,0.4);
+  transition: border-color 0.2s, background 0.2s;
+}
+.btn-ghost-white:hover { border-color: var(--white); background: rgba(255,255,255,0.08); }
+
+/* ── FOOTER ──────────────────────────────────────────────────────── */
+
+footer {
+  padding: 32px 56px 48px;
+  background: var(--black);
+  color: rgba(255,255,255,0.5);
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+footer .copyright {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+footer .brand {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--white);
+}
+footer .brand b { color: var(--red); }
+
+/* ── Responsive ──────────────────────────────────────────────────── */
+
+@media (max-width: 1024px) {
+  .hero { padding: 110px 32px 50px; }
+  .hero-grid { grid-template-columns: 1fr; gap: 24px; }
+  .wall-card { width: 78vw; }
+  .wall-overlay { left: 28px; top: 80px; }
+  .wall-card-body { grid-template-columns: 1fr; gap: 16px; }
+  .wall-card-stats { text-align: left; }
+  .aftermath { padding: 80px 32px; }
+  .aftermath-inner { grid-template-columns: 1fr; gap: 30px; }
+}
+
+@media (max-width: 640px) {
+  .nav { padding: 14px 20px; }
+  .nav-meta { display: none; }
+  .hero { padding: 100px 20px 40px; }
+  .hero-scroll { left: 20px; }
+  .wall-card { width: 88vw; height: 72vh; }
+  .wall-card-body { left: 20px; right: 20px; bottom: 24px; }
+  .wall-hint { display: none; }
+  .cta { padding: 80px 20px 100px; }
+  footer { padding: 24px 20px 36px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  .wall-section { height: auto; }
+  .wall-pin { position: static; height: auto; overflow-x: auto; padding: 40px 0; }
+  .wall-track { transform: none !important; position: static; }
+}
+
+</style>
+</head>
+<body>
+
+<!-- ============ NAV ============ -->
+<nav class="nav">
+  <a href="#" class="nav-logo">
+    <span class="nav-logo-mark"></span>
+    <span class="nav-logo-name">Gymnasium Disentis</span>
+  </a>
+  <span class="nav-meta">§ The Wall · 8 photographs of the school</span>
+  <a href="#" class="nav-cta">Visit us →</a>
+</nav>
+
+<!-- ============ HERO ============ -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-eyebrow">Via Sogn Sigisbert 1 · 7180 Disentis</div>
+    <h1 class="hero-headline">The <em>Wall</em>.</h1>
+    <div class="hero-grid">
+      <p class="hero-deck">Eight photographs of the school, laid out as a long horizontal track. Scroll down to move across them — monastery, houses, study halls, slopes, Lindenplatz.</p>
+      <div class="hero-meta">
+        <span class="hero-meta-num">08</span>
+        <span class="hero-meta-label">photographs · one school</span>
+      </div>
+    </div>
+  </div>
+  <div class="hero-scroll">SCROLL DOWN</div>
+</section>
+
+<!-- ============ THE WALL ============ -->
+<section class="wall-section" id="wallSection">
+  <div class="wall-pin">
+
+    <div class="wall-overlay">
+      <span class="wall-overlay-tag">§ The Wall</span>
+      <span class="wall-overlay-title">Disentis, in eight photographs</span>
+    </div>
+
+    <div class="wall-track" id="wallTrack">
+
+      <article class="wall-card">
+        <div class="wall-card-img" style="background-image:url('https://images.unsplash.com/photo-1486870591958-9b9d0d1dda99?w=1800&q=80&auto=format&fit=crop')"></div>
+        <span class="wall-card-num">No. 01</span>
+        <span class="wall-card-stamp">Lindenplatz</span>
+        <div class="wall-card-body">
+          <div>
+            <h2 class="wall-card-name">The <em>Monastery</em></h2>
+            <div class="wall-card-cap">A 1,400-year Benedictine seat</div>
+          </div>
+          <div class="wall-card-stats">
+            <div><div class="wall-card-stat-v is-red">614</div><div class="wall-card-stat-k">— Founded</div></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="wall-card">
+        <div class="wall-card-img" style="background-image:url('https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=1800&q=80&auto=format&fit=crop')"></div>
+        <span class="wall-card-num">No. 02</span>
+        <span class="wall-card-stamp">Upper House</span>
+        <div class="wall-card-body">
+          <div>
+            <h2 class="wall-card-name">Upper <em>House</em></h2>
+            <div class="wall-card-cap">Single rooms · private bathrooms</div>
+          </div>
+          <div class="wall-card-stats">
+            <div><div class="wall-card-stat-v">100%</div><div class="wall-card-stat-k">— Own bath</div></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="wall-card">
+        <div class="wall-card-img" style="background-image:url('https://images.unsplash.com/photo-1503676260728-1c00da094a0b?w=1800&q=80&auto=format&fit=crop')"></div>
+        <span class="wall-card-num">No. 03</span>
+        <span class="wall-card-stamp">Lower House</span>
+        <div class="wall-card-body">
+          <div>
+            <h2 class="wall-card-name">Lower <em>House</em></h2>
+            <div class="wall-card-cap">Common rooms &amp; leisure facilities</div>
+          </div>
+          <div class="wall-card-stats">
+            <div><div class="wall-card-stat-v">Award</div><div class="wall-card-stat-k">— Winning · 2019</div></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="wall-card">
+        <div class="wall-card-img" style="background-image:url('https://images.unsplash.com/photo-1568667256549-094345857637?w=1800&q=80&auto=format&fit=crop')"></div>
+        <span class="wall-card-num">No. 04</span>
+        <span class="wall-card-stamp">Infirmary</span>
+        <div class="wall-card-body">
+          <div>
+            <h2 class="wall-card-name">The <em>Infirmary</em></h2>
+            <div class="wall-card-cap">Monastery clinic · 24h trained nursing</div>
+          </div>
+          <div class="wall-card-stats">
+            <div><div class="wall-card-stat-v is-red">24h</div><div class="wall-card-stat-k">— On-site care</div></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="wall-card">
+        <div class="wall-card-img" style="background-image:url('https://images.unsplash.com/photo-1502786129293-79981df4e689?w=1800&q=80&auto=format&fit=crop')"></div>
+        <span class="wall-card-num">No. 05</span>
+        <span class="wall-card-stamp">Study hall</span>
+        <div class="wall-card-body">
+          <div>
+            <h2 class="wall-card-name">The <em>Study Hall</em></h2>
+            <div class="wall-card-cap">Prefect-supervised · 1.5–2.5h/day</div>
+          </div>
+          <div class="wall-card-stats">
+            <div><div class="wall-card-stat-v">7×</div><div class="wall-card-stat-k">— Sessions/week</div></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="wall-card">
+        <div class="wall-card-img" style="background-image:url('https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=1800&q=80&auto=format&fit=crop')"></div>
+        <span class="wall-card-num">No. 06</span>
+        <span class="wall-card-stamp">Sports campus</span>
+        <div class="wall-card-body">
+          <div>
+            <h2 class="wall-card-name">Climbing <em>Wall</em></h2>
+            <div class="wall-card-cap">Gymnasium · fitness · grass pitch</div>
+          </div>
+          <div class="wall-card-stats">
+            <div><div class="wall-card-stat-v is-red">∞</div><div class="wall-card-stat-k">— Panorama views</div></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="wall-card">
+        <div class="wall-card-img" style="background-image:url('https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=1800&q=80&auto=format&fit=crop')"></div>
+        <span class="wall-card-num">No. 07</span>
+        <span class="wall-card-stamp">Sedrun</span>
+        <div class="wall-card-body">
+          <div>
+            <h2 class="wall-card-name">Ski <em>Arena</em></h2>
+            <div class="wall-card-cap">Central Switzerland's largest</div>
+          </div>
+          <div class="wall-card-stats">
+            <div><div class="wall-card-stat-v">1696m</div><div class="wall-card-stat-k">— Altitude</div></div>
+          </div>
+        </div>
+      </article>
+
+      <article class="wall-card">
+        <div class="wall-card-img" style="background-image:url('https://images.unsplash.com/photo-1551524559-8af4e6624178?w=1800&q=80&auto=format&fit=crop')"></div>
+        <span class="wall-card-num">No. 08</span>
+        <span class="wall-card-stamp">Festivals</span>
+        <div class="wall-card-body">
+          <div>
+            <h2 class="wall-card-name">Linden<em>platz</em></h2>
+            <div class="wall-card-cap">Klausabend · school festivals · summer BBQ</div>
+          </div>
+          <div class="wall-card-stats">
+            <div><div class="wall-card-stat-v is-red">02</div><div class="wall-card-stat-k">— School festivals/yr</div></div>
+          </div>
+        </div>
+      </article>
+
+    </div>
+
+    <!-- Progress dots -->
+    <div class="wall-progress">
+      <span class="wall-progress-label"><span class="now" id="progressNow">01</span> / 08</span>
+      <div class="wall-progress-dots" id="progressDots">
+        <span class="wall-progress-dot is-active"></span>
+        <span class="wall-progress-dot"></span>
+        <span class="wall-progress-dot"></span>
+        <span class="wall-progress-dot"></span>
+        <span class="wall-progress-dot"></span>
+        <span class="wall-progress-dot"></span>
+        <span class="wall-progress-dot"></span>
+        <span class="wall-progress-dot"></span>
+      </div>
+    </div>
+
+    <span class="wall-hint" id="wallHint">— Scroll · the wall moves →</span>
+
+  </div>
+</section>
+
+<!-- ============ AFTERMATH ============ -->
+<section class="aftermath">
+  <div class="aftermath-inner">
+    <div>
+      <div class="aftermath-eyebrow">— After the wall</div>
+      <h2 class="aftermath-headline">A school is more than <em>eight photographs</em>.</h2>
+    </div>
+    <div>
+      <p class="aftermath-prose">Behind every frame is a daily rhythm — Saturday school, the 1.5 hours of evening study, the prefects who supervise, the nursing professionals at the in-house infirmary, the climbing wall in the gymnasium, the cinema next door to the study hall.</p>
+      <p class="aftermath-prose">Come see for yourself: the secretariat arranges visits, or take the full 360-degree virtual tour from anywhere in the world.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA ============ -->
+<section class="cta">
+  <h2 class="cta-headline">Come on in.</h2>
+  <p class="cta-sub">Arrange an in-person visit, or open the 360-degree virtual tour of the boarding house, the houses, and the grounds.</p>
+  <div class="cta-actions">
+    <a href="#" class="btn-white">Arrange a visit</a>
+    <a href="#" class="btn-ghost-white">360° virtual tour</a>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <span class="copyright">Gymnasium &amp; Internat Kloster Disentis · Via Sogn Sigisbert 1 · +41 81 929 68 68</span>
+  <span class="brand">Gymnasium <b>Disentis</b> · The Wall</span>
+</footer>
+
+<script>
+(() => {
+  'use strict';
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+  const section = document.getElementById('wallSection');
+  const track = document.getElementById('wallTrack');
+  const cards = track.querySelectorAll('.wall-card');
+  const dots = document.querySelectorAll('.wall-progress-dot');
+  const progressNow = document.getElementById('progressNow');
+  const hint = document.getElementById('wallHint');
+
+  if (reduce) {
+    // Reduced motion: track is shown as a horizontally-scrollable strip via CSS @media
+    return;
+  }
+
+  let raf = null;
+  function schedule() { if (!raf) raf = requestAnimationFrame(tick); }
+
+  function tick() {
+    raf = null;
+    const r = section.getBoundingClientRect();
+    const total = r.height - window.innerHeight;
+    if (total <= 0) return;
+    const progress = clamp(-r.top / total, 0, 1);
+
+    // Track translates left
+    const maxPan = track.scrollWidth - window.innerWidth;
+    if (maxPan > 0) {
+      track.style.transform = `translateX(${-progress * maxPan}px)`;
+    }
+
+    // Active card based on progress slices
+    const idx = Math.min(cards.length - 1, Math.floor(progress * cards.length * 0.999));
+    progressNow.textContent = String(idx + 1).padStart(2, '0');
+    dots.forEach((d, i) => {
+      d.classList.toggle('is-active', i === idx);
+      d.classList.toggle('is-passed', i < idx);
+    });
+
+    // Hide hint after first move
+    hint.classList.toggle('is-hidden', progress > 0.05);
+  }
+
+  window.addEventListener('scroll', schedule, { passive: true });
+  window.addEventListener('resize', schedule);
+  // Run after layout settled so scrollWidth is correct
+  requestAnimationFrame(tick);
+
+})();
+</script>
+
+</body>
+</html>

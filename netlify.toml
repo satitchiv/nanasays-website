@@ -32,6 +32,12 @@
   [headers.values]
     X-Robots-Tag = "noindex, nofollow"
 
+# Block the mockup gallery from any search engine indexing (belt-and-braces)
+[[headers]]
+  for = "/school-demo/*"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow, noarchive, nosnippet"
+
 [[headers]]
   for = "/sitemap.xml"
   [headers.values]

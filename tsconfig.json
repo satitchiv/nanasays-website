@@ -33,7 +33,15 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    ".next-slice6.5/types/**/*.ts"
+    ".next-slice6.5/types/**/*.ts",
+    ".next-recommender-smoke/types/**/*.ts",
+    ".next-phase28/types/**/*.ts",
+    ".next-wiring/types/**/*.ts",
+    ".next-verdict-v31/types/**/*.ts",
+    ".next-commit3/types/**/*.ts",
+    ".next-eval/types/**/*.ts",
+    ".next-mapfix/types/**/*.ts",
+    ".next-landscape/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
