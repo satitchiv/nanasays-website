@@ -104,7 +104,16 @@ export default function ResearchRoom({
 }: Props) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<Tab>('compare')
-  const [chatState, setChatState] = useState<ChatState>('default')
+  // Diagnostic follow-up (2026-07-17): the landing tab is always
+  // 'compare', and 'default' chat width (400px desktop rail / 50dvh
+  // mobile bottom-sheet+scrim) buried the comparison table on first
+  // paint — on mobile the sheet+scrim covered nearly the whole screen,
+  // and on desktop 400px of chat squeezed a 4-5 school table into
+  // awkward horizontal scroll before the parent had done anything.
+  // 'closed' still leaves the chat one tap/click away (a slim "ASK
+  // NANA" rail on desktop, a pulsing FAB on mobile) — it just stops
+  // defaulting to covering the primary content the parent lands on.
+  const [chatState, setChatState] = useState<ChatState>('closed')
   const [buildMode, setBuildMode] = useState(false)
   const [activeChildId, setActiveChildId] = useState<string | null>(initialActiveChildId)
   // Slice 8 Build 7 Phase C — per-child dismiss set for fullscreen Build

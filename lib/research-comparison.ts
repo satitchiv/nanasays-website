@@ -1,7 +1,8 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { ComparisonData, ComparisonRow, RowCell, SchoolColumn } from '@/components/nana/comparison-placeholder'
+import type { ComparisonData, ComparisonRow, RowCell, SchoolColumn, WinnerRule } from '@/components/nana/comparison-placeholder'
 import { assertUserId } from './school-name-overrides'
+import { GENERAL_ROW_WINNER_RULES } from './research-room/seed-rows'
 
 // Slice 5.5b — lens-aware single-source comparison loader.
 //
@@ -18,7 +19,7 @@ type ComparisonRowDb = {
   row_name:            string
   group_name:          string
   weight:              number
-  cell_data:           Record<string, { value?: string | number | null; source?: string | null; note?: string }> | null
+  cell_data:           Record<string, { value?: string | number | null; source?: string | null; note?: string; numeric?: number | null }> | null
   sort_order:          number
   lens_kind:           'general' | 'child_fit' | 'chat'
   // Slice 6.5: NULL for base/seed/chat rows; UUID of the parent topic
@@ -32,6 +33,10 @@ type RowCellData = {
   value?: string | number | null
   source?: string | null
   note?: string | null
+  // Research Room redesign (data side, 2026-07-16): raw numeric value
+  // behind `value` when the underlying field is genuinely numeric (fees,
+  // percentages, scores). See RowCell['numericValue'] in comparison-placeholder.ts.
+  numeric?: number | null
 }
 
 type SchoolMeta = {
@@ -41,6 +46,8 @@ type SchoolMeta = {
   region:        string | null
   boarding:      boolean | null
   gender_split:  string | null
+  hero_image:    string | null
+  logo_url:      string | null
 }
 
 // ─── Public entrypoint ──────────────────────────────────────────────────────
@@ -194,7 +201,7 @@ async function loadSchoolColumns(
   // responsible for any structured-data joins that turn into cell content.
   const { data: schoolsRaw, error: schoolsError } = await supabase
     .from('schools')
-    .select('slug, name, city, region, boarding, gender_split')
+    .select('slug, name, city, region, boarding, gender_split, hero_image, logo_url')
     .in('slug', slugs)
 
   if (schoolsError) throw new Error(`${caller}: schools read failed: ${schoolsError.message}`)
@@ -213,6 +220,8 @@ async function loadSchoolColumns(
       name: m.name,
       meta: metaParts.join(' · ') || '—',
       addedBecause: addedBecauseBySlug.get(slug) ?? null,
+      heroImage: m.hero_image ?? undefined,
+      logoUrl: m.logo_url ?? undefined,
     })
   }
   return schools
@@ -302,6 +311,7 @@ async function loadLensRows(
       cells,
       removable:  r.lens_kind === 'chat',
       group_name: r.group_name ?? null,
+      winnerRule: resolveWinnerRule(r.row_name),
     }
   })
 }
@@ -342,6 +352,7 @@ async function loadVerdictRows(
     cellOriginIdBySchool: (string | undefined)[]
     firstOrder: number
     group_name: string | null
+    winnerRule: WinnerRule
   }
 
   const merged = new Map<string, MergedRow>()
@@ -359,6 +370,7 @@ async function loadVerdictRows(
         // Slice 8 Step 0.6: first-seen row wins (sorted by lens priority +
         // sort_order, so the highest-priority group_name surfaces).
         group_name: row.group_name ?? null,
+        winnerRule: resolveWinnerRule(row.row_name),
       })
       return
     }
@@ -384,6 +396,7 @@ async function loadVerdictRows(
       removable:                     false,
       group_name:                    row.group_name,
       selectedCellOriginIdBySchool:  row.cellOriginIdBySchool,
+      winnerRule:                    row.winnerRule,
     }))
 }
 
@@ -395,7 +408,18 @@ function cellFromRaw(c: RowCellData | undefined, includeSource: boolean): RowCel
     includeSource && typeof c.source === 'string' && c.source.trim() ? c.source.trim() : null,
   ].filter((p): p is string => Boolean(p))
   const sub = subParts.length > 0 ? subParts.join(' · ') : undefined
-  return { kind: 'value', primary, sub }
+  const numericValue = typeof c.numeric === 'number' && Number.isFinite(c.numeric) ? c.numeric : undefined
+  return { kind: 'value', primary, sub, numericValue }
+}
+
+// Research Room redesign (data side, 2026-07-16): resolve a row's winner
+// direction from its seeded-row lookup (lib/research-room/seed-rows.ts),
+// keyed by the exact row_name every GENERAL_SPECS/BRIEF_SPECS entry writes
+// verbatim to comparison_rows.row_name. Chat-added rows and any row_name
+// not in the lookup fall back to 'neutral' — the safer default when the
+// row's semantic meaning (and therefore which direction "wins") isn't known.
+function resolveWinnerRule(rowName: string): WinnerRule {
+  return GENERAL_ROW_WINNER_RULES[rowName] ?? 'neutral'
 }
 
 function evidenceCellScore(cell: RowCell): number {

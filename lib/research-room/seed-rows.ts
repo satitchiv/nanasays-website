@@ -1,6 +1,7 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { KNOWN_FULL_BOARDING_NAMES, normalizeSchoolName } from '@/lib/school-name-overrides'
+import type { WinnerRule } from '@/components/nana/comparison-placeholder'
 import {
   type BriefProfile,
   isIbCurriculum,
@@ -37,6 +38,12 @@ type CellValue = {
   value: string | number | null
   source?: string
   note?: string
+  // Research Room redesign (data side, 2026-07-16): raw numeric value behind
+  // `value` (e.g. 44400 for "£44,400", 62 for "62%"), so the presentation
+  // layer can compare/mark a row winner without parsing the display string.
+  // Set only by builders whose underlying field is genuinely numeric;
+  // undefined for free-text cells (school type, location, sport tiers, ...).
+  numeric?: number
 }
 
 type CellData = Record<string, CellValue>
@@ -97,6 +104,12 @@ type SeedRowSpec = {
   // renders '—' for absent cells; lenient strictness per the round-1
   // architecture decision.
   build:       (ctx: SeedContext) => CellValue | null
+  // Research Room redesign (data side, 2026-07-16): which direction "wins"
+  // this row for the comparison table's winner mark. Omitted specs default
+  // to 'neutral' via GENERAL_ROW_WINNER_RULES below — the safer default
+  // when a row's cells aren't a clean, universally-agreed-direction metric
+  // (fees, free text, qualitative tiers).
+  winnerRule?: WinnerRule
 }
 
 // ─── Notion sidecar accessors ───────────────────────────────────────────────
@@ -220,7 +233,7 @@ function buildTotalPupils({ struct, notion }: SeedContext): CellValue | null {
   else if (total <= 1200) bucket = 'Larger'
   else bucket = 'Very large'
   const source = ext != null ? 'student_community.total_pupils' : 'notion.parsed.total_pupils'
-  return { value: `~${total.toLocaleString()}`, note: bucket, source }
+  return { value: `~${total.toLocaleString()}`, note: bucket, source, numeric: total }
 }
 
 // Map UK "NN+" admissions notation to its corresponding Year. Per Codex pre-flight:
@@ -345,18 +358,18 @@ function buildBoardingPupils({ struct, notion }: SeedContext): CellValue | null 
   // Notion is the de-facto source. Honour extractor if it ever lands a value.
   const sc = struct?.student_community as Record<string, unknown> | null | undefined
   const ext = typeof sc?.boarder_count === 'number' ? sc.boarder_count as number : null
-  if (ext != null) return { value: `~${ext.toLocaleString()}`, source: 'student_community.boarder_count' }
+  if (ext != null) return { value: `~${ext.toLocaleString()}`, source: 'student_community.boarder_count', numeric: ext }
   const n = notionParsedNumber(notion, 'boarder_count')
-  if (n != null) return { value: `~${n.toLocaleString()}`, source: 'notion.parsed.boarder_count' }
+  if (n != null) return { value: `~${n.toLocaleString()}`, source: 'notion.parsed.boarder_count', numeric: n }
   return null
 }
 
 function buildInternationalPupils({ struct, notion }: SeedContext): CellValue | null {
   const sc = struct?.student_community as Record<string, unknown> | null | undefined
   const ext = typeof sc?.intl_count === 'number' ? sc.intl_count as number : null
-  if (ext != null) return { value: `~${ext.toLocaleString()}`, source: 'student_community.intl_count' }
+  if (ext != null) return { value: `~${ext.toLocaleString()}`, source: 'student_community.intl_count', numeric: ext }
   const n = notionParsedNumber(notion, 'intl_count')
-  if (n != null) return { value: `~${n.toLocaleString()}`, source: 'notion.parsed.intl_count' }
+  if (n != null) return { value: `~${n.toLocaleString()}`, source: 'notion.parsed.intl_count', numeric: n }
   return null
 }
 
@@ -370,19 +383,23 @@ function buildDayPupils({ struct, notion }: SeedContext): CellValue | null {
   const extTotal    = typeof sc?.total_pupils  === 'number' ? sc.total_pupils  as number : null
   const extBoarders = typeof sc?.boarder_count === 'number' ? sc.boarder_count as number : null
   if (extTotal != null && extBoarders != null && extTotal > extBoarders) {
+    const day = extTotal - extBoarders
     return {
-      value:  `~${(extTotal - extBoarders).toLocaleString()}`,
+      value:  `~${day.toLocaleString()}`,
       source: 'derived: student_community.total_pupils − boarder_count',
       note:   'Total − Boarders',
+      numeric: day,
     }
   }
   const notionTotal    = notionParsedNumber(notion, 'total_pupils')
   const notionBoarders = notionParsedNumber(notion, 'boarder_count')
   if (notionTotal != null && notionBoarders != null && notionTotal > notionBoarders) {
+    const day = notionTotal - notionBoarders
     return {
-      value:  `~${(notionTotal - notionBoarders).toLocaleString()}`,
+      value:  `~${day.toLocaleString()}`,
       source: 'derived: notion.parsed.total_pupils − boarder_count',
       note:   'Total − Boarders',
+      numeric: day,
     }
   }
   return null
@@ -401,12 +418,12 @@ function buildBoardingRatio({ struct, notion }: SeedContext): CellValue | null {
   }
   if (ext != null) {
     const pct = ext > 0 && ext <= 1 ? ext * 100 : ext
-    return { value: `${Math.round(pct)}%`, source: ext === sc?.boarding_pct ? 'student_community.boarding_pct' : 'student_community.boarding_ratio' }
+    return { value: `${Math.round(pct)}%`, source: ext === sc?.boarding_pct ? 'student_community.boarding_pct' : 'student_community.boarding_ratio', numeric: Math.round(pct) }
   }
   const n = notionParsedNumber(notion, 'boarding_ratio')
   if (n != null) {
     // Notion stores percentages as 75.6 (already %, not 0.756). Round for display.
-    return { value: `${Math.round(n)}%`, source: 'notion.parsed.boarding_ratio' }
+    return { value: `${Math.round(n)}%`, source: 'notion.parsed.boarding_ratio', numeric: Math.round(n) }
   }
   return null
 }
@@ -416,11 +433,11 @@ function buildGcsePct({ struct, notion }: SeedContext): CellValue | null {
     | Record<string, unknown>
     | undefined
   const pct = gcse?.pct_7_to_9
-  if (typeof pct === 'number') return { value: `${Math.round(pct)}%`, source: 'exam_results.gcse' }
+  if (typeof pct === 'number') return { value: `${Math.round(pct)}%`, source: 'exam_results.gcse', numeric: Math.round(pct) }
   // Conflict-gated: Notion's parsed value only set when extractor was empty.
   // The (9-8) trap was caught in the parser — anything in parsed is safely 9-7.
   const n = notionParsedNumber(notion, 'gcse_pct')
-  if (n != null) return { value: `${Math.round(n)}%`, source: 'notion.parsed.gcse_pct' }
+  if (n != null) return { value: `${Math.round(n)}%`, source: 'notion.parsed.gcse_pct', numeric: Math.round(n) }
   // Wellington / Harrow only publish 9-8, not 9-7. Promoted into a separate slot
   // (gcse_pct_alt_band) so parsed.gcse_pct's 9-7 invariant stays intact; cell
   // renders the band inline so the column-default "GCSE 9–7" header isn't a lie.
@@ -436,9 +453,9 @@ function buildALevelPct({ struct, notion }: SeedContext): CellValue | null {
     | Record<string, unknown>
     | undefined
   const pct = al?.pct_a_star_a
-  if (typeof pct === 'number') return { value: `${Math.round(pct)}%`, source: 'exam_results.a_level' }
+  if (typeof pct === 'number') return { value: `${Math.round(pct)}%`, source: 'exam_results.a_level', numeric: Math.round(pct) }
   const n = notionParsedNumber(notion, 'a_level_pct')
-  if (n != null) return { value: `${Math.round(n)}%`, source: 'notion.parsed.a_level_pct' }
+  if (n != null) return { value: `${Math.round(n)}%`, source: 'notion.parsed.a_level_pct', numeric: Math.round(n) }
   return null
 }
 
@@ -462,11 +479,14 @@ function buildBoardingFeeTerm({ struct, notion }: SeedContext): CellValue | null
       const per = typeof o.per_term === 'number' ? o.per_term : (typeof o.per_term === 'string' ? Number(o.per_term) : null)
       if (per && (max == null || per > max)) max = per
     }
-    if (max != null) return { value: `${sym}${Math.round(max).toLocaleString()}`, source: 'fees_by_grade' }
+    if (max != null) return { value: `${sym}${Math.round(max).toLocaleString()}`, source: 'fees_by_grade', numeric: Math.round(max) }
   }
   // Notion fallback (Phase 1) — value is GBP scalar or {min,max}.
   const fee = notionParsedFee(notion, 'boarding_fee_term')
-  if (fee != null) return { value: formatGbp(fee), source: 'notion.parsed.boarding_fee_term' }
+  if (fee != null) {
+    const numeric = typeof fee === 'number' ? fee : fee.max
+    return { value: formatGbp(fee), source: 'notion.parsed.boarding_fee_term', numeric }
+  }
   return null
 }
 
@@ -478,13 +498,17 @@ function buildAnnualBoardingFee({ struct, notion }: SeedContext): CellValue | nu
     const sym = cur === 'GBP' ? '£' : cur === 'USD' ? '$' : ''
     const fmt = (n: number) => `${sym}${n.toLocaleString()}`
     if (min != null && max != null && max !== min) {
-      return { value: `${fmt(min)}–${fmt(max)}`, source: 'school_structured_data.fees' }
+      return { value: `${fmt(min)}–${fmt(max)}`, source: 'school_structured_data.fees', numeric: min }
     }
-    return { value: fmt(min ?? max!), source: 'school_structured_data.fees' }
+    const single = min ?? max!
+    return { value: fmt(single), source: 'school_structured_data.fees', numeric: single }
   }
   // Notion fallback — conflict-gated, so only set when extractor was empty.
   const fee = notionParsedFee(notion, 'boarding_fee_year')
-  if (fee != null) return { value: formatGbp(fee), source: 'notion.parsed.boarding_fee_year' }
+  if (fee != null) {
+    const numeric = typeof fee === 'number' ? fee : fee.max
+    return { value: formatGbp(fee), source: 'notion.parsed.boarding_fee_year', numeric }
+  }
   return null
 }
 
@@ -513,7 +537,7 @@ function buildRegistrationFee({ struct }: SeedContext): CellValue | null {
       if (py && (bestNumber == null || py > bestNumber)) bestNumber = py
     }
     if (bestNumber != null) {
-      return { value: `${sym}${Math.round(bestNumber).toLocaleString()}`, source: 'compulsory_extras' }
+      return { value: `${sym}${Math.round(bestNumber).toLocaleString()}`, source: 'compulsory_extras', numeric: Math.round(bestNumber) }
     }
   }
 
@@ -528,7 +552,7 @@ function buildRegistrationFee({ struct }: SeedContext): CellValue | null {
       if (m) {
         const cleaned = Number(m[1].replace(/,/g, ''))
         if (Number.isFinite(cleaned) && cleaned > 0) {
-          return { value: `£${cleaned.toLocaleString()}`, source: 'process_steps' }
+          return { value: `£${cleaned.toLocaleString()}`, source: 'process_steps', numeric: cleaned }
         }
       }
     }
@@ -621,7 +645,7 @@ function buildIbOffered({ struct }: SeedContext): CellValue | null {
   if (ib && typeof ib === 'object') {
     const points = (ib as Record<string, unknown>).avg_points
     if (typeof points === 'number' && points > 0) {
-      return { value: `${points} avg`, note: 'IB diploma', source: 'exam_results.ib' }
+      return { value: `${points} avg`, note: 'IB diploma', source: 'exam_results.ib', numeric: points }
     }
     return { value: 'Offered', source: 'exam_results.ib' }
   }
@@ -632,27 +656,38 @@ function buildIbOffered({ struct }: SeedContext): CellValue | null {
 // sort_order uses 100, 200, 300, ... so future specs can slot between
 // existing values without renumbering the whole list.
 
+// Research Room redesign (data side, 2026-07-16): winnerRule per spec.
+//   - gcse_pct / a_level_pct: exam results — higher-is-better.
+//   - boarding_fee_term / boarding_fee_year / registration_fee: fees/price —
+//     explicit founder decision, 'neutral' (cheapest isn't always "best").
+//   - everything else here is either free text (location, entry windows),
+//     a logistics/preference field with no universal "better" direction
+//     (travel time, class size, pupil counts, boarding ratio), or a row
+//     that never actually populates (school_view) — 'neutral' per the
+//     "if genuinely unsure, default to neutral" rule. Omitted winnerRule
+//     also resolves to 'neutral' via GENERAL_ROW_WINNER_RULES below; set
+//     explicitly here anyway for readability.
 const GENERAL_SPECS: SeedRowSpec[] = [
   // 'School name' was in the v1 spec but redundant with column headers,
   // dropped in v1.1. Existing rows in deployed sessions get a one-shot
   // soft-delete via the migration that ships alongside this change.
-  { slug: 'school_type',           row_name: 'School type',                 group_name: 'About',      sort_order:  200, build: buildSchoolType },
-  { slug: 'location',              row_name: 'Location',                    group_name: 'About',      sort_order:  300, build: buildLocation },
-  { slug: 'heathrow_minutes',      row_name: 'Travel from Heathrow',        group_name: 'About',      sort_order:  400, build: buildHeathrowMinutes },
-  { slug: 'class_size',            row_name: 'Class size',                  group_name: 'Pastoral',   sort_order:  500, build: buildClassSize },
-  { slug: 'total_pupils',          row_name: 'Total pupils',                group_name: 'Pastoral',   sort_order:  600, build: buildTotalPupils },
-  { slug: 'lowest_boarding_entry', row_name: 'Lowest boarding entry',       group_name: 'Admissions', sort_order:  700, build: buildLowestBoardingEntry },
-  { slug: 'boarding_pupils',       row_name: 'Boarding pupils',             group_name: 'Pastoral',   sort_order:  800, build: buildBoardingPupils },
-  { slug: 'international_pupils',  row_name: 'International pupils',        group_name: 'Pastoral',   sort_order:  900, build: buildInternationalPupils },
-  { slug: 'day_pupils',            row_name: 'Day pupils',                  group_name: 'Pastoral',   sort_order: 1000, build: buildDayPupils },
-  { slug: 'boarding_ratio',        row_name: 'Boarding ratio',              group_name: 'Pastoral',   sort_order: 1100, build: buildBoardingRatio },
-  { slug: 'gcse_pct',              row_name: 'GCSE 9–7',                    group_name: 'Academics',  sort_order: 1200, build: buildGcsePct },
-  { slug: 'a_level_pct',           row_name: 'A-level A*–A',                group_name: 'Academics',  sort_order: 1300, build: buildALevelPct },
-  { slug: 'boarding_fee_term',     row_name: 'Boarding fee · per term',     group_name: 'Fees',       sort_order: 1400, build: buildBoardingFeeTerm },
-  { slug: 'boarding_fee_year',     row_name: 'Boarding fee · per year',     group_name: 'Fees',       sort_order: 1500, build: buildAnnualBoardingFee },
-  { slug: 'registration_fee',      row_name: 'Registration fee',            group_name: 'Fees',       sort_order: 1600, build: buildRegistrationFee },
-  { slug: 'y9_y10_admissions',     row_name: 'Year 9 / 10 admissions',      group_name: 'Admissions', sort_order: 1700, build: buildY9Y10Admissions },
-  { slug: 'school_view',           row_name: 'School view',                 group_name: 'Media',      sort_order: 1800, build: buildSchoolView },
+  { slug: 'school_type',           row_name: 'School type',                 group_name: 'About',      sort_order:  200, build: buildSchoolType, winnerRule: 'neutral' },
+  { slug: 'location',              row_name: 'Location',                    group_name: 'About',      sort_order:  300, build: buildLocation, winnerRule: 'neutral' },
+  { slug: 'heathrow_minutes',      row_name: 'Travel from Heathrow',        group_name: 'About',      sort_order:  400, build: buildHeathrowMinutes, winnerRule: 'neutral' },
+  { slug: 'class_size',            row_name: 'Class size',                  group_name: 'Pastoral',   sort_order:  500, build: buildClassSize, winnerRule: 'neutral' },
+  { slug: 'total_pupils',          row_name: 'Total pupils',                group_name: 'Pastoral',   sort_order:  600, build: buildTotalPupils, winnerRule: 'neutral' },
+  { slug: 'lowest_boarding_entry', row_name: 'Lowest boarding entry',       group_name: 'Admissions', sort_order:  700, build: buildLowestBoardingEntry, winnerRule: 'neutral' },
+  { slug: 'boarding_pupils',       row_name: 'Boarding pupils',             group_name: 'Pastoral',   sort_order:  800, build: buildBoardingPupils, winnerRule: 'neutral' },
+  { slug: 'international_pupils',  row_name: 'International pupils',        group_name: 'Pastoral',   sort_order:  900, build: buildInternationalPupils, winnerRule: 'neutral' },
+  { slug: 'day_pupils',            row_name: 'Day pupils',                  group_name: 'Pastoral',   sort_order: 1000, build: buildDayPupils, winnerRule: 'neutral' },
+  { slug: 'boarding_ratio',        row_name: 'Boarding ratio',              group_name: 'Pastoral',   sort_order: 1100, build: buildBoardingRatio, winnerRule: 'neutral' },
+  { slug: 'gcse_pct',              row_name: 'GCSE 9–7',                    group_name: 'Academics',  sort_order: 1200, build: buildGcsePct, winnerRule: 'higher-is-better' },
+  { slug: 'a_level_pct',           row_name: 'A-level A*–A',                group_name: 'Academics',  sort_order: 1300, build: buildALevelPct, winnerRule: 'higher-is-better' },
+  { slug: 'boarding_fee_term',     row_name: 'Boarding fee · per term',     group_name: 'Fees',       sort_order: 1400, build: buildBoardingFeeTerm, winnerRule: 'neutral' },
+  { slug: 'boarding_fee_year',     row_name: 'Boarding fee · per year',     group_name: 'Fees',       sort_order: 1500, build: buildAnnualBoardingFee, winnerRule: 'neutral' },
+  { slug: 'registration_fee',      row_name: 'Registration fee',            group_name: 'Fees',       sort_order: 1600, build: buildRegistrationFee, winnerRule: 'neutral' },
+  { slug: 'y9_y10_admissions',     row_name: 'Year 9 / 10 admissions',      group_name: 'Admissions', sort_order: 1700, build: buildY9Y10Admissions, winnerRule: 'neutral' },
+  { slug: 'school_view',           row_name: 'School view',                 group_name: 'Media',      sort_order: 1800, build: buildSchoolView, winnerRule: 'neutral' },
 ]
 
 // ─── Brief-aware specs (Slice 8 Build 2) ────────────────────────────────────
@@ -683,15 +718,20 @@ type BriefSeedRowSpec = SeedRowSpec & {
 // AND `extracurricular`-style fields, re-introduce them with real builders.
 const BRIEF_SPECS: BriefSeedRowSpec[] = [
   // Sport priority — 5 sport-strength rows so the parent sees which schools
-  // shine where. Cell builders read sports_profile.<sport>.competitive_tier.
-  { slug: 'rugby_strength',    row_name: 'Rugby strength',    group_name: 'child-specific', sort_order:  50, gate: isSportPriority, build: buildRugbyStrength },
-  { slug: 'tennis_strength',   row_name: 'Tennis strength',   group_name: 'child-specific', sort_order:  60, gate: isSportPriority, build: buildTennisStrength },
-  { slug: 'cricket_strength',  row_name: 'Cricket strength',  group_name: 'child-specific', sort_order:  70, gate: isSportPriority, build: buildCricketStrength },
-  { slug: 'hockey_strength',   row_name: 'Hockey strength',   group_name: 'child-specific', sort_order:  80, gate: isSportPriority, build: buildHockeyStrength },
-  { slug: 'football_strength', row_name: 'Football strength', group_name: 'child-specific', sort_order:  90, gate: isSportPriority, build: buildFootballStrength },
+  // shine where. Cell builders read sports_profile.<sport>.competitive_tier,
+  // a qualitative tier label (e.g. "Elite"/"Strong"/"Developing") with no
+  // codified ordinal scale in this codebase — 'neutral' per the "if
+  // genuinely unsure, default to neutral" rule.
+  { slug: 'rugby_strength',    row_name: 'Rugby strength',    group_name: 'child-specific', sort_order:  50, gate: isSportPriority, build: buildRugbyStrength, winnerRule: 'neutral' },
+  { slug: 'tennis_strength',   row_name: 'Tennis strength',   group_name: 'child-specific', sort_order:  60, gate: isSportPriority, build: buildTennisStrength, winnerRule: 'neutral' },
+  { slug: 'cricket_strength',  row_name: 'Cricket strength',  group_name: 'child-specific', sort_order:  70, gate: isSportPriority, build: buildCricketStrength, winnerRule: 'neutral' },
+  { slug: 'hockey_strength',   row_name: 'Hockey strength',   group_name: 'child-specific', sort_order:  80, gate: isSportPriority, build: buildHockeyStrength, winnerRule: 'neutral' },
+  { slug: 'football_strength', row_name: 'Football strength', group_name: 'child-specific', sort_order:  90, gate: isSportPriority, build: buildFootballStrength, winnerRule: 'neutral' },
 
-  // Curriculum — IB diploma offered / avg points.
-  { slug: 'ib_offered',        row_name: 'IB diploma',        group_name: 'child-specific', sort_order: 100, gate: isIbCurriculum, build: buildIbOffered },
+  // Curriculum — IB diploma offered / avg points. avg_points is a real
+  // academic score (IB diploma average, out of 45) — higher-is-better,
+  // same bucket as GCSE/A-level pass rates.
+  { slug: 'ib_offered',        row_name: 'IB diploma',        group_name: 'child-specific', sort_order: 100, gate: isIbCurriculum, build: buildIbOffered, winnerRule: 'higher-is-better' },
 ]
 
 /**
@@ -702,6 +742,26 @@ export function briefSpecsForProfile(profile: BriefProfile | null): BriefSeedRow
   if (!profile) return []
   return BRIEF_SPECS.filter(spec => spec.gate(profile))
 }
+
+// ─── Row winner-rule lookup (Research Room redesign, data side, 2026-07-16) ─
+//
+// Keyed by the exact row_name string every spec above writes verbatim to
+// comparison_rows.row_name (see seedResearchSession's buildCells → the RPC
+// btrim()s but does not otherwise alter it). Consumed by
+// lib/research-comparison.ts to resolve ComparisonRow.winnerRule without
+// that module needing to know each spec's semantics. Includes BOTH
+// GENERAL_SPECS and BRIEF_SPECS — brief rows carry `lens_kind: 'general'`
+// in the DB (see seedResearchSession) but their row_name is unique enough
+// (e.g. "Rugby strength") that a plain row_name keyed map works fine
+// without needing the brief_ slug prefix.
+//
+// Rows not in this map (chat-added rows, any future row_name not seeded
+// here) resolve to 'neutral' at the call site — the safer default.
+export const GENERAL_ROW_WINNER_RULES: Readonly<Record<string, WinnerRule>> = Object.freeze(
+  Object.fromEntries(
+    [...GENERAL_SPECS, ...BRIEF_SPECS].map(spec => [spec.row_name, spec.winnerRule ?? 'neutral'])
+  )
+)
 
 // ─── Public entrypoint ──────────────────────────────────────────────────────
 
