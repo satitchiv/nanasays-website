@@ -763,6 +763,83 @@ export const GENERAL_ROW_WINNER_RULES: Readonly<Record<string, WinnerRule>> = Ob
   )
 )
 
+// RRV-2 (never-blank table, 2026-07-20): row_name → seed slug, same
+// precedent as GENERAL_ROW_WINNER_RULES above. Lets the comparison loader
+// map a DB row back to "which field is this" without re-deriving it from
+// free-text labels — used to (a) decide whether a cohort peer-range is
+// computable for an empty cell (COHORT_ELIGIBLE_SLUGS below) and (b) build
+// a natural-language Ask-Nana question. Rows not in this map (chat-added
+// rows, any future row_name not seeded here) get undefined — the loader
+// falls back to a generic question built from the row label.
+export const GENERAL_ROW_SLUG_BY_NAME: Readonly<Record<string, string>> = Object.freeze(
+  Object.fromEntries(
+    [...GENERAL_SPECS, ...BRIEF_SPECS].map(spec => [spec.row_name, spec.slug])
+  )
+)
+
+// Slugs for which a cohort peer-range (RRV-2 rung 3) is worth attempting.
+// Scoped tight and deliberately: only fields (a) sourced from
+// school_structured_data (the same table the seeder itself reads, so a
+// peer's range matches the semantics of this school's own cell — no
+// mixing in schools.* flat-column USD conversions or notion-only fields)
+// and (b) with real coverage in that table (checked live 2026-07-20:
+// boarding_fee_year 122/322 GBP rows, gcse_pct 81/322, total_pupils
+// 138/322 — all comfortably above a min-4-peer bar; a_level_pct (6 rows
+// codebase-wide) and class_size (0 rows in school_structured_data — only
+// ever populated via Notion) are excluded, they'd almost never clear the
+// bar and aren't worth a whitelist entry). Everything NOT in this set
+// still gets a rung-4 Ask-Nana chip when empty — cohort is an optional
+// rung, not a requirement for "never blank".
+export const COHORT_ELIGIBLE_SLUGS: ReadonlySet<string> = new Set([
+  'boarding_fee_year',
+  'gcse_pct',
+  'total_pupils',
+])
+
+// Natural-language Ask-Nana question per slug. Deliberately NOT the raw
+// row_name (e.g. "Boarding fee · per year" reads badly mid-sentence — flagged
+// in the RRV-2 pre-build review). Falls back to a generic template built
+// from the row label for any slug not listed (chat rows, future specs).
+const GAP_QUESTION_TEMPLATES: Readonly<Record<string, (school: string) => string>> = Object.freeze({
+  school_type:            (s) => `What type of school is ${s} — day, boarding, or both?`,
+  location:                (s) => `Where is ${s} located?`,
+  heathrow_minutes:        (s) => `How far is ${s} from Heathrow?`,
+  class_size:              (s) => `What is ${s}'s typical class size?`,
+  total_pupils:            (s) => `How many pupils does ${s} have?`,
+  lowest_boarding_entry:   (s) => `What's the earliest year ${s} accepts boarders?`,
+  boarding_pupils:         (s) => `How many boarding pupils does ${s} have?`,
+  international_pupils:    (s) => `How many international pupils does ${s} have?`,
+  day_pupils:              (s) => `How many day pupils does ${s} have?`,
+  boarding_ratio:          (s) => `What's the boarding-to-day ratio at ${s}?`,
+  gcse_pct:                (s) => `What GCSE results does ${s} publish?`,
+  a_level_pct:             (s) => `What A-level results does ${s} publish?`,
+  boarding_fee_term:       (s) => `What is ${s}'s boarding fee per term?`,
+  boarding_fee_year:       (s) => `What is ${s}'s annual boarding fee?`,
+  registration_fee:        (s) => `What is ${s}'s registration fee?`,
+  y9_y10_admissions:       (s) => `What are ${s}'s Year 9/10 admissions requirements?`,
+  school_view:             (s) => `What does ${s} look like — is there a video or photo tour?`,
+  rugby_strength:          (s) => `How strong is ${s}'s rugby programme?`,
+  tennis_strength:         (s) => `How strong is ${s}'s tennis programme?`,
+  cricket_strength:        (s) => `How strong is ${s}'s cricket programme?`,
+  hockey_strength:         (s) => `How strong is ${s}'s hockey programme?`,
+  football_strength:       (s) => `How strong is ${s}'s football programme?`,
+  ib_offered:              (s) => `Does ${s} offer the IB diploma?`,
+})
+
+/**
+ * Build a ready-to-send Ask-Nana question for an empty cell. `slug` is
+ * looked up via GENERAL_ROW_SLUG_BY_NAME by the caller; pass undefined for
+ * unmapped rows (chat rows) to get the generic fallback.
+ */
+export function gapQuestionFor(slug: string | undefined, rowLabel: string, schoolName: string): string {
+  const template = slug ? GAP_QUESTION_TEMPLATES[slug] : undefined
+  if (template) return template(schoolName)
+  // Generic fallback: strip ' · ' qualifier segments (they read fine as a
+  // column label, badly mid-sentence — e.g. "Boarding fee · per year").
+  const plainLabel = rowLabel.split('·')[0].trim().toLowerCase()
+  return `What is ${schoolName}'s ${plainLabel}?`
+}
+
 // ─── Public entrypoint ──────────────────────────────────────────────────────
 
 type ShortlistContext = {

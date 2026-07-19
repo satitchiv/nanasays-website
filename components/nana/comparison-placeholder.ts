@@ -22,6 +22,16 @@ export type SchoolColumn = {
   logoUrl?: string
 }
 
+// RRV-2 (never-blank table, 2026-07-20): rung the cell's value resolved at.
+// 'verified' = read straight from a structured DB column. 'derived' = the
+// value already carries its own provenance marker (a `~` prefix or a
+// `source: 'derived: ...'` tag set by seed-rows.ts builders doing cross-
+// column arithmetic, e.g. day pupils = total − boarders) — classified at
+// load time, not a new data source. Undefined on legacy/pre-RRV-2 cells is
+// treated as 'verified' by the renderer (safe default — most existing
+// cells ARE plain verified reads).
+export type CellTier = 'verified' | 'derived'
+
 export type RowCell =
   | {
       kind: 'value'
@@ -36,8 +46,18 @@ export type RowCell =
       // so the presentation layer can compute a row winner without parsing
       // the display string. Undefined for non-numeric / free-text cells.
       numericValue?: number
+      tier?: CellTier
     }
   | { kind: 'lights'; lights: Array<{ label: string; tone: 'green' | 'amber' | 'red' }> }
+  // RRV-2 rung 3: no verified/derived value exists for this school, but
+  // enough shortlisted peers report it that a range is honest to show.
+  // Never built from 'derived' or other 'cohort' cells — only rung-1
+  // verified values count as cohort inputs (no compounding uncertainty).
+  | { kind: 'cohort'; note: string }
+  // RRV-2 rung 4: the floor of the ladder. No value, no peer range —
+  // offer to ask Nana instead of a bare "—". `question` is a ready-to-send
+  // prompt for the chat panel.
+  | { kind: 'gap'; question: string }
   | { kind: 'empty' }
 
 // Research Room redesign (data side, 2026-07-16): row-level "does a higher

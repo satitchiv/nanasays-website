@@ -96,6 +96,12 @@ type Props = {
   // and refreshes the lens with the current shortlist. Only rendered
   // when an active lens is a topic lens.
   onRefreshTopicLens?: (topicName: string) => void
+  // RRV-2 (never-blank table) — fired when the user taps a rung-4
+  // "Ask Nana" gap chip. Parent (ResearchRoom) bridges to the chat hook
+  // the same way onRefreshTopicLens does: force-open the panel and submit
+  // the ready-made question. Chip still renders (disabled-looking, no-op)
+  // when this isn't wired — same defensive pattern as onRemove/onReorderRows.
+  onAskNanaGap?: (question: string) => void
 }
 
 // ─── Comparison redesign (2026-07-16) ───────────────────────────────────
@@ -149,6 +155,45 @@ function computeRowWinners(row: ComparisonRow): Set<number> | null {
   return winners
 }
 
+// RRV-2 (never-blank table, 2026-07-20) — data-aware row ordering. Rows
+// where most schools have no real data (verified or derived) sink toward
+// the bottom of their own group, so the table doesn't open with prominent
+// blanks. Deliberately conservative: only reorders WITHIN a contiguous run
+// of the same group_name (never across groups — that would misplace rows
+// under the wrong section header, since headers render on first
+// appearance of each group per SortableTableBody), and only when no
+// lens/saved-view/re-rank/drag override is active (the caller only invokes
+// this in the `!viewOverlay` branch — all 6 existing order mechanisms keep
+// full precedence over this fallback, matching how rawRows already worked
+// before this change). Stable sort — rows with equal richness keep their
+// original relative order.
+function cellRichness(cell: RowCell): number {
+  return cell.kind === 'value' ? (cell.tier === 'derived' ? 1 : 2) : 0
+}
+function demoteSparseRows(rows: ComparisonRow[]): ComparisonRow[] {
+  const out: ComparisonRow[] = []
+  let i = 0
+  while (i < rows.length) {
+    const group = rows[i].group_name ?? null
+    let j = i + 1
+    while (j < rows.length && (rows[j].group_name ?? null) === group) j++
+    const segment = rows.slice(i, j)
+    if (segment.length > 1) {
+      const scored = segment.map((row, idx) => ({
+        row,
+        idx,
+        richness: row.cells.reduce((sum, c) => sum + cellRichness(c), 0),
+      }))
+      scored.sort((a, b) => (b.richness !== a.richness ? b.richness - a.richness : a.idx - b.idx))
+      out.push(...scored.map(s => s.row))
+    } else {
+      out.push(...segment)
+    }
+    i = j
+  }
+  return out
+}
+
 // Slice 5.5: ALL rows live in comparison_rows now (no more hardcoded
 // canonical rows). Every row id is `cmp-<dbId>`. Removability is set by the
 // loader: only chat-added rows have row.removable = true. Seeded
@@ -180,6 +225,7 @@ export default function ComparisonView({
   onSwitchActiveLens,
   activeChildId = null,
   onRefreshTopicLens,
+  onAskNanaGap,
 }: Props) {
   const router = useRouter()
   const pathname = usePathname()
@@ -387,7 +433,7 @@ export default function ComparisonView({
   // fall to the bottom in their original loader order (defensive — in
   // normal flow rowOrder covers every visible row).
   const rows = (() => {
-    if (!viewOverlay) return rawRows
+    if (!viewOverlay) return demoteSparseRows(rawRows)
     const norm = (s: string) => s.trim().toLowerCase()
     const visibleSet = viewOverlay.visibleRows
       ? new Set(viewOverlay.visibleRows.map(norm))
@@ -786,6 +832,7 @@ export default function ComparisonView({
             pendingRemoveId={pendingRemoveId}
             onReorderRows={onReorderRows}
             sectionHeaderTop={headHeight}
+            onAskNanaGap={onAskNanaGap}
           />
         </div>
       </div>
@@ -812,6 +859,7 @@ function SortableTableBody({
   pendingRemoveId,
   onReorderRows,
   sectionHeaderTop,
+  onAskNanaGap,
 }: {
   rows: ComparisonRow[]
   schools: SchoolColumn[]
@@ -823,6 +871,7 @@ function SortableTableBody({
   // height, now sometimes photo-bearing) school header row instead of a
   // hardcoded top offset. 0 is a safe fallback (sticks to the very top).
   sectionHeaderTop: number
+  onAskNanaGap?: (question: string) => void
 }) {
   // PointerSensor needs a small distance threshold so a click on the
   // remove × or a cell doesn't accidentally start a drag. 4px is the
@@ -887,6 +936,7 @@ function SortableTableBody({
                   removing={pendingRemoveId === row.id}
                   isDragEnabled={Boolean(onReorderRows)}
                   winners={computeRowWinners(row)}
+                  onAskNanaGap={onAskNanaGap}
                 />
               </Fragment>
             )
@@ -908,6 +958,7 @@ function SortableRow({
   removing,
   isDragEnabled,
   winners,
+  onAskNanaGap,
 }: {
   row: ComparisonRow
   schools: SchoolColumn[]
@@ -919,6 +970,7 @@ function SortableRow({
   // null when the row has no winner to mark (neutral rule, no rule, no
   // comparable data, or an all-tied row).
   winners: Set<number> | null
+  onAskNanaGap?: (question: string) => void
 }) {
   const {
     attributes,
@@ -997,7 +1049,7 @@ function SortableRow({
                 ✓
               </span>
             )}
-            <CellBody cell={row.cells[i] ?? { kind: 'empty' }} />
+            <CellBody cell={row.cells[i] ?? { kind: 'empty' }} onAskNanaGap={onAskNanaGap} />
           </div>
         )
       })}
@@ -1006,9 +1058,34 @@ function SortableRow({
 }
 
 
-function CellBody({ cell }: { cell: RowCell }) {
+function CellBody({ cell, onAskNanaGap }: { cell: RowCell; onAskNanaGap?: (question: string) => void }) {
   if (cell.kind === 'empty') {
     return <div className="rr-cmp-cell-empty">—</div>
+  }
+  // RRV-2 rung 3 — no verified/derived value for this school, but enough
+  // shortlisted peers report it that a range beats a blank.
+  if (cell.kind === 'cohort') {
+    return (
+      <div className="rr-cmp-cell-cohort">
+        <span className="rr-cmp-tag rr-cmp-tag--cohort">context</span>
+        <div className="rr-cmp-cell-sub">{cell.note}</div>
+      </div>
+    )
+  }
+  // RRV-2 rung 4 — the floor of the ladder. No value, no peer range: offer
+  // to ask Nana instead of a bare "—". Copy is the exact line from the
+  // Satit-approved visual mock (artifact c6e453ac §1).
+  if (cell.kind === 'gap') {
+    return (
+      <button
+        type="button"
+        className="rr-cmp-ask-nana"
+        onClick={() => onAskNanaGap?.(cell.question)}
+        disabled={!onAskNanaGap}
+      >
+        💬 Not verified yet — ask Nana
+      </button>
+    )
   }
   if (cell.kind === 'lights') {
     return (
@@ -1030,6 +1107,16 @@ function CellBody({ cell }: { cell: RowCell }) {
   // before the data-side agent's fields land.
   const percentMatch = /^(\d+(?:\.\d+)?)\s?%$/.exec(cell.primary.trim())
   const tone = ratingTone(cell.primary)
+  // RRV-2 rung 2 — this value already carries a "~"/"derived:" provenance
+  // marker from seed-rows.ts (classified in cellFromRaw, not re-derived
+  // here). A small "≈" tag distinguishes it from a plain verified read;
+  // deliberately NOT adding a "✓ verified" tag to every other cell — that
+  // would touch every populated cell in the table (not just the blanks
+  // RRV-2 targets) and the mock's "checked against official data" legend
+  // copy over-claims what these cells actually are (extractor/Notion
+  // crawls, not human-verified) per the pre-build review finding. Flagged
+  // for Satit as a separate copy/scope decision, not resolved here.
+  const derivedTag = cell.tier === 'derived' ? <span className="rr-cmp-tag rr-cmp-tag--derived">≈</span> : null
 
   if (percentMatch) {
     const pct = Math.max(0, Math.min(100, parseFloat(percentMatch[1])))
@@ -1037,6 +1124,7 @@ function CellBody({ cell }: { cell: RowCell }) {
       <>
         <div className="rr-cmp-cell-pct">
           <span className="rr-cmp-cell-pct-value">{cell.primary}</span>
+          {derivedTag}
           <span className="rr-cmp-cell-pct-track" aria-hidden="true">
             <span className="rr-cmp-cell-pct-fill" style={{ width: `${pct}%` }} />
           </span>
@@ -1050,6 +1138,7 @@ function CellBody({ cell }: { cell: RowCell }) {
     return (
       <>
         <span className={`rr-cmp-cell-badge rr-cmp-cell-badge--${tone}`}>{cell.primary}</span>
+        {derivedTag}
         {cell.sub && <div className="rr-cmp-cell-sub">{cell.sub}</div>}
       </>
     )
@@ -1059,6 +1148,7 @@ function CellBody({ cell }: { cell: RowCell }) {
     <>
       <div className={cell.numeric ? 'rr-cmp-cell-num' : 'rr-cmp-cell-text'}>
         {cell.primary}
+        {derivedTag}
       </div>
       {cell.sub && <div className="rr-cmp-cell-sub">{cell.sub}</div>}
     </>

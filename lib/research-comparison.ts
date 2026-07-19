@@ -2,7 +2,8 @@ import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ComparisonData, ComparisonRow, RowCell, SchoolColumn, WinnerRule } from '@/components/nana/comparison-placeholder'
 import { assertUserId } from './school-name-overrides'
-import { GENERAL_ROW_WINNER_RULES } from './research-room/seed-rows'
+import { GENERAL_ROW_WINNER_RULES, GENERAL_ROW_SLUG_BY_NAME, COHORT_ELIGIBLE_SLUGS, gapQuestionFor } from './research-room/seed-rows'
+import { REGION_BUCKETS } from './uk-regions'
 
 // Slice 5.5b — lens-aware single-source comparison loader.
 //
@@ -298,8 +299,41 @@ async function loadLensRows(
     return a.created_at.localeCompare(b.created_at)
   })
 
+  // RRV-2 (never-blank table): resolve any still-empty cell to a cohort
+  // range (rung 3) or an Ask-Nana gap chip (rung 4) instead of leaving it
+  // as a bare '—'. Only the visible comparison surface gets this treatment
+  // — loadVerdictRows (below) deliberately does NOT call this, so the
+  // Verdict tab's evidence merge sees exactly what it saw before RRV-2
+  // (plain 'value' / 'empty' / 'lights'; per the pre-build review, its own
+  // cellText() already treats any unrecognized kind as missing, so no
+  // change was needed there either — this is the one and only place the
+  // ladder's rungs 3/4 get produced).
+  const neededSlugs = new Set<string>()
+  for (const r of filtered) {
+    const slug = GENERAL_ROW_SLUG_BY_NAME[r.row_name]
+    if (slug && COHORT_ELIGIBLE_SLUGS.has(slug)) neededSlugs.add(slug)
+  }
+  const [cohort, schoolBuckets] = await Promise.all([
+    neededSlugs.size > 0 ? loadCohortRanges(supabase, neededSlugs) : null,
+    loadSchoolBuckets(supabase, schools.map(s => s.slug)),
+  ])
+
   return filtered.map(r => {
-    const cells: RowCell[] = schools.map(col => cellFromRaw(r.cell_data?.[col.slug], false))
+    const slug = GENERAL_ROW_SLUG_BY_NAME[r.row_name]
+    const cells: RowCell[] = schools.map(col => {
+      const raw = r.cell_data?.[col.slug]
+      const base = cellFromRaw(raw, false)
+      // Rung 2 tier tag attached here, not inside cellFromRaw — see the
+      // comment on cellFromRaw for why (verdict cache-hash stability).
+      if (base.kind === 'value') return raw ? { ...base, tier: classifyTier(raw) } : base
+      if (base.kind !== 'empty') return base
+      const bucket = schoolBuckets.get(col.slug)
+      if (cohort && slug && bucket) {
+        const range = lookupCohortRange(cohort, slug, bucket)
+        if (range) return { kind: 'cohort', note: `not published · similar schools: ${range}` }
+      }
+      return { kind: 'gap', question: gapQuestionFor(slug, r.row_name, col.name) }
+    })
     // group_name lives on the row in the DB. Slice 8 Step 0.6: surface it to
     // the client so ComparisonView can render section headers between
     // groups. emphasis stays available for finer per-row qualifiers
@@ -314,6 +348,157 @@ async function loadLensRows(
       winnerRule: resolveWinnerRule(r.row_name),
     }
   })
+}
+
+// ─── RRV-2 never-blank ladder: rungs 3 (cohort) & 4 (gap) ──────────────────
+
+type SchoolBucket = { schoolType: string | null; boarding: boolean | null; regionBucket: string | null }
+
+// Reverse index of REGION_BUCKETS (schools.region string → bucket name),
+// built once at module load. ~100 short strings — negligible cost.
+const REGION_TO_BUCKET = new Map<string, string>()
+for (const [bucket, regions] of Object.entries(REGION_BUCKETS)) {
+  for (const region of regions) REGION_TO_BUCKET.set(region.toLowerCase().trim(), bucket)
+}
+
+async function loadSchoolBuckets(supabase: SupabaseClient, slugs: string[]): Promise<Map<string, SchoolBucket>> {
+  const out = new Map<string, SchoolBucket>()
+  if (slugs.length === 0) return out
+  const { data, error } = await supabase
+    .from('schools')
+    .select('slug, school_type, boarding, region')
+    .in('slug', slugs)
+  if (error || !data) return out  // best-effort — a lookup failure just means these schools skip rung 3
+  for (const row of data as { slug: string; school_type: string | null; boarding: boolean | null; region: string | null }[]) {
+    out.set(row.slug, {
+      schoolType:   row.school_type,
+      boarding:     row.boarding,
+      regionBucket: row.region ? (REGION_TO_BUCKET.get(row.region.toLowerCase().trim()) ?? null) : null,
+    })
+  }
+  return out
+}
+
+type FieldStats = { values: number[] }
+// fieldSlug -> "type|boarding|region" (or "type|boarding" for the national
+// fallback bucket, region segment omitted) -> collected verified peer values.
+type CohortIndex = Map<string, Map<string, FieldStats>>
+
+const MIN_COHORT_PEERS = 4
+
+// One query against school_structured_data — the SAME table the seeder
+// itself reads boarding_fee_year/gcse_pct/total_pupils from, so a peer's
+// number means the same thing as this school's own cell would. 322 rows
+// total codebase-wide (2026-07-20), so fetching the whole table once per
+// table load is cheap — no N+1, no per-field re-query.
+async function loadCohortRanges(supabase: SupabaseClient, neededSlugs: Set<string>): Promise<CohortIndex> {
+  const index: CohortIndex = new Map()
+  Array.from(neededSlugs).forEach(slug => index.set(slug, new Map()))
+
+  const { data: ssd, error: ssdError } = await supabase
+    .from('school_structured_data')
+    .select('school_slug, fees_min, fees_currency, exam_results, student_community')
+  if (ssdError || !ssd || ssd.length === 0) return index
+
+  type SsdRow = {
+    school_slug: string
+    fees_min: number | null
+    fees_currency: string | null
+    exam_results: Record<string, unknown> | null
+    student_community: Record<string, unknown> | null
+  }
+  const slugs = (ssd as SsdRow[]).map(r => r.school_slug)
+  const buckets = await loadSchoolBucketsForCohort(supabase, slugs)
+
+  const addSample = (fieldSlug: string, bucket: SchoolBucket, value: number) => {
+    const fieldIndex = index.get(fieldSlug)
+    if (!fieldIndex) return
+    const keys = bucket.regionBucket
+      ? [`${bucket.schoolType}|${bucket.boarding}|${bucket.regionBucket}`, `${bucket.schoolType}|${bucket.boarding}`]
+      : [`${bucket.schoolType}|${bucket.boarding}`]
+    for (const key of keys) {
+      const stats = fieldIndex.get(key) ?? { values: [] }
+      stats.values.push(value)
+      fieldIndex.set(key, stats)
+    }
+  }
+
+  for (const row of ssd as SsdRow[]) {
+    const b = buckets.get(row.school_slug)
+    if (!b || b.schoolType == null || b.boarding == null) continue  // no clean bucket → don't pollute any range
+
+    if (neededSlugs.has('boarding_fee_year') && row.fees_currency === 'GBP' && typeof row.fees_min === 'number') {
+      addSample('boarding_fee_year', b, row.fees_min)
+    }
+    if (neededSlugs.has('gcse_pct')) {
+      const gcse = row.exam_results?.gcse as Record<string, unknown> | undefined
+      const pct = gcse?.pct_7_to_9
+      if (typeof pct === 'number') addSample('gcse_pct', b, pct)
+    }
+    if (neededSlugs.has('total_pupils')) {
+      const total = row.student_community?.total_pupils
+      if (typeof total === 'number') addSample('total_pupils', b, total)
+    }
+  }
+  return index
+}
+
+// Separate from loadSchoolBuckets (which scopes to the shortlist) — this
+// one scopes to whatever slugs school_structured_data returned, filtered
+// to real UK, non-deprecated peers only (excludes the ~21k non-UK rows
+// and any superseded/merged school records from polluting a range).
+async function loadSchoolBucketsForCohort(supabase: SupabaseClient, slugs: string[]): Promise<Map<string, SchoolBucket>> {
+  const out = new Map<string, SchoolBucket>()
+  if (slugs.length === 0) return out
+  const { data, error } = await supabase
+    .from('schools')
+    .select('slug, school_type, boarding, region')
+    .in('slug', slugs)
+    .eq('country', 'United Kingdom')
+    .is('deprecated_at', null)
+  if (error || !data) return out
+  for (const row of data as { slug: string; school_type: string | null; boarding: boolean | null; region: string | null }[]) {
+    out.set(row.slug, {
+      schoolType:   row.school_type,
+      boarding:     row.boarding,
+      regionBucket: row.region ? (REGION_TO_BUCKET.get(row.region.toLowerCase().trim()) ?? null) : null,
+    })
+  }
+  return out
+}
+
+function lookupCohortRange(index: CohortIndex, slug: string, bucket: SchoolBucket): string | null {
+  const fieldIndex = index.get(slug)
+  if (!fieldIndex || bucket.schoolType == null || bucket.boarding == null) return null
+  const regionKey = bucket.regionBucket ? `${bucket.schoolType}|${bucket.boarding}|${bucket.regionBucket}` : null
+  const nationalKey = `${bucket.schoolType}|${bucket.boarding}`
+  // Post-build review finding: a region bucket with 1-3 samples used to
+  // short-circuit here and return null, even though the national bucket
+  // (a superset — addSample always writes both keys) might clear the
+  // min-4 bar. Region must WIN only when it clears the bar itself;
+  // otherwise fall through to national, same as an empty region bucket.
+  const regionStats = regionKey ? fieldIndex.get(regionKey) : undefined
+  const stats = (regionStats && regionStats.values.length >= MIN_COHORT_PEERS)
+    ? regionStats
+    : fieldIndex.get(nationalKey) ?? null
+  if (!stats || stats.values.length < MIN_COHORT_PEERS) return null
+  const min = Math.min(...stats.values)
+  const max = Math.max(...stats.values)
+  return formatCohortRange(slug, min, max)
+}
+
+function formatCohortRange(slug: string, min: number, max: number): string {
+  if (slug === 'boarding_fee_year') {
+    const fmtK = (n: number) => `£${Math.round(n / 1000)}k`
+    return min === max ? fmtK(min) : `£${Math.round(min / 1000)}–${Math.round(max / 1000)}k`
+  }
+  if (slug === 'gcse_pct') {
+    return min === max ? `${Math.round(min)}%` : `${Math.round(min)}–${Math.round(max)}%`
+  }
+  if (slug === 'total_pupils') {
+    return min === max ? `${Math.round(min).toLocaleString()} pupils` : `${Math.round(min).toLocaleString()}–${Math.round(max).toLocaleString()} pupils`
+  }
+  return min === max ? String(Math.round(min)) : `${Math.round(min)}–${Math.round(max)}`
 }
 
 async function loadVerdictRows(
@@ -400,6 +585,30 @@ async function loadVerdictRows(
     }))
 }
 
+// RRV-2 rung 2: classify an already-populated cell's provenance from marks
+// the seed-row builders already write — a leading '~' on the value (the
+// existing "approximate" convention: buildTotalPupils/buildClassSize/
+// buildDayPupils/...) or a `source` starting 'derived:' (cross-column
+// arithmetic, e.g. day pupils = total − boarders). NOT a new data source —
+// classifying data that's already there. Per the pre-build review: a
+// school_facts-backed rung 2 was scoped out because that table has zero
+// rows for any of these 17 comparison fields today (verified live
+// 2026-07-20) — wiring it in would've been dead code claiming coverage it
+// doesn't have. Revisit if/when RRV-1's extraction sweep populates it.
+function classifyTier(c: RowCellData): 'derived' | undefined {
+  if (typeof c.source === 'string' && c.source.startsWith('derived:')) return 'derived'
+  if (typeof c.value === 'string' && c.value.startsWith('~')) return 'derived'
+  return undefined
+}
+
+// Post-build review finding: `tier` must NOT be attached here — cellFromRaw
+// is shared with loadVerdictRows, and the verdict route hashes its rows
+// verbatim into the evidence-cache key (verdict-generator.ts inputHash).
+// Attaching tier unconditionally would silently change that hash for
+// nearly every session (any `~`-marked cell) and trigger a needless cache
+// miss + regeneration call. Tier is attached ONLY in loadLensRows below,
+// which is the one path RRV-2 touches — loadVerdictRows stays byte-for-
+// byte what it returned before this feature.
 function cellFromRaw(c: RowCellData | undefined, includeSource: boolean): RowCell {
   if (!c || c.value == null || c.value === '') return { kind: 'empty' }
   const primary = typeof c.value === 'number' ? String(c.value) : c.value
@@ -425,6 +634,12 @@ function resolveWinnerRule(rowName: string): WinnerRule {
 function evidenceCellScore(cell: RowCell): number {
   if (cell.kind === 'empty') return 0
   if (cell.kind === 'lights') return 5 + cell.lights.length
+  // RRV-2: 'cohort'/'gap' cells never actually reach here — the ladder that
+  // produces them only runs in loadLensRows, not loadVerdictRows (see the
+  // ladder's own comment above) — but the type guard is needed regardless
+  // so this compiles against the widened RowCell union. Scored same as
+  // empty: neither carries a citable fact.
+  if (cell.kind !== 'value') return 0
   let score = 10
   if (cell.sub && /https?:\/\//.test(cell.sub)) score += 4
   if (cell.sub) score += 1

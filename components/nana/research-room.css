@@ -3323,6 +3323,69 @@
   color: var(--rr-bmd);
   font-weight: 700;
 }
+
+/* ── RRV-2 never-blank table: ladder rungs 2-4 ──────────────────────
+   Rung 2 (derived "≈" tag) reuses the amber tone already defined for
+   .rr-cmp-cell-badge--amber above. Rung 3 (cohort context) and rung 4
+   (Ask-Nana chip) are new: gray/muted for "we don't have this, but here's
+   context", teal for "here's an action" — matching the existing rr-teal
+   accent already used for chat-rail chips (.rr-chat-rail-chip) elsewhere
+   in this file, so the gap chip reads as part of the same chat-affordance
+   family rather than a one-off. */
+.rr-cmp-tag {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 1px 7px;
+  border-radius: var(--rr-r-pill);
+  vertical-align: middle;
+  margin-left: 6px;
+}
+.rr-cmp-tag--derived {
+  background: var(--rr-amber-bg);
+  color: var(--rr-amber);
+}
+.rr-cmp-tag--cohort {
+  background: var(--rr-off-2);
+  color: var(--rr-muted);
+  margin-left: 0;
+}
+.rr-cmp-cell-cohort {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.rr-cmp-ask-nana {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1.5px dashed var(--rr-teal);
+  color: var(--rr-teal-dk);
+  font-family: var(--rr-sans);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: var(--rr-r-pill);
+  cursor: pointer;
+  transition: background 120ms ease;
+  text-align: left;
+}
+.rr-cmp-ask-nana:hover:not(:disabled) {
+  background: var(--rr-teal-bg, rgba(52, 195, 160, 0.1));
+}
+.rr-cmp-ask-nana:focus-visible {
+  outline: 2px solid var(--rr-teal);
+  outline-offset: 2px;
+}
+.rr-cmp-ask-nana:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .rr-cmp-cell-sub {
   font-family: var(--rr-sans);
   font-size: 12.5px;

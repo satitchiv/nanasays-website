@@ -153,6 +153,19 @@ export default function ResearchRoom({
     setPendingRefreshTopicLens({ topicName, nonce: Date.now() })
   }
 
+  // RRV-2 (never-blank table, 2026-07-20) — same bridge pattern as
+  // pendingRefreshTopicLens directly above, for the rung-4 Ask-Nana gap
+  // chip: ComparisonView fires onAskNanaGap(question), we force-open the
+  // chat and stash the question; ResearchRoomChat watches it and submits
+  // via chat.ask() immediately (no proposal-confirm dance needed here —
+  // a gap question is a plain question, not a lens-creation flow).
+  const [pendingGapQuestion, setPendingGapQuestion] =
+    useState<{ question: string; nonce: number } | null>(null)
+  const handleAskNanaGap = (question: string) => {
+    setChatState((s) => (s === 'closed' ? 'default' : s))
+    setPendingGapQuestion({ question, nonce: Date.now() })
+  }
+
   // Slice 6 commits 7+8 — ephemeral view. Pure client state; no DB
   // write. The single source of truth is `rowOrder` (an explicit list
   // of row IDs in display order). Both inputs flow into it:
@@ -798,6 +811,7 @@ export default function ResearchRoom({
                         activeLensId={optimisticActiveLensId}
                         onSwitchActiveLens={handleSwitchActiveLens}
                         onRefreshTopicLens={handleRefreshTopicLens}
+                        onAskNanaGap={handleAskNanaGap}
                       />
                     </>
                   ) : t === 'brief' ? (
@@ -902,6 +916,7 @@ export default function ResearchRoom({
           canSaveAsLens={canSaveAsLens}
           onSaveAsLens={handleSaveAsLens}
           pendingRefreshTopicLens={pendingRefreshTopicLens}
+          pendingGapQuestion={pendingGapQuestion}
         />
       </div>
     </div>

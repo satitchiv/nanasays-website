@@ -241,6 +241,12 @@ type Props = {
   // proposal, the user clicks confirm, the create_topic_lens RPC's
   // MERGE branch (Tier 2) fills cells for any newly-shortlisted schools.
   pendingRefreshTopicLens?: { topicName: string; nonce: number } | null
+  // RRV-2 (never-blank table, 2026-07-20) — same bridge shape as
+  // pendingRefreshTopicLens above, for the rung-4 Ask-Nana gap chip.
+  // Simpler consumer than the topic-lens one: a gap question is just a
+  // normal question, so the effect below submits it directly via
+  // chat.ask() with no proposal-confirm watcher needed.
+  pendingGapQuestion?: { question: string; nonce: number } | null
 }
 
 const DRAG_TAP_THRESHOLD = 5
@@ -723,6 +729,7 @@ export default function ResearchRoomChat({
   canSaveAsLens    = false,
   onSaveAsLens,
   pendingRefreshTopicLens = null,
+  pendingGapQuestion      = null,
 }: Props) {
   // Slice 8 Build 3 session 2: when Build Mode is active, route to the
   // dedicated /api/research-room/build-mode/turn endpoint instead of
@@ -822,6 +829,18 @@ export default function ResearchRoomChat({
     setPendingAutoConfirmTopic(pendingRefreshTopicLens.topicName.trim().toLowerCase())
     void chat.ask(`Create a lens for ${pendingRefreshTopicLens.topicName}`)
   }, [pendingRefreshTopicLens, chat])
+
+  // RRV-2 (never-blank table) — rung-4 Ask-Nana gap chip. Deliberately not
+  // reusing lastRefreshNonceRef / the auto-confirm machinery above: a gap
+  // question has no proposal to wait for, it's just a normal chat turn.
+  const lastGapNonceRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (!pendingGapQuestion) return
+    if (lastGapNonceRef.current === pendingGapQuestion.nonce) return
+    if (chat.isStreaming) return
+    lastGapNonceRef.current = pendingGapQuestion.nonce
+    void chat.ask(pendingGapQuestion.question)
+  }, [pendingGapQuestion, chat])
 
   // Auto-confirm watcher. Stays disarmed until a refresh fires. Once
   // armed, scans the latest messages for a propose_create_topic_lens
