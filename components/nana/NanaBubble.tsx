@@ -631,11 +631,11 @@ function TopicLensButton({
         type="button"
         className={`rr-proposed-btn rr-proposed-btn--topic-lens${isError ? ' is-error' : ''}`}
         onClick={() => { setExpanded(true); setOverride(null) }}
-        title={`Create ${topicName} lens with ${rowCount} new rows — preview before saving`}
+        title={`Create ${topicName} Focus with ${rowCount} new rows — preview before saving`}
       >
         <span className="rr-proposed-btn-icon" aria-hidden="true">✦</span>
         <span className="rr-proposed-btn-label">
-          Create {topicName} lens with {rowCount} new row{rowCount === 1 ? '' : 's'}
+          Create {topicName} Focus with {rowCount} new row{rowCount === 1 ? '' : 's'}
         </span>
         <span className="rr-proposed-btn-group" aria-hidden="true">▸</span>
       </button>
@@ -659,10 +659,10 @@ function TopicLensButton({
           type="button"
           className="rr-proposed-btn rr-proposed-btn--topic-lens is-added"
           disabled
-          title={`${lensName} lens refreshed: ${summary}`}
+          title={`${lensName} Focus refreshed: ${summary}`}
         >
           <span className="rr-proposed-btn-icon" aria-hidden="true">↻</span>
-          <span className="rr-proposed-btn-label">{lensName} lens refreshed — {summary}</span>
+          <span className="rr-proposed-btn-label">{lensName} Focus refreshed — {summary}</span>
         </button>
       )
     }
@@ -671,10 +671,10 @@ function TopicLensButton({
         type="button"
         className="rr-proposed-btn rr-proposed-btn--topic-lens is-added"
         disabled
-        title={`${lensName} lens — created`}
+        title={`${lensName} Focus — created`}
       >
         <span className="rr-proposed-btn-icon" aria-hidden="true">✓</span>
-        <span className="rr-proposed-btn-label">{lensName} lens — created</span>
+        <span className="rr-proposed-btn-label">{lensName} Focus — created</span>
       </button>
     )
   }
@@ -686,9 +686,9 @@ function TopicLensButton({
       <div className="rr-topic-lens-head">
         <span className="rr-topic-lens-icon" aria-hidden="true">✦</span>
         <div>
-          <p className="rr-topic-lens-title">Create {lensName} lens</p>
+          <p className="rr-topic-lens-title">Create {lensName} Focus</p>
           <p className="rr-topic-lens-sub">
-            Adds {rowCount} new row{rowCount === 1 ? '' : 's'} you&apos;ll see only under this lens
+            Adds {rowCount} new row{rowCount === 1 ? '' : 's'} you&apos;ll see only under this Focus
             {visibleBaseRows && visibleBaseRows.length > 0
               ? `. Keeps ${visibleBaseRows.length} base row${visibleBaseRows.length === 1 ? '' : 's'} visible alongside.`
               : '.'}
@@ -726,7 +726,7 @@ function TopicLensButton({
           onClick={handleConfirm}
           disabled={isPending}
         >
-          {isPending ? 'Creating…' : isError ? 'Try again' : `Create ${lensName} lens`}
+          {isPending ? 'Creating…' : isError ? 'Try again' : `Create ${lensName} Focus`}
         </button>
       </div>
     </div>

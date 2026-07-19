@@ -226,13 +226,6 @@ type Props = {
   // write, no fetch. The receive-side applies viewSpec.weights as a
   // sort/filter overlay on the comparison table.
   onApplyReRank?:      (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
-  // Slice 6 commit 9: Save-as-lens flow. canSaveAsLens reflects whether
-  // there's a pill-derived ephemeral view that can be saved (ResearchRoom
-  // owns the state). onSaveAsLens fires the write-action POST and on
-  // success clears the overlay + refreshes the page so the new lens
-  // becomes active via loadActiveLens.
-  canSaveAsLens?:      boolean
-  onSaveAsLens?:       (lensName: string) => Promise<{ ok: boolean; code?: string; existingLensId?: string }>
   // Slice 6.6 Tier 3 — bridge from ComparisonView's ↻ Refresh lens
   // button. ResearchRoom updates this prop with a new nonce on each
   // click; the chat reacts in a useEffect by submitting "Create a lens
@@ -275,8 +268,6 @@ function ChatBody({
   onApplyReRank,
   onAddToLetter,
   onConfirmTopicLens,
-  canSaveAsLens,
-  onSaveAsLens,
   actionError,
   onDismissActionError,
 }: {
@@ -312,8 +303,6 @@ function ChatBody({
   onApplyReRank?:       (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
   onAddToLetter:        (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
   onConfirmTopicLens?:  (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string; merged?: { rows_inserted: number; rows_updated: number } }>
-  canSaveAsLens?:       boolean
-  onSaveAsLens?:        (lensName: string) => Promise<{ ok: boolean; code?: string; existingLensId?: string }>
   actionError:          string | null
   onDismissActionError: () => void
 }) {
@@ -631,12 +620,13 @@ function ChatBody({
       {/* Slice 6 commit 9 — chip rail above the chat input.
           Discoverable commands. Each chip pre-fills bulletproof
           phrasing the classifier already understands; the parent
-          customises the bracketed bit and hits send. The Save view
-          chip is enabled only when an ephemeral pill-derived view
-          is currently active (canSaveAsLens). */}
+          customises the bracketed bit and hits send.
+          RRV-10: the "Save view" chip that used to live here moved to
+          the Focus bar in ComparisonView.tsx (SaveFocusButton) — Save
+          now sits next to the arrangement it saves rather than
+          requiring the chat panel to be open. */}
       <ChatActionsRail
         disabled={isStreaming}
-        canSaveAsLens={Boolean(canSaveAsLens && onSaveAsLens)}
         onChipFill={(prefix) => {
           setQuestion(prefix)
           // Defer focus + cursor-to-end so React commits the value first.
@@ -650,7 +640,6 @@ function ChatBody({
             }
           })
         }}
-        onSaveAsLens={onSaveAsLens}
       />
 
       <form
@@ -726,8 +715,6 @@ export default function ResearchRoomChat({
   initialBuildModeState = null,
   lensView         = 'general',
   onApplyReRank,
-  canSaveAsLens    = false,
-  onSaveAsLens,
   pendingRefreshTopicLens = null,
   pendingGapQuestion      = null,
 }: Props) {
@@ -1089,11 +1076,11 @@ export default function ResearchRoomChat({
         const j = await res.json().catch(() => ({}))
         const code = typeof j?.code === 'string' ? j.code : 'request_failed'
         if (code === 'duplicate_name') {
-          setActionError('A lens with that name already exists in this session.')
+          setActionError('A Focus with that name already exists in this session.')
         } else if (code === 'empty_after_resolution') {
           setActionError('This topic-lens proposal has no rows to insert.')
         } else {
-          setActionError(`Could not create the topic lens (${code}).`)
+          setActionError(`Could not create the topic Focus (${code}).`)
         }
         return { ok: false, code }
       }
@@ -1108,7 +1095,7 @@ export default function ResearchRoomChat({
       return { ok: true }
     } catch (e) {
       console.error('[research-room write-action] create_topic_lens', e)
-      setActionError('Network error while creating the topic lens.')
+      setActionError('Network error while creating the topic Focus.')
       return { ok: false, code: 'network' }
     }
   }
@@ -1292,7 +1279,7 @@ export default function ResearchRoomChat({
               )}
             </header>
 
-            <ChatBody buildMode={buildMode} fullscreenBuildMode={fullscreenBuildMode} siblingNeedsBasics={siblingNeedsBasics} siblingBasicsCaptured={siblingBasicsCaptured} siblingActiveChildName={siblingActiveChildName} siblingActiveChildDob={siblingActiveChildDob} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={onSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onConfirmAddSchool={onConfirmAddSchool} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} fullscreenBuildMode={fullscreenBuildMode} siblingNeedsBasics={siblingNeedsBasics} siblingBasicsCaptured={siblingBasicsCaptured} siblingActiveChildName={siblingActiveChildName} siblingActiveChildDob={siblingActiveChildDob} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={onSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onConfirmAddSchool={onConfirmAddSchool} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         )}
       </aside>
@@ -1376,7 +1363,7 @@ export default function ResearchRoomChat({
               )}
             </header>
 
-            <ChatBody buildMode={buildMode} fullscreenBuildMode={fullscreenBuildMode} siblingNeedsBasics={siblingNeedsBasics} siblingBasicsCaptured={siblingBasicsCaptured} siblingActiveChildName={siblingActiveChildName} siblingActiveChildDob={siblingActiveChildDob} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={onSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onConfirmAddSchool={onConfirmAddSchool} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} fullscreenBuildMode={fullscreenBuildMode} siblingNeedsBasics={siblingNeedsBasics} siblingBasicsCaptured={siblingBasicsCaptured} siblingActiveChildName={siblingActiveChildName} siblingActiveChildDob={siblingActiveChildDob} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={onSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onConfirmAddSchool={onConfirmAddSchool} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         </>
       )}
@@ -1389,51 +1376,23 @@ export default function ResearchRoomChat({
 // add a row, re-rank, create a topic lens, save the current view. The
 // first three chips PRE-FILL the input with phrasing the classifier
 // already understands; the parent finishes the sentence and hits send.
-// The 'Save view' chip is contextual — only enabled when an ephemeral
-// pill-derived view is active — and short-circuits the chat entirely:
-// click → inline name input → write-action POST → router.refresh.
 //
-// Slice 6.5 added the "Create lens for…" chip. Re-rank + Save view
-// alone don't cover the topic-lens flow (which surfaces NEW rows about
-// a specific topic, not a re-weighting of existing dimensions).
+// RRV-10 (Focus consolidation, 2026-07-20): the "Save view" chip + its
+// inline name-prompt form that used to live here moved to the Focus bar
+// in ComparisonView.tsx (SaveFocusButton) — Save now sits next to the
+// arrangement it saves rather than requiring the chat panel to be open.
+// The "Create a lens for…" chip's prefilled text is deliberately kept
+// as-is (NOT renamed to "Create a Focus for…") — it's not just display
+// copy, it's the literal string sent as the user's chat message, and
+// TOPIC_LENS_RE in lib/server/intent-router.js requires the word "lens"
+// to classify it. Renaming it would silently break topic-Focus creation.
 function ChatActionsRail({
   disabled,
-  canSaveAsLens,
   onChipFill,
-  onSaveAsLens,
 }: {
-  disabled:      boolean
-  canSaveAsLens: boolean
-  onChipFill:    (prefix: string) => void
-  onSaveAsLens?: (lensName: string) => Promise<{ ok: boolean; code?: string; existingLensId?: string }>
+  disabled:   boolean
+  onChipFill: (prefix: string) => void
 }) {
-  const [savePromptOpen, setSavePromptOpen] = useState(false)
-  const [lensName,       setLensName]       = useState('')
-  const [saveError,      setSaveError]      = useState<string | null>(null)
-  const [saving,         setSaving]         = useState(false)
-
-  async function submitSave() {
-    if (!onSaveAsLens) return
-    setSaveError(null)
-    setSaving(true)
-    const result = await onSaveAsLens(lensName)
-    setSaving(false)
-    if (result.ok) {
-      setSavePromptOpen(false)
-      setLensName('')
-      return
-    }
-    if (result.code === 'duplicate_name') {
-      setSaveError('A lens with that name already exists. Pick a different name.')
-    } else if (result.code === 'bad_name') {
-      setSaveError('Name must be 1–40 characters.')
-    } else if (result.code === 'empty_after_resolution') {
-      setSaveError('The rows referenced by this view are no longer active.')
-    } else {
-      setSaveError('Could not save the lens. Try again.')
-    }
-  }
-
   return (
     <div className="rr-chat-rail">
       <button type="button" className="rr-chat-rail-chip" disabled={disabled}
@@ -1446,44 +1405,9 @@ function ChatActionsRail({
       </button>
       <button type="button" className="rr-chat-rail-chip rr-chat-rail-chip--topic-lens" disabled={disabled}
               onClick={() => onChipFill('Create a lens for ')}
-              title="Build a focused mini-table around a specific topic (e.g. rugby, music, drama)">
+              title="Build a focused mini-table (a topic Focus) around a specific topic (e.g. rugby, music, drama)">
         <span aria-hidden>✦</span> Create lens for…
       </button>
-      <button
-        type="button"
-        className="rr-chat-rail-chip rr-chat-rail-chip--save"
-        disabled={disabled || !canSaveAsLens}
-        title={canSaveAsLens ? 'Save the current view as a permanent lens' : 'Apply a re-rank first to enable Save view'}
-        onClick={() => { setSavePromptOpen(true); setSaveError(null) }}
-      >
-        <span aria-hidden>✦</span> Save view
-      </button>
-
-      {savePromptOpen && (
-        <form
-          className="rr-chat-rail-save-form"
-          onSubmit={e => { e.preventDefault(); submitSave() }}
-        >
-          <input
-            type="text"
-            value={lensName}
-            onChange={e => setLensName(e.target.value)}
-            placeholder="Name this lens (e.g. Academics + value)"
-            maxLength={40}
-            disabled={saving}
-            autoFocus
-            className="rr-chat-rail-save-input"
-          />
-          <button type="submit" className="rr-chat-rail-save-submit" disabled={saving || lensName.trim().length === 0}>
-            {saving ? 'Saving…' : 'Save'}
-          </button>
-          <button type="button" className="rr-chat-rail-save-cancel" disabled={saving}
-                  onClick={() => { setSavePromptOpen(false); setSaveError(null); setLensName('') }}>
-            Cancel
-          </button>
-          {saveError && <span className="rr-chat-rail-save-error" role="alert">{saveError}</span>}
-        </form>
-      )}
     </div>
   )
 }

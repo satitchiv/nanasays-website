@@ -1752,18 +1752,12 @@
   opacity: 0.45;
   cursor: not-allowed;
 }
-/* Save-view chip is teal-toned to match the lens iconography. */
-.rr-chat-rail-chip--save:not(:disabled) {
-  border-color: var(--rr-teal);
-  background: var(--rr-teal-bg, rgba(52, 195, 160, 0.1));
-  color: var(--rr-teal-dk);
-}
-.rr-chat-rail-chip--save:hover:not(:disabled) {
-  background: rgba(52, 195, 160, 0.18);
-}
-/* Slice 6.5 — topic-lens chip mirrors save-view's teal accent because
-   both produce a comparison_lenses row. ✦ + 'Create lens for…' is the
-   discoverable entry point for the propose_create_topic_lens flow. */
+/* Slice 6.5 — topic-lens chip is teal-toned to match the lens
+   iconography. ✦ + 'Create lens for…' is the discoverable entry point
+   for the propose_create_topic_lens flow. RRV-10: the "Save view" chip
+   that used to sit here (and reused this same teal treatment) moved to
+   the Focus bar — see .rr-cmp-lens-tab--save + .rr-cmp-save-focus-* in
+   the Focus-bar section below. */
 .rr-chat-rail-chip--topic-lens:not(:disabled) {
   border-color: var(--rr-teal);
   background: var(--rr-teal-bg, rgba(52, 195, 160, 0.1));
@@ -1771,60 +1765,6 @@
 }
 .rr-chat-rail-chip--topic-lens:hover:not(:disabled) {
   background: rgba(52, 195, 160, 0.18);
-}
-
-/* Inline save-as-lens form expands beside / below the chips. */
-.rr-chat-rail-save-form {
-  display: flex;
-  flex: 1 1 100%;
-  align-items: center;
-  gap: 6px;
-  margin-top: 6px;
-  padding: 6px 4px 0;
-}
-.rr-chat-rail-save-input {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 6px 10px;
-  border: 1px solid var(--rr-border);
-  border-radius: 6px;
-  font-family: var(--rr-sans);
-  font-size: 13px;
-  color: var(--rr-navy);
-  background: var(--rr-white);
-}
-.rr-chat-rail-save-input:focus {
-  outline: 2px solid var(--rr-teal);
-  outline-offset: 1px;
-}
-.rr-chat-rail-save-submit {
-  padding: 6px 12px;
-  border: 1px solid var(--rr-teal);
-  border-radius: 6px;
-  background: var(--rr-teal);
-  color: white;
-  font-weight: 700;
-  font-size: 12px;
-  cursor: pointer;
-}
-.rr-chat-rail-save-submit:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.rr-chat-rail-save-cancel {
-  padding: 6px 10px;
-  border: 1px solid var(--rr-border);
-  border-radius: 6px;
-  background: var(--rr-white);
-  color: var(--rr-muted);
-  font-size: 12px;
-  cursor: pointer;
-}
-.rr-chat-rail-save-error {
-  flex: 1 1 100%;
-  font-size: 11px;
-  color: var(--rr-danger, #b1583e);
-  margin-top: 2px;
 }
 
 /* ── Slice 6 commit 8 · drag handle on each comparison row ──────────── */
@@ -2052,48 +1992,40 @@
   border-color: var(--rr-error, #b53030);
 }
 
-/* ── Slice 6 commit 7 · active-overlay chip in comparison header ──────── */
-.rr-cmp-overlay-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin: 12px 0 0;
-  padding: 6px 8px 6px 12px;
-  border: 1px solid var(--rr-amber, #d4a64a);
-  border-radius: 100px;
-  background: rgba(212, 166, 74, 0.08);
-  color: var(--rr-amber-dk, #8a6420);
+/* ── RRV-10 (Focus consolidation) · "Showing: <focus> — because …" ────
+   The golden-rule sentence + Undo, always rendered (replaces the old
+   ephemeral-only amber "view applied" chip below it used to be — this
+   is the single always-visible status line for all four Focus states,
+   so it's kept low-key/text-toned rather than a "heads up" chip). ── */
+.rr-cmp-showing-focus {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin: 10px 0 0;
   font-family: var(--rr-sans);
-  font-size: 13px;
-  font-weight: 500;
-  max-width: max-content;
+  font-size: 13.5px;
+  color: var(--rr-muted);
 }
-.rr-cmp-overlay-chip-icon {
-  font-weight: 800;
-  font-size: 14px;
-  line-height: 1;
-}
-.rr-cmp-overlay-chip-text strong {
+.rr-cmp-showing-focus strong {
+  color: var(--rr-navy);
   font-weight: 700;
 }
-.rr-cmp-overlay-chip-meta {
-  color: var(--rr-amber-dk, #8a6420);
-  opacity: 0.7;
-  font-weight: 400;
-}
-.rr-cmp-overlay-chip-clear {
-  border: 0;
-  background: transparent;
-  color: var(--rr-amber-dk, #8a6420);
-  font-size: 18px;
-  line-height: 1;
+.rr-cmp-showing-focus-undo {
+  border: 1px solid var(--rr-border);
+  border-radius: var(--rr-r-pill);
+  background: var(--rr-white);
+  color: var(--rr-teal-dk);
+  font-family: var(--rr-sans);
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 4px 12px;
   cursor: pointer;
-  padding: 0 4px;
-  border-radius: 50%;
-  transition: background 120ms ease;
+  transition: all .2s;
 }
-.rr-cmp-overlay-chip-clear:hover {
-  background: rgba(212, 166, 74, 0.18);
+.rr-cmp-showing-focus-undo:hover {
+  border-color: var(--rr-teal);
+  background: var(--rr-teal-bg, rgba(52, 195, 160, 0.1));
 }
 
 /* ── Slice 5 · custom-row remove button + error banner ───────────────── */
@@ -2824,86 +2756,86 @@
   color: var(--rr-muted);
   margin-left: 6px;
 }
-/* Slice 6 close — saved-lens picker. The trigger reuses the lens-tab
-   pill style so it sits flush with General/Child fit; the menu floats
-   beneath, clamped to a comfortable width. */
-.rr-cmp-lens-picker {
+/* RRV-10 (Focus consolidation) — the old saved-lens dropdown picker
+   (.rr-cmp-lens-picker* — a floating menu) is gone, replaced by flat
+   chips using the plain .rr-cmp-lens-tab styles above (every saved/
+   topic lens renders as its own chip in the same row as "Everything").
+   "Save this Focus" (relocated from the chat rail) reuses the same
+   .rr-cmp-lens-tab base with a teal accent, matching the old chat-rail
+   save chip's color treatment. */
+.rr-cmp-save-focus {
   position: relative;
-  display: inline-block;
-}
-.rr-cmp-lens-tab--picker {
   display: inline-flex;
+  flex-wrap: wrap;
+}
+.rr-cmp-lens-tab--save:not(:disabled) {
+  border-color: var(--rr-teal);
+  color: var(--rr-teal-dk);
+}
+.rr-cmp-lens-tab--save:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+.rr-cmp-save-focus-form {
+  display: flex;
   align-items: center;
   gap: 6px;
-}
-.rr-cmp-lens-picker-caret {
-  font-size: 10px;
-  line-height: 1;
-  margin-top: 1px;
-}
-.rr-cmp-lens-picker-menu {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
   z-index: 30;
-  min-width: 240px;
-  max-width: 320px;
+  min-width: 280px;
+  padding: 8px;
   background: var(--rr-white);
   border: 1.5px solid var(--rr-border);
   border-radius: 12px;
   box-shadow: 0 12px 32px var(--rr-shadow);
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
-.rr-cmp-lens-picker-eyebrow {
-  font-family: var(--rr-sans);
-  font-size: 10px;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  color: var(--rr-muted);
-  font-weight: 800;
-  padding: 6px 8px 4px;
-}
-.rr-cmp-lens-picker-item {
-  display: grid;
-  grid-template-columns: 18px 1fr auto;
-  align-items: center;
-  gap: 8px;
-  background: transparent;
-  border: 0;
-  border-radius: 8px;
-  padding: 8px 10px;
+.rr-cmp-save-focus-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--rr-border);
+  border-radius: 6px;
   font-family: var(--rr-sans);
   font-size: 13px;
   color: var(--rr-navy);
+  background: var(--rr-white);
+}
+.rr-cmp-save-focus-input:focus {
+  outline: 2px solid var(--rr-teal);
+  outline-offset: 1px;
+}
+.rr-cmp-save-focus-submit {
+  padding: 6px 12px;
+  border: 1px solid var(--rr-teal);
+  border-radius: 6px;
+  background: var(--rr-teal);
+  color: white;
+  font-weight: 700;
+  font-size: 12px;
   cursor: pointer;
-  text-align: left;
 }
-.rr-cmp-lens-picker-item:hover {
-  background: var(--rr-cream, #f7f3ec);
+.rr-cmp-save-focus-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
-.rr-cmp-lens-picker-item.is-active {
-  background: var(--rr-teal-soft, rgba(120, 200, 200, 0.18));
-  font-weight: 700;
-}
-.rr-cmp-lens-picker-check {
-  color: var(--rr-teal-dk);
-  font-weight: 800;
-  text-align: center;
-}
-.rr-cmp-lens-picker-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.rr-cmp-lens-picker-base {
-  font-size: 10px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
+.rr-cmp-save-focus-cancel {
+  padding: 6px 10px;
+  border: 1px solid var(--rr-border);
+  border-radius: 6px;
+  background: var(--rr-white);
   color: var(--rr-muted);
-  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+}
+.rr-cmp-save-focus-error {
+  flex: 1 1 100%;
+  font-size: 11px;
+  color: var(--rr-danger, #b1583e);
+  margin-top: 2px;
 }
 .rr-cmp-stats {
   display: inline-flex;
@@ -2914,13 +2846,6 @@
   font-size: 12px;
   color: var(--rr-muted);
   text-align: right;
-}
-.rr-cmp-stats strong {
-  color: var(--rr-navy);
-  font-weight: 700;
-}
-.rr-cmp-stats-divider {
-  opacity: 0.5;
 }
 /* Slice 6.6 Tier 3.5 — inline ↻ Refresh button. Replaces the standalone
    chip from the first Tier 3 pass; the user wanted a denser controls

@@ -19,15 +19,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-// Next 14.2.x: searchParams is synchronous. The Promise-shape is
-// Next 15+; using it here would silently leave the value un-resolved.
-type SearchParams = { lens?: string }
-
-export default async function ResearchRoomPage({
-  searchParams,
-}: {
-  searchParams: SearchParams
-}) {
+export default async function ResearchRoomPage() {
   if (!isResearchRoomEnabled()) {
     notFound()
   }
@@ -37,10 +29,19 @@ export default async function ResearchRoomPage({
     redirect('/unlock?next=/nana/research-room')
   }
 
-  // Slice 5.5a: lens read from URL search param. Defaults to 'general'.
-  // Tab clicks call router.replace('?lens=...') so the server re-renders
-  // with the active lens scope.
-  const lens: LensKind = searchParams.lens === 'child_fit' ? 'child_fit' : 'general'
+  // RRV-10 (Focus consolidation, 2026-07-20): the General/child_fit base-lens
+  // tabs are gone — the table is always the personalized ("general") base.
+  // No code path seeds a lens_kind='child_fit' BASE row (verified live against
+  // the DB, 2026-07-20: 0 comparison_rows with lens_kind='child_fit' AND
+  // created_by_lens_id IS NULL) — GENERAL_SPECS + the brief-gated BRIEF_SPECS
+  // (rugby pathway, boarding fit, ...) are BOTH written with lens_kind:
+  // 'general' (lib/research-room/seed-rows.ts), so "general" was already the
+  // personalized table. A handful of live child_fit rows DO exist, but only
+  // as topic-lens-attached rows (created_by_lens_id set) — those stay fully
+  // reachable below via `effectiveLens = activeLens.base_lens_kind`, which is
+  // untouched by this change. Stray `?lens=child_fit` bookmarks now silently
+  // degrade to the personalized general table instead of erroring.
+  const lens: LensKind = 'general'
 
   const cookieStore = await cookies()
   const authClient = createServerClient(

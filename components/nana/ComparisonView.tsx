@@ -1,7 +1,7 @@
 'use client'
 
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { useRouter, usePathname, useSearchParams } from 'next/navigation'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
   DndContext,
@@ -47,10 +47,13 @@ type LensListItem = {
   is_topic_lens?: boolean
 }
 
+// RRV-10 (Focus consolidation) — the single "why does the table look like
+// this" sentence, computed by the parent (ResearchRoom, which owns the
+// focus state) and rendered verbatim here.
+type FocusDescriptor = { label: string; reason: string }
+
 type Props = {
   data?: ComparisonData
-  activeChildName?: string | null
-  lens?: Lens
   // Round-4 fix (Codex F3): when the server-side load throws, the page
   // sets this string and we surface it as a banner instead of falling
   // through to demo schools.
@@ -59,31 +62,28 @@ type Props = {
   // row IDs in display order. visibleRows (canonical row_names, if
   // non-null) further filters the row set before sort. Pure visual
   // overlay; the underlying comparison_rows are unchanged.
-  //
-  // Two `kind`s drive subtly different chrome:
-  //   - 'ephemeral' (pill / drag) renders the "view applied (not saved)"
-  //     chip with × so the parent can clear back to base lens.
-  //   - 'saved' (active saved lens) renders no chip — the picker
-  //     dropdown is the indicator. Clearing is via the picker.
   viewOverlay?: {
     rowOrder:    string[]                 // row IDs in display order
     visibleRows: string[] | null          // null = no filter; array = canonical row_name allowlist
     label:       string                   // chip label (ephemeral) / lens name (saved)
     kind:        'ephemeral' | 'saved'
   } | null
-  onClearOverlay?: () => void
   // Slice 6 commit 8 — drag-end callback. ComparisonView fires this
   // with the new ordering whenever the parent drops a row in a new
   // position. The parent (ResearchRoom) updates ephemeralView.rowOrder
   // and the table re-renders.
   onReorderRows?: (rowIds: string[]) => void
-  // Slice 6 close — saved lens picker. savedLenses is the full list for
-  // the session; activeLensId selects which one (if any) drives the
+  // RRV-10 — the Focus chip bar. savedLenses is the full list for the
+  // session (both saved/re-rank lenses and topic lenses — the same
+  // underlying comparison_lenses rows, distinguished only by
+  // is_topic_lens); activeLensId selects which one (if any) drives the
   // overlay. onSwitchActiveLens calls /api/research-room/active-lens +
-  // router.refresh; lensId === null clears back to the URL base lens.
+  // router.refresh. onSelectEverything clears back to the default
+  // personalized table (lens id null AND any ephemeral view).
   savedLenses?: LensListItem[]
   activeLensId?: string | null
-  onSwitchActiveLens?: (lensId: string | null) => Promise<void> | void
+  onSwitchActiveLens?: (lensId: string | null) => void
+  onSelectEverything?: () => void
   // Slice 6.6 — in-room shortlist mutations. activeChildId scopes the
   // add/remove RPCs (each child has its own shortlist). When null, the
   // + Add school + × column controls are hidden — there's no shortlist
@@ -103,6 +103,18 @@ type Props = {
   // the ready-made question. Chip still renders (disabled-looking, no-op)
   // when this isn't wired — same defensive pattern as onRemove/onReorderRows.
   onAskNanaGap?: (question: string) => void
+  // RRV-10 — the golden-rule "Showing: <focus> — because …" sentence +
+  // undo control. undoLabel null means nothing to undo (the default
+  // "Everything" state with no prior change this session).
+  focusDescriptor?: FocusDescriptor
+  undoLabel?: string | null
+  onUndoFocus?: () => void
+  // RRV-10 — "Save this Focus", relocated here from the chat rail (it
+  // used to be a chip inside ResearchRoomChat) so Save sits next to the
+  // arrangement it saves rather than requiring the chat panel to be
+  // open, which it isn't by default.
+  canSaveAsLens?: boolean
+  onSaveAsLens?: (lensName: string) => Promise<{ ok: boolean; code?: string; existingLensId?: string }>
 }
 
 // ─── Comparison redesign (2026-07-16) ───────────────────────────────────
@@ -215,26 +227,25 @@ function prettyGroupName(g: string): string {
 
 export default function ComparisonView({
   data = EMPTY_DATA,
-  activeChildName = null,
-  lens = 'general',
   loadError = null,
   viewOverlay = null,
-  onClearOverlay,
   onReorderRows,
   savedLenses = [],
   activeLensId = null,
   onSwitchActiveLens,
+  onSelectEverything,
   activeChildId = null,
   onRefreshTopicLens,
   onAskNanaGap,
+  focusDescriptor,
+  undoLabel = null,
+  onUndoFocus,
+  canSaveAsLens = false,
+  onSaveAsLens,
 }: Props) {
   const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null)
   const [removeError, setRemoveError] = useState<string | null>(null)
-  const [pickerOpen, setPickerOpen] = useState(false)
-  const pickerRef = useRef<HTMLDivElement | null>(null)
   // Slice 6.6 t12 T1.1 + Codex P1#2 — optimistic column remove. The
   // slug goes into this set the moment the user clicks ×; the column
   // disappears immediately. The POST + router.refresh continue in
@@ -403,30 +414,12 @@ export default function ComparisonView({
     ...r,
     cells: visibleSchoolIndices.map(i => r.cells[i] ?? { kind: 'empty' as const }),
   }))
-  const childLensLabel = activeChildName ? `${activeChildName} fit` : 'Child fit'
+  // RRV-10: the Focus chip bar renders savedLenses flat (no dropdown), so
+  // there's no picker-open/outside-click state to manage any more — the
+  // old picker's effect (mousedown/Escape close handling) is deleted.
   const activeLens = activeLensId
     ? savedLenses.find(l => l.id === activeLensId) ?? null
     : null
-
-  // Close the picker when the parent clicks outside or hits Escape.
-  // Mounted only when open so it's a no-op during the common case.
-  useEffect(() => {
-    if (!pickerOpen) return
-    function onDocClick(e: MouseEvent) {
-      if (!pickerRef.current) return
-      if (pickerRef.current.contains(e.target as Node)) return
-      setPickerOpen(false)
-    }
-    function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setPickerOpen(false)
-    }
-    document.addEventListener('mousedown', onDocClick)
-    document.addEventListener('keydown', onKey)
-    return () => {
-      document.removeEventListener('mousedown', onDocClick)
-      document.removeEventListener('keydown', onKey)
-    }
-  }, [pickerOpen])
 
   // Slice 6 commits 7+8 — apply ephemeral overlay (filter + sort).
   // Source of truth is `rowOrder`: an explicit list of row IDs. Rows
@@ -455,34 +448,6 @@ export default function ComparisonView({
     })
     return indexed.map(x => x.row)
   })()
-
-  // Slice 5.5a: lens switch via URL param. The server reads searchParams.lens
-  // in page.tsx and re-fetches the right rows. router.replace keeps history
-  // tidy (no per-click entry); cloning the existing search params preserves
-  // anything already on the URL (e.g. future ?ref=, ?from=, etc.).
-  //
-  // Slice 6 close — clicking a base-lens tab also clears the active
-  // saved lens (if any). Otherwise the URL flips but the saved lens
-  // keeps driving the overlay, which is confusing.
-  //
-  // Codex P2: sequence the two mutations. Firing router.replace and
-  // onSwitchActiveLens concurrently means the URL change can land
-  // server-side BEFORE the active-lens POST resolves, briefly
-  // rendering the new base lens with the OLD active_lens_id still
-  // overriding it. Awaiting the clear first means the URL change
-  // re-fetches against DB truth.
-  async function switchLens(next: Lens) {
-    if (activeLensId && onSwitchActiveLens) {
-      await onSwitchActiveLens(null)
-    }
-    if (next !== lens) {
-      const params = new URLSearchParams(searchParams?.toString() ?? '')
-      if (next === 'general') params.delete('lens')
-      else params.set('lens', next)
-      const qs = params.toString()
-      router.replace(qs ? `${pathname}?${qs}` : pathname)
-    }
-  }
 
   async function handleRemoveRow(uiRowId: string) {
     const dbId = customRowDbId(uiRowId)
@@ -581,88 +546,76 @@ export default function ComparisonView({
   return (
     <div className="rr-cmp-wrap">
       <div className="rr-cmp-controls">
-        <div className="rr-cmp-lens-tabs" role="tablist" aria-label="Comparison lens">
-          <span className="rr-cmp-lens-label">Lenses</span>
+        {/* RRV-10 (Focus consolidation) — replaces the old General/child_fit
+            base-lens tabs AND the separate saved-lens dropdown picker with
+            ONE flat chip row. "Everything" is the always-personal default
+            (no more tab choice — see page.tsx); every entry in savedLenses
+            (saved re-rank views AND topic lenses — the same
+            comparison_lenses rows, distinguished only by is_topic_lens)
+            renders as its own chip, active/inactive exactly like the old
+            picker's menu items did. "Save this Focus" (relocated from the
+            chat rail) sits in the same row, matching the approved mock. */}
+        <div className="rr-cmp-lens-tabs" role="tablist" aria-label="Focus">
+          <span className="rr-cmp-lens-label">Focus</span>
           <button
             type="button"
             role="tab"
-            aria-selected={!activeLens && lens === 'general'}
-            className={`rr-cmp-lens-tab${!activeLens && lens === 'general' ? ' is-active' : ''}`}
-            onClick={() => switchLens('general')}
+            aria-selected={!activeLens}
+            className={`rr-cmp-lens-tab${!activeLens ? ' is-active' : ''}`}
+            onClick={onSelectEverything}
           >
-            General comparison
+            Everything
           </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={!activeLens && lens === 'child_fit'}
-            className={`rr-cmp-lens-tab${!activeLens && lens === 'child_fit' ? ' is-active' : ''}`}
-            onClick={() => switchLens('child_fit')}
-          >
-            {childLensLabel}
-          </button>
-          {/* Slice 6 close — saved-lens picker. Hidden until the parent
-              has saved at least one lens. The active lens (if any) is
-              also shown as the button label so the picker doubles as
-              the active-lens indicator. */}
-          {savedLenses.length > 0 && (
-            <div className="rr-cmp-lens-picker" ref={pickerRef}>
+          {savedLenses.map(l => {
+            const isActive = l.id === activeLensId
+            return (
               <button
+                key={l.id}
                 type="button"
-                className={`rr-cmp-lens-tab rr-cmp-lens-tab--picker${activeLens ? ' is-active' : ''}`}
-                aria-haspopup="menu"
-                aria-expanded={pickerOpen}
-                onClick={() => setPickerOpen(o => !o)}
-                title={activeLens ? `Active lens: ${activeLens.lens_name}` : 'Pick a saved lens'}
+                role="tab"
+                aria-selected={isActive}
+                className={`rr-cmp-lens-tab${isActive ? ' is-active' : ''}`}
+                title={l.is_topic_lens ? `${l.lens_name} — a topic Focus` : `${l.lens_name} — a saved Focus`}
+                onClick={() => {
+                  if (isActive) { onSelectEverything?.() }
+                  else if (onSwitchActiveLens) { onSwitchActiveLens(l.id) }
+                }}
               >
-                {activeLens ? activeLens.lens_name : 'Saved lenses'}
-                <span aria-hidden className="rr-cmp-lens-picker-caret">▾</span>
+                {l.lens_name}
               </button>
-              {pickerOpen && (
-                <div role="menu" className="rr-cmp-lens-picker-menu">
-                  <div className="rr-cmp-lens-picker-eyebrow">Saved lenses · this session</div>
-                  {savedLenses.map(l => {
-                    const isActive = l.id === activeLensId
-                    return (
-                      <button
-                        key={l.id}
-                        type="button"
-                        role="menuitem"
-                        className={`rr-cmp-lens-picker-item${isActive ? ' is-active' : ''}`}
-                        onClick={() => {
-                          setPickerOpen(false)
-                          if (onSwitchActiveLens) void onSwitchActiveLens(isActive ? null : l.id)
-                        }}
-                      >
-                        <span className="rr-cmp-lens-picker-check" aria-hidden>{isActive ? '✓' : ''}</span>
-                        <span className="rr-cmp-lens-picker-name">{l.lens_name}</span>
-                        <span className="rr-cmp-lens-picker-base">{l.base_lens_kind === 'child_fit' ? 'child fit' : 'general'}</span>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          )}
+            )
+          })}
+          <SaveFocusButton canSave={canSaveAsLens} onSave={onSaveAsLens} />
         </div>
+        {/* RRV-10 golden rule: the "Showing: <focus> — because …" sentence
+            + Undo, always visible, replacing four fragmented status
+            strings the old six-mechanism UI had (this stats-strip "active"
+            text, the corner-cell lens label, the ephemeral chip's "not
+            saved" text, and the picker button's own label). */}
+        {focusDescriptor && (
+          <div className="rr-cmp-showing-focus" role="status">
+            <span>
+              Showing: <strong>{focusDescriptor.label}</strong> — {focusDescriptor.reason}
+            </span>
+            {undoLabel && onUndoFocus && (
+              <button type="button" className="rr-cmp-showing-focus-undo" onClick={onUndoFocus}>
+                {undoLabel}
+              </button>
+            )}
+          </div>
+        )}
         {/* Slice 6.6 Tier 3.5: stats row is now a single inline strip
-            holding rows/schools count, the active-lens label, the ↻
-            Refresh affordance (topic lenses only), and the zoom −/+
-            controls. Two-line layout was wasting vertical space the
-            user wanted for the table. */}
+            holding rows/schools count, the ↻ Refresh affordance (topic
+            lenses only), and the zoom −/+ controls. */}
         <div className="rr-cmp-stats">
           <span className="rr-cmp-stats-counts">{rows.length} rows · {schools.length} schools</span>
-          <span className="rr-cmp-stats-divider" aria-hidden="true">·</span>
-          <span className="rr-cmp-stats-active">
-            <strong>{activeLens ? activeLens.lens_name : (lens === 'general' ? 'General' : childLensLabel)}</strong> active
-          </span>
           {activeLens && activeLens.is_topic_lens && onRefreshTopicLens && (
             <button
               type="button"
               className="rr-cmp-stats-refresh"
               onClick={() => onRefreshTopicLens(activeLens.lens_name)}
               title={`Ask Nana to fill ${activeLens.lens_name} data for any newly-shortlisted schools.`}
-              aria-label={`Refresh ${activeLens.lens_name} lens with current shortlist`}
+              aria-label={`Refresh ${activeLens.lens_name} Focus with current shortlist`}
             >
               <span aria-hidden="true">↻</span> Refresh
             </button>
@@ -705,32 +658,6 @@ export default function ComparisonView({
         </div>
       )}
 
-      {/* Slice 6 commit 7 — ephemeral re-rank chip. Shows the active
-          view label with × to clear. Saved-lens overlays skip the
-          chip — the picker dropdown above already indicates which
-          lens is active. */}
-      {viewOverlay && viewOverlay.kind === 'ephemeral' && (
-        <div className="rr-cmp-overlay-chip" role="status">
-          <span className="rr-cmp-overlay-chip-icon" aria-hidden="true">↻</span>
-          <span className="rr-cmp-overlay-chip-text">
-            <strong>{viewOverlay.label}</strong>
-            <span className="rr-cmp-overlay-chip-meta"> · view applied (not saved)</span>
-          </span>
-          {onClearOverlay && (
-            <button
-              type="button"
-              className="rr-cmp-overlay-chip-clear"
-              onClick={onClearOverlay}
-              aria-label="Reset to base lens"
-              title="Reset to base lens"
-            >
-              ×
-            </button>
-          )}
-        </div>
-      )}
-
-
       <div
         className={`rr-cmp-table-wrap${fewSchools ? ' rr-cmp-table-wrap--cards' : ''}${settling ? ' rr-cmp-table-wrap--settling' : ''}`}
         style={{ zoom }}
@@ -743,11 +670,13 @@ export default function ComparisonView({
               <div className="rr-cmp-corner-title">
                 {schools.length} schools, <em>{rows.length} dimensions</em>
               </div>
-              <div className="rr-cmp-corner-meta">
-                {activeLens
-                  ? `${activeLens.lens_name} lens`
-                  : (lens === 'general' ? 'General lens' : `${childLensLabel} lens`)}
-              </div>
+              {/* RRV-10: sourced from the same focusDescriptor the
+                  Showing-line uses, one level up — can't drift out of
+                  sync with it the way the old independently-derived
+                  corner label could. */}
+              {focusDescriptor && (
+                <div className="rr-cmp-corner-meta">{focusDescriptor.label}</div>
+              )}
             </div>
             {schools.map((s, i) => {
               // Redesign req 4 — hero photo + logo badge in the column
@@ -843,6 +772,86 @@ export default function ComparisonView({
           {removeError}
           <button type="button" className="rr-chat-error-dismiss" onClick={() => setRemoveError(null)}>×</button>
         </div>
+      )}
+    </div>
+  )
+}
+
+// RRV-10 — "Save this Focus", relocated from ChatActionsRail (in
+// ResearchRoomChat.tsx) into the Focus bar so it sits next to the
+// arrangement it saves rather than requiring the chat panel to be open
+// (chat defaults to closed). Behavior/copy ported verbatim from the old
+// chat-rail chip + inline name-prompt form; only the trigger moved.
+function SaveFocusButton({
+  canSave,
+  onSave,
+}: {
+  canSave: boolean
+  onSave?: (lensName: string) => Promise<{ ok: boolean; code?: string; existingLensId?: string }>
+}) {
+  const [promptOpen, setPromptOpen] = useState(false)
+  const [lensName,   setLensName]   = useState('')
+  const [saveError,  setSaveError]  = useState<string | null>(null)
+  const [saving,     setSaving]     = useState(false)
+
+  async function submitSave() {
+    if (!onSave) return
+    setSaveError(null)
+    setSaving(true)
+    const result = await onSave(lensName)
+    setSaving(false)
+    if (result.ok) {
+      setPromptOpen(false)
+      setLensName('')
+      return
+    }
+    if (result.code === 'duplicate_name') {
+      setSaveError('A Focus with that name already exists. Pick a different name.')
+    } else if (result.code === 'bad_name') {
+      setSaveError('Name must be 1–40 characters.')
+    } else if (result.code === 'empty_after_resolution') {
+      setSaveError('The rows referenced by this Focus are no longer active.')
+    } else {
+      setSaveError('Could not save this Focus. Try again.')
+    }
+  }
+
+  return (
+    <div className="rr-cmp-save-focus">
+      <button
+        type="button"
+        className="rr-cmp-lens-tab rr-cmp-lens-tab--save"
+        disabled={!canSave || !onSave}
+        title={canSave ? 'Save the current arrangement as a Focus you can come back to' : 'Ask Nana to re-rank or add a row first, then you can save this Focus'}
+        onClick={() => { setPromptOpen(true); setSaveError(null) }}
+      >
+        <span aria-hidden>＋</span> Save this Focus
+      </button>
+
+      {promptOpen && (
+        <form
+          className="rr-cmp-save-focus-form"
+          onSubmit={e => { e.preventDefault(); void submitSave() }}
+        >
+          <input
+            type="text"
+            value={lensName}
+            onChange={e => setLensName(e.target.value)}
+            placeholder="Name this Focus (e.g. Academics + value)"
+            maxLength={40}
+            disabled={saving}
+            autoFocus
+            className="rr-cmp-save-focus-input"
+          />
+          <button type="submit" className="rr-cmp-save-focus-submit" disabled={saving || lensName.trim().length === 0}>
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+          <button type="button" className="rr-cmp-save-focus-cancel" disabled={saving}
+                  onClick={() => { setPromptOpen(false); setSaveError(null); setLensName('') }}>
+            Cancel
+          </button>
+          {saveError && <span className="rr-cmp-save-focus-error" role="alert">{saveError}</span>}
+        </form>
       )}
     </div>
   )
