@@ -3394,6 +3394,74 @@
   font-weight: 600;
 }
 
+/* ── RRV-6: evidence chips ───────────────────────────────────────────
+   Inline <details>/<summary> disclosure, not a floating popover — the
+   table wrap is overflow-x:auto (clips absolutely-positioned children
+   per spec) and the mobile cards layout sets overflow:hidden per row.
+   An inline disclosure just grows the row's own height instead, which
+   both layouts already handle (see EvidenceDisclosure in
+   ComparisonView.tsx for the full rationale). Visual language borrows
+   from the mock (§6 quote blocks) and from the Verdict tab's existing
+   evidence-citation styling (.rr-vb3-evidence-cite) for consistency. */
+.rr-cmp-evidence {
+  margin-top: 8px;
+}
+.rr-cmp-evidence-trigger {
+  list-style: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--rr-sans);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--rr-teal-dk);
+  padding: 3px 0;
+}
+.rr-cmp-evidence-trigger::-webkit-details-marker { display: none; }
+.rr-cmp-evidence-trigger:focus-visible {
+  outline: 2px solid var(--rr-teal);
+  outline-offset: 2px;
+}
+.rr-cmp-evidence-arrow {
+  color: var(--rr-muted);
+  transition: transform 120ms ease;
+}
+.rr-cmp-evidence[open] .rr-cmp-evidence-arrow {
+  transform: rotate(90deg);
+}
+.rr-cmp-evidence-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+.rr-cmp-evidence-quote {
+  border-left: 2.5px solid var(--rr-teal);
+  padding: 2px 0 2px 10px;
+}
+.rr-cmp-evidence-quote p {
+  margin: 0;
+  font-family: var(--rr-sans);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--rr-body);
+}
+.rr-cmp-evidence-src {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--rr-muted);
+}
+.rr-cmp-evidence-src a {
+  color: var(--rr-teal-dk);
+  text-decoration: underline;
+  text-decoration-color: rgba(35, 156, 128, 0.4);
+  text-underline-offset: 2px;
+}
+.rr-cmp-evidence-src .rr-cmp-tag {
+  margin-left: 6px;
+}
+
 /* ── Redesign req 1: winner highlighting ─────────────────────────────
    Applied only to rows with a directional winnerRule (never 'neutral' —
    e.g. fees never get a winner mark, cheapest isn't always best). Uses

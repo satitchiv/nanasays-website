@@ -1,8 +1,8 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { ComparisonData, ComparisonRow, RowCell, SchoolColumn, WinnerRule } from '@/components/nana/comparison-placeholder'
+import type { ComparisonData, ComparisonRow, RowCell, SchoolColumn, WinnerRule, EvidenceQuote } from '@/components/nana/comparison-placeholder'
 import { assertUserId } from './school-name-overrides'
-import { GENERAL_ROW_WINNER_RULES, GENERAL_ROW_SLUG_BY_NAME, COHORT_ELIGIBLE_SLUGS, gapQuestionFor } from './research-room/seed-rows'
+import { GENERAL_ROW_WINNER_RULES, GENERAL_ROW_SLUG_BY_NAME, COHORT_ELIGIBLE_SLUGS, EVIDENCE_DIMENSION_BY_ROW_SLUG, gapQuestionFor } from './research-room/seed-rows'
 import { REGION_BUCKETS } from './uk-regions'
 
 // Slice 5.5b — lens-aware single-source comparison loader.
@@ -313,19 +313,39 @@ async function loadLensRows(
     const slug = GENERAL_ROW_SLUG_BY_NAME[r.row_name]
     if (slug && COHORT_ELIGIBLE_SLUGS.has(slug)) neededSlugs.add(slug)
   }
-  const [cohort, schoolBuckets] = await Promise.all([
+  // RRV-6 (evidence chips): which school_facts dimensions this session's
+  // rows actually need (today: just 'rugby', when rugby_strength is
+  // present). Zero rows in the map means zero extra queries.
+  const evidenceDimensions = new Set<string>()
+  for (const r of filtered) {
+    const slug = GENERAL_ROW_SLUG_BY_NAME[r.row_name]
+    const dim = slug ? EVIDENCE_DIMENSION_BY_ROW_SLUG[slug] : undefined
+    if (dim) evidenceDimensions.add(dim)
+  }
+
+  const [cohort, schoolBuckets, evidenceByDimension] = await Promise.all([
     neededSlugs.size > 0 ? loadCohortRanges(supabase, neededSlugs) : null,
     loadSchoolBuckets(supabase, schools.map(s => s.slug)),
+    loadEvidenceByDimension(supabase, evidenceDimensions, schools.map(s => s.slug)),
   ])
 
   return filtered.map(r => {
     const slug = GENERAL_ROW_SLUG_BY_NAME[r.row_name]
+    const evidenceDim = slug ? EVIDENCE_DIMENSION_BY_ROW_SLUG[slug] : undefined
+    const evidenceForRow = evidenceDim ? evidenceByDimension.get(evidenceDim) : undefined
     const cells: RowCell[] = schools.map(col => {
       const raw = r.cell_data?.[col.slug]
       const base = cellFromRaw(raw, false)
       // Rung 2 tier tag attached here, not inside cellFromRaw — see the
       // comment on cellFromRaw for why (verdict cache-hash stability).
-      if (base.kind === 'value') return raw ? { ...base, tier: classifyTier(raw) } : base
+      // RRV-6 evidence is attached the same way and for the same reason —
+      // cellFromRaw is shared with loadVerdictRows, which must stay
+      // byte-identical for cache-hash stability (see that function).
+      if (base.kind === 'value') {
+        const withTier = raw ? { ...base, tier: classifyTier(raw) } : base
+        const evidence = evidenceForRow?.get(col.slug)
+        return evidence && evidence.length > 0 ? { ...withTier, evidence } : withTier
+      }
       if (base.kind !== 'empty') return base
       const bucket = schoolBuckets.get(col.slug)
       if (cohort && slug && bucket) {
@@ -348,6 +368,183 @@ async function loadLensRows(
       winnerRule: resolveWinnerRule(r.row_name),
     }
   })
+}
+
+// ─── RRV-6 evidence chips: school_facts → per-cell quotes ──────────────────
+//
+// Card ask: "tap any claim ('rugby: strong') → the cleaned quotes + sources
+// behind it." The literal #B7/#B8 phrase-blocklist filter (scripts/lib/
+// quote-boilerplate.js) lives in the parent repo's scripts/ tree, is wired
+// only to the academic subject_strengths extractor, and isn't importable
+// from this app (separate package, no path alias reaching it). The real
+// substitute — verified live 2026-07-20 — is school_facts: a dimension-
+// keyed atomic-facts table (migration scripts/migrations/2026-05-07-
+// school-facts-layer.sql) whose LLM-extracted rows carry a verbatim
+// evidence_quote checked against the source chunk at write time
+// (scripts/extract-rugby-facts.js). Only dimension='rugby' has quote-
+// bearing rows today (see EVIDENCE_DIMENSION_BY_ROW_SLUG in seed-rows.ts)
+// — this loader is written generically so wiring another dimension later
+// is a one-line config change, not a rebuild.
+
+const EVIDENCE_QUOTES_PER_SCHOOL = 3
+
+// Ranking signal (Fable pre-build review, 2026-07-20): every rugby fact in
+// the live table has confidence=1.00 — not a usable ranking signal. Narrow
+// fact_type is: administrative facts (team_listing, staff_role) read as
+// noise next to narrative ones (a match result, a named player) when a
+// parent taps "why strong?". fact_type is therefore the PRIMARY sort key,
+// not a tiebreaker. currentness breaks ties within a fact_type so a stale
+// (historical) result doesn't outrank a current one of the same type.
+const EVIDENCE_FACT_TYPE_PRIORITY: Readonly<Record<string, number>> = Object.freeze({
+  competition_result: 0,
+  ranking_season:     1,
+  programme_summary:  2,
+  notable_person:     3,
+  facility:           4,
+  partnership:        5,
+  scholarship:        6,
+  staff_role:         7,
+  team_listing:       8,
+})
+const EVIDENCE_CURRENTNESS_PRIORITY: Readonly<Record<string, number>> = Object.freeze({
+  current:        0,
+  likely_current: 1,
+  unknown:        2,
+  historical:     3,
+})
+
+// Humanized fact_type for the chip's source line. Deliberately NOT an
+// invented category like the mock's "ISI inspection report" — school_facts
+// has no source_type column to ground that in. fact_type is real.
+const EVIDENCE_FACT_LABELS: Readonly<Record<string, string>> = Object.freeze({
+  competition_result: 'Match result',
+  programme_summary:  'Programme',
+  notable_person:     'Notable player',
+  facility:           'Facility',
+  partnership:        'Partnership',
+  scholarship:        'Scholarship',
+  staff_role:         'Coaching staff',
+  team_listing:       'Team listing',
+  ranking_season:     'Season ranking',
+})
+function humanizeFactType(factType: string): string {
+  return EVIDENCE_FACT_LABELS[factType]
+    ?? factType.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase())
+}
+
+// source_published_date is null on 100% of rugby facts (verified live) —
+// there is no grounded date to show. hostname is the one honest, grounded
+// source signal we have. Malformed/non-http(s)/missing source_url all fall
+// back to null — the chip renders the quote with no link/host rather than
+// guessing. (Live data 2026-07-20: every quote-bearing rugby fact today
+// does carry a clean http(s) source_url — this fallback is defensive, not
+// dead code, since nothing in the schema guarantees that stays true.)
+function hostLabelFor(url: string | null): string | null {
+  if (!url) return null
+  try {
+    const u = new URL(url)
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null
+    return u.hostname.replace(/^www\./, '')
+  } catch {
+    return null
+  }
+}
+
+type FactRow = {
+  school_slug:    string
+  fact_type:      string
+  evidence_quote: string | null
+  source_url:     string | null
+  currentness:    string
+  extracted_at:   string
+}
+
+async function loadEvidenceIndex(
+  supabase:  SupabaseClient,
+  dimension: string,
+  slugs:     string[],
+): Promise<Map<string, EvidenceQuote[]>> {
+  const out = new Map<string, EvidenceQuote[]>()
+  if (slugs.length === 0) return out
+
+  const { data, error } = await supabase
+    .from('school_facts')
+    .select('school_slug, fact_type, evidence_quote, source_url, currentness, extracted_at')
+    .eq('status', 'active')
+    .eq('dimension', dimension)
+    .in('school_slug', slugs)
+    .not('evidence_quote', 'is', null)
+    // Explicit order + limit: PostgREST defaults to a silent 1000-row cap.
+    // Live sizing keeps this comfortably under that (max ~49 quote rows
+    // per school today), but making the cap explicit — biased toward the
+    // most recent facts — beats an arbitrary truncation if that changes.
+    .order('extracted_at', { ascending: false })
+    .limit(1000)
+
+  // Best-effort: a lookup failure just means these schools get no chip
+  // this render, not an error page — evidence chips are additive polish,
+  // never load-bearing for the comparison table itself.
+  if (error || !data) return out
+
+  const bySchool = new Map<string, FactRow[]>()
+  for (const row of data as FactRow[]) {
+    const list = bySchool.get(row.school_slug) ?? []
+    list.push(row)
+    bySchool.set(row.school_slug, list)
+  }
+
+  bySchool.forEach((rows, slug) => {
+    rows.sort((a: FactRow, b: FactRow) => {
+      const byType = (EVIDENCE_FACT_TYPE_PRIORITY[a.fact_type] ?? 99) - (EVIDENCE_FACT_TYPE_PRIORITY[b.fact_type] ?? 99)
+      if (byType !== 0) return byType
+      const byCurrentness = (EVIDENCE_CURRENTNESS_PRIORITY[a.currentness] ?? 9) - (EVIDENCE_CURRENTNESS_PRIORITY[b.currentness] ?? 9)
+      if (byCurrentness !== 0) return byCurrentness
+      return b.extracted_at.localeCompare(a.extracted_at)
+    })
+
+    // Dedupe by quote text — the unique constraint on school_facts permits
+    // the same quote to appear from more than one source_url.
+    const seen = new Set<string>()
+    const picked: EvidenceQuote[] = []
+    for (const row of rows) {
+      const quote = (row.evidence_quote ?? '').trim()
+      if (!quote) continue
+      const key = quote.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      // hostLabel is the http(s)-validity gate — computed once and reused
+      // for `url` so a non-http(s)/malformed source_url structurally can't
+      // reach the client as a link, not just "happens to" because today's
+      // only caller renders the anchor conditionally on hostLabel.
+      const hostLabel = hostLabelFor(row.source_url)
+      picked.push({
+        quote,
+        url:       hostLabel ? row.source_url : null,
+        hostLabel,
+        factLabel: humanizeFactType(row.fact_type),
+        older:     row.currentness === 'historical',
+      })
+      if (picked.length >= EVIDENCE_QUOTES_PER_SCHOOL) break
+    }
+    if (picked.length > 0) out.set(slug, picked)
+  })
+
+  return out
+}
+
+async function loadEvidenceByDimension(
+  supabase:   SupabaseClient,
+  dimensions: Set<string>,
+  slugs:      string[],
+): Promise<Map<string, Map<string, EvidenceQuote[]>>> {
+  const out = new Map<string, Map<string, EvidenceQuote[]>>()
+  if (dimensions.size === 0) return out
+  await Promise.all(
+    Array.from(dimensions).map(async dim => {
+      out.set(dim, await loadEvidenceIndex(supabase, dim, slugs))
+    })
+  )
+  return out
 }
 
 // ─── RRV-2 never-blank ladder: rungs 3 (cohort) & 4 (gap) ──────────────────

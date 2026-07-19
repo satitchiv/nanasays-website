@@ -27,6 +27,7 @@ import {
   type ComparisonRow,
   type RowCell,
   type SchoolColumn,
+  type EvidenceQuote,
 } from './comparison-placeholder'
 import SchoolAdder from './SchoolAdder'
 
@@ -1117,6 +1118,12 @@ function CellBody({ cell, onAskNanaGap }: { cell: RowCell; onAskNanaGap?: (quest
   // crawls, not human-verified) per the pre-build review finding. Flagged
   // for Satit as a separate copy/scope decision, not resolved here.
   const derivedTag = cell.tier === 'derived' ? <span className="rr-cmp-tag rr-cmp-tag--derived">≈</span> : null
+  // RRV-6 — present only for rows wired in EVIDENCE_DIMENSION_BY_ROW_SLUG
+  // (rugby_strength today) where school_facts had real quotes for this
+  // school. Undefined/empty is the common case and renders nothing extra.
+  const evidenceBlock = cell.evidence && cell.evidence.length > 0
+    ? <EvidenceDisclosure evidence={cell.evidence} />
+    : null
 
   if (percentMatch) {
     const pct = Math.max(0, Math.min(100, parseFloat(percentMatch[1])))
@@ -1130,6 +1137,7 @@ function CellBody({ cell, onAskNanaGap }: { cell: RowCell; onAskNanaGap?: (quest
           </span>
         </div>
         {cell.sub && <div className="rr-cmp-cell-sub">{cell.sub}</div>}
+        {evidenceBlock}
       </>
     )
   }
@@ -1140,6 +1148,7 @@ function CellBody({ cell, onAskNanaGap }: { cell: RowCell; onAskNanaGap?: (quest
         <span className={`rr-cmp-cell-badge rr-cmp-cell-badge--${tone}`}>{cell.primary}</span>
         {derivedTag}
         {cell.sub && <div className="rr-cmp-cell-sub">{cell.sub}</div>}
+        {evidenceBlock}
       </>
     )
   }
@@ -1151,6 +1160,42 @@ function CellBody({ cell, onAskNanaGap }: { cell: RowCell; onAskNanaGap?: (quest
         {derivedTag}
       </div>
       {cell.sub && <div className="rr-cmp-cell-sub">{cell.sub}</div>}
+      {evidenceBlock}
     </>
+  )
+}
+
+// RRV-6 — inline evidence disclosure. A native <details>/<summary> rather
+// than a floating popover: ComparisonView's table wrap is `overflow-x:
+// auto` (forces overflow-y:auto too, per spec — clips any absolutely-
+// positioned child) and the mobile "cards" layout sets `overflow: hidden`
+// on each row, so a SchoolAdder-style anchored popup would get clipped in
+// both layouts (confirmed in the RRV-6 pre-build review). An inline
+// disclosure instead grows the row's own height — grid rows and the cards
+// layout both auto-size, so nothing clips, no outside-click/Escape
+// plumbing is needed, and it's closer to the approved mock (§6 is itself
+// a <details> disclosure).
+function EvidenceDisclosure({ evidence }: { evidence: EvidenceQuote[] }) {
+  return (
+    <details className="rr-cmp-evidence">
+      <summary className="rr-cmp-evidence-trigger">
+        <span aria-hidden="true">📎</span> {evidence.length} {evidence.length === 1 ? 'quote' : 'quotes'}
+        <span className="rr-cmp-evidence-arrow" aria-hidden="true">›</span>
+      </summary>
+      <div className="rr-cmp-evidence-list">
+        {evidence.map((e, i) => (
+          <div className="rr-cmp-evidence-quote" key={i}>
+            <p>&ldquo;{e.quote}&rdquo;</p>
+            <div className="rr-cmp-evidence-src">
+              {e.factLabel}
+              {e.hostLabel && <> · {e.url ? (
+                <a href={e.url} target="_blank" rel="noopener noreferrer">{e.hostLabel}</a>
+              ) : e.hostLabel}</>}
+              {e.older && <span className="rr-cmp-tag rr-cmp-tag--cohort">older result</span>}
+            </div>
+          </div>
+        ))}
+      </div>
+    </details>
   )
 }

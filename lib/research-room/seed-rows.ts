@@ -777,6 +777,21 @@ export const GENERAL_ROW_SLUG_BY_NAME: Readonly<Record<string, string>> = Object
   )
 )
 
+// RRV-6 (evidence chips, 2026-07-20): seed slug → school_facts.dimension,
+// for rows whose claim has real, quote-backed evidence to show behind it.
+// Live-data check 2026-07-20: only dimension='rugby' has quote-bearing
+// school_facts rows today (2,051 rows / 110 schools; evidence_quote is
+// non-null on ~93 of those schools after dedupe). tennis_strength/
+// cricket_strength/hockey_strength/football_strength read the same
+// sports_profile.<sport>.competitive_tier shape as rugby_strength (see
+// sportTierCell above) but their sports have zero rows in school_facts —
+// wiring them here with no data would show a "0 sources" chip that implies
+// coverage that doesn't exist. Add an entry once a sport's own extraction
+// pipeline (mirroring scripts/extract-rugby-facts.js) lands real quotes.
+export const EVIDENCE_DIMENSION_BY_ROW_SLUG: Readonly<Record<string, string>> = Object.freeze({
+  rugby_strength: 'rugby',
+})
+
 // Slugs for which a cohort peer-range (RRV-2 rung 3) is worth attempting.
 // Scoped tight and deliberately: only fields (a) sourced from
 // school_structured_data (the same table the seeder itself reads, so a

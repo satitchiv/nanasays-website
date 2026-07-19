@@ -32,6 +32,25 @@ export type SchoolColumn = {
 // cells ARE plain verified reads).
 export type CellTier = 'verified' | 'derived'
 
+// RRV-6 (evidence chips, 2026-07-20): one quote-backed fact behind a cell's
+// claim, sourced from school_facts (dimension-keyed atomic facts table —
+// see lib/research-comparison.ts loadEvidenceIndex for the query + ranking
+// this is built from). `url`/`hostLabel` are nullable — defensive, not
+// currently exercised (every quote-bearing rugby fact today has a clean
+// http(s) source_url), for malformed/missing source_url and non-http(s)
+// protocols, which loadEvidenceIndex rejects before this type is built.
+// `factLabel` is a humanized fact_type (e.g. "Match result"), never an
+// invented category like "ISI report" — school_facts has no source_type
+// column to ground that in. `older` marks currentness === 'historical' so
+// a 2017 result doesn't read as current.
+export type EvidenceQuote = {
+  quote: string
+  url: string | null
+  hostLabel: string | null
+  factLabel: string
+  older: boolean
+}
+
 export type RowCell =
   | {
       kind: 'value'
@@ -47,6 +66,11 @@ export type RowCell =
       // the display string. Undefined for non-numeric / free-text cells.
       numericValue?: number
       tier?: CellTier
+      // RRV-6: present only for rows wired in EVIDENCE_DIMENSION_BY_ROW_SLUG
+      // (rugby_strength today) where school_facts had real quote-bearing
+      // rows for this school. Undefined/empty means "no chip" — never a
+      // fabricated zero-source chip.
+      evidence?: EvidenceQuote[]
     }
   | { kind: 'lights'; lights: Array<{ label: string; tone: 'green' | 'amber' | 'red' }> }
   // RRV-2 rung 3: no verified/derived value exists for this school, but
