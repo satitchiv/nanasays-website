@@ -92,7 +92,56 @@ export function decodeJsonString(s: string): string {
   return out
 }
 
-/** Very simple inline markdown: bold, line breaks */
+/** Very simple inline markdown: links, bold, line breaks, GFM pipe tables */
+
+// Inline renderer: markdown links `[text](url)` + `**bold**`. Links are parsed
+// first, then bold is applied within each non-link run (parseInlineBold stays
+// the unit-tested single-responsibility helper). Unsafe URLs fall back to their
+// label text so a bad href never becomes a live anchor.
+function renderInline(line: string, keyPrefix: string): React.ReactNode[] {
+  const linkRe = /\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g
+  const nodes: React.ReactNode[] = []
+  let last = 0
+  let k = 0
+  let m: RegExpExecArray | null
+  while ((m = linkRe.exec(line)) !== null) {
+    if (m.index > last) nodes.push(...renderBoldRun(line.slice(last, m.index), `${keyPrefix}-t${k}`))
+    const [, label, url] = m
+    nodes.push(
+      isSafeUrl(url)
+        ? <a key={`${keyPrefix}-a${k}`} href={url} target="_blank" rel="noopener noreferrer" className="dh-md-link">{label}</a>
+        : <span key={`${keyPrefix}-a${k}`}>{label}</span>,
+    )
+    last = m.index + m[0].length
+    k++
+  }
+  if (last < line.length) nodes.push(...renderBoldRun(line.slice(last), `${keyPrefix}-t${k}`))
+  return nodes
+}
+
+function renderBoldRun(text: string, keyPrefix: string): React.ReactNode[] {
+  return parseInlineBold(text).map((seg, j) =>
+    seg.bold
+      ? <strong key={`${keyPrefix}-${j}`}>{seg.text}</strong>
+      : <span key={`${keyPrefix}-${j}`}>{seg.text}</span>,
+  )
+}
+
+// GFM pipe-table detection. A table is a header row containing `|`, immediately
+// followed by a separator row of dashes (`|---|---|`), then zero+ body rows.
+function isTableSeparatorRow(line: string | undefined): boolean {
+  if (line == null) return false
+  // At least two columns: needs an internal pipe between dash groups.
+  return /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)+\|?\s*$/.test(line)
+}
+
+function splitTableRow(line: string): string[] {
+  let s = line.trim()
+  if (s.startsWith('|')) s = s.slice(1)
+  if (s.endsWith('|')) s = s.slice(0, -1)
+  return s.split('|').map(c => c.trim())
+}
+
 export function renderMd(text: unknown): React.ReactNode[] {
   let str: string
   if (typeof text === 'string') {
@@ -106,19 +155,48 @@ export function renderMd(text: unknown): React.ReactNode[] {
   }
   if (!str) return []
   const lines = str.split('\n')
-  return lines.map((line, i) => {
-    const segments = parseInlineBold(line)
-    return (
+  const out: React.ReactNode[] = []
+  let i = 0
+  while (i < lines.length) {
+    // GFM table block: header row + dash separator row (+ body rows).
+    if (lines[i].includes('|') && isTableSeparatorRow(lines[i + 1])) {
+      const header = splitTableRow(lines[i])
+      const body: string[][] = []
+      let j = i + 2
+      while (j < lines.length && lines[j].includes('|') && lines[j].trim() !== '') {
+        body.push(splitTableRow(lines[j]))
+        j++
+      }
+      out.push(
+        <div key={`tbl-${i}`} className="dh-md-tablewrap">
+          <table className="dh-md-table">
+            <thead>
+              <tr>{header.map((cell, c) => <th key={c}>{renderInline(cell, `th-${i}-${c}`)}</th>)}</tr>
+            </thead>
+            <tbody>
+              {body.map((row, r) => (
+                <tr key={r}>
+                  {header.map((_, c) => <td key={c}>{renderInline(row[c] ?? '', `td-${i}-${r}-${c}`)}</td>)}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>,
+      )
+      i = j
+      continue
+    }
+    // Ordinary line — inline markdown + a soft break between lines.
+    const isLast = i === lines.length - 1
+    out.push(
       <span key={i}>
-        {segments.map((seg, j) =>
-          seg.bold
-            ? <strong key={j}>{seg.text}</strong>
-            : <span key={j}>{seg.text}</span>,
-        )}
-        {i < lines.length - 1 && <br />}
-      </span>
+        {renderInline(lines[i], `l${i}`)}
+        {!isLast && <br />}
+      </span>,
     )
-  })
+    i++
+  }
+  return out
 }
 
 export function isSafeUrl(url: string): boolean {
