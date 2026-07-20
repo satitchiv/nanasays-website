@@ -381,6 +381,12 @@ export default function ResearchRoom({
   // No POST to /api/active-child needed (server already persisted).
   const handleChildAdded = (newChildId: string) => {
     setActiveChildId(newChildId)
+    // RRV-11 (senior review, post-commit) — same reset handleActiveChildChange
+    // does below. Missing it here let verdictJustGenerated=true from a
+    // PRIOR child leak onto a freshly-added child (which never has a
+    // verdict), showing a self-contradictory "verdict done, brief not
+    // done" journey state until the next full reload.
+    setVerdictJustGenerated(false)
     router.refresh()
   }
 
