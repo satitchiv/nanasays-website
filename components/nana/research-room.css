@@ -13,6 +13,7 @@
   --rr-off-2:    #EEF1F5;
   --rr-navy:     #1B3252;
   --rr-navy-lt:  #243F66;
+  --rr-navy-deep:#152A47;
   --rr-teal:     #34C3A0;
   --rr-teal-dk:  #239C80;
   --rr-teal-bg:  #E8FAF6;
@@ -58,22 +59,36 @@
   box-sizing: border-box;
 }
 
-/* ─── Top bar ──────────────────────────────────────────────────────── */
-.rr-top {
-  flex: 0 0 60px;
-  border-bottom: 1px solid var(--rr-border);
-  background: rgba(255,255,255,0.97);
-  backdrop-filter: blur(12px);
+/* ─── Concierge journey header (RRV-11) ───────────────────────────────
+   Replaces the old flat 60px rr-top bar with a navy hero: brand row
+   (brand + child indicator + Partner-brief pill + My reports), a one-line
+   title, the 3-step journey (brief -> compare -> verdict), and an
+   optional returning-user strip. z-index:30 carried over from the old
+   .rr-top — chat rail/scrim stacking depends on the header sitting above
+   .rr-shell. flex:0 0 auto (not a fixed px height) so real content height
+   (which varies — long child names, the conditional returning strip)
+   never clips; see the .rr-view-page container-query note below for how
+   the Child Brief sidebar stays correct regardless of this header's
+   actual height. */
+.rr-hero {
+  flex: 0 0 auto;
   position: relative;
   z-index: 30;
+  background: linear-gradient(160deg, var(--rr-navy) 0%, var(--rr-navy-deep) 70%);
+  color: var(--rr-white);
 }
-.rr-top-in {
-  height: 100%;
-  display: grid;
-  grid-template-columns: auto 1fr auto auto;
-  gap: 24px;
-  padding: 0 5%;
+.rr-hero-in {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 22px 5% 26px;
+}
+
+.rr-hero-top {
+  display: flex;
   align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
 }
 .rr-brand-link {
   display: flex;
@@ -82,13 +97,13 @@
   text-decoration: none;
   color: inherit;
 }
-.rr-brand-mark { width: 36px; height: 36px; flex-shrink: 0; }
+.rr-brand-mark { width: 32px; height: 32px; flex-shrink: 0; }
 .rr-brand-text {
   font-family: var(--rr-display);
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 800;
   letter-spacing: -0.4px;
-  color: var(--rr-navy);
+  color: var(--rr-white);
   display: inline-flex;
   align-items: baseline;
 }
@@ -97,48 +112,184 @@
   font-family: var(--rr-sans);
   font-size: 11px;
   font-weight: 700;
-  color: var(--rr-muted);
+  color: rgba(255,255,255,.62);
   text-transform: uppercase;
   letter-spacing: 1.4px;
-  border-left: 1px solid var(--rr-border);
+  border-left: 1px solid rgba(255,255,255,.25);
   padding-left: 14px;
-  margin-left: 12px;
+  margin-left: 4px;
 }
 
-.rr-tabs { display: flex; gap: 2px; }
-.rr-tab {
-  font-family: var(--rr-sans);
-  font-size: 13px;
-  font-weight: 700;
-  padding: 7px 14px;
-  border-radius: var(--rr-r-sm);
-  background: transparent;
-  border: 0;
-  color: var(--rr-muted);
-  cursor: pointer;
+/* Static fallback chip — shown instead of ChildSelector when there's
+   only one child (ChildSelector self-hides at childOptions.length<=1;
+   see ChildSelector.tsx). Keeps a "whose research is this" signal
+   visible for the common single-child case, matching the approved
+   mock's chip. */
+.rr-hero-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  transition: background .15s, color .15s;
+  gap: 9px;
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.18);
+  color: var(--rr-white);
+  font-family: var(--rr-sans);
+  font-weight: 700;
+  font-size: 13.5px;
+  border-radius: var(--rr-r-pill);
+  padding: 6px 16px 6px 6px;
 }
-.rr-tab:hover { background: var(--rr-off); color: var(--rr-navy); }
-.rr-tab.is-active { background: var(--rr-navy); color: var(--rr-white); }
-.rr-tab.is-active:focus-visible { outline: 2px solid var(--rr-teal); outline-offset: 2px; }
-.rr-tab-privileged::before {
-  content: "";
-  display: inline-block;
-  width: 6px;
-  height: 6px;
+.rr-hero-chip-avatar {
+  width: 26px; height: 26px;
+  flex: 0 0 26px;
   border-radius: 50%;
   background: var(--rr-teal);
-  margin-right: 4px;
+  color: var(--rr-white);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--rr-display);
+  font-size: 12px; font-weight: 900;
 }
 
-.rr-top-meta {
+/* ChildSelector's own rules (.rr-child-selector*, below) already render
+   legibly anywhere (they carry their own opaque background) — these just
+   match the hero's frosted-glass treatment when it's mounted here. */
+.rr-hero-top .rr-child-selector { color: rgba(255,255,255,.75); }
+.rr-hero-top .rr-child-selector-input {
+  color: var(--rr-white);
+  background: rgba(255,255,255,.10);
+  border-color: rgba(255,255,255,.22);
+}
+.rr-hero-top .rr-child-selector-input:focus-visible {
+  border-color: var(--rr-teal);
+  box-shadow: 0 0 0 3px rgba(52,195,160,.35);
+}
+
+.rr-hero-actions {
+  margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
+.rr-hero-pill {
+  font-family: var(--rr-sans);
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 7px 15px;
+  border-radius: var(--rr-r-pill);
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.18);
+  color: rgba(255,255,255,.8);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.rr-hero-pill:hover { background: rgba(255,255,255,.16); color: var(--rr-white); }
+.rr-hero-pill.is-active { background: var(--rr-white); color: var(--rr-navy); border-color: var(--rr-white); }
+.rr-hero-pill:focus-visible { outline: 2px solid var(--rr-teal); outline-offset: 2px; }
+.rr-hero-cta.rr-cta-ghost {
+  background: transparent;
+  color: var(--rr-white);
+  border: 1px solid rgba(255,255,255,.28);
+}
+.rr-hero-cta.rr-cta-ghost:hover { background: rgba(255,255,255,.10); border-color: rgba(255,255,255,.5); }
+
+.rr-hero-title {
+  font-family: var(--rr-display);
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  margin: 0 0 16px;
+  color: var(--rr-white);
+}
+.rr-hero-title em { color: var(--rr-teal); font-style: normal; }
+
+/* ─── The journey — the 3-step nav that replaces the old rr-tabs row.
+   handleTabClick is unchanged; only the button chrome moved here. ─── */
+.rr-journey { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.rr-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  text-align: left;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: var(--rr-r-lg);
+  padding: 14px 16px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .15s, border-color .15s;
+}
+.rr-step:hover { background: rgba(255,255,255,.10); }
+.rr-step-here {
+  background: rgba(52,195,160,.16);
+  border-color: rgba(52,195,160,.45);
+}
+.rr-step:focus-visible { outline: 2px solid var(--rr-teal); outline-offset: 2px; }
+
+.rr-step-n {
+  flex: 0 0 34px;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 15px;
+  font-family: var(--rr-display);
+}
+.rr-step-done .rr-step-n { background: var(--rr-teal); color: var(--rr-white); }
+.rr-step-here .rr-step-n { background: var(--rr-white); color: var(--rr-navy); }
+.rr-step-next .rr-step-n { background: rgba(255,255,255,.14); color: rgba(255,255,255,.75); }
+
+.rr-step-body { min-width: 0; }
+.rr-step-k {
+  display: block;
+  font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--rr-teal);
+  margin-bottom: 2px;
+}
+.rr-step-next .rr-step-k { color: rgba(255,255,255,.55); }
+.rr-step-t {
+  display: block;
+  font-family: var(--rr-display);
+  font-weight: 900; font-size: 16px; line-height: 1.3;
+  color: var(--rr-white);
+}
+.rr-step-next .rr-step-t { color: rgba(255,255,255,.68); }
+.rr-step-d {
+  display: block;
+  font-size: 12.5px; line-height: 1.45;
+  color: rgba(255,255,255,.72);
+  margin-top: 3px;
+}
+
+/* Visually-hidden state text (Fable pre-build review: done/here can't be
+   color-only signals) — reuses the existing .rr-sr-only utility defined
+   further down (Codex r5 P2.4); no new rule needed here (Fable post-build
+   review caught a duplicate on first pass). */
+
+/* ─── Returning-user strip ────────────────────────────────────────── */
+.rr-returning {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: var(--rr-r-md);
+  padding: 10px 16px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: rgba(255,255,255,.85);
+}
+.rr-returning-text strong { color: var(--rr-white); }
+.rr-returning-dismiss {
+  margin-left: auto;
+  flex: 0 0 auto;
+  background: transparent;
+  border: 0;
+  color: rgba(255,255,255,.6);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+.rr-returning-dismiss:hover { color: var(--rr-white); }
 
 .rr-child-selector {
   display: inline-flex;
@@ -255,6 +406,16 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding: 36px 48px 72px;
+  /* RRV-11 (Fable pre-build review) — both dimensions here are already
+     externally resolved (flex-basis for width, 100% cascaded from the
+     .rr-shell/.rr-view-pager flex chain for height, not content-driven),
+     so `size` containment is safe. This lets the Child Brief sidebar
+     below size itself against this scrollport's REAL height (100cqh)
+     instead of a hand-maintained "100dvh minus the header's guessed
+     pixel height" constant — correct at every breakpoint, immune to the
+     hero's actual rendered height and to the returning-user strip
+     showing/hiding. */
+  container-type: size;
 }
 
 .rr-view { max-width: 1480px; margin: 0 auto; }
@@ -2420,65 +2581,65 @@
 
 /* ─── Mobile (≤880px) ──────────────────────────────────────────────── */
 @media (max-width: 880px) {
-  /* Top bar: condense — drop the desktop CTA and ChildSelector slot. The
-     subtitle pip becomes the third column so the layout stays balanced. */
-  .rr-top-in {
-    grid-template-columns: auto 1fr;
-    padding: 0 16px;
-    gap: 12px;
-  }
+  /* Hero: condense hard. The fixed-viewport .rr-app shell (overflow:hidden,
+     no page scroll to compensate) means a tall header steals real content
+     space on a phone — so mobile does NOT get the desktop's full 3-card
+     journey grid (that treatment isn't in the approved mock either; the
+     mock only specs down to 1120px in a normal scrolling page). Drop the
+     ChildSelector/chip, the title line, and the step captions/descriptions;
+     keep a compact horizontal step-strip (same pill-scroller spirit as the
+     old .rr-tabs mobile treatment) and the Partner-brief pill reachable
+     (today's 4-tab mobile scroller has it — this must not regress that). */
+  .rr-hero-in { padding: 14px 16px 12px; }
+  .rr-hero-top { margin-bottom: 10px; gap: 10px; }
   .rr-brand-sub {
     padding-left: 10px;
     margin-left: 8px;
     font-size: 10px;
     letter-spacing: 1.2px;
   }
-  .rr-top-meta { display: none; }
-  .rr-top-cta { display: none; }
+  .rr-hero-chip,
+  .rr-hero-top .rr-child-selector { display: none; }
+  .rr-hero-cta { display: none; }
+  .rr-hero-title { display: none; }
 
-  /* Tabs become a horizontal pill scroller below the brand row. They are the
-     2nd grid item now, so they get their own row by spanning full width. */
-  .rr-tabs {
-    grid-column: 1 / -1;
-    grid-row: 2;
+  /* Journey becomes a horizontal pill scroller — number/check + title
+     only, captions and descriptions drop. */
+  .rr-journey {
     display: flex;
+    grid-template-columns: none;
     gap: 6px;
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
     margin: 0 -16px;
-    padding: 0 16px 10px;
+    padding: 0 16px 2px;
     scroll-snap-type: x proximity;
   }
-  .rr-tabs::-webkit-scrollbar { display: none; }
-  .rr-tab {
+  .rr-journey::-webkit-scrollbar { display: none; }
+  .rr-step {
     flex: 0 0 auto;
     scroll-snap-align: center;
-    padding: 8px 14px;
-    font-size: 12.5px;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px 8px 8px;
     border-radius: var(--rr-r-pill);
-    border: 1px solid var(--rr-border);
-    background: var(--rr-white);
   }
-  .rr-tab.is-active {
-    background: var(--rr-navy);
-    color: var(--rr-white);
-    border-color: var(--rr-navy);
-  }
+  .rr-step-n { width: 26px; height: 26px; flex: 0 0 26px; font-size: 12.5px; }
+  .rr-step-k, .rr-step-d { display: none; }
+  .rr-step-t { font-size: 13.5px; }
 
-  /* Top bar grows to two rows on mobile. */
-  .rr-top {
-    flex: 0 0 auto;
-    padding-top: 10px;
+  /* Partner-brief pill stays visible and reachable — it's the one control
+     the compact meta row would otherwise have hidden entirely. */
+  .rr-hero-actions { margin-left: 0; }
+  .rr-hero-pill { padding: 6px 13px; font-size: 12px; }
+
+  .rr-returning {
+    margin-top: 10px;
+    padding: 8px 12px;
+    font-size: 12.5px;
+    gap: 10px;
   }
-  .rr-top-in {
-    height: auto;
-    min-height: 56px;
-    padding-top: 4px;
-    padding-bottom: 0;
-    align-items: start;
-  }
-  .rr-brand-link { padding-top: 6px; }
 
   /* Shell: chat rail collapses entirely; main column owns the viewport. */
   .rr-shell {
@@ -4372,11 +4533,18 @@
   border-radius: var(--rr-r-lg, 14px);
   padding: 0;
   box-shadow: 0 2px 12px var(--rr-shadow, rgba(27,50,82,0.06));
-  /* 100dvh > 100vh for mobile chrome stability. Subtract the .rr-top
-     nav (~60px) + sidebar offsets so the sidebar fits in the visible
-     scroll area. Both height + max-height set for defensive sizing. */
-  height:     calc(100dvh - 60px - var(--rr-cb-sidebar-top) - var(--rr-cb-sidebar-bottom-gap));
-  max-height: calc(100dvh - 60px - var(--rr-cb-sidebar-top) - var(--rr-cb-sidebar-bottom-gap));
+  /* RRV-11 (Fable pre-build review, 2026-07-20) — was
+     `calc(100dvh - 60px - ...)`, a hand-reconstruction of .rr-view-page's
+     height using a hardcoded guess at the old fixed-height .rr-top's
+     size. Since the journey header (.rr-hero) is now content-sized and
+     can also show a conditional returning-user strip, no single constant
+     stays correct. .rr-view-page (the actual scroll container — see the
+     comment above) is a CSS size container (container-type: size, set at
+     its own rule), so 100cqh is its REAL resolved height — exact at
+     every breakpoint and every header state, no constant to keep in
+     sync. Both height + max-height set for defensive sizing. */
+  height:     calc(100cqh - var(--rr-cb-sidebar-top) - var(--rr-cb-sidebar-bottom-gap));
+  max-height: calc(100cqh - var(--rr-cb-sidebar-top) - var(--rr-cb-sidebar-bottom-gap));
   /* Sidebar is the visible chrome — list inside is what scrolls. */
   overflow: hidden;
 }

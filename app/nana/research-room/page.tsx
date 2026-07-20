@@ -105,6 +105,16 @@ export default async function ResearchRoomPage() {
   //   5. Load messages + activeProposalIds for the chat panel.
   let initialSession: import('@/lib/nana/types').Session | null = null
   let initialMessages: import('@/lib/nana/types').ResearchMessage[] = []
+  // RRV-11 — journey header step-3 ("Verdict") done-state and the
+  // returning-user strip both need real signals, computed here (not client
+  // side) so there's no hydration mismatch. `hasVerdict` is an existence-only
+  // probe (id only) — the full verdict record stays intentionally un-prefetched
+  // (see the researchVerdict comment below), so this doesn't reopen that
+  // hash-mismatch bug; it never renders verdict content, just whether one has
+  // ever been generated. `daysSinceLastActive` is null for brand-new sessions
+  // (no prior visit to compare against).
+  let hasVerdict = false
+  let daysSinceLastActive: number | null = null
   // Session 4 follow-up — hydrate Build Mode progress from DB so the bar +
   // welcome-back banner can render on first paint instead of waiting for
   // the next SSE event. Browser smoke 2026-05-16 surfaced that toggling
@@ -201,6 +211,26 @@ export default async function ResearchRoomPage() {
           activeLensId = (ensured.active_lens_id as string | null) ?? null
           initialBuildModeProgress = ensured.build_mode_progress as unknown
         }
+      }
+    }
+
+    // RRV-11 — verdict-existence probe + returning-user day-gap, both
+    // computed once `initialSession` is settled. `research_verdicts` is
+    // keyed by (session_id, child_id) — see verdict-generator-v3-cluster-
+    // and-cache.ts's loadCachedResearchVerdict for the same key shape.
+    if (initialSession) {
+      const { data: verdictRow } = await svc
+        .from('research_verdicts')
+        .select('id')
+        .eq('session_id', initialSession.id)
+        .eq('child_id', activeChildId)
+        .limit(1)
+        .maybeSingle()
+      hasVerdict = !!verdictRow
+
+      const lastActiveMs = Date.parse(initialSession.last_active_at)
+      if (!Number.isNaN(lastActiveMs)) {
+        daysSinceLastActive = Math.floor((Date.now() - lastActiveMs) / 86400000)
       }
     }
 
@@ -543,6 +573,8 @@ export default async function ResearchRoomPage() {
       activeLensId={activeLensId}
       partnerBrief={partnerBrief}
       researchVerdict={researchVerdict}
+      hasVerdict={hasVerdict}
+      daysSinceLastActive={daysSinceLastActive}
     />
   )
 }

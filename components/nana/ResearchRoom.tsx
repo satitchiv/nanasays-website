@@ -58,6 +58,11 @@ type Props = {
   activeLensId?: string | null
   partnerBrief?: PartnerBrief | null
   researchVerdict?: ResearchVerdictForUi | null
+  // RRV-11 — existence-only verdict probe (researchVerdict above is always
+  // null at SSR by design; see page.tsx) and the returning-user day-gap,
+  // both computed server-side in page.tsx.
+  hasVerdict?: boolean
+  daysSinceLastActive?: number | null
 }
 
 const TAB_ORDER: Tab[] = ['brief', 'compare', 'verdict', 'partner']
@@ -67,6 +72,15 @@ const TAB_LABELS: Record<Tab, string> = {
   compare: 'Comparison',
   verdict: 'Verdict',
   partner: 'Partner brief',
+}
+
+// RRV-11 — journey step captions ("Step N · <eyebrow>"), for the 3 steps
+// that make up the journey (brief/compare/verdict only — partner isn't a
+// step in this sequence, see rr-hero-actions in the render below).
+const JOURNEY_EYEBROW: Record<'brief' | 'compare' | 'verdict', string> = {
+  brief: 'The data',
+  compare: 'The research',
+  verdict: 'The recommendation',
 }
 
 const PLACEHOLDER_COPY: Record<Tab, { sub: string }> = {
@@ -101,6 +115,8 @@ export default function ResearchRoom({
   activeLensId     = null,
   partnerBrief     = null,
   researchVerdict  = null,
+  hasVerdict       = false,
+  daysSinceLastActive = null,
 }: Props) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<Tab>('compare')
@@ -127,6 +143,19 @@ export default function ResearchRoom({
   // 'interview' so the Set stays bounded.
   const [dismissedFullscreenChildIds, setDismissedFullscreenChildIds] =
     useState<ReadonlySet<string>>(() => new Set())
+
+  // RRV-11 — returning-user strip dismiss. In-memory only (resets on
+  // reload), matching the existing welcomeBackDismissed precedent in
+  // ResearchRoomChat.tsx for the same "greet once per visit" behavior.
+  const [returningDismissed, setReturningDismissed] = useState(false)
+  // RRV-11 (Fable post-build review) — hasVerdict is an SSR prop, so it
+  // stays false for the rest of THIS visit even after the parent
+  // generates their first verdict (VerdictTab's own POST doesn't touch
+  // page.tsx's props). Flips true the moment VerdictTab reports a
+  // successful generation, self-corrects to the real value on next
+  // load/router.refresh either way — same "client optimism, SSR is the
+  // source of truth on reload" shape as verdictReady below.
+  const [verdictJustGenerated, setVerdictJustGenerated] = useState(false)
 
   // RRV-10 (Focus consolidation, 2026-07-20) — the six old row-arrangement
   // mechanisms (base-lens tabs, topic lenses, saved-lens picker, re-rank
@@ -362,6 +391,11 @@ export default function ResearchRoom({
     if (nextChildId === activeChildId) return
     const prev = activeChildId
     setActiveChildId(nextChildId)  // optimistic
+    // RRV-11 — verdictJustGenerated is scoped to whichever child was
+    // active when it was set; a switch (even before router.refresh lands
+    // new hasVerdict) must not let it leak into the new child's journey
+    // state.
+    setVerdictJustGenerated(false)
     try {
       const res = await fetch('/api/active-child', {
         method: 'POST',
@@ -840,6 +874,51 @@ export default function ResearchRoom({
     ? (previousFocus.activeLensId === null && previousFocus.ephemeralView === null ? 'Back to Everything' : 'Undo')
     : null
 
+  // RRV-11 journey header — done/here/next per step. Grounded in real
+  // signals only, not navigation history:
+  //  - brief: funnel_state === 'comparison' means the interview actually
+  //    finished (lib/children.ts FunnelState — 'onboarding' | 'interview' |
+  //    'comparison', terminal at 'comparison').
+  //  - verdict: hasVerdict (SSR existence probe — see page.tsx) means a
+  //    verdict has been generated at least once.
+  //  - compare: no natural "done" gate of its own (continuously explorable,
+  //    per the master-plan's explorer-path design) — treated as done once a
+  //    verdict exists (can't have one without having engaged Comparison),
+  //    so the sequence never reads as step 3 finishing before step 2.
+  // Whichever step matches activeTab always renders "here", overriding done.
+  type JourneyState = 'done' | 'here' | 'next'
+  type JourneyTab = 'brief' | 'compare' | 'verdict'
+  const briefDone = activeChild?.funnel_state === 'comparison'
+  // hasVerdict is an SSR prop for the child the page loaded with — during
+  // the optimistic window after a child switch (activeChildId flips before
+  // router.refresh delivers new props), it still reflects the OLD child.
+  // Same guard VerdictTab's own verdictReady uses below.
+  const verdictDone = (activeChildId === initialActiveChildId && hasVerdict) || verdictJustGenerated
+  const journeySteps: { tab: JourneyTab; state: JourneyState }[] = [
+    { tab: 'brief', state: activeTab === 'brief' ? 'here' : briefDone ? 'done' : 'next' },
+    { tab: 'compare', state: activeTab === 'compare' ? 'here' : verdictDone ? 'done' : 'next' },
+    { tab: 'verdict', state: activeTab === 'verdict' ? 'here' : verdictDone ? 'done' : 'next' },
+  ]
+
+  // RRV-11 returning-user strip — shown when it's been ≥2 days since the
+  // last visit AND there's an active child to talk about (copy
+  // interpolates the child's name). Copy is built from real state only
+  // (funnel_state / hasVerdict) — no fabricated "what changed" specifics
+  // (e.g. deadline countdowns need RRV-4's entry-timeline data, which
+  // hasn't shipped yet).
+  const returningNextStep = !activeChild
+    ? null
+    : !briefDone
+      ? `Finish ${activeChild.name}'s brief to unlock the table.`
+      : !verdictDone
+        ? "You have enough for Nana's first take — check the Verdict."
+        : 'Revisit the Verdict — worth another look since your last visit.'
+  const showReturningStrip =
+    !returningDismissed &&
+    !!activeChild &&
+    daysSinceLastActive !== null &&
+    daysSinceLastActive >= 2
+
   const shellClass = [
     'rr-shell',
     chatState === 'closed' ? 'rr-shell-chat-closed' : '',
@@ -849,43 +928,120 @@ export default function ResearchRoom({
 
   return (
     <div className="rr-app">
-      <header className="rr-top">
-        <div className="rr-top-in">
-          <Link href="/" className="rr-brand-link" aria-label="Nanasays home">
-            <svg className="rr-brand-mark" aria-hidden="true">
-              <use href="#ic-nana" />
-            </svg>
-            <span className="rr-brand-text">
-              nana<em>says</em>
-            </span>
-            <span className="rr-brand-sub">research room</span>
-          </Link>
+      <header className="rr-hero">
+        <div className="rr-hero-in">
+          <div className="rr-hero-top">
+            <Link href="/" className="rr-brand-link" aria-label="Nanasays home">
+              <svg className="rr-brand-mark" aria-hidden="true">
+                <use href="#ic-nana" />
+              </svg>
+              <span className="rr-brand-text">
+                nana<em>says</em>
+              </span>
+              <span className="rr-brand-sub">research room</span>
+            </Link>
 
-          <nav className="rr-tabs" aria-label="Research room sections">
-            {TAB_ORDER.map((t) => (
+            {/* Fable pre-build review: ChildSelector self-hides for the
+                common single-child case (ChildSelector.tsx), which would
+                leave the hero with no child indicator at all. Fall back to
+                a static, non-interactive chip so single-child families
+                still see whose research this is — matches the approved
+                mock's child-chip, just conditional on there being a real
+                choice to make. */}
+            {childOptions.length > 1 ? (
+              <ChildSelector
+                childOptions={childOptions}
+                activeChildId={activeChildId}
+                onChange={handleActiveChildChange}
+              />
+            ) : activeChild ? (
+              <span className="rr-hero-chip">
+                <span className="rr-hero-chip-avatar" aria-hidden="true">
+                  {activeChild.name.charAt(0).toUpperCase()}
+                </span>
+                {activeChild.name}
+              </span>
+            ) : null}
+
+            <div className="rr-hero-actions">
               <button
-                key={t}
                 type="button"
-                className={`rr-tab${activeTab === t ? ' is-active' : ''}${t === 'compare' ? ' rr-tab-privileged' : ''}`}
-                onClick={() => handleTabClick(t)}
-                aria-current={activeTab === t ? 'page' : undefined}
+                className={`rr-hero-pill${activeTab === 'partner' ? ' is-active' : ''}`}
+                onClick={() => handleTabClick('partner')}
+                aria-current={activeTab === 'partner' ? 'page' : undefined}
               >
-                {TAB_LABELS[t]}
+                {TAB_LABELS.partner}
               </button>
-            ))}
-          </nav>
-
-          <div className="rr-top-meta">
-            <ChildSelector
-              childOptions={childOptions}
-              activeChildId={activeChildId}
-              onChange={handleActiveChildChange}
-            />
+              <Link href="/my-reports" className="rr-cta rr-cta-ghost rr-hero-cta">
+                ← My reports
+              </Link>
+            </div>
           </div>
 
-          <Link href="/my-reports" className="rr-cta rr-cta-ghost rr-top-cta">
-            ← My reports
-          </Link>
+          <p className="rr-hero-title">
+            {activeChild ? <>Researching for <em>{activeChild.name}</em></> : 'Your Research Room'}
+          </p>
+
+          {/* The 3-step journey — replaces the old flat rr-tabs row for
+              brief/compare/verdict. Partner brief moved to rr-hero-actions
+              above (it's a parallel tab, not a step in the data→research→
+              recommendation sequence). Same handleTabClick mechanic as
+              before — only the presentation changed. */}
+          <nav className="rr-journey" aria-label="Research room journey">
+            {journeySteps.map((step, i) => {
+              const n = i + 1
+              const desc =
+                step.tab === 'brief'
+                  ? (step.state === 'done'
+                      ? `Nana interviewed you about ${activeChild?.name ?? 'your child'} — goals, interests, what matters most.`
+                      : `Answer Nana's questions so the table can get personal to ${activeChild?.name ?? 'your child'}.`)
+                  : step.tab === 'compare'
+                    ? 'Check the facts side by side. Ask Nana anything as you go.'
+                    : "Nana's advice, built from your brief and this research."
+              return (
+                <button
+                  key={step.tab}
+                  type="button"
+                  className={`rr-step rr-step-${step.state}`}
+                  onClick={() => handleTabClick(step.tab)}
+                  aria-current={step.state === 'here' ? 'page' : undefined}
+                >
+                  <span className="rr-step-n" aria-hidden="true">{step.state === 'done' ? '✓' : n}</span>
+                  <span className="rr-step-body">
+                    <span className="rr-step-k">
+                      Step {n} · {JOURNEY_EYEBROW[step.tab]}
+                      {step.state === 'here' && <span className="rr-sr-only"> — you are here</span>}
+                      {step.state === 'done' && <span className="rr-sr-only"> — completed</span>}
+                    </span>
+                    <span className="rr-step-t">{TAB_LABELS[step.tab]}</span>
+                    <span className="rr-step-d">{desc}</span>
+                  </span>
+                </button>
+              )
+            })}
+          </nav>
+
+          {showReturningStrip && (
+            <div className="rr-returning" role="status">
+              <span className="rr-returning-text">
+                {/* Fable post-build review: last_active_at only bumps on
+                    chat turns (app/api/nana-research/route.ts), not page
+                    views — "since your last chat" is what this number
+                    actually measures, not "since you last opened this
+                    page". */}
+                <strong>Welcome back.</strong> It&rsquo;s been {daysSinceLastActive} days
+                since you last chatted with Nana. {returningNextStep}
+              </span>
+              <button
+                type="button"
+                className="rr-returning-dismiss"
+                onClick={() => setReturningDismissed(true)}
+                aria-label="Dismiss welcome back message"
+              >
+                ×
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -1006,6 +1162,7 @@ export default function ResearchRoom({
                           verdict={verdictReady ? researchVerdict : null}
                           sessionId={verdictReady ? (initialSession?.id ?? null) : null}
                           childName={activeChild?.name ?? null}
+                          onVerdictReady={() => setVerdictJustGenerated(true)}
                         />
                       )
                     })()

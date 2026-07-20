@@ -147,6 +147,13 @@ type Props = {
   verdict: ResearchVerdictForUi | null
   sessionId?: string | null
   childName?: string | null
+  // RRV-11 (Fable post-build review) — hasVerdict is an SSR prop computed
+  // once at page load; without this, the journey header's step 2/3 "done"
+  // state would stay stale for the rest of the visit right after the
+  // parent generates (or auto-hydrates) their first verdict. Fires
+  // whenever a real verdict lands in local state, whether freshly
+  // generated or hydrated from cache — both mean "a verdict exists now".
+  onVerdictReady?: () => void
 }
 
 function formatDate(iso: string | null | undefined): string | null {
@@ -510,7 +517,7 @@ function confidenceClass(confidence: string | undefined): string {
   return ' is-medium'
 }
 
-export default function VerdictTab({ verdict, sessionId, childName }: Props) {
+export default function VerdictTab({ verdict, sessionId, childName, onVerdictReady }: Props) {
   const [localVerdict, setLocalVerdict] = useState<ResearchVerdictForUi | null>(verdict)
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -568,6 +575,7 @@ export default function VerdictTab({ verdict, sessionId, childName }: Props) {
         return
       }
       setLocalVerdict(j.verdict as ResearchVerdictForUi)
+      onVerdictReady?.()
     } catch {
       setError('Network error while generating the verdict.')
     } finally {
