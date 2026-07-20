@@ -62,6 +62,14 @@ type CellValue = {
   // real per-school board/day % exists — never derived from the
   // categorical boarding_grade enum.
   mix?: BoardingMix
+  // RRV-7 (2026-07-20): raw drive-time minutes behind a "NN min" value, so
+  // loadLensRows can plot the travel corridor without parsing the display
+  // string. Parallel-field rule (same as band/mix): cellFromRaw in
+  // lib/research-comparison.ts must NEVER read this — it feeds
+  // loadVerdictRows, whose output is hashed into the verdict cache key.
+  // Existing sessions pick it up via reconcileSeededRows' canonicalJson
+  // diff on next load (RRV-5 precedent, no migration).
+  minutes?: number
 }
 
 type CellData = Record<string, CellValue>
@@ -212,7 +220,12 @@ function buildHeathrowMinutes({ struct }: SeedContext): CellValue | null {
     const nameStr = String(obj.name ?? obj.label ?? obj.code ?? '').toLowerCase()
     if (!/heathrow|lhr/.test(nameStr)) continue
     const m = obj.drive_time_min_estimate ?? obj.minutes ?? obj.travel_minutes ?? obj.drive_minutes ?? obj.duration_minutes
-    if (typeof m === 'number' && m > 0) return { value: `${m} min`, source: 'location_profile' }
+    // RRV-7: `minutes` mirrors the numeric value for the travel corridor
+    // (parallel field — see the CellValue comment). The string branch
+    // deliberately stays minutes-less: an unparsed free-text time can't be
+    // plotted honestly. (2026-07-20 trace: all 99 UK-pool Heathrow entries
+    // are numeric drive_time_min_estimate, so the string branch is dormant.)
+    if (typeof m === 'number' && m > 0) return { value: `${m} min`, source: 'location_profile', minutes: m }
     if (typeof m === 'string' && m.trim()) return { value: m, source: 'location_profile' }
   }
   return null

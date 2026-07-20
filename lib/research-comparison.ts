@@ -4,6 +4,18 @@ import type { ComparisonData, ComparisonRow, RowCell, SchoolColumn, WinnerRule, 
 import { assertUserId } from './school-name-overrides'
 import { GENERAL_ROW_WINNER_RULES, GENERAL_ROW_SLUG_BY_NAME, COHORT_ELIGIBLE_SLUGS, EVIDENCE_DIMENSION_BY_ROW_SLUG, gapQuestionFor } from './research-room/seed-rows'
 import { REGION_BUCKETS } from './uk-regions'
+import {
+  type RowViz,
+  type TravelStop,
+  type ExamBandDot,
+  corridorStopPositions,
+  bandLabelSides,
+  bandAxisPos,
+  parseMinutesFromDisplay,
+  parsePctFromDisplay,
+  percentileSorted,
+  TYPICAL_MIN_SCHOOLS,
+} from './research-room/rrv7-viz'
 
 // Slice 5.5b — lens-aware single-source comparison loader.
 //
@@ -44,6 +56,11 @@ type RowCellData = {
   // deliberately does not read these two fields.
   band?: FitBand | null
   mix?: BoardingMix | null
+  // RRV-7 (2026-07-20): raw drive-time minutes behind a "NN min" heathrow
+  // cell (see CellValue.minutes in seed-rows.ts). Same parallel-field rule:
+  // read only by the travel-corridor assembly in loadLensRows, NEVER by
+  // cellFromRaw — verdict cache-hash stability.
+  minutes?: number | null
 }
 
 type SchoolMeta = {
@@ -329,11 +346,22 @@ async function loadLensRows(
     if (dim) evidenceDimensions.add(dim)
   }
 
-  const [cohort, schoolBuckets, evidenceByDimension] = await Promise.all([
-    neededSlugs.size > 0 ? loadCohortRanges(supabase, neededSlugs) : null,
+  // RRV-7 (exam context band): the "typical range" window needs verified
+  // 9–7 shares across the whole UK pool, regardless of whether any cell is
+  // empty — piggybacked on the cohort loader's existing SSD fetch (one
+  // query, per that loader's own no-re-query rule) instead of a second
+  // full-table read.
+  const bandNeeded = filtered.some(r => GENERAL_ROW_SLUG_BY_NAME[r.row_name] === 'gcse_pct')
+
+  const [cohortResult, schoolBuckets, evidenceByDimension] = await Promise.all([
+    (neededSlugs.size > 0 || bandNeeded)
+      ? loadCohortRanges(supabase, neededSlugs, bandNeeded)
+      : null,
     loadSchoolBuckets(supabase, schools.map(s => s.slug)),
     loadEvidenceByDimension(supabase, evidenceDimensions, schools.map(s => s.slug)),
   ])
+  const cohort = cohortResult?.index ?? null
+  const poolGcseValues = cohortResult?.gcseValues ?? []
 
   return filtered.map(r => {
     const slug = GENERAL_ROW_SLUG_BY_NAME[r.row_name]
@@ -363,6 +391,16 @@ async function loadLensRows(
       }
       return { kind: 'gap', question: gapQuestionFor(slug, r.row_name, col.name) }
     })
+    // RRV-7: cross-school strips under their anchor rows. Assembled here in
+    // loadLensRows only — loadVerdictRows never sets `viz`, so the verdict
+    // cache hash is untouched (same rule as tier/band/mix/evidence above).
+    let viz: RowViz | undefined
+    if (slug === 'heathrow_minutes') {
+      viz = buildTravelCorridorViz(schools, r.cell_data)
+    } else if (slug === 'gcse_pct') {
+      viz = buildExamBandViz(schools, r.cell_data, poolGcseValues)
+    }
+
     // group_name lives on the row in the DB. Slice 8 Step 0.6: surface it to
     // the client so ComparisonView can render section headers between
     // groups. emphasis stays available for finer per-row qualifiers
@@ -375,8 +413,101 @@ async function loadLensRows(
       removable:  r.lens_kind === 'chat',
       group_name: r.group_name ?? null,
       winnerRule: resolveWinnerRule(r.row_name),
+      ...(viz ? { viz } : {}),
     }
   })
+}
+
+// ─── RRV-7: travel corridor + exam context band assembly ───────────────────
+//
+// Card ask (roadmap rrv-7, mock §7–8): Heathrow door-to-door times as stops
+// on a corridor line, and GCSE 9–7 shares as dots on a typical-range band.
+// Both are honest-by-construction: only schools with a REAL value are
+// plotted (no haversine-derived drive times, no 9–8 results passed off as
+// 9–7 — the 2026-07-20 trace shows real shortlists often have Heathrow
+// times for only 1–2 of 5–6 schools, so partial coverage is the normal
+// case, not an edge case); everything unplottable is named in a caption.
+
+// Corridor renders only when ≥2 schools have a verified time — a one-stop
+// corridor says nothing the "NN min" cell above it doesn't.
+const CORRIDOR_MIN_STOPS = 2
+
+function buildTravelCorridorViz(
+  schools:  SchoolColumn[],
+  cellData: Record<string, RowCellData> | null,
+): RowViz | undefined {
+  const timed: { slug: string; name: string; minutes: number }[] = []
+  const missing: string[] = []
+  for (const col of schools) {
+    const raw = cellData?.[col.slug]
+    // Parallel `minutes` field first; display-string parse covers rows
+    // seeded before RRV-7 that reconcileSeededRows hasn't refreshed yet.
+    const minutes = typeof raw?.minutes === 'number' && raw.minutes > 0
+      ? raw.minutes
+      : parseMinutesFromDisplay(raw?.value)
+    if (minutes != null) timed.push({ slug: col.slug, name: col.name, minutes })
+    else missing.push(col.name)
+  }
+  if (timed.length < CORRIDOR_MIN_STOPS) return undefined
+  timed.sort((a, b) => a.minutes - b.minutes)
+  const positions = corridorStopPositions(timed.map(t => t.minutes))
+  const stops: TravelStop[] = timed.map((t, i) => ({ ...t, pos: positions[i] }))
+  return { kind: 'travel-corridor', stops, missing }
+}
+
+function buildExamBandViz(
+  schools:        SchoolColumn[],
+  cellData:       Record<string, RowCellData> | null,
+  poolGcseValues: number[],
+): RowViz | undefined {
+  const plotted: { slug: string; name: string; pct: number }[] = []
+  const altBand: string[] = []
+  const missing: string[] = []
+  for (const col of schools) {
+    const raw = cellData?.[col.slug]
+    // `numeric` is set ONLY by the true 9–7 branches of buildGcsePct —
+    // 9–8-only publishers (gcse_pct_alt_band) are string cells with no
+    // numeric, so this check alone keeps them off the band. The
+    // display-string fallback covers cells seeded before the numeric
+    // field existed (live trace: several real sessions still carry
+    // numeric-less "77%" cells; the reconcile refresh is fail-soft) —
+    // gated to the two true 9–7 sources so the alt band can never leak in.
+    const pct = typeof raw?.numeric === 'number' && Number.isFinite(raw.numeric)
+      ? raw.numeric
+      : (raw?.source === 'exam_results.gcse' || raw?.source === 'notion.parsed.gcse_pct')
+        ? parsePctFromDisplay(raw.value)
+        : null
+    if (pct != null) {
+      plotted.push({ slug: col.slug, name: col.name, pct })
+    } else if (raw?.source === 'notion.parsed.gcse_pct_alt_band' && raw.value != null) {
+      altBand.push(col.name)
+    } else {
+      missing.push(col.name)
+    }
+  }
+  // Unlike the corridor, one dot is still worth rendering — the
+  // typical-range context IS the value.
+  if (plotted.length === 0) return undefined
+  plotted.sort((a, b) => a.pct - b.pct)
+  const sides = bandLabelSides(plotted.map(p => p.pct))
+  const dots: ExamBandDot[] = plotted.map((p, i) => ({
+    ...p,
+    pos: bandAxisPos(p.pct),
+    labelBelow: sides[i],
+  }))
+  // Middle half of the UK pool's verified 9–7 shares (p25–p75), computed
+  // from live data. Below the n-floor the window is suppressed, never
+  // fabricated — dots still render.
+  let typical: { lo: number; hi: number; n: number } | null = null
+  if (poolGcseValues.length >= TYPICAL_MIN_SCHOOLS) {
+    const sorted = [...poolGcseValues].sort((a, b) => a - b)
+    typical = {
+      lo: Math.round(percentileSorted(sorted, 0.25)),
+      hi: Math.round(percentileSorted(sorted, 0.75)),
+      n:  sorted.length,
+    }
+  }
+  return { kind: 'exam-band', dots, typical, altBand, missing }
 }
 
 // ─── RRV-6 evidence chips: school_facts → per-cell quotes ──────────────────
@@ -597,14 +728,23 @@ const MIN_COHORT_PEERS = 4
 // number means the same thing as this school's own cell would. 322 rows
 // total codebase-wide (2026-07-20), so fetching the whole table once per
 // table load is cheap — no N+1, no per-field re-query.
-async function loadCohortRanges(supabase: SupabaseClient, neededSlugs: Set<string>): Promise<CohortIndex> {
+async function loadCohortRanges(
+  supabase:    SupabaseClient,
+  neededSlugs: Set<string>,
+  // RRV-7: when the gcse_pct row is present, the exam band's typical-range
+  // window needs every verified 9–7 share across the UK pool — collected
+  // from this function's existing SSD fetch (one query, no re-read)
+  // regardless of whether any cell was empty.
+  collectGcseValues: boolean = false,
+): Promise<{ index: CohortIndex; gcseValues: number[] }> {
   const index: CohortIndex = new Map()
+  const gcseValues: number[] = []
   Array.from(neededSlugs).forEach(slug => index.set(slug, new Map()))
 
   const { data: ssd, error: ssdError } = await supabase
     .from('school_structured_data')
     .select('school_slug, fees_min, fees_currency, exam_results, student_community')
-  if (ssdError || !ssd || ssd.length === 0) return index
+  if (ssdError || !ssd || ssd.length === 0) return { index, gcseValues }
 
   type SsdRow = {
     school_slug: string
@@ -631,6 +771,14 @@ async function loadCohortRanges(supabase: SupabaseClient, neededSlugs: Set<strin
 
   for (const row of ssd as SsdRow[]) {
     const b = buckets.get(row.school_slug)
+    // RRV-7: the band's national percentile only needs the UK/non-deprecated
+    // filter (= membership in `buckets`), not a clean type/boarding bucket —
+    // collected before the clean-bucket guard below on purpose.
+    if (collectGcseValues && b) {
+      const gcse = row.exam_results?.gcse as Record<string, unknown> | undefined
+      const pct = gcse?.pct_7_to_9
+      if (typeof pct === 'number' && Number.isFinite(pct)) gcseValues.push(pct)
+    }
     if (!b || b.schoolType == null || b.boarding == null) continue  // no clean bucket → don't pollute any range
 
     if (neededSlugs.has('boarding_fee_year') && row.fees_currency === 'GBP' && typeof row.fees_min === 'number') {
@@ -646,7 +794,7 @@ async function loadCohortRanges(supabase: SupabaseClient, neededSlugs: Set<strin
       if (typeof total === 'number') addSample('total_pupils', b, total)
     }
   }
-  return index
+  return { index, gcseValues }
 }
 
 // Separate from loadSchoolBuckets (which scopes to the shortlist) — this

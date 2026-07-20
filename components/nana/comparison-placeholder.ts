@@ -2,6 +2,8 @@
 // fetch will eventually produce from shortlisted_schools × school_structured_data
 // × school_sensitive. Swap the import in ResearchRoom.tsx when real data lands.
 
+import type { RowViz } from '@/lib/research-room/rrv7-viz'
+
 export type SchoolColumn = {
   slug: string
   name: string
@@ -153,6 +155,13 @@ export type ComparisonRow = {
   // row's semantic meaning; defaults to 'neutral' when the row has no
   // known rule (e.g. a chat-added row).
   winnerRule?: WinnerRule
+  // RRV-7 (2026-07-20): cross-school row-level visualization (travel
+  // corridor under "Travel from Heathrow", GCSE context band under
+  // "GCSE 9–7") — see lib/research-room/rrv7-viz.ts. Attached in
+  // loadLensRows ONLY, same rule as the per-cell tier/band/mix/evidence
+  // extras: loadVerdictRows never sets it, so the verdict cache hash
+  // (which includes its rows) is byte-identical with or without RRV-7.
+  viz?: RowViz
 }
 
 export type ComparisonData = {

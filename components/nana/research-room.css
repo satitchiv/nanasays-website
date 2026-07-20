@@ -3731,6 +3731,163 @@
   background: var(--rr-bmd);
 }
 
+/* ── RRV-7: cross-school strips (mock §7 corridor + §8 exam band) ─────
+   Rendered as an in-flow grid child spanning `1 / -1` under its anchor
+   row's cells (auto-flows to an implicit second grid row on desktop; in
+   the ≤680px cards layout the row is a flex column so it just stacks).
+   Own inner overflow-x scroll — the table wrap / card rows clip
+   absolutely-positioned children (RRV-6 constraint), so everything here
+   stays in-flow relative to the scrolling inner element. */
+.rr-viz-strip {
+  border-top: 1px dashed var(--rr-border);
+  background: var(--rr-off);
+  padding: 14px 20px 10px;
+}
+.rr-corr-scroll,
+.rr-band-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Corridor: origin dot (LHR) + one stop per school along a line. Stop
+   left-offsets are precomputed %s from rrv7-viz.ts. */
+.rr-corr {
+  position: relative;
+  height: 108px;
+}
+.rr-corr-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 52px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--rr-bmd);
+}
+.rr-corr-stop {
+  position: absolute;
+  top: 6px;
+  transform: translateX(-50%);
+  width: 120px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.rr-corr-time {
+  font-family: var(--rr-display);
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--rr-navy);
+  font-variant-numeric: tabular-nums;
+}
+.rr-corr-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--rr-teal);
+  border: 3px solid var(--rr-white);
+  box-shadow: 0 0 0 1px var(--rr-border);
+  margin: 6px 0;
+}
+.rr-corr-stop--origin .rr-corr-dot {
+  background: var(--rr-navy);
+}
+.rr-corr-name {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--rr-muted);
+}
+.rr-corr-stop--origin .rr-corr-name {
+  color: var(--rr-navy);
+}
+
+/* Exam band: gradient track, dashed typical-range window, labeled dots.
+   Dot left-offsets and label sides are precomputed in rrv7-viz.ts. */
+.rr-band {
+  position: relative;
+  height: 96px;
+  min-width: 480px;
+  margin-top: 20px;
+}
+.rr-band-track {
+  position: absolute;
+  top: 38px;
+  left: 0;
+  right: 0;
+  height: 10px;
+  border-radius: var(--rr-r-pill);
+  background: linear-gradient(90deg, var(--rr-off-2), var(--rr-teal-bg) 55%, var(--rr-teal));
+}
+.rr-band-typical {
+  position: absolute;
+  top: 32px;
+  height: 22px;
+  border-left: 2px dashed var(--rr-muted);
+  border-right: 2px dashed var(--rr-muted);
+}
+.rr-band-typical-lbl {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--rr-sans);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--rr-muted);
+  white-space: nowrap;
+}
+.rr-band-dot {
+  position: absolute;
+  top: 43px;
+  width: 13px;
+  height: 13px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--rr-navy);
+  border: 2.5px solid var(--rr-white);
+  box-shadow: 0 0 0 1px var(--rr-border);
+}
+.rr-band-dot-lbl {
+  position: absolute;
+  top: 13px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--rr-navy);
+  white-space: nowrap;
+}
+.rr-band-dot--label-above .rr-band-dot-lbl {
+  top: auto;
+  bottom: 13px;
+}
+.rr-band-axis {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 66px;
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--rr-sans);
+  font-size: 10px;
+  color: var(--rr-muted);
+  font-variant-numeric: tabular-nums;
+}
+.rr-viz-note {
+  margin: 8px 0 0;
+  font-family: var(--rr-sans);
+  font-size: 11.5px;
+  color: var(--rr-body);
+}
+.rr-viz-note--muted {
+  color: var(--rr-muted);
+}
+
 /* ── Empty state (0 schools shortlisted) ───────────────────────────── */
 .rr-cmp-empty {
   background: var(--rr-white);

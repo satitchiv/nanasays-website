@@ -29,6 +29,16 @@ import {
   type SchoolColumn,
   type EvidenceQuote,
 } from './comparison-placeholder'
+import {
+  type TravelCorridorViz,
+  type ExamBandViz,
+  formatMinutes,
+  formatMinutesSpoken,
+  bandAxisPos,
+  CORRIDOR_ORIGIN_POS,
+  BAND_AXIS_MIN,
+  BAND_AXIS_MAX,
+} from '@/lib/research-room/rrv7-viz'
 import SchoolAdder from './SchoolAdder'
 
 type Lens = 'general' | 'child_fit'
@@ -1063,6 +1073,117 @@ function SortableRow({
           </div>
         )
       })}
+      {/* RRV-7 — cross-school strip (travel corridor / exam band) under
+          the row's cells. A real grid child spanning `1 / -1` auto-flows
+          onto an implicit second grid row at full width on desktop; in the
+          ≤680px cards layout the row becomes a flex column and the strip
+          simply stacks. In-flow (never absolutely positioned) with its own
+          inner overflow-x scroll — the RRV-6 clipping constraint. Lives
+          inside the sortable row so it drags with it. */}
+      {row.viz?.kind === 'travel-corridor' && <TravelCorridorStrip viz={row.viz} />}
+      {row.viz?.kind === 'exam-band' && <ExamBandStrip viz={row.viz} />}
+    </div>
+  )
+}
+
+// ─── RRV-7 — travel corridor (mock §7) ──────────────────────────────────────
+//
+// Positions are precomputed server-side (rrv7-viz.ts corridorStopPositions,
+// collision-adjusted); this component just draws them. The strip element
+// carries role="img" + a full spoken sentence, so the decorative internals
+// are hidden from AT; the honest partial-coverage caption sits OUTSIDE the
+// role="img" element so screen readers still hit it.
+function TravelCorridorStrip({ viz }: { viz: TravelCorridorViz }) {
+  const aria =
+    'Travel from Heathrow arrivals: ' +
+    viz.stops.map(s => `${s.name} ${formatMinutesSpoken(s.minutes)}`).join('; ') + '.'
+  return (
+    <div className="rr-viz-strip" style={{ gridColumn: '1 / -1' }}>
+      <div className="rr-corr-scroll">
+        <div
+          className="rr-corr"
+          role="img"
+          aria-label={aria}
+          style={{ minWidth: `${Math.max(560, (viz.stops.length + 1) * 140)}px` }}
+        >
+          <div className="rr-corr-line" aria-hidden="true" />
+          <div className="rr-corr-stop rr-corr-stop--origin" aria-hidden="true" style={{ left: `${CORRIDOR_ORIGIN_POS}%` }}>
+            <span className="rr-corr-time">✈️ LHR</span>
+            <span className="rr-corr-dot" />
+            <span className="rr-corr-name">Heathrow arrivals</span>
+          </div>
+          {viz.stops.map(s => (
+            <div className="rr-corr-stop" aria-hidden="true" key={s.slug} style={{ left: `${s.pos}%` }}>
+              <span className="rr-corr-time">{formatMinutes(s.minutes)}</span>
+              <span className="rr-corr-dot" />
+              <span className="rr-corr-name">{s.name}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      {viz.missing.length > 0 && (
+        <p className="rr-viz-note">No verified Heathrow time yet: {viz.missing.join(', ')}</p>
+      )}
+      <p className="rr-viz-note rr-viz-note--muted">
+        Door-to-door from the plane — exeat weekends and emergencies are measured in hours, not miles.
+      </p>
+    </div>
+  )
+}
+
+// ─── RRV-7 — GCSE context band (mock §8) ────────────────────────────────────
+//
+// Fixed 20–100% axis; dots plotted only for schools with a true 9–7 share
+// (9–8-only publishers are named, never plotted as if 9–7). The dashed
+// "typical" window is the middle half of the UK pool's verified values,
+// computed live server-side — suppressed (typical=null) below the n-floor,
+// never fabricated.
+function ExamBandStrip({ viz }: { viz: ExamBandViz }) {
+  const aria =
+    'GCSE grades 9 to 7 in context: ' +
+    viz.dots.map(d => `${d.name} ${d.pct} percent`).join('; ') +
+    (viz.typical ? `. Typical range across the ${viz.typical.n} UK independent schools we track: ${viz.typical.lo} to ${viz.typical.hi} percent.` : '.')
+  const axisTicks = [20, 40, 60, 80, 100].filter(t => t >= BAND_AXIS_MIN && t <= BAND_AXIS_MAX)
+  return (
+    <div className="rr-viz-strip" style={{ gridColumn: '1 / -1' }}>
+      <div className="rr-band-scroll">
+        <div className="rr-band" role="img" aria-label={aria}>
+          <div className="rr-band-track" aria-hidden="true" />
+          {viz.typical && (
+            <div
+              className="rr-band-typical"
+              aria-hidden="true"
+              style={{
+                left:  `${bandAxisPos(viz.typical.lo)}%`,
+                width: `${bandAxisPos(viz.typical.hi) - bandAxisPos(viz.typical.lo)}%`,
+              }}
+            >
+              <span className="rr-band-typical-lbl">typical range · middle half of {viz.typical.n} schools we track</span>
+            </div>
+          )}
+          {viz.dots.map(d => (
+            <div
+              className={`rr-band-dot${d.labelBelow ? '' : ' rr-band-dot--label-above'}`}
+              aria-hidden="true"
+              key={d.slug}
+              style={{ left: `${d.pos}%` }}
+            >
+              <span className="rr-band-dot-lbl">{d.name} {d.pct}%</span>
+            </div>
+          ))}
+          <div className="rr-band-axis" aria-hidden="true">
+            {axisTicks.map(t => (
+              <span key={t}>{t}%</span>
+            ))}
+          </div>
+        </div>
+      </div>
+      {viz.altBand.length > 0 && (
+        <p className="rr-viz-note">{viz.altBand.join(', ')} {viz.altBand.length === 1 ? 'publishes' : 'publish'} grades 9–8 only — not on this band</p>
+      )}
+      {viz.missing.length > 0 && (
+        <p className="rr-viz-note">No GCSE results on record: {viz.missing.join(', ')}</p>
+      )}
     </div>
   )
 }
