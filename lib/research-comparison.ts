@@ -16,6 +16,14 @@ import {
   percentileSorted,
   TYPICAL_MIN_SCHOOLS,
 } from './research-room/rrv7-viz'
+import {
+  type EntryTimelineEntry,
+  monthsBetween,
+  todayIso,
+  captionForDated,
+  ROLLING_CAPTION,
+  VAGUE_CAPTION_PREFIX,
+} from './research-room/rrv4-viz'
 
 // Slice 5.5b — lens-aware single-source comparison loader.
 //
@@ -61,6 +69,12 @@ type RowCellData = {
   // read only by the travel-corridor assembly in loadLensRows, NEVER by
   // cellFromRaw — verdict cache-hash stability.
   minutes?: number | null
+  // RRV-4 (2026-07-20): see CellValue.entryState/deadlineIso in
+  // seed-rows.ts for why this is a state, not a plotted date. Same
+  // parallel-field rule: read only by buildEntryTimelineViz, NEVER by
+  // cellFromRaw.
+  entryState?: 'rolling' | 'dated' | 'vague' | null
+  deadlineIso?: string | null
 }
 
 type SchoolMeta = {
@@ -399,6 +413,8 @@ async function loadLensRows(
       viz = buildTravelCorridorViz(schools, r.cell_data)
     } else if (slug === 'gcse_pct') {
       viz = buildExamBandViz(schools, r.cell_data, poolGcseValues)
+    } else if (slug === 'y9_y10_admissions') {
+      viz = buildEntryTimelineViz(schools, r.cell_data)
     }
 
     // group_name lives on the row in the DB. Slice 8 Step 0.6: surface it to
@@ -508,6 +524,50 @@ function buildExamBandViz(
     }
   }
   return { kind: 'exam-band', dots, typical, altBand, missing }
+}
+
+// ─── RRV-4: entry timeline strip assembly ──────────────────────────────────
+//
+// Card ask (roadmap rrv-4, mock §3): per-school registration/pre-test/entry
+// milestones vs a "you are here" marker, answering "are we already too
+// late?" honestly. See lib/research-room/rrv4-viz.ts for why this renders
+// as STATES rather than a plotted calendar axis — the RRV-4a data audit
+// (2026-07-20) found no per-family calendar-year anchor exists, and every
+// dated string is one historical crawl snapshot, not a verified live
+// status. future-vs-past is resolved HERE, at load time, against "today" —
+// never at seed time — so a cell seeded weeks ago can't report a stale
+// verdict.
+function buildEntryTimelineViz(
+  schools:  SchoolColumn[],
+  cellData: Record<string, RowCellData> | null,
+): RowViz | undefined {
+  const today = todayIso()
+  const entries: EntryTimelineEntry[] = []
+  const missing: string[] = []
+  for (const col of schools) {
+    const raw = cellData?.[col.slug]
+    if (raw?.entryState === 'rolling') {
+      entries.push({ slug: col.slug, name: col.name, state: 'rolling', monthsAway: null, caption: ROLLING_CAPTION })
+    } else if (raw?.entryState === 'dated' && raw.deadlineIso) {
+      const months = monthsBetween(today, raw.deadlineIso)
+      const display = typeof raw.value === 'string' ? raw.value : raw.deadlineIso
+      // Post-build review catch: deciding future-vs-past from the ROUNDED
+      // `months` value is wrong for a deadline within ~15 days of today —
+      // Math.round(-0.33) is -0, and `-0 >= 0` is true in JS, so a deadline
+      // that passed last week would round to 0 and get mislabeled
+      // "dated-future." Compare the ISO date strings directly instead
+      // (YYYY-MM-DD sorts lexicographically = chronologically) — `months`
+      // stays purely a magnitude for the caption, never the sign source.
+      const state: 'dated-future' | 'dated-past' = raw.deadlineIso >= today ? 'dated-future' : 'dated-past'
+      entries.push({ slug: col.slug, name: col.name, state, monthsAway: months, caption: captionForDated(state, months, display) })
+    } else if (raw?.entryState === 'vague' && typeof raw.value === 'string') {
+      entries.push({ slug: col.slug, name: col.name, state: 'vague', monthsAway: null, caption: `${VAGUE_CAPTION_PREFIX}${raw.value}` })
+    } else {
+      missing.push(col.name)
+    }
+  }
+  if (entries.length === 0) return undefined
+  return { kind: 'entry-timeline', entries, missing }
 }
 
 // ─── RRV-6 evidence chips: school_facts → per-cell quotes ──────────────────

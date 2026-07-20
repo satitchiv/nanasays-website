@@ -70,6 +70,17 @@ type CellValue = {
   // Existing sessions pick it up via reconcileSeededRows' canonicalJson
   // diff on next load (RRV-5 precedent, no migration).
   minutes?: number
+  // RRV-4 (2026-07-20): classification behind the "Entry timeline" cell —
+  // see lib/research-room/rrv4-viz.ts for why this is a STATE, not a
+  // plotted date. Deliberately NOT split into future/past here — that
+  // split depends on "today", which drifts between seeds; only
+  // 'dated' + `deadlineIso` are persisted, and buildEntryTimelineViz
+  // resolves future-vs-past fresh at load time (monthsBetween(todayIso(),
+  // deadlineIso)), so a cell seeded months ago never reports a stale
+  // future/past verdict. Same parallel-field rule as band/mix/minutes
+  // above: never read by cellFromRaw.
+  entryState?: 'rolling' | 'dated' | 'vague'
+  deadlineIso?: string | null
 }
 
 type CellData = Record<string, CellValue>
@@ -632,18 +643,124 @@ function buildRegistrationFee({ struct }: SeedContext): CellValue | null {
   return null
 }
 
-function buildY9Y10Admissions({ struct }: SeedContext): CellValue | null {
+// RRV-4 (2026-07-20): child_year → UK Year, so the row can match the
+// family's ACTUAL target entry point instead of a hardcoded 9/10. Reuses
+// the "13+ means Year 9" style mapping already established by
+// PLUS_TO_YEAR — sixth-form maps to 12 (Year 12 = Lower Sixth entry),
+// matching YEAR_TO_ENTRY_AGE's 'sixth-form' → age 16 convention in
+// score-for-build-mode.ts.
+const CHILD_YEAR_TO_UK_YEAR: Readonly<Record<string, number>> = Object.freeze({
+  'year-7':     7,
+  'year-9':     9,
+  'year-10':    10,
+  'sixth-form': 12,
+})
+
+// DD Month YYYY, same pattern as the house precedent in
+// app/api/calendar/[slug]/route.ts's parseEventDate (open-day ICS export)
+// — kept local rather than imported since that file is a route handler,
+// not a shared lib, and the two call sites' string shapes (open-day text
+// vs admissions_format free text) aren't guaranteed to stay identical.
+const MONTH_NUM: Readonly<Record<string, string>> = Object.freeze({
+  january: '01', february: '02', march: '03', april: '04',
+  may: '05', june: '06', july: '07', august: '08',
+  september: '09', october: '10', november: '11', december: '12',
+})
+
+function parseDeadlineDate(text: string): { iso: string; display: string } | null {
+  const m = text.match(
+    /(\d{1,2})(?:st|nd|rd|th)?\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})/i
+  )
+  if (!m) return null
+  const day = m[1].padStart(2, '0')
+  const month = MONTH_NUM[m[2].toLowerCase()]
+  const year = m[3]
+  const display = `${m[1]} ${m[2][0].toUpperCase()}${m[2].slice(1).toLowerCase()} ${year}`
+  return { iso: `${year}-${month}-${day}`, display }
+}
+
+// Deliberately-empty placeholder text the extractor sometimes writes
+// instead of a true null (audit finding, RRV-4a live trace 2026-07-20:
+// "Not specified" / "Not stated" / "Not explicitly stated" account for
+// ~40 of the 477 UK-pool entry-point rows) — treated as no-data, same as
+// a real null, so they fall through to the Ask-Nana gap ladder rather
+// than rendering as a fake "vague" cell.
+const NO_DATA_TEXT = /^not (specified|stated|explicitly stated)|^(n\/?a|unknown|tbc|tbd)$/i
+
+// Live-trace fix (RRV-4 build, 2026-07-20): a real prod string —
+// "7 September 2026 (opens); deadline not explicitly stated but
+// registration for 2027 entry opens 7 Sept 2026" — has a clean DD Month
+// YYYY match ("7 September 2026"), but that date is the OPENING date, and
+// the extractor's own text admits the deadline itself "is not explicitly
+// stated." A naive date-regex would render this as a confident deadline —
+// exactly the overclaiming the pre-build review warned against. Checked
+// BEFORE attempting a date parse, anywhere in the string (not just as a
+// whole-string match like NO_DATA_TEXT), so an embedded disclaimer wins
+// even when a date happens to appear elsewhere in the same string.
+const DEADLINE_NOT_STATED = /deadline\s+(is\s+)?not\s+(explicitly\s+)?stated|deadline\s+not\s+specified/i
+
+// A registration-FEE amount sometimes sits in the registration_deadline
+// slot (audit finding — a handful of extractor mis-fills, e.g. "Registration
+// fee £240 payable on completion of online form"). Reusing buildRegistrationFee's
+// £-amount signal here to keep a mis-filled fee out of the "vague" bucket —
+// it must fall to the gap ladder, not be echoed as if it were timing guidance.
+const LOOKS_LIKE_FEE = /[£$¥]\s?\d/
+
+// Word-boundary truncation for the "vague" bucket's raw echoed text — a
+// blind slice(0, N) can cut mid-word (live-trace finding: "...9th January "
+// off a longer sentence), which reads as a rendering bug, not an honest
+// partial quote.
+function truncateAtWord(s: string, max: number): string {
+  if (s.length <= max) return s
+  const cut = s.slice(0, max)
+  const lastSpace = cut.lastIndexOf(' ')
+  return `${(lastSpace > max * 0.4 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`
+}
+
+function classifyDeadlineText(text: string | null): CellValue | null {
+  if (!text) return null
+  const trimmed = text.trim()
+  if (!trimmed || NO_DATA_TEXT.test(trimmed)) return null
+  if (/rolling|no formal|no deadline|none\s*[—-]|year.?round|throughout|any\s*time|anytime/i.test(trimmed)) {
+    return { value: 'Rolling admissions', source: 'admissions_format.entry_points', entryState: 'rolling' }
+  }
+  if (DEADLINE_NOT_STATED.test(trimmed)) return null
+  const dated = parseDeadlineDate(trimmed)
+  if (dated) {
+    return {
+      value: dated.display,
+      source: 'admissions_format.entry_points',
+      entryState: 'dated',
+      deadlineIso: dated.iso,
+    }
+  }
+  if (LOOKS_LIKE_FEE.test(trimmed)) return null
+  return {
+    value: truncateAtWord(trimmed, 70),
+    source: 'admissions_format.entry_points',
+    entryState: 'vague',
+  }
+}
+
+function buildEntryTimeline({ struct, profile }: SeedContext): CellValue | null {
   const af = struct?.admissions_format as Record<string, unknown> | null | undefined
   const ep = af?.entry_points
-  if (!Array.isArray(ep)) return null
-  // Look for an entry point at year 9 or 10 and surface its label/note.
+  if (!Array.isArray(ep) || ep.length === 0) return null
+
+  const targetYear = profile?.child_year ? CHILD_YEAR_TO_UK_YEAR[profile.child_year] ?? null : null
+
+  // Two passes: prefer the entry point matching the family's actual target
+  // year; fall back to the lowest-year entry point overall when there's no
+  // profile yet (general lens / anonymous flow) or the target year isn't
+  // offered by this school. Mirrors buildLowestBoardingEntry's fallback
+  // shape (lowestBoarding ?? lowestOverall).
+  let matched: Record<string, unknown> | null = null
+  let matchedYear: number | null = null
+  let lowest: Record<string, unknown> | null = null
+  let lowestYear: number | null = null
   for (const e of ep) {
     if (!e || typeof e !== 'object') continue
     const o = e as Record<string, unknown>
-    // Extractor writes free-text `entry_point` (e.g. "Year 9 (Third Form, age ~13)").
-    // Walk candidates in priority order so an unparseable entry_point doesn't mask
-    // a structured numeric `year`/`age`. Per Codex r2 finding — keeps lockstep with
-    // buildLowestBoardingEntry. The helper handles "13+ entry" → Year 9 correctly.
     let y: number | null = null
     for (const raw of [o.entry_point, o.year, o.age]) {
       if (typeof raw === 'number') { y = raw; break }
@@ -652,15 +769,20 @@ function buildY9Y10Admissions({ struct }: SeedContext): CellValue | null {
         if (parsed != null) { y = parsed; break }
       }
     }
-    if (y !== 9 && y !== 10) continue
-    const labelRaw = o.entry_point ?? o.label ?? o.note ?? o.requirement
-    if (typeof labelRaw === 'string' && labelRaw.trim()) {
-      const trimmed = labelRaw.trim().slice(0, 80)
-      return { value: trimmed, source: 'admissions_format.entry_points' }
-    }
-    return { value: `Year ${y} entry`, source: 'admissions_format.entry_points' }
+    if (y == null || y < 1 || y > 13) continue
+    if (targetYear != null && y === targetYear && matched == null) { matched = o; matchedYear = y }
+    if (lowestYear == null || y < lowestYear) { lowestYear = y; lowest = o }
   }
-  return null
+  const use = matched ?? lowest
+  const useYear = matchedYear ?? lowestYear
+  if (!use) return null
+
+  const deadlineRaw = typeof use.registration_deadline === 'string' ? use.registration_deadline : null
+  const assessRaw = typeof use.assessment_date === 'string' ? use.assessment_date : null
+  const classified = classifyDeadlineText(deadlineRaw) ?? classifyDeadlineText(assessRaw)
+  if (!classified) return null
+
+  return { ...classified, note: useYear != null ? `Year ${useYear} entry` : undefined }
 }
 
 function buildSchoolView(_: SeedContext): CellValue | null {
@@ -881,7 +1003,19 @@ const GENERAL_SPECS: SeedRowSpec[] = [
   { slug: 'boarding_fee_term',     row_name: 'Boarding fee · per term',     group_name: 'Fees',       sort_order: 1400, build: buildBoardingFeeTerm, winnerRule: 'neutral' },
   { slug: 'boarding_fee_year',     row_name: 'Boarding fee · per year',     group_name: 'Fees',       sort_order: 1500, build: buildAnnualBoardingFee, winnerRule: 'neutral' },
   { slug: 'registration_fee',      row_name: 'Registration fee',            group_name: 'Fees',       sort_order: 1600, build: buildRegistrationFee, winnerRule: 'neutral' },
-  { slug: 'y9_y10_admissions',     row_name: 'Year 9 / 10 admissions',      group_name: 'Admissions', sort_order: 1700, build: buildY9Y10Admissions, winnerRule: 'neutral' },
+  // RRV-4 (2026-07-20): renamed 'Year 9 / 10 admissions' → 'Entry timeline'
+  // and generalized past just Y9/Y10 — same slug-stays-fixed rename
+  // precedent as RRV-5's 'Boarding ratio' → 'Boarding mix' (see that spec's
+  // comment above): reconcileSeededRows rewrites row_name + cell_data on
+  // next load, no migration, no duplicate row. One caveat this rename
+  // exposes that boarding_ratio's didn't: the loader's `slug` lookup
+  // (GENERAL_ROW_SLUG_BY_NAME) is keyed by row_name, and this row also
+  // carries a `viz` (see buildEntryTimelineViz in lib/research-comparison.ts)
+  // — so on the one stale load between deploy and this row's own reconcile
+  // (fail-soft, see reconcileSeededRows), a DB row still titled "Year 9 /
+  // 10 admissions" won't resolve a slug and the strip won't render that
+  // load. Degrades to the plain cell, never a crash; self-heals next load.
+  { slug: 'y9_y10_admissions',     row_name: 'Entry timeline',              group_name: 'Admissions', sort_order: 1700, build: buildEntryTimeline, winnerRule: 'neutral' },
   { slug: 'school_view',           row_name: 'School view',                 group_name: 'Media',      sort_order: 1800, build: buildSchoolView, winnerRule: 'neutral' },
 ]
 
@@ -1034,7 +1168,9 @@ const GAP_QUESTION_TEMPLATES: Readonly<Record<string, (school: string) => string
   boarding_fee_term:       (s) => `What is ${s}'s boarding fee per term?`,
   boarding_fee_year:       (s) => `What is ${s}'s annual boarding fee?`,
   registration_fee:        (s) => `What is ${s}'s registration fee?`,
-  y9_y10_admissions:       (s) => `What are ${s}'s Year 9/10 admissions requirements?`,
+  // RRV-4: generic on purpose — the row now matches whichever year the
+  // family actually targets (Year 7 / 9 / 10 / Sixth Form), not just 9/10.
+  y9_y10_admissions:       (s) => `When are applications due at ${s}?`,
   school_view:             (s) => `What does ${s} look like — is there a video or photo tour?`,
   rugby_strength:          (s) => `How strong is ${s}'s rugby programme?`,
   tennis_strength:         (s) => `How strong is ${s}'s tennis programme?`,

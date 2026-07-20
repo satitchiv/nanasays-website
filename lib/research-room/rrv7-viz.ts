@@ -7,6 +7,8 @@
 // labels / aria sentences must come from the SAME formatters on both sides
 // so they can't drift.
 
+import type { EntryTimelineViz } from './rrv4-viz'
+
 // ─── Payload types ──────────────────────────────────────────────────────────
 
 // One school plotted on the Heathrow corridor. `pos` is the precomputed
@@ -55,7 +57,10 @@ export type ExamBandViz = {
   missing: string[]
 }
 
-export type RowViz = TravelCorridorViz | ExamBandViz
+// RRV-4's EntryTimelineViz lives in its own sibling file (rrv4-viz.ts) —
+// imported here only so this union stays the single source of truth that
+// components/nana/comparison-placeholder.ts re-exports from.
+export type RowViz = TravelCorridorViz | ExamBandViz | EntryTimelineViz
 
 // ─── Axis + layout constants ────────────────────────────────────────────────
 

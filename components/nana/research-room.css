@@ -3888,6 +3888,69 @@
   color: var(--rr-muted);
 }
 
+/* RRV-4 entry timeline: a state chip + hedged caption per school, NOT a
+   plotted axis — see lib/research-room/rrv4-viz.ts for the honesty
+   reasoning. Deliberately simple rows (no positioning math) so nothing
+   here implies more precision than a one-time crawl snapshot supports. */
+.rr-timeline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rr-timeline-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.rr-timeline-chip {
+  flex: 0 0 auto;
+  font-family: var(--rr-sans);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: var(--rr-r-pill);
+  white-space: nowrap;
+}
+.rr-timeline-chip--rolling {
+  /* Hex fallback + color-mix, same dual-declaration precedent as
+     .rr-build-progress-basic-chip.is-captured above (Codex r5 NIT). */
+  background: #e3f3ea;
+  background: color-mix(in srgb, var(--rr-moss) 16%, transparent);
+  color: var(--rr-moss);
+}
+.rr-timeline-chip--dated-future {
+  background: #fbeed0;
+  background: color-mix(in srgb, var(--rr-amber) 20%, transparent);
+  color: #8a5a00;
+}
+.rr-timeline-chip--dated-past {
+  background: #f8e2dc;
+  background: color-mix(in srgb, var(--rr-rust) 16%, transparent);
+  color: var(--rr-rust);
+}
+.rr-timeline-chip--vague {
+  background: var(--rr-off-2);
+  color: var(--rr-muted);
+}
+.rr-timeline-name {
+  font-family: var(--rr-sans);
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--rr-navy);
+  flex: 0 0 auto;
+}
+.rr-timeline-caption {
+  font-family: var(--rr-sans);
+  font-size: 11.5px;
+  color: var(--rr-body);
+}
+
 /* ── Empty state (0 schools shortlisted) ───────────────────────────── */
 .rr-cmp-empty {
   background: var(--rr-white);

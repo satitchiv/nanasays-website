@@ -39,6 +39,7 @@ import {
   BAND_AXIS_MIN,
   BAND_AXIS_MAX,
 } from '@/lib/research-room/rrv7-viz'
+import type { EntryTimelineViz, EntryTimelineState } from '@/lib/research-room/rrv4-viz'
 import SchoolAdder from './SchoolAdder'
 
 type Lens = 'general' | 'child_fit'
@@ -1082,6 +1083,7 @@ function SortableRow({
           inside the sortable row so it drags with it. */}
       {row.viz?.kind === 'travel-corridor' && <TravelCorridorStrip viz={row.viz} />}
       {row.viz?.kind === 'exam-band' && <ExamBandStrip viz={row.viz} />}
+      {row.viz?.kind === 'entry-timeline' && <EntryTimelineStrip viz={row.viz} />}
     </div>
   )
 }
@@ -1183,6 +1185,44 @@ function ExamBandStrip({ viz }: { viz: ExamBandViz }) {
       )}
       {viz.missing.length > 0 && (
         <p className="rr-viz-note">No GCSE results on record: {viz.missing.join(', ')}</p>
+      )}
+    </div>
+  )
+}
+
+// ─── RRV-4 — entry timeline (mock §3) ───────────────────────────────────────
+//
+// Deliberately NOT a plotted calendar axis — see lib/research-room/
+// rrv4-viz.ts for the honesty reasoning (no per-family calendar-year
+// anchor exists; every dated string is one historical crawl, not a
+// verified live status). This renders a state chip + hedged caption per
+// school instead — a compact "where does each shortlisted school stand,
+// today" scan, with "today" as the implicit reference point behind every
+// caption rather than a pixel position on an axis.
+const ENTRY_STATE_LABEL: Record<EntryTimelineState, string> = {
+  'rolling':      'Rolling',
+  'dated-future': 'Deadline ahead',
+  'dated-past':   'Deadline passed',
+  'vague':        'Timing varies',
+}
+
+function EntryTimelineStrip({ viz }: { viz: EntryTimelineViz }) {
+  const aria = 'Entry timeline: ' + viz.entries.map(e => `${e.name}: ${e.caption}`).join('; ') + '.'
+  return (
+    <div className="rr-viz-strip" style={{ gridColumn: '1 / -1' }}>
+      <ul className="rr-timeline-list" role="img" aria-label={aria}>
+        {viz.entries.map(e => (
+          <li key={e.slug} className="rr-timeline-row" aria-hidden="true">
+            <span className={`rr-timeline-chip rr-timeline-chip--${e.state}`}>
+              {ENTRY_STATE_LABEL[e.state]}
+            </span>
+            <span className="rr-timeline-name">{e.name}</span>
+            <span className="rr-timeline-caption">{e.caption}</span>
+          </li>
+        ))}
+      </ul>
+      {viz.missing.length > 0 && (
+        <p className="rr-viz-note">No admissions timing on record: {viz.missing.join(', ')}</p>
       )}
     </div>
   )
