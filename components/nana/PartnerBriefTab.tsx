@@ -55,7 +55,7 @@ function renderBriefMarkdown(markdown: string): ReactNode[] {
       const [lead, ...items] = block.split('\n')
       return (
         <div key={idx}>
-          {lead && !lead.startsWith('- ') && <div>{renderMd(lead)}</div>}
+          {lead && !lead.startsWith('- ') && <div className="rr-md-block">{renderMd(lead)}</div>}
           <ul className="rr-pb-list">
             {(lead.startsWith('- ') ? [lead, ...items] : items).map((item, i) => (
               <li key={i}>{renderMd(item.replace(/^-\s+/, ''))}</li>
@@ -64,7 +64,7 @@ function renderBriefMarkdown(markdown: string): ReactNode[] {
         </div>
       )
     }
-    return <div key={idx}>{renderMd(block)}</div>
+    return <div key={idx} className="rr-md-block">{renderMd(block)}</div>
   })
 }
 

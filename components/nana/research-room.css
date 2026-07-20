@@ -709,7 +709,8 @@
   line-height: 1.75;
   color: var(--rr-body);
 }
-.rr-pb-letter p {
+.rr-pb-letter p,
+.rr-pb-letter .rr-md-block {
   margin: 0 0 14px;
 }
 .rr-pb-list {
@@ -719,7 +720,8 @@
 .rr-pb-list li {
   margin-bottom: 5px;
 }
-.rr-pb-letter p:first-child {
+.rr-pb-letter p:first-child,
+.rr-pb-letter .rr-md-block:first-child {
   font-family: var(--rr-display);
   font-style: italic;
   font-size: 19px;
@@ -863,7 +865,8 @@
   font-size: 16px;
   line-height: 1.68;
 }
-.rr-verdict-body p {
+.rr-verdict-body p,
+.rr-verdict-body .rr-md-block {
   margin: 0 0 14px;
 }
 .rr-verdict-main-heading {

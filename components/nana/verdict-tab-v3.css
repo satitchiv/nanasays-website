@@ -459,8 +459,8 @@
 
 /* Narrative paragraphs */
 .rr-vb3-narrative { font-family: var(--rr-sans); font-size: 15.5px; line-height: 1.72; color: var(--rr-body); }
-.rr-vb3-narrative p { margin: 0 0 12px; }
-.rr-vb3-narrative p:last-child { margin-bottom: 0; }
+.rr-vb3-narrative p, .rr-vb3-narrative .rr-md-block { margin: 0 0 12px; }
+.rr-vb3-narrative p:last-child, .rr-vb3-narrative .rr-md-block:last-child { margin-bottom: 0; }
 .rr-vb3-narrative strong { color: var(--rr-navy); font-weight: 800; }
 
 /* Evidence list */
