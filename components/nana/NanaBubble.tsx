@@ -395,7 +395,7 @@ export function NanaMsgBubble({
       {shortAnswer && (
         <>
           <p className="dh-msg-nana-eyebrow">Short answer</p>
-          <p className="dh-msg-nana-lead">{renderMd(shortAnswer)}</p>
+          <div className="dh-msg-nana-lead">{renderMd(shortAnswer)}</div>
         </>
       )}
 
@@ -410,13 +410,13 @@ export function NanaMsgBubble({
       )}
 
       {confirmedFacts && confirmedFacts !== 'Nothing to flag here.' && (
-        <p className="dh-msg-nana-prose">{renderMd(confirmedFacts)}</p>
+        <div className="dh-msg-nana-prose">{renderMd(confirmedFacts)}</div>
       )}
 
       {whatThisMeans && whatThisMeans !== 'Nothing to flag here.' && (
         <div className="dh-ans-section">
           <p className="dh-msg-nana-eyebrow">What this means</p>
-          <p className="dh-msg-nana-prose">{renderMd(whatThisMeans)}</p>
+          <div className="dh-msg-nana-prose">{renderMd(whatThisMeans)}</div>
         </div>
       )}
 
@@ -430,13 +430,13 @@ export function NanaMsgBubble({
       {whatWeDontKnow && whatWeDontKnow !== 'Nothing to flag here.' && (
         <div className="dh-ans-section dh-ans-section--dim">
           <p className="dh-msg-nana-eyebrow">What we don&apos;t know</p>
-          <p className="dh-msg-nana-prose">{renderMd(whatWeDontKnow)}</p>
+          <div className="dh-msg-nana-prose">{renderMd(whatWeDontKnow)}</div>
         </div>
       )}
 
       {fallbackText && (
         <div className="dh-ans-section">
-          <p className="dh-msg-nana-prose">{renderMd(fallbackText)}</p>
+          <div className="dh-msg-nana-prose">{renderMd(fallbackText)}</div>
         </div>
       )}
 
