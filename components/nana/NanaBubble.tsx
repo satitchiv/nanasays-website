@@ -44,6 +44,7 @@ export function prettyToolName(name: string): string {
     case 'compareSchools':     return 'Comparing schools'
     case 'getSchoolFacts':     return 'Looking up school details'
     case 'searchSafeguarding': return 'Checking safeguarding records'
+    case 'webSearch':          return 'Searching current school sources'
     default:                   return name
   }
 }

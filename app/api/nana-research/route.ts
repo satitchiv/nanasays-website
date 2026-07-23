@@ -41,6 +41,8 @@ import {
 import { routeIntent } from '@/lib/server/intent-router.js'
 // @ts-ignore
 import { expandFamousShortNames } from '@/lib/server/famous-names.js'
+// @ts-ignore — isolated environment-gated OpenAI Responses + web-search POC.
+import { runHybridWebResearchStream } from '@/lib/server/hybrid-web-research.js'
 
 export const runtime   = 'nodejs'
 export const dynamic   = 'force-dynamic'
@@ -152,6 +154,9 @@ export async function POST(req: NextRequest) {
   // because it has no school names. Codex P1.
   const lockedShortlistSlugs = shortlistSlugs.slice(0, 4)
   const useShortlistAgentic  = deepMode && lockedShortlistSlugs.length >= 2
+  // Hybrid POC is a local/reversible answer-engine swap. With the flag off,
+  // dispatch remains byte-for-byte on the canonical Fable paths below.
+  const useHybridPoc = process.env.NANA_HYBRID_POC === 'on'
 
   // ── Session setup ──
   // Slice 3e: research_sessions.child_id is now NOT NULL. New rows must
@@ -314,7 +319,11 @@ export async function POST(req: NextRequest) {
     : null
   // Telemetry: which path did we take?
   console.log('[nana-research] %s%s "%s"',
-    intentMatch ? `prose:${(intentMatch as any).intent}` : (useShortlistAgentic ? 'shortlist_deep' : `legacy:${mentionedSlugs.length === 0 ? 'global' : mentionedSlugs.length === 1 ? 'single' : 'multi'}`),
+    useHybridPoc
+      ? 'hybrid_web_poc'
+      : intentMatch
+        ? `prose:${(intentMatch as any).intent}`
+        : (useShortlistAgentic ? 'shortlist_deep' : `legacy:${mentionedSlugs.length === 0 ? 'global' : mentionedSlugs.length === 1 ? 'single' : 'multi'}`),
     mentionedSlugs.length ? ` slugs=${JSON.stringify(mentionedSlugs)}` : '',
     question.slice(0, 50))
 
@@ -500,7 +509,7 @@ export async function POST(req: NextRequest) {
         type: 'session_ready',
         sessionId,
         isNew:           !incomingSessionId,
-        mode:            useShortlistAgentic ? 'shortlist_deep' : (intentMatch ? `prose:${(intentMatch as any).intent}` : mode),
+        mode:            useHybridPoc ? 'hybrid_web_poc' : (useShortlistAgentic ? 'shortlist_deep' : (intentMatch ? `prose:${(intentMatch as any).intent}` : mode)),
         agenticLocked:   useShortlistAgentic,
         restrictToSlugs: useShortlistAgentic ? lockedShortlistSlugs : null,
       })
@@ -512,7 +521,15 @@ export async function POST(req: NextRequest) {
         //   1. shortlist deep mode (explicit user toggle) → agentic loop
         //   2. intent router match (flag-gated) → prose runner
         //   3. mode-based fallback → existing single / multi / agentic paths
-        const generator = useShortlistAgentic
+        const generator = useHybridPoc
+          ? runHybridWebResearchStream(supabase, question, {
+              ...streamOpts,
+              userId: user.id,
+              deepMode,
+              mentionedSlugs,
+              activeSchoolSlug,
+            })
+          : useShortlistAgentic
           ? runAgenticQuestionStream(supabase, question, {
               ...streamOpts,
               restrictToSlugs: lockedShortlistSlugs,
@@ -615,7 +632,10 @@ export async function POST(req: NextRequest) {
           .eq('session_id', sessionId)
           .order('created_at', { ascending: true })
 
-        if (allMessages && allMessages.length > 0) {
+        // The POC intentionally skips the separate legacy summary-model call:
+        // it would add cost and could route through a provider unrelated to
+        // the experiment. Existing summaries remain untouched.
+        if (!useHybridPoc && allMessages && allMessages.length > 0) {
           const messagesForSummary = allMessages.map(m => ({
             question:        m.question,
             short_answer:    answerPreview(m.parsed_answer, 200),
