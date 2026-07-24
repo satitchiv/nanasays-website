@@ -9,8 +9,16 @@ export type SchoolColumn = {
 }
 
 export type RowCell =
-  | { kind: 'value'; primary: string; sub?: string; numeric?: boolean }
+  | {
+      kind: 'value'
+      primary: string
+      sub?: string
+      numeric?: boolean
+      source?: string
+      checkedAt?: string
+    }
   | { kind: 'lights'; lights: Array<{ label: string; tone: 'green' | 'amber' | 'red' }> }
+  | { kind: 'loading' }
   | { kind: 'empty' }
 
 export type ComparisonRow = {

@@ -18,7 +18,12 @@ type ComparisonRowDb = {
   row_name:            string
   group_name:          string
   weight:              number
-  cell_data:           Record<string, { value?: string | number | null; source?: string | null; note?: string }> | null
+  cell_data:           Record<string, {
+    value?: string | number | null
+    source?: string | null
+    note?: string
+    checked_at?: string | null
+  }> | null
   sort_order:          number
   lens_kind:           'general' | 'child_fit' | 'chat'
   // Slice 6.5: NULL for base/seed/chat rows; UUID of the parent topic
@@ -172,15 +177,23 @@ async function loadLensRows(
   if (rowsError) throw new Error(`comparison_rows read failed: ${rowsError.message}`)
 
   const all = (rowsRaw ?? []) as ComparisonRowDb[]
+  const rowsWithVisibleContent = all.filter(row => {
+    if (row.lens_kind !== 'chat') return true
+    return Object.values(row.cell_data ?? {}).some(
+      cell => cell?.value != null && cell.value !== '',
+    )
+  })
 
   // De-dup: if a chat row has the same (case-insensitive, trimmed) row_name
   // as a base-lens row, drop the chat copy — base wins. Codex round-1
   // flagged this as a visible-set hazard; doing it loader-side keeps the
   // schema simple (per-lens uniqueness only at the DB level).
   const baseNames = new Set(
-    all.filter(r => r.lens_kind === baseLens).map(r => normalizeRowName(r.row_name))
+    rowsWithVisibleContent
+      .filter(r => r.lens_kind === baseLens)
+      .map(r => normalizeRowName(r.row_name))
   )
-  const filtered = all.filter(r => {
+  const filtered = rowsWithVisibleContent.filter(r => {
     if (r.lens_kind !== 'chat') return true
     return !baseNames.has(normalizeRowName(r.row_name))
   })
@@ -202,7 +215,13 @@ async function loadLensRows(
       if (!c || c.value == null || c.value === '') return { kind: 'empty' }
       const primary = typeof c.value === 'number' ? String(c.value) : c.value
       const sub = typeof c.note === 'string' && c.note ? c.note : undefined
-      return { kind: 'value', primary, sub }
+      const source = typeof c.source === 'string' && /^https:\/\//.test(c.source)
+        ? c.source
+        : undefined
+      const checkedAt = typeof c.checked_at === 'string' && c.checked_at
+        ? c.checked_at
+        : undefined
+      return { kind: 'value', primary, sub, source, checkedAt }
     })
     // group_name lives on the row in the DB but isn't shown next to every
     // label — repeating "Pastoral" / "Academics" alongside each row is

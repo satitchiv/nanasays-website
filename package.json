@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "research:requests": "node --env-file=.env.local scripts/list-comparison-research-requests.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",

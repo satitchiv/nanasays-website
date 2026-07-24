@@ -7,6 +7,8 @@ import { getUnlockedUser } from '@/lib/paid-status'
 import { supabaseService } from '@/lib/supabase-admin'
 import { loadComparisonData, type LensKind } from '@/lib/research-comparison'
 import { loadShortlistContext, seedResearchSession } from '@/lib/research-room/seed-rows'
+import { resolveTrustedComparisonCell } from '@/lib/research-room/direct-comparison-row'
+import { SUPPORTED_COMPARISONS } from '@/lib/research-room/comparison-catalog'
 import { loadActiveChildren } from '@/lib/children'
 import { ONBOARDING_FIELDS } from '@/lib/onboarding-fields'
 import ResearchRoom from '@/components/nana/ResearchRoom'
@@ -63,6 +65,7 @@ export default async function ResearchRoomPage({
   let children: Awaited<ReturnType<typeof loadActiveChildren>> = []
   let activeChildId: string | null = null
   let familyPreferences: Record<string, string | null> | undefined
+  let availableComparisonLabels: string[] = []
 
   if (user) {
     try {
@@ -147,6 +150,36 @@ export default async function ResearchRoomPage({
       ctx = await loadShortlistContext(svc, user.id, activeChildId)
     } catch (e) {
       console.error('[research-room loadShortlistContext]', e)
+    }
+
+    // Only recommend comparisons that can be filled immediately for every
+    // school in this child's current shortlist using Nana's trusted data.
+    // Free-text questions can still be saved to the research backlog, but
+    // they never appear as clickable promises in the autocomplete.
+    if (ctx && ctx.slugs.length > 0) {
+      const shortlistSchools = ctx.slugs.flatMap(slug => {
+        const meta = ctx.schoolMap.get(slug)
+        if (!meta) return []
+        return [{
+          slug,
+          name: meta.name,
+          city: meta.city,
+          region: meta.region,
+          boarding: meta.boarding,
+          gender_split: meta.gender_split,
+          structured: (ctx.structMap.get(slug) as unknown as Record<string, unknown> | undefined) ?? null,
+        }]
+      })
+      if (shortlistSchools.length === ctx.slugs.length) {
+        availableComparisonLabels = SUPPORTED_COMPARISONS
+          .filter(comparison => shortlistSchools.every(
+            school => {
+              const value = resolveTrustedComparisonCell(comparison.label, school)?.value
+              return value != null && value !== ''
+            },
+          ))
+          .map(comparison => comparison.label)
+      }
     }
 
     // Seed only when there's an active session AND a non-empty shortlist.
@@ -381,6 +414,7 @@ export default async function ResearchRoomPage({
       familyPreferences={familyPreferences}
       initialActiveChildId={activeChildId}
       comparisonData={comparisonData}
+      availableComparisonLabels={availableComparisonLabels}
       comparisonError={comparisonError}
       lens={lens}
       initialSession={initialSession}

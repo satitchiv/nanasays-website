@@ -7,7 +7,6 @@ import ChildSelector, { type ChildOption } from './ChildSelector'
 import ChildBriefTab, { type ChildSummary, type FamilyPreferences } from './ChildBriefTab'
 import ResearchRoomChat, { type ChatState } from './ResearchRoomChat'
 import ComparisonView from './ComparisonView'
-import SchoolAdder from './SchoolAdder'
 import type { ComparisonData } from './comparison-placeholder'
 import type { Session, ResearchMessage } from '@/lib/nana/types'
 import './research-room.css'
@@ -43,6 +42,7 @@ type Props = {
   familyPreferences?: FamilyPreferences
   initialActiveChildId?: string | null
   comparisonData?: ComparisonData
+  availableComparisonLabels?: string[]
   comparisonError?: string | null
   lens?: Lens
   initialSession?: Session | null
@@ -83,6 +83,7 @@ export default function ResearchRoom({
   familyPreferences,
   initialActiveChildId = null,
   comparisonData,
+  availableComparisonLabels = [],
   comparisonError = null,
   lens             = 'general',
   initialSession   = null,
@@ -568,33 +569,9 @@ export default function ResearchRoom({
                 <div className="rr-view">
                   {t === 'compare' ? (
                     <>
-                      <div className="rr-view-head">
-                        <div>
-                          <div className="rr-view-eyebrow">Comparison · the canonical view</div>
-                          <h1 className="rr-view-title">
-                            Side by side, <em>through your child&rsquo;s eyes.</em>
-                          </h1>
-                          {/* Slice 6.6 Tier 3.5: sub-text paragraph removed
-                              to reclaim ~60px of vertical space for the
-                              comparison table. The lens tabs + active-lens
-                              chip below already convey the same information
-                              functionally. */}
-                        </div>
-                      </div>
-                      {activeChild && (
-                        <div className="rr-cmp-showing-row">
-                          <div className="rr-cmp-showing-for" role="status">
-                            Showing <strong>{activeChild.name}&rsquo;s</strong> matches
-                          </div>
-                          <SchoolAdder
-                            childId={activeChildId}
-                            excludeSlugs={(comparisonData?.schools ?? []).map(s => s.slug)}
-                            variant="compact"
-                          />
-                        </div>
-                      )}
                       <ComparisonView
                         data={comparisonData}
+                        availableComparisonLabels={availableComparisonLabels}
                         activeChildName={activeChild?.name ?? null}
                         activeChildId={activeChildId}
                         lens={lens}
