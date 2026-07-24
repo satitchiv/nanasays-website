@@ -218,6 +218,63 @@ export function ConfidenceBadge({ level }: { level: string }) {
   return <span className={`dh-conf-badge ${cls}`}>{label}</span>
 }
 
+function formatTokenCount(value: number): string {
+  if (!Number.isFinite(value) || value < 0) return '—'
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}m`
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}k`
+  return String(Math.round(value))
+}
+
+function formatModelLabel(model: string | undefined, tier: string | undefined): string {
+  const value = `${model || ''} ${tier || ''}`.toLowerCase()
+  if (value.includes('mini')) return 'Mini'
+  if (value.includes('luna')) return 'Luna'
+  if (value.includes('terra')) return 'Terra'
+  return model || tier || 'Model'
+}
+
+export function AnswerTelemetry({ parsed }: { parsed: any }) {
+  const telemetry = parsed?.hybrid_poc
+  const usage = telemetry?.token_usage
+  if (!usage || typeof usage !== 'object') return null
+
+  const contextTokens = Number(usage.context_tokens)
+  const inputTokens = Number(usage.input_tokens)
+  const outputTokens = Number(usage.output_tokens)
+  const totalTokens = Number(usage.total_tokens) || contextTokens + outputTokens
+  const contextPct = Number(telemetry.context_used_pct)
+  const contextBudget = Number(telemetry.context_budget_tokens)
+  if (!Number.isFinite(totalTokens) && !Number.isFinite(contextPct)) return null
+
+  const safePct = Number.isFinite(contextPct) ? Math.max(0, Math.min(100, contextPct)) : 0
+  const cost = Number(telemetry.cost_total_usd)
+  const costLabel = Number.isFinite(cost) ? `$${cost.toFixed(2)}` : null
+  const modelLabel = formatModelLabel(telemetry.model, telemetry.model_tier)
+  const title = [
+    `${modelLabel} · ${formatTokenCount(totalTokens)} total tokens`,
+    Number.isFinite(contextTokens)
+      ? `${formatTokenCount(contextTokens)} context tokens${Number.isFinite(contextBudget) ? ` of ${formatTokenCount(contextBudget)} budget` : ''}`
+      : null,
+    Number.isFinite(inputTokens) ? `${formatTokenCount(inputTokens)} uncached input` : null,
+    Number.isFinite(outputTokens) ? `${formatTokenCount(outputTokens)} output` : null,
+    costLabel ? `estimated cost ${costLabel}` : null,
+  ].filter(Boolean).join(' · ')
+
+  return (
+    <div className="dh-answer-telemetry" title={title} aria-label={title}>
+      <span className="dh-answer-telemetry__model">{modelLabel}</span>
+      <span>{formatTokenCount(totalTokens)} tokens</span>
+      {costLabel && <span>{costLabel}</span>}
+      <span className="dh-answer-telemetry__context">
+        Context {safePct.toFixed(1)}% full
+        <span className="dh-answer-telemetry__bar" aria-hidden="true">
+          <span style={{ width: `${safePct}%` }} />
+        </span>
+      </span>
+    </div>
+  )
+}
+
 // ── Bubble ───────────────────────────────────────────────────────────────
 
 export interface NanaMsgBubbleProps {
@@ -327,6 +384,7 @@ export function NanaMsgBubble({
               })}
           </div>
         )}
+        {!isStreaming && <AnswerTelemetry parsed={parsed} />}
         {!isStreaming && msg?.id && (onConfirmAddRow || onApplyReRank || onAddToLetter || onConfirmTopicLens || onConfirmAddSchool) && parsed?.proposed_actions && (
           <ProposedActionsList
             messageId={msg.id}
@@ -401,6 +459,7 @@ export function NanaMsgBubble({
       )}
 
       {!isStreaming && parsed?.confidence && <ConfidenceBadge level={parsed.confidence} />}
+      {!isStreaming && <AnswerTelemetry parsed={parsed} />}
 
       {showSkeleton && (
         <div className="dh-skeleton">

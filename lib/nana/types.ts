@@ -129,6 +129,23 @@ export interface ParsedAnswer {
   recommended_schools?: RecommendedSchool[]
   answer_markdown?:     string
   proposed_actions?:    ProposedActions
+  hybrid_poc?:           HybridTelemetry
+}
+
+export interface HybridTelemetry {
+  model?:                 string
+  model_tier?:            string
+  token_usage?: {
+    context_tokens?:      number
+    input_tokens?:        number
+    output_tokens?:       number
+    cache_read_tokens?:   number
+    cache_write_tokens?:  number
+    total_tokens?:        number
+  }
+  context_budget_tokens?: number
+  context_used_pct?:      number
+  cost_total_usd?:        number
 }
 
 export interface ResearchMessage {

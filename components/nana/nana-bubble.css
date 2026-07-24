@@ -1109,6 +1109,27 @@
 .dh-conf--low    { background: rgba(248,113,113,.15); color: #f87171; }
 .dh-conf--none   { background: rgba(255,255,255,.08); color: rgba(255,255,255,.4); }
 
+/* ── Chat: model/token telemetry ─────────────────────────────────────── */
+.dh-answer-telemetry {
+  display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+  margin-top: 8px; color: #374151; font-size: 10px;
+  letter-spacing: .01em;
+}
+.dh-answer-telemetry > span { white-space: nowrap; }
+.dh-answer-telemetry__model {
+  color: #1B3252; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.dh-answer-telemetry__context { display: inline-flex; align-items: center; gap: 5px; }
+.dh-answer-telemetry__bar {
+  display: inline-block; width: 52px; height: 4px; overflow: hidden;
+  border-radius: 99px; background: rgba(27,50,82,.16); vertical-align: middle;
+}
+.dh-answer-telemetry__bar > span {
+  display: block; height: 100%; border-radius: inherit; background: #34C3A0;
+  transition: width 240ms ease;
+}
+
 /* ── Chat: source pills ───────────────────────────────────────────────── */
 .dh-sources { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .dh-source-pill.dh-source-pill--chat {
