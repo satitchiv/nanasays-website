@@ -33,7 +33,8 @@
     "**/*.ts",
     "**/*.tsx",
     ".next/types/**/*.ts",
-    ".next-slice6.5/types/**/*.ts"
+    ".next-slice6.5/types/**/*.ts",
+    ".next-research-room-canonical/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
