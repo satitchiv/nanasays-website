@@ -22,6 +22,8 @@ import {
 } from '@/lib/research-room/comparison-catalog'
 import { hasComparisonValueForSchools } from '@/lib/research-room/comparison-cell-data'
 import { recordResearchRoomTopicRequest } from '@/lib/research-room/topic-demand-requests'
+import { normalizeTopicDemand } from '@/lib/research-room/topic-demand-requests'
+import { resolveDatabaseTopicCell, type DatabaseTopicCatalogTopic } from '@/lib/research-room/dynamic-topic-cell'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -379,6 +381,18 @@ export async function POST(req: NextRequest) {
   if (!child) return NextResponse.json({ ok: false, code: 'child_not_found' }, { status: 404 })
 
   const service = supabaseService()
+  const { data: dynamicTopic, error: dynamicTopicError } = await service
+    .from('research_room_topic_catalog')
+    .select('id, label, evidence_paths')
+    .eq('status', 'approved')
+    .eq('source', 'database_inventory')
+    .eq('normalized_topic', normalizeTopicDemand(body.row_label))
+    .maybeSingle()
+  if (dynamicTopicError) {
+    console.error('[research-row] dynamic topic lookup failed', dynamicTopicError)
+    return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
+  }
+  const databaseTopic = dynamicTopic as DatabaseTopicCatalogTopic | null
   let shortlist
   try {
     shortlist = await loadShortlistContext(service, user.id, body.child_id)
@@ -391,7 +405,7 @@ export async function POST(req: NextRequest) {
   }
 
   const requestMatch = matchComparisonRequest(body.row_label)
-  if (requestMatch.kind === 'research_request') {
+  if (!databaseTopic && requestMatch.kind === 'research_request') {
     try {
       const researchRequestId = await saveComparisonResearchRequest({
         userId: user.id,
@@ -413,7 +427,8 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  const resolvedRowLabel = requestMatch.label
+  const resolvedRowLabel = databaseTopic?.label
+    ?? (requestMatch.kind === 'supported' ? requestMatch.label : requestMatch.canonicalTopic)
 
   let { data: session, error: sessionError } = await supabase
     .from('research_sessions')
@@ -462,6 +477,7 @@ export async function POST(req: NextRequest) {
       const existingLabel = String(row.row_name).trim()
       if (existingLabel.toLowerCase() === normalizedLabel) return true
       const existingMatch = matchComparisonRequest(existingLabel)
+      if (databaseTopic || requestMatch.kind !== 'supported') return false
       return existingMatch.kind === 'supported' && existingMatch.id === requestMatch.id
     },
   )
@@ -507,12 +523,16 @@ export async function POST(req: NextRequest) {
 
   const trustedCells = new Map<string, DirectComparisonCell>()
   for (const school of schools) {
-    const cell = resolveTrustedComparisonCell(resolvedRowLabel, school)
+    const cell = databaseTopic
+      ? resolveDatabaseTopicCell(databaseTopic, school)
+      : resolveTrustedComparisonCell(resolvedRowLabel, school)
     if (cell) trustedCells.set(school.slug, cell)
   }
 
   const checkedAt = new Date().toISOString()
-  const cells = isDatabaseOnlyComparison(requestMatch.id)
+  const databaseOnly = Boolean(databaseTopic)
+    || (requestMatch.kind === 'supported' && isDatabaseOnlyComparison(requestMatch.id))
+  const cells = databaseOnly
     ? Object.fromEntries(schools.map(school => {
         const trusted = trustedCells.get(school.slug)
         return [
