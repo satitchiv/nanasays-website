@@ -17,6 +17,7 @@ export type TopicCatalogEntry = {
   unique_parent_count: number
   verified_school_count: number
   verified_coverage_percent: number
+  evidence_paths?: string[]
   status: 'approved' | 'retired'
 }
 
@@ -28,6 +29,7 @@ export type TopicPromotion = {
   unique_parent_count: number
   verified_school_count: number
   verified_coverage_percent: number
+  evidence_paths?: string[]
 }
 
 export type TopicDemandPlan = {
@@ -57,7 +59,7 @@ export function planTopicDemandPromotions({
 }: {
   requests: TopicDemandRequest[]
   existingCatalog: TopicCatalogEntry[]
-  coverageByTopic: Map<string, { verified_school_count: number; verified_coverage_percent: number }>
+  coverageByTopic: Map<string, { verified_school_count: number; verified_coverage_percent: number; evidence_paths?: string[] }>
   minRequests?: number
   minUniqueParents?: number
   minVerifiedSchools?: number
@@ -115,6 +117,7 @@ export function planTopicDemandPromotions({
       unique_parent_count: parentIds.size,
       verified_school_count: coverage.verified_school_count,
       verified_coverage_percent: coverage.verified_coverage_percent,
+      ...(coverage.evidence_paths ? { evidence_paths: coverage.evidence_paths } : {}),
     })
     requestsToPromote.push(...group.map(request => request.id))
   }

@@ -8,6 +8,8 @@ import {
 import { normalizeTopicDemand } from '../lib/research-room/topic-demand-requests.ts'
 import { resolveAddedSchoolComparisonCell } from '../lib/research-room/backfill-added-school.ts'
 import { matchComparisonRequest } from '../lib/research-room/comparison-catalog.ts'
+import { SUPPORTED_COMPARISON_LABELS } from '../lib/research-room/comparison-catalog.ts'
+import { DATABASE_TOPIC_CANDIDATES, type DatabaseTopicCandidate } from '../lib/research-room/database-topic-candidates.ts'
 import { RESEARCH_ROOM_STRUCTURED_SELECT, type StructuredRow } from '../lib/research-room/seed-rows.ts'
 import type { DirectComparisonSchool } from '../lib/research-room/direct-comparison-row.ts'
 import type { NotionBackfillRow } from '../lib/research-room/pupil-composition.ts'
@@ -62,6 +64,43 @@ function measureVerifiedTopicCoverage(label: string, context: VerifiedContext) {
   return {
     verified_school_count: ready,
     verified_coverage_percent: context.schools.length === 0 ? 0 : Math.round((ready / context.schools.length) * 1000) / 10,
+  }
+}
+
+function valueAtPath(value: unknown, path: string): unknown {
+  let current = value
+  for (const segment of path.split('.')) {
+    if (!current || typeof current !== 'object' || Array.isArray(current)) return null
+    current = (current as Record<string, unknown>)[segment]
+  }
+  return current
+}
+
+function hasEvidenceValue(value: unknown): boolean {
+  if (typeof value === 'string') return value.trim().length > 0
+  if (typeof value === 'number' || typeof value === 'boolean') return true
+  if (Array.isArray(value)) return value.length > 0
+  return value != null && typeof value === 'object' && Object.keys(value as Record<string, unknown>).length > 0
+}
+
+function measureDatabaseCandidateCoverage(candidate: DatabaseTopicCandidate, context: VerifiedContext) {
+  const ready = context.schools.filter(school => {
+    const notion = context.notionBySlug.get(school.slug)
+    return candidate.evidencePaths.some(path => {
+      const [root, ...rest] = path.split('.')
+      const structuredValue = valueAtPath(school.structured, path)
+      if (hasEvidenceValue(structuredValue)) return true
+      if (root === 'parsed' || root === 'raw_properties') {
+        return hasEvidenceValue(valueAtPath(notion?.parsed, rest.join('.')))
+          || hasEvidenceValue(valueAtPath(notion?.raw_properties, rest.join('.')))
+      }
+      return false
+    })
+  }).length
+  return {
+    verified_school_count: ready,
+    verified_coverage_percent: context.schools.length === 0 ? 0 : Math.round((ready / context.schools.length) * 1000) / 10,
+    evidence_paths: candidate.evidencePaths,
   }
 }
 
@@ -183,7 +222,7 @@ async function main(): Promise<void> {
       readAllPages<TopicCatalogEntry>(
         (from, to) => db
           .from('research_room_topic_catalog')
-          .select('id, label, normalized_topic, demand_count, unique_parent_count, verified_school_count, verified_coverage_percent, status')
+          .select('id, label, normalized_topic, demand_count, unique_parent_count, verified_school_count, verified_coverage_percent, evidence_paths, status')
           .order('id')
           .range(from, to),
         'Research Room topic-catalog lookup',
@@ -198,8 +237,29 @@ async function main(): Promise<void> {
       ]),
     )
     const plan: TopicDemandPlan = planTopicDemandPromotions({ requests, existingCatalog: catalog, coverageByTopic })
+    const existingIds = new Set(catalog.map(entry => entry.id))
+    const staticLabels = new Set(SUPPORTED_COMPARISON_LABELS.map(label => label.toLowerCase()))
+    const databasePromotions = DATABASE_TOPIC_CANDIDATES
+      .filter(candidate => !existingIds.has(`database-${candidate.id}`))
+      .filter(candidate => !staticLabels.has(candidate.label.toLowerCase()))
+      .map(candidate => ({
+        ...candidate,
+        coverage: measureDatabaseCandidateCoverage(candidate, verifiedContext),
+      }))
+      .filter(candidate => candidate.coverage.verified_school_count >= 10)
+      .map(candidate => ({
+        id: `database-${candidate.id}`,
+        label: candidate.label,
+        normalized_topic: candidate.label.toLowerCase(),
+        demand_count: 0,
+        unique_parent_count: 0,
+        verified_school_count: candidate.coverage.verified_school_count,
+        verified_coverage_percent: candidate.coverage.verified_coverage_percent,
+        evidence_paths: candidate.coverage.evidence_paths,
+      }))
+    const allPromotions = [...databasePromotions, ...plan.promotions]
     if (mode === 'apply') {
-      for (const promotion of plan.promotions) {
+      for (const promotion of allPromotions) {
         const { error: upsertError } = await db
           .from('research_room_topic_catalog')
           .upsert({
@@ -210,8 +270,9 @@ async function main(): Promise<void> {
             unique_parent_count: promotion.unique_parent_count,
             verified_school_count: promotion.verified_school_count,
             verified_coverage_percent: promotion.verified_coverage_percent,
+            evidence_paths: promotion.evidence_paths ?? [],
             status: 'approved',
-            source: 'parent_demand',
+            source: promotion.id.startsWith('database-') ? 'database_inventory' : 'parent_demand',
             updated_at: new Date().toISOString(),
           }, { onConflict: 'id' })
         if (upsertError) throw new Error(`topic promotion failed for ${promotion.id}: ${upsertError.message}`)
@@ -232,15 +293,17 @@ async function main(): Promise<void> {
     const summary = {
       mode,
       run_key: runKey,
-      source: 'Research Room topic requests only',
+      source: 'verified database inventory plus Research Room topic requests',
       source_data: 'verified school_structured_data and approved school_notion_backfill mirror',
       verified_schools_evaluated: verifiedContext.schools.length,
       facts_created: 0,
       requests_evaluated: plan.requestsConsidered,
       candidates_below_threshold: plan.requestsBelowThreshold,
       candidates_without_verified_coverage: plan.candidatesWithoutVerifiedCoverage,
-      topics_would_promote: mode === 'dry-run' ? plan.promotions : 0,
-      topics_promoted: mode === 'apply' ? plan.promotions : [],
+      database_topics_evaluated: DATABASE_TOPIC_CANDIDATES.length,
+      database_topics_without_coverage: DATABASE_TOPIC_CANDIDATES.length - databasePromotions.length,
+      topics_would_promote: mode === 'dry-run' ? allPromotions : 0,
+      topics_promoted: mode === 'apply' ? allPromotions : [],
       requests_marked_promoted: mode === 'apply' ? plan.requestsToPromote.length : 0,
       existing_topics_skipped: plan.requestsAlreadyPromoted,
     }
@@ -248,7 +311,7 @@ async function main(): Promise<void> {
       status: 'succeeded',
       requests_evaluated: plan.requestsConsidered,
       candidates_below_threshold: plan.requestsBelowThreshold,
-      topics_promoted: mode === 'apply' ? plan.promotions.length : 0,
+      topics_promoted: mode === 'apply' ? allPromotions.length : 0,
       requests_marked_promoted: mode === 'apply' ? plan.requestsToPromote.length : 0,
       summary,
     })

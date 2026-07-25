@@ -9,7 +9,8 @@ comparison value scheduler:
   search catalogue so future parents can click those topics.
 
 The topic creator does not read chatbot data, crawl school websites, or invent
-school facts. Before promotion it scans the verified UK
+school facts. It scans both verified database dimensions and repeated Research
+Room requests. Before promotion it scans the verified UK
 `school_structured_data` rows and approved Notion mirror. A candidate needs
 matching verified evidence for at least 10 comparison-ready UK schools. The
 topic record stores that coverage count, but the creator still does not write
