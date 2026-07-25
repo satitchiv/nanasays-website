@@ -13,9 +13,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-type Hit = { slug: string; name: string; region: string | null; country: string | null }
-// Richness map keyed by slug. 0 = no school_structured_data row.
-// Higher = more populated structural fields (sports/fees/facilities/etc.).
+type Hit = {
+  slug: string
+  name: string
+  region: string | null
+  country: string | null
+  richness: number
+}
+// Comparison-ready slugs only. Higher values mean more populated structural
+// fields (sports/fees/facilities/etc.); zero is still a valid curated row.
 type Richness = Map<string, number>
 
 export default function SchoolAdder({
@@ -74,6 +80,8 @@ export default function SchoolAdder({
         // sites, leaving the user thinking nothing had happened.
         if (code === 'payment_required') {
           setError('Adding schools is a paid-tier feature.')
+        } else if (code === 'school_not_comparison_ready') {
+          setError('That school is still being researched and cannot be compared reliably yet.')
         } else if (code === 'invalid_payload') {
           setError("Couldn't add that school (invalid input).")
         } else if (code === 'unauthorized') {
@@ -198,6 +206,8 @@ function SchoolAddPopup({
   const [query, setQuery] = useState('')
   const [hits, setHits] = useState<Hit[]>([])
   const [richness, setRichness] = useState<Richness>(new Map())
+  const [unreadyCount, setUnreadyCount] = useState(0)
+  const [searchError, setSearchError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [activeIdx, setActiveIdx] = useState(0)
   // Codex t12 T1.3: groups with >1 entry are collapsed by default;
@@ -219,86 +229,65 @@ function SchoolAddPopup({
     if (q.length < 2) {
       setHits([])
       setRichness(new Map())
+      setUnreadyCount(0)
+      setSearchError(null)
       setLoading(false)
       return
     }
     const ac = new AbortController()
     const timer = setTimeout(async () => {
       setLoading(true)
+      setHits([])
+      setRichness(new Map())
+      setUnreadyCount(0)
+      setSearchError(null)
       try {
-        const { createSupabaseBrowser } = await import('@/lib/supabase-browser')
-        const supabase = createSupabaseBrowser()
-        // Codex t13: bump SQL limit from 8 to 50 so groupByName has
-        // enough candidate rows for big duplicate-name groups (e.g.
-        // "St Joseph's School" has 65 records). After grouping we
-        // slice the top 8 *groups* — see render below.
-        let q1 = supabase
-          .from('schools')
-          .select('slug, name, region, country')
-          .ilike('name', `%${q}%`)
-          .eq('country', 'United Kingdom')
-        if (safeExclude.length > 0) {
-          q1 = q1.not('slug', 'in', `(${safeExclude.join(',')})`)
-        }
-        const { data, error } = await q1
-          .order('name', { ascending: true })
-          .limit(50)
-          .abortSignal(ac.signal)
-        if (error) {
-          const looksAborted =
-            ac.signal.aborted ||
-            /abort/i.test(error.message ?? '') ||
-            /abort/i.test((error as { name?: string }).name ?? '')
-          if (!looksAborted) console.error('[SchoolAddPopup search]', error)
+        const params = new URLSearchParams({ q })
+        safeExclude.forEach(slug => params.append('exclude', slug))
+        const response = await fetch(
+          `/api/research-room/school-search?${params.toString()}`,
+          { signal: ac.signal },
+        )
+        const payload = await response.json().catch(() => ({}))
+        if (!response.ok || payload?.ok !== true) {
+          if (!ac.signal.aborted) {
+            console.error(
+              '[SchoolAddPopup search]',
+              typeof payload?.code === 'string' ? payload.code : response.status,
+            )
+            setSearchError('School comparison search is temporarily unavailable. Please try again.')
+          }
           return
         }
-        const candidates = (data ?? []) as Hit[]
+        const candidates: Hit[] = Array.isArray(payload.schools)
+          ? (payload.schools as unknown[]).filter((candidate: unknown): candidate is Hit => {
+              if (!candidate || typeof candidate !== 'object') return false
+              const item = candidate as Record<string, unknown>
+              return typeof item.slug === 'string'
+                && typeof item.name === 'string'
+                && typeof item.richness === 'number'
+            })
+          : []
         setHits(candidates)
+        setRichness(new Map(
+          candidates.map(candidate => [candidate.slug, candidate.richness]),
+        ))
+        setUnreadyCount(
+          typeof payload.unready_count === 'number'
+            ? payload.unready_count
+            : 0,
+        )
         setActiveIdx(0)
-
-        // Codex t13: data-richness lookup. Fetch which candidate slugs
-        // have school_structured_data + how many key structural fields
-        // are populated. Used by pickPrimary to choose the data-rich
-        // slug as the visible group leader (Reed's case proves
-        // metadata completeness on schools.* is not a quality signal).
-        if (candidates.length > 0) {
-          const slugs = candidates.map(h => h.slug)
-          const { data: enrich, error: enrichErr } = await supabase
-            .from('school_structured_data')
-            .select('school_slug, sports_profile, fees_min, facilities, university_destinations, exam_results')
-            .in('school_slug', slugs)
-            .abortSignal(ac.signal)
-          if (enrichErr) {
-            const looksAborted =
-              ac.signal.aborted ||
-              /abort/i.test(enrichErr.message ?? '')
-            if (!looksAborted) console.warn('[SchoolAddPopup richness]', enrichErr.message)
-            setRichness(new Map())
-          } else {
-            const m: Richness = new Map()
-            for (const row of (enrich ?? []) as Array<{
-              school_slug: string
-              sports_profile: unknown
-              fees_min: number | null
-              facilities: unknown[] | null
-              university_destinations: unknown
-              exam_results: unknown
-            }>) {
-              let score = 0
-              if (row.sports_profile != null)                                       score++
-              if (row.fees_min != null)                                             score++
-              if (Array.isArray(row.facilities) && row.facilities.length > 0)       score++
-              if (row.university_destinations != null)                              score++
-              if (row.exam_results != null)                                         score++
-              m.set(row.school_slug, score)
-            }
-            setRichness(m)
-          }
-        } else {
-          setRichness(new Map())
+      } catch (searchError) {
+        if (
+          !ac.signal.aborted
+          && !(searchError instanceof DOMException && searchError.name === 'AbortError')
+        ) {
+          console.error('[SchoolAddPopup search]', searchError)
+          setSearchError('School comparison search is temporarily unavailable. Please try again.')
         }
       } finally {
-        setLoading(false)
+        if (!ac.signal.aborted) setLoading(false)
       }
     }, 200)
     return () => {
@@ -317,7 +306,7 @@ function SchoolAddPopup({
     isPrimary:        boolean
     isOnlyMember:     boolean
   }
-  // Codex t13: group from up to 50 candidate hits, then slice the top
+  // Group comparison-ready candidate hits, then slice the top
   // 8 groups for display. Previously `.limit(8)` ran before grouping,
   // so a same-name group of 65 records exposed only the first 7
   // alternates inside one group and starved every other group.
@@ -386,7 +375,13 @@ function SchoolAddPopup({
           <div className="rr-cmp-add-hint">Searching…</div>
         )}
         {query.trim().length >= 2 && !loading && flat.length === 0 && (
-          <div className="rr-cmp-add-hint">No matches in the UK directory. (Already-shortlisted schools are filtered out.)</div>
+          <div className="rr-cmp-add-hint">
+            {searchError
+              ? searchError
+              : unreadyCount > 0
+              ? 'Matching schools were found, but their verified comparison data is not ready yet.'
+              : 'No comparison-ready matches. Already-shortlisted schools are filtered out.'}
+          </div>
         )}
         {flat.map((entry, i) => {
           const { hit, group, isPrimary } = entry
@@ -431,6 +426,11 @@ function SchoolAddPopup({
             </div>
           )
         })}
+        {!loading && flat.length > 0 && unreadyCount > 0 && (
+          <div className="rr-cmp-add-hint">
+            {unreadyCount} additional {unreadyCount === 1 ? 'record is' : 'records are'} hidden until comparison research is ready.
+          </div>
+        )}
       </div>
     </div>
   )

@@ -117,7 +117,7 @@ function airportCell(
   if (parsed.length === 0) return null
   const asksForHeathrow = /\b(heathrow|lhr)\b/i.test(query)
   const chosen = asksForHeathrow
-    ? parsed.find(item => /heathrow|\blhr\b/i.test(item.label)) ?? parsed[0]
+    ? parsed.find(item => /heathrow|\blhr\b/i.test(item.label))
     : [...parsed].sort((a, b) => {
         const aDistance = a.distanceKm ?? (a.distanceMiles != null ? a.distanceMiles * 1.60934 : null)
         const bDistance = b.distanceKm ?? (b.distanceMiles != null ? b.distanceMiles * 1.60934 : null)
@@ -126,6 +126,7 @@ function airportCell(
         if (bDistance != null) return 1
         return (a.minutes ?? Number.POSITIVE_INFINITY) - (b.minutes ?? Number.POSITIVE_INFINITY)
       })[0]
+  if (!chosen) return null
 
   const parts: string[] = []
   if (chosen.distanceKm != null && chosen.distanceKm > 0) {

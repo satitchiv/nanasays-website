@@ -109,6 +109,30 @@ export async function POST(req: NextRequest) {
   if (!isPaid) return NextResponse.json({ ok: false, code: 'payment_required' }, { status: 402 })
 
   if (body.action === 'add') {
+    // The UK directory contains tens of thousands of school identity rows,
+    // but Research Room comparisons require the curated structured dataset.
+    // Enforce this server-side as well as in the picker so a direct request
+    // cannot create a mostly-empty comparison column.
+    const service = supabaseService()
+    const { data: comparisonData, error: comparisonDataError } = await service
+      .from('school_structured_data')
+      .select('school_slug')
+      .eq('school_slug', body.school_slug)
+      .maybeSingle()
+    if (comparisonDataError) {
+      console.error(
+        '[research-room/shortlist] comparison readiness lookup failed',
+        comparisonDataError.message,
+      )
+      return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
+    }
+    if (!comparisonData) {
+      return NextResponse.json({
+        ok: false,
+        code: 'school_not_comparison_ready',
+      }, { status: 409 })
+    }
+
     const { data, error: rpcErr } = await supabase
       .rpc('add_school_to_shortlist', {
         p_child_id:    body.child_id,
@@ -128,7 +152,7 @@ export async function POST(req: NextRequest) {
       try {
         comparisonBackfill = await backfillAddedSchoolComparisonCells({
           supabaseUser: supabase,
-          supabaseService: supabaseService(),
+          supabaseService: service,
           userId: user.id,
           childId: body.child_id,
           schoolSlug: out_slug,

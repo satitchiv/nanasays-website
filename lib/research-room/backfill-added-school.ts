@@ -235,7 +235,7 @@ export async function backfillAddedSchoolComparisonCells({
     ? null
     : (notionResult.data as NotionBackfillRow | null)
   const result: AddedSchoolBackfillResult = {
-    status: 'complete',
+    status: notionResult.error ? 'partial' : 'complete',
     rows_examined: rows.length,
     cells_filled: 0,
     cells_preserved: 0,

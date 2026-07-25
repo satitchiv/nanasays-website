@@ -509,6 +509,7 @@ type ShortlistContext = {
   schoolMap: Map<string, SchoolMeta>
   structMap: Map<string, StructuredRow>
   notionMap: Map<string, NotionBackfillRow>
+  notionAvailable: boolean
 }
 
 /**
@@ -552,44 +553,50 @@ export async function seedResearchSession(
   // older sessions gain newly available structured/Notion values whenever
   // they are opened. Soft-deleted rows are deliberately excluded and are
   // never reactivated.
-  const { data: existingRows, error: existingError } = await supabase
-    .from('comparison_rows')
-    .select('id, idempotency_key, group_name, weight, sort_order, cell_data')
-    .eq('user_id', userId)
-    .eq('session_id', sessionId)
-    .like('idempotency_key', 'seed:v1:general:%')
-    .is('undone_at', null)
+  if (ctx.notionAvailable) {
+    const { data: existingRows, error: existingError } = await supabase
+      .from('comparison_rows')
+      .select('id, idempotency_key, group_name, weight, sort_order, cell_data')
+      .eq('user_id', userId)
+      .eq('session_id', sessionId)
+      .like('idempotency_key', 'seed:v1:general:%')
+      .is('undone_at', null)
 
-  if (existingError) {
-    console.error('[seedResearchSession reconcile read]', existingError.message)
-  } else {
-    const reconciliation = planSeedRowReconciliation(existingRows ?? [], specs)
-    const reconciledAt = new Date().toISOString()
-    const results = await Promise.all([
-      ...reconciliation.updates.map(update =>
-        supabase
-          .from('comparison_rows')
-          .update(update.values)
-          .eq('id', update.id)
-          .eq('user_id', userId)
-          .eq('session_id', sessionId)
-          .is('undone_at', null),
-      ),
-      ...reconciliation.hideIds.map(id =>
-        supabase
-          .from('comparison_rows')
-          .update({ undone_at: reconciledAt })
-          .eq('id', id)
-          .eq('user_id', userId)
-          .eq('session_id', sessionId)
-          .is('undone_at', null),
-      ),
-    ])
-    for (const result of results) {
-      if (result.error) {
-        console.error('[seedResearchSession reconcile write]', result.error.message)
+    if (existingError) {
+      console.error('[seedResearchSession reconcile read]', existingError.message)
+    } else {
+      const reconciliation = planSeedRowReconciliation(existingRows ?? [], specs)
+      const reconciledAt = new Date().toISOString()
+      const results = await Promise.all([
+        ...reconciliation.updates.map(update =>
+          supabase
+            .from('comparison_rows')
+            .update(update.values)
+            .eq('id', update.id)
+            .eq('user_id', userId)
+            .eq('session_id', sessionId)
+            .is('undone_at', null),
+        ),
+        ...reconciliation.hideIds.map(id =>
+          supabase
+            .from('comparison_rows')
+            .update({ undone_at: reconciledAt })
+            .eq('id', id)
+            .eq('user_id', userId)
+            .eq('session_id', sessionId)
+            .is('undone_at', null),
+        ),
+      ])
+      for (const result of results) {
+        if (result.error) {
+          console.error('[seedResearchSession reconcile write]', result.error.message)
+        }
       }
     }
+  } else {
+    console.warn(
+      '[seedResearchSession] skipping active-row reconciliation because the Notion mirror is unavailable',
+    )
   }
 
   const populatedSpecs = specs.filter(spec => Object.keys(spec.cell_data).length > 0)
@@ -630,7 +637,13 @@ export async function loadShortlistContext(
 
   const slugs = (rows ?? []).map((r: { school_slug: string }) => r.school_slug)
   if (slugs.length === 0) {
-    return { slugs: [], schoolMap: new Map(), structMap: new Map(), notionMap: new Map() }
+    return {
+      slugs: [],
+      schoolMap: new Map(),
+      structMap: new Map(),
+      notionMap: new Map(),
+      notionAvailable: true,
+    }
   }
 
   const [schoolsRes, structRes, notionRes] = await Promise.all([
@@ -663,5 +676,11 @@ export async function loadShortlistContext(
     ((notionRes.error ? [] : notionRes.data) ?? [])
       .map((row: NotionBackfillRow) => [row.school_slug, row])
   )
-  return { slugs, schoolMap, structMap, notionMap }
+  return {
+    slugs,
+    schoolMap,
+    structMap,
+    notionMap,
+    notionAvailable: !notionRes.error,
+  }
 }

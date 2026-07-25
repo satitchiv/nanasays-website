@@ -191,6 +191,26 @@ test('resolves common trusted criteria without web research', () => {
   )
 })
 
+test('never substitutes the nearest airport for an explicit Heathrow request', () => {
+  const noHeathrow: DirectComparisonSchool = {
+    ...school,
+    structured: {
+      ...school.structured,
+      location_profile: {
+        airports: [
+          { name: 'Manchester', distance_km: 80, drive_time_min_estimate: 114 },
+        ],
+      },
+    },
+  }
+
+  assert.equal(resolveTrustedComparisonCell('Distance from Heathrow', noHeathrow), null)
+  assert.equal(
+    resolveTrustedComparisonCell('Airport distance', noHeathrow)?.note,
+    'Manchester',
+  )
+})
+
 test('does not turn database gap notes into comparison answers', () => {
   const gapsOnly: DirectComparisonSchool = {
     ...school,
