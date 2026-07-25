@@ -10,6 +10,7 @@
     "research:requests": "node --env-file=.env.local scripts/list-comparison-research-requests.mjs",
     "research:coverage": "node --env-file=.env.local --experimental-strip-types scripts/audit-research-room-comparisons.mts",
     "research:coverage:add-school": "node --env-file=.env.local --experimental-strip-types --import ./scripts/register-node-typescript-loader.mjs scripts/audit-added-school-coverage.mts",
+    "research:batch:uk-comparisons": "node --env-file=.env.local --experimental-strip-types --import ./scripts/register-node-typescript-loader.mjs scripts/run-uk-comparison-topic-batch.mts",
     "research:batch:pupil-composition": "node --env-file=.env.local --experimental-strip-types scripts/backfill-pupil-composition.mts",
     "research:repair:current": "node --env-file=.env.local --experimental-strip-types scripts/repair-current-research-room.mts",
     "test:research-room:source-failover": "node --experimental-strip-types --import ./scripts/register-node-typescript-loader.mjs scripts/test-seed-source-failover.mts",
