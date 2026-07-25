@@ -40,6 +40,25 @@ const school: DirectComparisonSchool = {
     sports_profile: {
       signature_sports: ['Rugby', 'Tennis'],
       facilities: ['50m pool'],
+      football: {
+        competitive_tier: 'national-strong',
+        competitive_tier_reasoning: 'Regular national cup participation.',
+        programme_classification: 'Major sport',
+        school_teams_visible: {
+          value: 12,
+          evidence: { url: 'https://sport.example-school.test/football-teams' },
+        },
+        head_coach: { name: 'A Coach', title: 'Head of Football' },
+        coaching_staff: [{ name: 'A Coach' }, { name: 'B Coach' }],
+        academy_scholarship: true,
+        academy_scholarship_notes: 'Football awards are available after assessment.',
+        notes: 'A deep football programme with national competition evidence.',
+        evidence_urls: [
+          'https://example-school.test/football',
+          'https://sport.example-school.test/football-teams',
+        ],
+        extracted_at: '2026-07-20T00:00:00.000Z',
+      },
     },
   },
 }
@@ -65,6 +84,85 @@ test('resolves common trusted criteria without web research', () => {
   assert.equal(resolveTrustedComparisonCell('Lowest boarding entry', school)?.value, 'Year 9')
   assert.equal(resolveTrustedComparisonCell('University destinations', school)?.value, 'Oxford · Cambridge · Durham')
   assert.equal(resolveTrustedComparisonCell('Sports opportunities', school)?.value, 'Rugby · Tennis · 50m pool')
+  assert.equal(
+    resolveTrustedComparisonCell('Football strength and achievements', school)?.value,
+    'National strong',
+  )
+  assert.deepEqual(
+    resolveTrustedComparisonCell('Football opportunities and programme depth', school),
+    {
+      value: 'Major sport',
+      note: '12 teams visible',
+      source: 'https://sport.example-school.test/football-teams',
+      checked_at: '2026-07-20T00:00:00.000Z',
+      evidence_kind: 'nana_database',
+    },
+  )
+  assert.equal(
+    resolveTrustedComparisonCell('Football coaching and player pathway', school)?.value,
+    'Academy or scholarship pathway',
+  )
+})
+
+test('does not publish football cells that fail the database evidence gate', () => {
+  const oneSourceSchool: DirectComparisonSchool = {
+    ...school,
+    structured: {
+      ...school.structured,
+      sports_profile: {
+        football: {
+          competitive_tier: 'national-elite',
+          programme_classification: 'Major sport',
+          head_coach: { name: 'A Coach' },
+          notes: 'Strong programme.',
+          evidence_urls: [
+            'https://example-school.test/football',
+            'https://example-school.test/football',
+          ],
+        },
+      },
+    },
+  }
+  assert.equal(
+    resolveTrustedComparisonCell('Football strength and achievements', oneSourceSchool),
+    null,
+  )
+  assert.equal(
+    resolveTrustedComparisonCell('Football opportunities and programme depth', oneSourceSchool),
+    null,
+  )
+  assert.equal(
+    resolveTrustedComparisonCell('Football coaching and player pathway', oneSourceSchool),
+    null,
+  )
+})
+
+test('keeps unknown strength out while allowing separately evidenced programme data', () => {
+  const unknownTierSchool: DirectComparisonSchool = {
+    ...school,
+    structured: {
+      ...school.structured,
+      sports_profile: {
+        football: {
+          competitive_tier: 'unknown',
+          programme_classification: 'Development sport',
+          notes: 'The programme is published but competitive strength is unresolved.',
+          evidence_urls: [
+            'https://example-school.test/football',
+            'https://sport.example-school.test/football',
+          ],
+        },
+      },
+    },
+  }
+  assert.equal(
+    resolveTrustedComparisonCell('Football strength and achievements', unknownTierSchool),
+    null,
+  )
+  assert.equal(
+    resolveTrustedComparisonCell('Football opportunities and programme depth', unknownTierSchool)?.value,
+    'Development sport',
+  )
 })
 
 test('labels term-only boarding fees without presenting them as annual', () => {

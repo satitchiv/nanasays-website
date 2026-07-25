@@ -306,6 +306,127 @@ function sportsOpportunitiesCell(structured: Record<string, unknown>): DirectCom
   return value ? { value, evidence_kind: 'nana_database' } : null
 }
 
+type VerifiedFootballProfile = {
+  football: Record<string, unknown>
+  source: string
+  checkedAt?: string
+}
+
+function verifiedFootballProfile(
+  structured: Record<string, unknown>,
+): VerifiedFootballProfile | null {
+  const sports = record(structured.sports_profile)
+  const football = record(sports?.football)
+  if (!football || football.not_found === true) return null
+
+  // Failed extractor quality gates are retained in the raw JSON for later
+  // repair, so publication must independently enforce the evidence threshold.
+  const evidenceUrls = Array.from(new Set(
+    array(football.evidence_urls).flatMap(value => {
+      const url = safeHttpsUrl(value)
+      return url ? [url] : []
+    }),
+  ))
+  if (evidenceUrls.length < 2 || !cleanText(football.notes, MAX_NOTE_LENGTH)) return null
+
+  return {
+    football,
+    source: evidenceUrls[0],
+    checkedAt: cleanText(football.extracted_at, 40) ?? undefined,
+  }
+}
+
+function footballTeamsVisible(football: Record<string, unknown>): number | null {
+  const teams = record(football.school_teams_visible)
+  const count = finiteNumber(teams?.value ?? football.school_teams_visible)
+  return count != null && count >= 0 ? Math.round(count) : null
+}
+
+function footballFieldSource(
+  football: Record<string, unknown>,
+  fallback: string,
+): string {
+  const teams = record(football.school_teams_visible)
+  const evidence = record(teams?.evidence)
+  return safeHttpsUrl(evidence?.url) ?? fallback
+}
+
+function footballStrengthCell(structured: Record<string, unknown>): DirectComparisonCell | null {
+  const verified = verifiedFootballProfile(structured)
+  if (!verified) return null
+  const tier = cleanText(verified.football.competitive_tier, 30)?.toLowerCase()
+  if (!tier || tier === 'unknown') return null
+
+  const labels: Record<string, string> = {
+    'national-elite': 'National elite',
+    'national-strong': 'National strong',
+    regional: 'Regional',
+    local: 'Local',
+    standard: 'Standard',
+  }
+  const value = labels[tier] ?? tier.replace(
+    /(^|-)([a-z])/g,
+    (_match, prefix, letter) => `${prefix === '-' ? ' ' : ''}${letter.toUpperCase()}`,
+  )
+  const note = cleanText(verified.football.competitive_tier_reasoning, MAX_NOTE_LENGTH)
+
+  return {
+    value,
+    note: note ?? undefined,
+    source: verified.source,
+    checked_at: verified.checkedAt,
+    evidence_kind: 'nana_database',
+  }
+}
+
+function footballOpportunitiesCell(structured: Record<string, unknown>): DirectComparisonCell | null {
+  const verified = verifiedFootballProfile(structured)
+  if (!verified) return null
+  const programme = cleanText(verified.football.programme_classification, MAX_VALUE_LENGTH)
+  const teams = footballTeamsVisible(verified.football)
+  if (!programme && teams == null) return null
+
+  return {
+    value: programme ?? `${teams} ${teams === 1 ? 'team' : 'teams'} visible`,
+    note: programme && teams != null
+      ? `${teams} ${teams === 1 ? 'team' : 'teams'} visible`
+      : undefined,
+    source: footballFieldSource(verified.football, verified.source),
+    checked_at: verified.checkedAt,
+    evidence_kind: 'nana_database',
+  }
+}
+
+function footballDevelopmentCell(structured: Record<string, unknown>): DirectComparisonCell | null {
+  const verified = verifiedFootballProfile(structured)
+  if (!verified) return null
+  const headCoach = record(verified.football.head_coach)
+  const headCoachName = cleanText(headCoach?.name, 50)
+  const coachingCount = array(verified.football.coaching_staff).length
+  const academy = verified.football.academy_scholarship === true
+  const academyNotes = cleanText(verified.football.academy_scholarship_notes, MAX_NOTE_LENGTH)
+  if (!headCoachName && coachingCount === 0 && !academy && !academyNotes) return null
+
+  let value = 'Player pathway published'
+  if (academy) value = 'Academy or scholarship pathway'
+  else if (headCoachName) value = `Head coach: ${headCoachName}`
+  else if (coachingCount > 0) {
+    value = `${coachingCount} ${coachingCount === 1 ? 'coach' : 'coaches'} listed`
+  }
+
+  return {
+    value,
+    note: academyNotes ?? (
+      academy && headCoachName
+        ? `Head coach: ${headCoachName}`
+        : undefined
+    ),
+    source: verified.source,
+    checked_at: verified.checkedAt,
+    evidence_kind: 'nana_database',
+  }
+}
+
 /**
  * Resolve high-confidence, common comparison requests directly from Nana's
  * structured school record. Returning null means the web researcher should
@@ -392,6 +513,18 @@ export function resolveTrustedComparisonCell(
 
   if (/\b(university destinations?|leavers destinations?|university placements?|oxbridge placements?)\b/.test(query)) {
     return universityDestinationsCell(structured)
+  }
+
+  if (/\bfootball strength and achievements\b/.test(query)) {
+    return footballStrengthCell(structured)
+  }
+
+  if (/\bfootball opportunities and programme depth\b/.test(query)) {
+    return footballOpportunitiesCell(structured)
+  }
+
+  if (/\bfootball coaching and player pathway\b/.test(query)) {
+    return footballDevelopmentCell(structured)
   }
 
   if (/\b(sports? opportunit(?:y|ies)?|sports? programme|sports? facilit(?:y|ies)|teams and activities)\b/.test(query)) {

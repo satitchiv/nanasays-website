@@ -3,6 +3,7 @@ import test from 'node:test'
 import {
   findComparisonCatalogueSuggestions,
   findSupportedComparisonSuggestions,
+  isDatabaseOnlyComparison,
   matchComparisonRequest,
   RESEARCH_ONLY_COMPARISONS,
   SUPPORTED_COMPARISON_LABELS,
@@ -74,6 +75,9 @@ test('publishes a concise supported catalogue for the interface', () => {
     'Registration fee',
     'Lowest boarding entry',
     'University destinations',
+    'Football strength and achievements',
+    'Football opportunities and programme depth',
+    'Football coaching and player pathway',
     'Sports opportunities',
   ])
 })
@@ -111,6 +115,62 @@ test('ranks typo-tolerant matches across the complete catalogue', () => {
     kind: 'research_request',
     canonicalTopic: 'Music opportunities and achievements',
   })
+})
+
+test('maps varied football wording into three canonical database topics', () => {
+  assert.deepEqual(matchComparisonRequest('football'), {
+    kind: 'supported',
+    id: 'football_strength',
+    label: 'Football strength and achievements',
+  })
+  assert.deepEqual(matchComparisonRequest('football strength'), {
+    kind: 'supported',
+    id: 'football_strength',
+    label: 'Football strength and achievements',
+  })
+  assert.deepEqual(matchComparisonRequest('achievements in soccer'), {
+    kind: 'supported',
+    id: 'football_strength',
+    label: 'Football strength and achievements',
+  })
+  assert.deepEqual(matchComparisonRequest('football opportunity'), {
+    kind: 'supported',
+    id: 'football_opportunities',
+    label: 'Football opportunities and programme depth',
+  })
+  assert.deepEqual(matchComparisonRequest('football scholarship'), {
+    kind: 'supported',
+    id: 'football_development',
+    label: 'Football coaching and player pathway',
+  })
+  assert.deepEqual(matchComparisonRequest('football pathway'), {
+    kind: 'supported',
+    id: 'football_development',
+    label: 'Football coaching and player pathway',
+  })
+  assert.equal(
+    findComparisonCatalogueSuggestions('how good are the schools in football')[0]?.id,
+    'football_strength',
+  )
+  assert.equal(
+    findComparisonCatalogueSuggestions('achievements in soccer')[0]?.id,
+    'football_strength',
+  )
+})
+
+test('offers all three football topics for broad and misspelled searches', () => {
+  assert.deepEqual(
+    findComparisonCatalogueSuggestions('football').slice(0, 3).map(item => item.id),
+    ['football_strength', 'football_opportunities', 'football_development'],
+  )
+  assert.deepEqual(
+    findComparisonCatalogueSuggestions('fotoball').slice(0, 3).map(item => item.id),
+    ['football_strength', 'football_opportunities', 'football_development'],
+  )
+  assert.equal(isDatabaseOnlyComparison('football_strength'), true)
+  assert.equal(isDatabaseOnlyComparison('football_opportunities'), true)
+  assert.equal(isDatabaseOnlyComparison('football_development'), true)
+  assert.equal(isDatabaseOnlyComparison('sports_opportunities'), false)
 })
 
 test('keeps research-only topics visible and requestable', () => {

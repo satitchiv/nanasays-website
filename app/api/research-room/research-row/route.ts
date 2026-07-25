@@ -16,6 +16,7 @@ import {
   type DirectComparisonSchool,
 } from '@/lib/research-room/direct-comparison-row'
 import {
+  isDatabaseOnlyComparison,
   matchComparisonRequest,
   SUPPORTED_COMPARISON_LABELS,
 } from '@/lib/research-room/comparison-catalog'
@@ -494,7 +495,17 @@ export async function POST(req: NextRequest) {
   }
 
   const checkedAt = new Date().toISOString()
-  const cells = await researchMissingCells(resolvedRowLabel, schools, trustedCells, checkedAt)
+  const cells = isDatabaseOnlyComparison(requestMatch.id)
+    ? Object.fromEntries(schools.map(school => {
+        const trusted = trustedCells.get(school.slug)
+        return [
+          school.slug,
+          trusted
+            ? { ...trusted, checked_at: trusted.checked_at ?? checkedAt }
+            : { value: null },
+        ]
+      }))
+    : await researchMissingCells(resolvedRowLabel, schools, trustedCells, checkedAt)
   const filledCount = countFilledCells(cells)
   const missingSchoolSlugs = schools
     .filter(school => {

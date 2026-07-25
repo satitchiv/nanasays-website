@@ -8,7 +8,10 @@ import { supabaseService } from '@/lib/supabase-admin'
 import { loadComparisonData, type LensKind } from '@/lib/research-comparison'
 import { loadShortlistContext, seedResearchSession } from '@/lib/research-room/seed-rows'
 import { resolveTrustedComparisonCell } from '@/lib/research-room/direct-comparison-row'
-import { SUPPORTED_COMPARISONS } from '@/lib/research-room/comparison-catalog'
+import {
+  isDatabaseOnlyComparison,
+  SUPPORTED_COMPARISONS,
+} from '@/lib/research-room/comparison-catalog'
 import { loadActiveChildren } from '@/lib/children'
 import { ONBOARDING_FIELDS } from '@/lib/onboarding-fields'
 import ResearchRoom from '@/components/nana/ResearchRoom'
@@ -154,8 +157,8 @@ export default async function ResearchRoomPage({
 
     // Availability determines each supported topic's action, not whether it
     // appears. The client searches the complete supported + research-only
-    // catalogue, then offers Add comparison only when every shortlisted
-    // school can be filled immediately from Nana's trusted data.
+    // catalogue. Most topics require complete shortlist coverage; explicitly
+    // database-only topics can add a non-empty partial row and queue gaps.
     if (ctx && ctx.slugs.length > 0) {
       const shortlistSchools = ctx.slugs.flatMap(slug => {
         const meta = ctx.schoolMap.get(slug)
@@ -172,12 +175,18 @@ export default async function ResearchRoomPage({
       })
       if (shortlistSchools.length === ctx.slugs.length) {
         const availableComparisons = SUPPORTED_COMPARISONS
-          .filter(comparison => shortlistSchools.every(
-            school => {
+          .filter(comparison => {
+            const hasTrustedValue = (school: (typeof shortlistSchools)[number]) => {
               const value = resolveTrustedComparisonCell(comparison.label, school)?.value
               return value != null && value !== ''
-            },
-          ))
+            }
+            // Football is intentionally database-only in this test. A
+            // partially covered shortlist can add a non-empty row and queue
+            // only the missing schools without triggering a website crawl.
+            return isDatabaseOnlyComparison(comparison.id)
+              ? shortlistSchools.some(hasTrustedValue)
+              : shortlistSchools.every(hasTrustedValue)
+          })
         availableComparisonIds = availableComparisons.map(comparison => comparison.id)
       }
     }

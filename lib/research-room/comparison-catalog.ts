@@ -161,6 +161,60 @@ export const SUPPORTED_COMPARISONS: SupportedComparison[] = [
     ],
   },
   {
+    id: 'football_strength',
+    label: 'Football strength and achievements',
+    searchTerms: [
+      'football',
+      'soccer',
+      'football strength',
+      'strong football',
+      'best football school',
+      'football achievements',
+      'soccer results',
+      'football ranking',
+      'how good is the football',
+    ],
+    patterns: [
+      /\b(football|soccer)\b.*\b(strength|strong|stronger|best|good|success|achievements?|results?|rankings?|rank|cups?|troph(?:y|ies))\b/,
+      /\b(strength|strong|stronger|best|good|success|achievements?|results?|rankings?|rank|cups?|troph(?:y|ies))\b.*\b(football|soccer)\b/,
+    ],
+  },
+  {
+    id: 'football_opportunities',
+    label: 'Football opportunities and programme depth',
+    searchTerms: [
+      'football opportunities',
+      'soccer opportunities',
+      'football programme',
+      'football teams',
+      'football team count',
+      'football on offer',
+      'playing football',
+    ],
+    patterns: [
+      /\b(football|soccer)\b.*\b(opportunit(?:y|ies)|programme|program|teams?|playing|offer|available|participation)\b/,
+      /\b(opportunit(?:y|ies)|programme|program|teams?|playing|offer|available|participation)\b.*\b(football|soccer)\b/,
+    ],
+  },
+  {
+    id: 'football_development',
+    label: 'Football coaching and player pathway',
+    searchTerms: [
+      'football coaching',
+      'football coach',
+      'soccer coaching',
+      'football academy',
+      'football scholarship',
+      'football pathway',
+      'player development',
+      'professional football pathway',
+    ],
+    patterns: [
+      /\b(football|soccer)\b.*\b(coach|coaching|academy|scholarship|pathway|development|develop|professional|pro)\b/,
+      /\b(coach|coaching|academy|scholarship|pathway|development|develop|professional|pro)\b.*\b(football|soccer)\b/,
+    ],
+  },
+  {
     id: 'sports_opportunities',
     label: 'Sports opportunities',
     searchTerms: ['sports programme', 'sports facilities', 'sports achievements', 'sports results', 'teams and activities', 'athletics'],
@@ -235,6 +289,21 @@ export const SUPPORTED_COMPARISON_LABELS = SUPPORTED_COMPARISONS.map(item => ite
 export const SUPPORTED_COMPARISON_IDS = SUPPORTED_COMPARISONS.map(item => item.id)
 export const RESEARCH_ONLY_COMPARISON_LABELS = RESEARCH_ONLY_COMPARISONS.map(item => item.label)
 
+const DATABASE_ONLY_COMPARISON_IDS = new Set([
+  'football_strength',
+  'football_opportunities',
+  'football_development',
+])
+
+/**
+ * These topics deliberately use Nana's existing structured evidence first.
+ * A partially covered shortlist can add a non-empty comparison row and queue
+ * only the missing schools; the direct-research route must not crawl the web.
+ */
+export function isDatabaseOnlyComparison(id: string): boolean {
+  return DATABASE_ONLY_COMPARISON_IDS.has(id)
+}
+
 function normalizeComparisonText(value: string): string {
   return value
     .trim()
@@ -290,7 +359,7 @@ function scoreCatalogueEntry(value: string, entry: ComparisonCatalogueEntry): nu
   const exactLabel = normalizeComparisonText(entry.label)
   if (normalized === exactLabel) return 10_000
 
-  let best = 0
+  let best = entry.patterns.some(pattern => pattern.test(normalized)) ? 8_500 : 0
   for (const phrase of phrases) {
     if (phrase === normalized) best = Math.max(best, 9_000)
     else if (phrase.startsWith(normalized)) best = Math.max(best, 8_000 - phrase.length)
