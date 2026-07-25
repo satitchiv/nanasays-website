@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
   const childProfile: Record<string, unknown> = {}
   if (pp) {
     for (const key of ONBOARDING_FIELD_NAMES) {
-      const v = (pp as Record<string, unknown>)[key]
+      const v = (pp as unknown as Record<string, unknown>)[key]
       if (v != null) childProfile[key] = v
     }
   }
