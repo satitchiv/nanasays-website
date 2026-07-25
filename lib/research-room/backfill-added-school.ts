@@ -6,6 +6,7 @@ import {
 } from './direct-comparison-row'
 import { matchComparisonRequest } from './comparison-catalog'
 import {
+  RESEARCH_ROOM_STRUCTURED_SELECT,
   resolveSeedComparisonCell,
   type SchoolMeta,
   type StructuredRow,
@@ -178,7 +179,7 @@ export async function backfillAddedSchoolComparisonCells({
       .maybeSingle(),
     supabaseService
       .from('school_structured_data')
-      .select('school_slug, fees_min, fees_max, fees_currency, exam_results, university_destinations, admissions_format, sports_profile, student_community, location_profile, fees_by_grade, application_fee_usd, bursary_note')
+      .select(RESEARCH_ROOM_STRUCTURED_SELECT)
       .eq('school_slug', schoolSlug)
       .maybeSingle(),
     supabaseUser

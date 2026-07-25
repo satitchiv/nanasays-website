@@ -225,17 +225,111 @@ export const SUPPORTED_COMPARISONS: SupportedComparison[] = [
       /\bteams and activities\b/,
     ],
   },
+  {
+    id: 'curriculum_qualifications',
+    label: 'Curriculum and qualifications',
+    searchTerms: ['curriculum', 'qualifications offered', 'GCSE A Level IB', 'what pupils study'],
+    patterns: [
+      /\bcurriculum\b/,
+      /\bqualifications? (offered|available)\b/,
+      /\bwhat (do|can) (pupils|students|children) study\b/,
+    ],
+  },
+  {
+    id: 'admissions_assessment',
+    label: 'Admissions tests and interviews',
+    searchTerms: ['admissions process', 'entrance exam', 'entrance test', 'assessment', 'interview', 'UKiset', 'ISEB'],
+    patterns: [
+      /\badmissions? (process|assessment|assessments|test|tests|interview|interviews)\b/,
+      /\bentrance (exam|exams|test|tests|assessment|assessments)\b/,
+      /\b(application|entry) process\b/,
+      /\b(ukiset|iseb|common pre test|common pretest)\b/,
+    ],
+  },
+  {
+    id: 'pastoral_wellbeing',
+    label: 'Pastoral care model',
+    searchTerms: ['pastoral care', 'house system', 'pupil care', 'pastoral structure', 'how pupils are supported'],
+    patterns: [
+      /\bpastoral (care|model|structure|system)\b/,
+      /\bhouse system\b/,
+      /\bhow (are|does) (pupils|students|the school).*\b(supported|care)\b/,
+    ],
+  },
+  {
+    id: 'wellbeing_team',
+    label: 'Wellbeing and pupil support team',
+    searchTerms: ['wellbeing team', 'mental health support', 'counsellors', 'counselling', 'pupil support staff'],
+    patterns: [
+      /\bwell ?being (team|staff|support)\b/,
+      /\bmental health (team|staff|support|provision)\b/,
+      /\b(counsellors?|counselling|pupil support staff)\b/,
+    ],
+  },
+  {
+    id: 'boarding_life',
+    label: 'Boarding life',
+    searchTerms: ['boarding experience', 'boarding houses', 'life as a boarder', 'residential life', 'dorm life'],
+    patterns: [
+      /\bboarding (life|experience|houses?|community)\b/,
+      /\blife as a boarder\b/,
+      /\b(residential|dorm) life\b/,
+    ],
+  },
+  {
+    id: 'music',
+    label: 'Music and performing arts',
+    searchTerms: ['music', 'musical', 'orchestra', 'choir', 'instrument', 'concert', 'drama', 'theatre', 'performing arts'],
+    patterns: [
+      /\b(music|musical|orchestra|choir|instrument|concert)\b/,
+      /\b(performing arts|drama|theatre)\b/,
+    ],
+  },
+  {
+    id: 'clubs',
+    label: 'Clubs and extracurricular activities',
+    searchTerms: ['clubs', 'activities', 'extracurricular', 'extra curricular', 'co-curricular', 'after school activities'],
+    patterns: [
+      /\b(clubs?|extracurricular|extra curricular|co curricular|cocurricular)\b/,
+      /\b(after school|school) activities\b/,
+    ],
+  },
+  {
+    id: 'facilities',
+    label: 'School facilities',
+    searchTerms: ['facilities', 'campus facilities', 'school buildings', 'pool', 'theatre facilities', 'music facilities', 'arts facilities', 'science facilities', 'laboratories'],
+    patterns: [
+      /\b(school|campus) facilities\b/,
+      /\b(theatre|music|arts?|science|laborator(?:y|ies)) facilities\b/,
+      /^facilities$/,
+      /\bwhat facilities\b/,
+    ],
+  },
+  {
+    id: 'languages',
+    label: 'Languages offered',
+    searchTerms: ['languages', 'languages taught', 'French', 'Spanish', 'Mandarin', 'German', 'Latin'],
+    patterns: [
+      /\blanguages? (offered|available|taught)\b/,
+      /\bwhat languages?\b/,
+      /^languages?$/,
+    ],
+  },
+  {
+    id: 'scholarships',
+    label: 'Scholarships',
+    searchTerms: ['merit awards', 'scholarship programme', 'fee scholarships', 'academic scholarship', 'sports scholarship', 'music scholarship', 'drama scholarship'],
+    patterns: [
+      /\bscholarship (programme|programmes|program|programs|options|awards?)\b/,
+      /\b(academic|sport|sports|art|arts|music|drama) scholarships?\b/,
+      /^scholarships?$/,
+    ],
+  },
 ]
 
 // These topics are deliberately visible in the same search surface, but are
 // never presented as ready-to-add promises. They create a research request.
 export const RESEARCH_ONLY_COMPARISONS: ResearchOnlyComparison[] = [
-  {
-    id: 'music',
-    label: 'Music opportunities and achievements',
-    searchTerms: ['music', 'musical', 'orchestra', 'choir', 'instrument', 'concert'],
-    patterns: [/\b(music|musical|orchestra|choir|instrument|concert)\b/],
-  },
   {
     id: 'learning_support',
     label: 'Learning support',
@@ -249,28 +343,10 @@ export const RESEARCH_ONLY_COMPARISONS: ResearchOnlyComparison[] = [
     patterns: [/\b(saturday school|weekend lessons?|weekend school)\b/],
   },
   {
-    id: 'pastoral_wellbeing',
-    label: 'Pastoral care and wellbeing',
-    searchTerms: ['pastoral care', 'wellbeing', 'mental health', 'pupil support'],
-    patterns: [/\b(pastoral|wellbeing|well being|mental health|pupil support)\b/],
-  },
-  {
     id: 'class_sizes',
     label: 'Class sizes',
     searchTerms: ['class size', 'pupils per class', 'teacher ratio'],
     patterns: [/\b(class size|class sizes|pupils per class|teacher ratio)\b/],
-  },
-  {
-    id: 'scholarships',
-    label: 'Scholarships',
-    searchTerms: ['merit awards', 'scholarship programme', 'fee scholarships'],
-    patterns: [/\b(scholarship|scholarships)\b/],
-  },
-  {
-    id: 'clubs',
-    label: 'Clubs and extracurricular activities',
-    searchTerms: ['clubs', 'activities', 'extracurricular', 'extra curricular'],
-    patterns: [/\b(clubs?|activities|extracurricular|extra curricular)\b/],
   },
   {
     id: 'academic_performance',
@@ -293,6 +369,16 @@ const DATABASE_ONLY_COMPARISON_IDS = new Set([
   'football_strength',
   'football_opportunities',
   'football_development',
+  'curriculum_qualifications',
+  'admissions_assessment',
+  'pastoral_wellbeing',
+  'wellbeing_team',
+  'boarding_life',
+  'music',
+  'clubs',
+  'facilities',
+  'languages',
+  'scholarships',
 ])
 
 /**
@@ -350,22 +436,58 @@ function fuzzyTokenScore(query: string, candidate: string): number {
   return 1 - distance / Math.max(query.length, candidate.length)
 }
 
+const FUZZY_STOP_WORDS = new Set([
+  'a',
+  'an',
+  'and',
+  'are',
+  'can',
+  'do',
+  'does',
+  'for',
+  'how',
+  'in',
+  'is',
+  'of',
+  'or',
+  'the',
+  'to',
+  'what',
+  'where',
+  'with',
+])
+
 function scoreCatalogueEntry(value: string, entry: ComparisonCatalogueEntry): number {
   const normalized = normalizeComparisonText(value)
   if (!normalized) return 0
 
-  const queryWords = normalized.split(' ')
+  const queryWords = normalized.split(' ').filter(word => !FUZZY_STOP_WORDS.has(word))
   const phrases = [entry.label, ...entry.searchTerms].map(normalizeComparisonText)
   const exactLabel = normalizeComparisonText(entry.label)
   if (normalized === exactLabel) return 10_000
 
   let best = entry.patterns.some(pattern => pattern.test(normalized)) ? 8_500 : 0
+  if (
+    entry.id === 'scholarships'
+    && /\bscholarships?\b/.test(normalized)
+    && !/\b(football|soccer)\b/.test(normalized)
+  ) {
+    best = Math.max(best, 8_800)
+  }
+  if (
+    entry.id === 'facilities'
+    && /\bfacilit(y|ies)\b/.test(normalized)
+    && !/\bsports?\b/.test(normalized)
+  ) {
+    best = Math.max(best, 8_800)
+  }
   for (const phrase of phrases) {
     if (phrase === normalized) best = Math.max(best, 9_000)
     else if (phrase.startsWith(normalized)) best = Math.max(best, 8_000 - phrase.length)
     else if (phrase.includes(normalized)) best = Math.max(best, 7_000 - phrase.length)
 
-    const candidateWords = phrase.split(' ')
+    const candidateWords = phrase.split(' ').filter(word => !FUZZY_STOP_WORDS.has(word))
+    if (queryWords.length === 0 || candidateWords.length === 0) continue
     const tokenScores = queryWords.map(word => Math.max(
       ...candidateWords.map(candidate => fuzzyTokenScore(word, candidate)),
     ))
@@ -403,11 +525,31 @@ export function matchComparisonRequest(value: string): ComparisonRequestMatch {
   const normalized = normalizeComparisonText(value)
   if (!normalized) return { kind: 'research_request', canonicalTopic: 'Other comparison request' }
 
+  if (
+    /\b(music|instrument|piano|violin)\b.*\blessons?\b.*\b(fees?|costs?)\b/.test(normalized)
+    || /\b(fees?|costs?)\b.*\b(music|instrument|piano|violin)\b.*\blessons?\b/.test(normalized)
+  ) {
+    return { kind: 'research_request', canonicalTopic: 'Music lesson fees' }
+  }
+
   const exact = COMPARISON_CATALOGUE.find(entry => normalizeComparisonText(entry.label) === normalized)
   if (exact) {
     return exact.kind === 'supported'
       ? { kind: 'supported', id: exact.id, label: exact.label }
       : { kind: 'research_request', canonicalTopic: exact.label }
+  }
+
+  if (/\bscholarships?\b/.test(normalized) && !/\b(football|soccer)\b/.test(normalized)) {
+    const scholarships = SUPPORTED_COMPARISONS.find(entry => entry.id === 'scholarships')
+    if (scholarships) {
+      return { kind: 'supported', id: scholarships.id, label: scholarships.label }
+    }
+  }
+  if (/\bfacilit(y|ies)\b/.test(normalized) && !/\bsports?\b/.test(normalized)) {
+    const facilities = SUPPORTED_COMPARISONS.find(entry => entry.id === 'facilities')
+    if (facilities) {
+      return { kind: 'supported', id: facilities.id, label: facilities.label }
+    }
   }
 
   const patternSupported = SUPPORTED_COMPARISONS.find(entry =>

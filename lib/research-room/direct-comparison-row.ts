@@ -157,6 +157,264 @@ function joinValuesWithinLimit(values: string[], limit = MAX_VALUE_LENGTH): stri
   return joined.length > 0 ? joined.join(' · ') : null
 }
 
+function truncateNarrative(value: unknown, maxLength: number): string | null {
+  const cleaned = cleanText(value, Math.max(maxLength * 4, 320))
+  if (!cleaned || cleaned.length <= maxLength) return cleaned
+  const candidate = cleaned.slice(0, maxLength)
+  const boundary = candidate.lastIndexOf(' ')
+  const body = candidate
+    .slice(0, boundary > Math.floor(maxLength * 0.6) ? boundary : maxLength - 1)
+    .trim()
+    .replace(/\s+(?:a|an|and|for|in|of|or|the|to|with)$/i, '')
+  return `${body}…`
+}
+
+function cleanStringList(value: unknown): string[] {
+  return array(value).flatMap(item => {
+    const text = cleanText(item, 240)
+    return text ? [text] : []
+  })
+}
+
+function conciseListItem(value: string, maxLength = 50): string | null {
+  const qualifiedTitle = [
+    value.split(/\s+[—–]\s+/)[0],
+    value.split(/\s+-\s+/)[0],
+  ]
+    .map(candidate => candidate.trim())
+    .find(candidate =>
+      candidate !== value && candidate.length >= 3 && candidate.length <= maxLength)
+  if (qualifiedTitle) return qualifiedTitle
+  if (value.length <= maxLength) return value
+  const baseTitle = value.split(' (')[0].trim()
+  return baseTitle.length >= 3 && baseTitle.length <= maxLength ? baseTitle : null
+}
+
+function firstHttpsSource(value: unknown): string | undefined {
+  for (const item of array(value)) {
+    const source = safeHttpsUrl(item)
+    if (source) return source
+  }
+  return undefined
+}
+
+function curriculumCell(structured: Record<string, unknown>): DirectComparisonCell | null {
+  const values = cleanStringList(structured.curriculum)
+  const value = joinValuesWithinLimit(values.slice(0, 5))
+  return value ? {
+    value,
+    note: values.length > 5 ? `${values.length} qualifications or programmes listed` : undefined,
+    evidence_kind: 'nana_database',
+  } : null
+}
+
+function languagesCell(structured: Record<string, unknown>): DirectComparisonCell | null {
+  const values = cleanStringList(structured.languages)
+  // A lone "English" commonly reflects language of instruction rather than
+  // the school's full modern-language offer, so it is not safe to compare.
+  if (values.length < 2) return null
+  const value = joinValuesWithinLimit(values.slice(0, 5))
+  return value ? {
+    value,
+    note: values.length > 5 ? `${values.length} languages listed` : undefined,
+    evidence_kind: 'nana_database',
+  } : null
+}
+
+function admissionsAssessmentCell(
+  structured: Record<string, unknown>,
+): DirectComparisonCell | null {
+  const admissions = record(structured.admissions_format)
+  if (!admissions) return null
+  const entryPoints = array(admissions.entry_points)
+  const processSteps = cleanStringList(admissions.process_steps)
+  const evidenceText = [
+    ...entryPoints.flatMap(item => {
+      const entry = record(item)
+      return entry
+        ? [entry.assessment, entry.entry_point].filter(value => typeof value === 'string')
+        : []
+    }),
+    ...processSteps,
+  ].join(' ')
+  if (!evidenceText.trim()) return null
+
+  const signals: string[] = []
+  const add = (condition: boolean, label: string) => {
+    if (condition && !signals.includes(label)) signals.push(label)
+  }
+  add(/\b(iseb|common pre[- ]?test)\b/i.test(evidenceText), 'ISEB Pre-Test')
+  add(/\bukiset\b/i.test(evidenceText), 'UKiset')
+  add(/\bcat4\b/i.test(evidenceText), 'CAT4')
+  add(/\b(entrance|written|subject|placement).{0,25}\b(exams?|examinations?|tests?|papers?|assessments?)\b/i.test(evidenceText)
+    || /\b(exams?|examinations?|tests?|papers?).{0,25}\b(english|maths|science|subject)\b/i.test(evidenceText), 'Entrance tests')
+  add(/\binterview\b/i.test(evidenceText), 'Interview')
+  add(/\bgroup activit/i.test(evidenceText), 'Group activity')
+  add(/\b(school report|head ?teacher recommendation|reference from|school reference)\b/i.test(evidenceText), 'School report/reference')
+  add(/\btaster day\b/i.test(evidenceText), 'Taster day')
+
+  const entryLabels = entryPoints.flatMap(item => {
+    const entry = record(item)
+    const label = cleanText(entry?.entry_point, 60)
+    return label ? [label] : []
+  })
+  const value = joinValuesWithinLimit(signals)
+  if (!value) return null
+  return {
+    value,
+    note: joinValuesWithinLimit(entryLabels.slice(0, 4), MAX_NOTE_LENGTH) ?? undefined,
+    source: sourceFromRecord(admissions),
+    evidence_kind: 'nana_database',
+  }
+}
+
+function pastoralCareCell(structured: Record<string, unknown>): DirectComparisonCell | null {
+  const rawModel = cleanText(structured.pastoral_model, 500)
+  if (!rawModel) return null
+  const houseCount = rawModel.match(
+    /\b(\d+)[ -](?:named )?(?:residential )?(?:boarding )?houses?\b/i,
+  )?.[1]
+  const model = /\bthree-house\b/i.test(rawModel)
+    ? 'Three-house boarding system'
+    : houseCount && /\bhouse system|boarding houses?\b/i.test(rawModel)
+      ? `House system · ${houseCount} boarding houses`
+      : /\bhouse system\b/i.test(rawModel)
+        ? 'House system'
+        : /\bdesignated leader|pastoral (lead|leadership)\b/i.test(rawModel)
+          ? 'Named pastoral leadership structure'
+          : 'Published pastoral care structure'
+  if (!model) return null
+  return {
+    value: model,
+    note: truncateNarrative(structured.pastoral_care, MAX_NOTE_LENGTH) ?? undefined,
+    evidence_kind: 'nana_database',
+  }
+}
+
+function wellbeingTeamCell(structured: Record<string, unknown>): DirectComparisonCell | null {
+  const wellbeing = record(structured.wellbeing_staffing)
+  if (!wellbeing) return null
+  const team = array(wellbeing.team).flatMap(item => {
+    const member = record(item)
+    const role = cleanText(member?.role, 60)
+    if (!role) return []
+    const count = finiteNumber(member?.count)
+    return [{ role, count: count != null && count > 0 ? Math.round(count) : 1 }]
+  })
+  const explicitTotal = finiteNumber(wellbeing.total_staff)
+  const total = explicitTotal != null && explicitTotal > 0
+    ? Math.round(explicitTotal)
+    : team.reduce((sum, member) => sum + member.count, 0)
+  if (total <= 0 || team.length === 0) return null
+  const roles = team.slice(0, 3).map(member =>
+    member.count > 1 ? `${member.count} × ${member.role}` : member.role)
+  return {
+    value: `${total} named pupil-support ${total === 1 ? 'staff member' : 'staff'}`,
+    note: joinValuesWithinLimit(roles, MAX_NOTE_LENGTH) ?? undefined,
+    source: firstHttpsSource(wellbeing.source_urls),
+    checked_at: cleanText(wellbeing.extracted_at, 40) ?? undefined,
+    evidence_kind: 'nana_database',
+  }
+}
+
+function schoolLifeRecord(structured: Record<string, unknown>): Record<string, unknown> | null {
+  return record(structured.school_life)
+}
+
+function boardingLifeCell(structured: Record<string, unknown>): DirectComparisonCell | null {
+  // An explicit boarding-life record is stronger evidence than the legacy
+  // schools.boarding flag, which is false for some schools that offer both
+  // day and boarding places.
+  const schoolLife = schoolLifeRecord(structured)
+  const detail = cleanText(schoolLife?.boarding_life, 500)
+  if (!detail) return null
+  const namedHouseCount = detail.match(/\b(?:across|operates?)\s+(\d+)\s+named houses?\b/i)?.[1]
+  const value = /\bover three-quarters\b/i.test(detail)
+    ? 'Over three-quarters of pupils board'
+    : /\bboth day and boarding houses?\b/i.test(detail)
+      ? 'Integrated day and boarding house system'
+      : namedHouseCount
+        ? `Residential community across ${namedHouseCount} named houses`
+        : /\bboarding is central to school life\b/i.test(detail)
+          ? 'Boarding central to school life'
+          : /\bgirls live in named houses\b/i.test(detail)
+            ? 'Named boarding-house community'
+            : 'Published boarding-life profile'
+  return {
+    value,
+    note: truncateNarrative(detail, MAX_NOTE_LENGTH) ?? undefined,
+    source: firstHttpsSource(schoolLife?.source_urls),
+    evidence_kind: 'nana_database',
+  }
+}
+
+function musicArtsCell(structured: Record<string, unknown>): DirectComparisonCell | null {
+  const schoolLife = schoolLifeRecord(structured)
+  const arts = record(schoolLife?.arts_music)
+  if (!arts) return null
+  const highlights = cleanStringList(arts.highlights)
+    .flatMap(item => {
+      const title = conciseListItem(item, 42)
+      return title ? [title] : []
+    })
+  if (highlights.length === 0) return null
+  const description = truncateNarrative(arts.description, MAX_NOTE_LENGTH)
+  const value = joinValuesWithinLimit(highlights.slice(0, 3))
+  return value ? {
+    value,
+    note: description && description !== value ? description : undefined,
+    source: firstHttpsSource(schoolLife?.source_urls),
+    evidence_kind: 'nana_database',
+  } : null
+}
+
+function clubsCell(structured: Record<string, unknown>): DirectComparisonCell | null {
+  const schoolLife = schoolLifeRecord(structured)
+  const rawActivities = cleanStringList(schoolLife?.activities_clubs)
+  const activities = rawActivities.flatMap(item => {
+    const title = conciseListItem(item, 42)
+    return title ? [title] : []
+  })
+  const value = joinValuesWithinLimit(activities.slice(0, 4))
+  return value ? {
+    value,
+    note: `${rawActivities.length} activities listed in Nana's database`,
+    source: firstHttpsSource(schoolLife?.source_urls),
+    evidence_kind: 'nana_database',
+  } : null
+}
+
+function facilitiesCell(structured: Record<string, unknown>): DirectComparisonCell | null {
+  const rawFacilities = cleanStringList(structured.facilities)
+  const facilities = rawFacilities.flatMap(item => {
+    const title = conciseListItem(item, 48)
+    return title ? [title] : []
+  })
+  const value = joinValuesWithinLimit(facilities.slice(0, 4))
+  return value ? {
+    value,
+    note: rawFacilities.length > 4 ? `${rawFacilities.length} facilities listed` : undefined,
+    evidence_kind: 'nana_database',
+  } : null
+}
+
+function scholarshipsCell(structured: Record<string, unknown>): DirectComparisonCell | null {
+  const scholarships = cleanStringList(structured.scholarships_available)
+  const awardNames = scholarships.flatMap(item => {
+    const name = conciseListItem(item, 42)
+    return name ? [name] : []
+  })
+  const value = joinValuesWithinLimit(awardNames.slice(0, 4))
+  if (!value) return null
+  const admissions = record(structured.admissions_format)
+  return {
+    value,
+    note: `${scholarships.length} scholarship ${scholarships.length === 1 ? 'type' : 'types'} listed`,
+    source: admissions ? sourceFromRecord(admissions) : undefined,
+    evidence_kind: 'nana_database',
+  }
+}
+
 function feeRowCell(structured: Record<string, unknown>, boardingOnly: boolean): DirectComparisonCell | null {
   const feeTable = record(structured.fees_by_grade)
   const rows = array(feeTable?.rows)
@@ -540,6 +798,46 @@ export function resolveTrustedComparisonCell(
     return sportsOpportunitiesCell(structured)
   }
 
+  if (/\bcurriculum and qualifications\b/.test(query)) {
+    return curriculumCell(structured)
+  }
+
+  if (/\badmissions tests and interviews\b/.test(query)) {
+    return admissionsAssessmentCell(structured)
+  }
+
+  if (/\bpastoral care model\b/.test(query)) {
+    return pastoralCareCell(structured)
+  }
+
+  if (/\bwellbeing and pupil support team\b/.test(query)) {
+    return wellbeingTeamCell(structured)
+  }
+
+  if (/\bboarding life\b/.test(query)) {
+    return boardingLifeCell(structured)
+  }
+
+  if (/\bmusic and performing arts\b/.test(query)) {
+    return musicArtsCell(structured)
+  }
+
+  if (/\bclubs and extracurricular activities\b/.test(query)) {
+    return clubsCell(structured)
+  }
+
+  if (/\bschool facilities\b/.test(query)) {
+    return facilitiesCell(structured)
+  }
+
+  if (/\blanguages offered\b/.test(query)) {
+    return languagesCell(structured)
+  }
+
+  if (/^scholarships?$/.test(query)) {
+    return scholarshipsCell(structured)
+  }
+
   if (/\b(bursary|bursaries|financial aid)\b/.test(query)) {
     const note = cleanText(structured.bursary_note, MAX_VALUE_LENGTH)
     return note ? { value: note, evidence_kind: 'nana_database' } : null
@@ -574,6 +872,14 @@ export function compactSchoolResearchContext(school: DirectComparisonSchool): st
     student_community: structured.student_community,
     location_profile: structured.location_profile,
     bursary_note: structured.bursary_note,
+    curriculum: structured.curriculum,
+    languages: structured.languages,
+    scholarships_available: structured.scholarships_available,
+    pastoral_care: structured.pastoral_care,
+    pastoral_model: structured.pastoral_model,
+    wellbeing_staffing: structured.wellbeing_staffing,
+    school_life: structured.school_life,
+    facilities: structured.facilities,
   }
   const json = JSON.stringify(useful)
   return json.length > 5_000 ? `${json.slice(0, 5_000)}…` : json

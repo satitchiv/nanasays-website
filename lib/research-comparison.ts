@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ComparisonData, ComparisonRow, RowCell, SchoolColumn } from '@/components/nana/comparison-placeholder'
 import { assertUserId } from './school-name-overrides'
 import { matchComparisonRequest } from './research-room/comparison-catalog'
+import { hasComparisonValueForSchools } from './research-room/comparison-cell-data'
 
 // Slice 5.5b — lens-aware single-source comparison loader.
 //
@@ -178,11 +179,10 @@ async function loadLensRows(
   if (rowsError) throw new Error(`comparison_rows read failed: ${rowsError.message}`)
 
   const all = (rowsRaw ?? []) as ComparisonRowDb[]
+  const visibleSchoolSlugs = schools.map(school => school.slug)
   const rowsWithVisibleContent = all.filter(row => {
     if (row.lens_kind !== 'chat') return true
-    return Object.values(row.cell_data ?? {}).some(
-      cell => cell?.value != null && cell.value !== '',
-    )
+    return hasComparisonValueForSchools(row.cell_data, visibleSchoolSlugs)
   })
 
   // De-dup: if a chat row has the same (case-insensitive, trimmed) row_name

@@ -32,7 +32,21 @@ const school: DirectComparisonSchool = {
       compulsory_extras: [{ name: 'Registration fee', per_year: 250 }],
     },
     admissions_format: {
-      entry_points: [{ year: 9, boarding: true }, { year: 7, boarding: false }],
+      source_url: 'https://example-school.test/admissions',
+      entry_points: [
+        {
+          year: 9,
+          boarding: true,
+          entry_point: '13+ (Year 9)',
+          assessment: 'ISEB Common Pre-Test, entrance papers, interview and group activity',
+        },
+        {
+          year: 7,
+          boarding: false,
+          entry_point: '11+ (Year 7)',
+          assessment: 'School report and interview',
+        },
+      ],
     },
     university_destinations: {
       top_universities: [{ name: 'Oxford' }, { name: 'Cambridge' }, { name: 'Durham' }],
@@ -60,6 +74,39 @@ const school: DirectComparisonSchool = {
         extracted_at: '2026-07-20T00:00:00.000Z',
       },
     },
+    curriculum: ['GCSE', 'A Level', 'IB Diploma'],
+    languages: ['English', 'French', 'Mandarin'],
+    scholarships_available: [
+      'Academic Scholarship — up to 20% fee remission',
+      'Music Scholarship — instrumental assessment required',
+      'Sports Scholarship — coach reference required',
+    ],
+    pastoral_model: 'House system with resident houseparents, tutors and year heads',
+    pastoral_care: 'Every pupil has a tutor and access to the central pastoral team.',
+    wellbeing_staffing: {
+      team: [
+        { role: 'Counsellor', count: 2 },
+        { role: 'Mental Health Nurse', count: 1 },
+        { role: 'Head of Learning Support', count: 1 },
+      ],
+      total_staff: 4,
+      source_urls: ['https://example-school.test/wellbeing'],
+      extracted_at: '2026-07-21T00:00:00.000Z',
+    },
+    school_life: {
+      boarding_life: 'Boarders live in mixed-age houses with resident staff and a full weekend programme.',
+      arts_music: {
+        description: 'Pupils take part in ensembles, concerts, drama and annual productions.',
+        highlights: [
+          'Annual school musical — whole-school production',
+          'Chamber orchestra — weekly rehearsals',
+          'House singing competition — annual event',
+        ],
+      },
+      activities_clubs: ['Debating', 'Robotics', 'Duke of Edinburgh', 'Community service'],
+      source_urls: ['https://example-school.test/school-life'],
+    },
+    facilities: ['Performing arts centre', 'Science laboratories', '25m swimming pool'],
   },
 }
 
@@ -101,6 +148,103 @@ test('resolves common trusted criteria without web research', () => {
   assert.equal(
     resolveTrustedComparisonCell('Football coaching and elite pathway', school)?.value,
     'Academy or scholarship pathway',
+  )
+  assert.equal(
+    resolveTrustedComparisonCell('Curriculum and qualifications', school)?.value,
+    'GCSE · A Level · IB Diploma',
+  )
+  assert.equal(
+    resolveTrustedComparisonCell('Admissions tests and interviews', school)?.value,
+    'ISEB Pre-Test · Entrance tests · Interview · Group activity',
+  )
+  assert.equal(
+    resolveTrustedComparisonCell('Pastoral care model', school)?.value,
+    'House system',
+  )
+  assert.equal(
+    resolveTrustedComparisonCell('Wellbeing and pupil support team', school)?.value,
+    '4 named pupil-support staff',
+  )
+  assert.equal(
+    resolveTrustedComparisonCell('Boarding life', school)?.value,
+    'Published boarding-life profile',
+  )
+  assert.equal(
+    resolveTrustedComparisonCell('Music and performing arts', school)?.value,
+    'Annual school musical · Chamber orchestra · House singing competition',
+  )
+  assert.equal(
+    resolveTrustedComparisonCell('Clubs and extracurricular activities', school)?.value,
+    'Debating · Robotics · Duke of Edinburgh · Community service',
+  )
+  assert.equal(
+    resolveTrustedComparisonCell('School facilities', school)?.value,
+    'Performing arts centre · Science laboratories · 25m swimming pool',
+  )
+  assert.equal(
+    resolveTrustedComparisonCell('Languages offered', school)?.value,
+    'English · French · Mandarin',
+  )
+  assert.equal(
+    resolveTrustedComparisonCell('Scholarships', school)?.value,
+    'Academic Scholarship · Music Scholarship · Sports Scholarship',
+  )
+})
+
+test('does not turn database gap notes into comparison answers', () => {
+  const gapsOnly: DirectComparisonSchool = {
+    ...school,
+    structured: {
+      wellbeing_staffing: {
+        team: [],
+        total_staff: null,
+        notes: 'No mental health staffing data found in crawled content',
+      },
+      school_life: {
+        notes: 'No clubs, boarding life or music information found',
+        arts_music: {},
+        activities_clubs: [],
+      },
+      facilities: [],
+      scholarships_available: [],
+    },
+  }
+
+  assert.equal(resolveTrustedComparisonCell('Wellbeing and pupil support team', gapsOnly), null)
+  assert.equal(resolveTrustedComparisonCell('Music and performing arts', gapsOnly), null)
+  assert.equal(resolveTrustedComparisonCell('Clubs and extracurricular activities', gapsOnly), null)
+  assert.equal(resolveTrustedComparisonCell('School facilities', gapsOnly), null)
+  assert.equal(resolveTrustedComparisonCell('Scholarships', gapsOnly), null)
+})
+
+test('requires a concrete admissions assessment signal', () => {
+  const processOnly: DirectComparisonSchool = {
+    ...school,
+    structured: {
+      admissions_format: {
+        process_steps: ['Submit the application form', 'Pay the registration fee'],
+      },
+    },
+  }
+  assert.equal(
+    resolveTrustedComparisonCell('Admissions tests and interviews', processOnly),
+    null,
+  )
+
+  const entranceExaminations: DirectComparisonSchool = {
+    ...school,
+    structured: {
+      admissions_format: {
+        entry_points: [{
+          entry_point: '13+',
+          assessment: 'Candidates sit entrance examinations in English and mathematics.',
+        }],
+      },
+    },
+  }
+  assert.equal(
+    resolveTrustedComparisonCell('Admissions tests and interviews', entranceExaminations)?.value,
+    'Entrance tests',
   )
 })
 

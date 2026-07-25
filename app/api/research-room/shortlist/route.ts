@@ -5,6 +5,7 @@ import { isResearchRoomEnabled } from '@/lib/feature-flags'
 import { getUnlockedUser } from '@/lib/paid-status'
 import { supabaseService } from '@/lib/supabase-admin'
 import { backfillAddedSchoolComparisonCells } from '@/lib/research-room/backfill-added-school'
+import { pruneRemovedSchoolComparisonCells } from '@/lib/research-room/prune-removed-school'
 
 // POST /api/research-room/shortlist
 //
@@ -171,7 +172,32 @@ export async function POST(req: NextRequest) {
 
   const { out_slug, out_status } = result as { out_slug: string; out_status: string }
   if (out_status === 'removed' || out_status === 'not_present') {
-    return NextResponse.json({ ok: true, status: out_status, school_slug: out_slug }, { status: 200 })
+    let comparisonCleanup = null
+    try {
+      comparisonCleanup = await pruneRemovedSchoolComparisonCells({
+        supabase,
+        userId: user.id,
+        childId: body.child_id,
+        schoolSlug: out_slug,
+      })
+    } catch (cleanupError) {
+      // The shortlist mutation has already succeeded. Loader and duplicate
+      // checks also scope values to current schools, so stale cells cannot
+      // surface even when this best-effort persistence cleanup needs retrying.
+      console.error('[research-room/shortlist] comparison prune failed', cleanupError)
+      comparisonCleanup = {
+        status: 'partial',
+        rows_examined: 0,
+        rows_updated: 0,
+        rows_failed: 1,
+      }
+    }
+    return NextResponse.json({
+      ok: true,
+      status: out_status,
+      school_slug: out_slug,
+      comparison_cleanup: comparisonCleanup,
+    }, { status: 200 })
   }
   console.error('[research-room/shortlist] unexpected remove status:', out_status)
   return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })

@@ -20,6 +20,7 @@ import {
   matchComparisonRequest,
   SUPPORTED_COMPARISON_LABELS,
 } from '@/lib/research-room/comparison-catalog'
+import { hasComparisonValueForSchools } from '@/lib/research-room/comparison-cell-data'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -448,8 +449,7 @@ export async function POST(req: NextRequest) {
     },
   )
   const populatedDuplicate = matchingRows.find(row =>
-    Object.values((row.cell_data ?? {}) as Record<string, { value?: unknown }>)
-      .some(cell => cell?.value != null && cell.value !== ''),
+    hasComparisonValueForSchools(row.cell_data, shortlist.slugs),
   )
   if (populatedDuplicate) {
     return NextResponse.json(

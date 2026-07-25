@@ -36,6 +36,7 @@ import {
   RESEARCH_ONLY_COMPARISONS,
   SUPPORTED_COMPARISON_IDS,
 } from '@/lib/research-room/comparison-catalog'
+import { comparisonTableMinWidth } from '@/lib/research-room/comparison-table-layout'
 
 type Lens = 'general' | 'child_fit'
 type DisplayMode = 'snapshot' | 'table'
@@ -846,6 +847,7 @@ export default function ComparisonView({
   const tableGridTemplateColumns = isNarrow
     ? 'minmax(132px, 0.82fr) minmax(0, 1.18fr)'
     : `260px repeat(${tableSchools.length}, minmax(220px, 1fr))`
+  const desktopTableMinWidth = comparisonTableMinWidth(tableSchools.length)
 
   return (
     <div className="rr-cmp-wrap">
@@ -1274,7 +1276,10 @@ export default function ComparisonView({
             className={`rr-cmp-table-wrap${isNarrow ? ' is-single-school' : ''}`}
             style={{ zoom: isNarrow ? 1 : zoom }}
           >
-            <div className="rr-cmp-table">
+            <div
+              className="rr-cmp-table"
+              style={isNarrow ? undefined : { minWidth: desktopTableMinWidth }}
+            >
               <div className="rr-cmp-table-row rr-cmp-table-row--head" style={{ gridTemplateColumns: tableGridTemplateColumns }}>
                 <div className="rr-cmp-corner">
                   <div className="rr-cmp-corner-title">Comparison details</div>

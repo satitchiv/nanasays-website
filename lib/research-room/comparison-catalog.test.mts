@@ -33,14 +33,6 @@ test('maps ordinary parent wording to a supported comparison', () => {
 })
 
 test('groups known unsupported wording into a future research topic', () => {
-  assert.deepEqual(matchComparisonRequest('music accomplishments'), {
-    kind: 'research_request',
-    canonicalTopic: 'Music opportunities and achievements',
-  })
-  assert.deepEqual(matchComparisonRequest('music awards'), {
-    kind: 'research_request',
-    canonicalTopic: 'Music opportunities and achievements',
-  })
   assert.deepEqual(matchComparisonRequest('support for dyslexia'), {
     kind: 'research_request',
     canonicalTopic: 'Learning support',
@@ -50,8 +42,33 @@ test('groups known unsupported wording into a future research topic', () => {
 test('does not misclassify a subject-specific cost request as annual fees', () => {
   assert.deepEqual(matchComparisonRequest('music lesson fees'), {
     kind: 'research_request',
-    canonicalTopic: 'Music opportunities and achievements',
+    canonicalTopic: 'Music lesson fees',
   })
+})
+
+test('prefers the requested comparison dimension when topic words overlap', () => {
+  assert.deepEqual(matchComparisonRequest('music scholarships'), {
+    kind: 'supported',
+    id: 'scholarships',
+    label: 'Scholarships',
+  })
+  assert.deepEqual(matchComparisonRequest('drama scholarship'), {
+    kind: 'supported',
+    id: 'scholarships',
+    label: 'Scholarships',
+  })
+  assert.deepEqual(matchComparisonRequest('theatre facilities'), {
+    kind: 'supported',
+    id: 'facilities',
+    label: 'School facilities',
+  })
+  assert.deepEqual(matchComparisonRequest('football scholarship'), {
+    kind: 'supported',
+    id: 'football_development',
+    label: 'Football coaching and elite pathway',
+  })
+  assert.equal(findComparisonCatalogueSuggestions('music scholarships')[0]?.id, 'scholarships')
+  assert.equal(findComparisonCatalogueSuggestions('theatre facilities')[0]?.id, 'facilities')
 })
 
 test('keeps unknown questions as a clean research topic', () => {
@@ -79,6 +96,16 @@ test('publishes a concise supported catalogue for the interface', () => {
     'Football teams and playing opportunities',
     'Football coaching and elite pathway',
     'Sports opportunities',
+    'Curriculum and qualifications',
+    'Admissions tests and interviews',
+    'Pastoral care model',
+    'Wellbeing and pupil support team',
+    'Boarding life',
+    'Music and performing arts',
+    'Clubs and extracurricular activities',
+    'School facilities',
+    'Languages offered',
+    'Scholarships',
   ])
 })
 
@@ -101,7 +128,7 @@ test('filters Google-style suggestions using parent wording', () => {
 test('ranks typo-tolerant matches across the complete catalogue', () => {
   assert.equal(findComparisonCatalogueSuggestions('nearset airprot')[0]?.label, 'Airport distance')
   assert.equal(findComparisonCatalogueSuggestions('boardng feees')[0]?.label, 'Boarding fees')
-  assert.equal(findComparisonCatalogueSuggestions('musci')[0]?.label, 'Music opportunities and achievements')
+  assert.equal(findComparisonCatalogueSuggestions('musci')[0]?.label, 'Music and performing arts')
   assert.deepEqual(matchComparisonRequest('boardng feees'), {
     kind: 'supported',
     id: 'boarding_fees',
@@ -112,9 +139,51 @@ test('ranks typo-tolerant matches across the complete catalogue', () => {
     canonicalTopic: 'Learning support',
   })
   assert.deepEqual(matchComparisonRequest('musci'), {
-    kind: 'research_request',
-    canonicalTopic: 'Music opportunities and achievements',
+    kind: 'supported',
+    id: 'music',
+    label: 'Music and performing arts',
   })
+})
+
+test('maps parent wording to all ten newly database-backed topics', () => {
+  const cases = [
+    ['what curriculum can pupils study?', 'curriculum_qualifications'],
+    ['what entrance exams do they sit?', 'admissions_assessment'],
+    ['how does the house system work?', 'pastoral_wellbeing'],
+    ['mental health support', 'wellbeing_team'],
+    ['life as a boarder', 'boarding_life'],
+    ['orchestra and choir', 'music'],
+    ['after school activities', 'clubs'],
+    ['what facilities are available?', 'facilities'],
+    ['what languages are taught?', 'languages'],
+    ['academic scholarships', 'scholarships'],
+  ] as const
+
+  for (const [query, id] of cases) {
+    const match = matchComparisonRequest(query)
+    assert.equal(match.kind, 'supported', query)
+    assert.equal(match.kind === 'supported' ? match.id : null, id, query)
+    assert.equal(isDatabaseOnlyComparison(id), true, id)
+  }
+})
+
+test('ranks misspellings for the newly database-backed topics', () => {
+  const cases = [
+    ['curriculm', 'curriculum_qualifications'],
+    ['admisions intervew', 'admissions_assessment'],
+    ['pastrol care', 'pastoral_wellbeing'],
+    ['wellbing suport', 'wellbeing_team'],
+    ['boardng life', 'boarding_life'],
+    ['performng arts', 'music'],
+    ['extracuricular', 'clubs'],
+    ['school facilites', 'facilities'],
+    ['langauges', 'languages'],
+    ['scholerships', 'scholarships'],
+  ] as const
+
+  for (const [query, id] of cases) {
+    assert.equal(findComparisonCatalogueSuggestions(query)[0]?.id, id, query)
+  }
 })
 
 test('maps varied football wording into three canonical database topics', () => {

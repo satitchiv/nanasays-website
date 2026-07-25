@@ -41,7 +41,18 @@ export type StructuredRow = {
   fees_by_grade:      Record<string, unknown> | null
   application_fee_usd: number | null
   bursary_note:       string | null
+  curriculum:         unknown[] | null
+  languages:          unknown[] | null
+  scholarships_available: unknown[] | null
+  pastoral_care:      string | null
+  pastoral_model:     string | null
+  wellbeing_staffing: Record<string, unknown> | null
+  school_life:        Record<string, unknown> | null
+  facilities:         unknown[] | null
 }
+
+export const RESEARCH_ROOM_STRUCTURED_SELECT =
+  'school_slug, fees_min, fees_max, fees_currency, exam_results, university_destinations, admissions_format, sports_profile, student_community, location_profile, fees_by_grade, application_fee_usd, bursary_note, curriculum, languages, scholarships_available, pastoral_care, pastoral_model, wellbeing_staffing, school_life, facilities' as const
 
 export type SchoolMeta = {
   slug:          string
@@ -446,7 +457,7 @@ export async function loadShortlistContext(
       .select('slug, name, city, region, boarding, gender_split')
       .in('slug', slugs),
     supabase.from('school_structured_data')
-      .select('school_slug, fees_min, fees_max, fees_currency, exam_results, university_destinations, admissions_format, sports_profile, student_community, location_profile, fees_by_grade, application_fee_usd, bursary_note')
+      .select(RESEARCH_ROOM_STRUCTURED_SELECT)
       .in('school_slug', slugs),
   ])
 
