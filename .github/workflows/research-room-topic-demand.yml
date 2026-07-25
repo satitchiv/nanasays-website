@@ -32,6 +32,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Provide CI env file
+        run: touch .env.local
       - name: Promote repeated Research Room topic demand
         shell: bash
         run: |
