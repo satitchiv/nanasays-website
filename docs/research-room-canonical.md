@@ -21,6 +21,9 @@ comparisons** / **Topics parents can explore** must not return.
 - The canonical guard runs on every pull request and push to `main`. It rejects
   duplicate Research Room page routes, the wrong component wiring, a missing
   version marker, missing topic plumbing, or retired standalone-topic copy.
+- GitHub protects `main` with that guard for administrators too. Force-pushes
+  and branch deletion are disabled, so an unchecked old version cannot replace
+  production directly.
 
 Run the same guard locally:
 
