@@ -70,6 +70,17 @@ export interface ProposeCreateLens {
   view_spec:      ProposeViewSpec
 }
 
+// Slice 7: bounded text Nana can propose for the parent-facing partner
+// brief. Confirmation is still pointer-only: the server re-reads this
+// proposal from the persisted chat message before appending it.
+export interface ProposeAddToLetter {
+  kind:          'propose_add_to_letter'
+  label:         string
+  section:       'opening' | 'why_it_matters' | 'tradeoffs' | 'questions' | 'next_step'
+  body_markdown: string
+  rationale?:    string
+}
+
 // Slice 6.5 — topic lens proposal. Inserts new comparable rows about a
 // SPECIFIC TOPIC (rugby, music, drama) and switches the comparison view
 // to a focused mini-table containing those rows + a curated subset of
@@ -92,7 +103,18 @@ export interface ProposeCreateTopicLens {
   visible_base_rows?: string[]
 }
 
-export type ProposedAction = ProposedAddRow | ProposeReRank | ProposeCreateLens | ProposeCreateTopicLens
+// Slice 8 Build 6: propose_add_school is emitted by Build Mode finalize
+// alongside propose_add_row. The bubble renders an "Add {School}" pill
+// using the #ic-school sprite; confirm via confirm_add_school RPC.
+export interface ProposeAddSchool {
+  kind:          'propose_add_school'
+  slug:          string
+  display_name:  string
+  rationale:     string
+  match_signals: string[]
+}
+
+export type ProposedAction = ProposedAddRow | ProposeReRank | ProposeCreateLens | ProposeAddToLetter | ProposeCreateTopicLens | ProposeAddSchool
 // Keyed by short proposal_id (^[a-zA-Z0-9_-]{1,40}$). Function reads
 // parsed_answer.proposed_actions[proposal_id] when confirming.
 export type ProposedActions = Record<string, ProposedAction>
@@ -123,6 +145,15 @@ export interface ResearchMessage {
   // table truth instead of local click history. Empty for non-rehydrated
   // messages (streaming chat in this session) — they fall back to local state.
   activeProposalIds?: string[]
+  // Slice 7: add-to-letter proposal_ids already appended to partner_briefs.
+  // Derived from research_session_messages.actions on page load.
+  activeLetterProposalIds?: string[]
+  // Slice 8 Build 6: school proposal_ids whose slug is currently in the
+  // parent's shortlist. Server-derived from research_session_messages.actions
+  // (kind='add_school' stamps) PLUS direct shortlist membership of the
+  // proposal's slug. Lets the bubble's "Add {School}" pill flip to
+  // "✓ Added" based on shortlist truth.
+  activeSchoolProposalIds?: string[]
 }
 
 export interface ToolStep {
@@ -164,4 +195,27 @@ export type NanaUiIntent =
 export interface AskError {
   status?: number
   message: string
+}
+
+// Slice 8 Build 3 session 4 — Build Mode stream state surfaced by
+// useNanaChat. Re-exports the canonical server type so client + server
+// can't drift; `lastDiff` is one-turn-only and cleared on the next ask().
+// The server emits the matching SSE event from
+// /api/research-room/build-mode/turn/route.ts.
+export type { BuildModeProgress } from '@/lib/server/research-room/build-mode-schemas'
+
+export interface BuildModeStreamState {
+  progress: import('@/lib/server/research-room/build-mode-schemas').BuildModeProgress
+  // One of the TargetKey values, or 'confirm_contradiction' / 'free'.
+  // Typed loosely so client doesn't need to import the server enum.
+  focus:    string
+  // Names of writable child_profile fields touched this turn. Cleared on
+  // the next ask() so the progress bar's microcopy only ever shows the
+  // latest delta.
+  lastDiff: {
+    set:          string[]
+    appended:     string[]
+    contradicted: string[]
+    refused:      string[]
+  } | null
 }

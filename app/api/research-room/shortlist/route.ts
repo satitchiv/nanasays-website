@@ -3,9 +3,8 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies, headers } from 'next/headers'
 import { isResearchRoomEnabled } from '@/lib/feature-flags'
 import { getUnlockedUser } from '@/lib/paid-status'
-import { supabaseService } from '@/lib/supabase-admin'
-import { backfillAddedSchoolComparisonCells } from '@/lib/research-room/backfill-added-school'
-import { pruneRemovedSchoolComparisonCells } from '@/lib/research-room/prune-removed-school'
+import { writeMatchReasonsForInRoomAdd } from '@/lib/research-room/write-match-reasons'
+import { canonicalizeSlug } from '@/lib/research-room/school-canonical-server'
 
 // POST /api/research-room/shortlist
 //
@@ -22,7 +21,7 @@ import { pruneRemovedSchoolComparisonCells } from '@/lib/research-room/prune-rem
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-type AddBody    = { action: 'add';    child_id: string; school_slug: string }
+type AddBody    = { action: 'add';    child_id: string; school_slug: string; skip_canonicalize: boolean }
 type RemoveBody = { action: 'remove'; child_id: string; school_slug: string }
 type Body       = AddBody | RemoveBody
 
@@ -43,12 +42,26 @@ function parseBody(raw: unknown): { body: Body | null; error?: string } {
   if (typeof o.school_slug !== 'string' || !SLUG_RX.test(o.school_slug.toLowerCase())) {
     return { body: null, error: 'school_slug must match ^[a-z0-9-]{1,80}$' }
   }
+  if (action === 'add') {
+    return {
+      body: {
+        action:            'add',
+        child_id:          o.child_id,
+        school_slug:       o.school_slug.toLowerCase(),
+        // Default false → canonicalize-on-add fires. Only the popup's
+        // alternate-row click sets this to true. Codex r2 Q9: the
+        // legacy `confirmed_choice` alias was dropped — nothing
+        // deployed ever sent it; the rename happened in the same branch.
+        skip_canonicalize: o.skip_canonicalize === true,
+      },
+    }
+  }
   return {
     body: {
-      action,
+      action:      'remove',
       child_id:    o.child_id,
       school_slug: o.school_slug.toLowerCase(),
-    } as Body,
+    },
   }
 }
 
@@ -109,34 +122,38 @@ export async function POST(req: NextRequest) {
   if (!isPaid) return NextResponse.json({ ok: false, code: 'payment_required' }, { status: 402 })
 
   if (body.action === 'add') {
-    // The UK directory contains tens of thousands of school identity rows,
-    // but Research Room comparisons require the curated structured dataset.
-    // Enforce this server-side as well as in the picker so a direct request
-    // cannot create a mostly-empty comparison column.
-    const service = supabaseService()
-    const { data: comparisonData, error: comparisonDataError } = await service
-      .from('school_structured_data')
-      .select('school_slug')
-      .eq('school_slug', body.school_slug)
-      .maybeSingle()
-    if (comparisonDataError) {
-      console.error(
-        '[research-room/shortlist] comparison readiness lookup failed',
-        comparisonDataError.message,
-      )
-      return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
-    }
-    if (!comparisonData) {
-      return NextResponse.json({
-        ok: false,
-        code: 'school_not_comparison_ready',
-      }, { status: 409 })
+    // 2026-05-18 — canonicalize-on-add backstop. Defends against
+    // programmatic / legacy callers that submit a data-poor duplicate
+    // slug. Skipped when skip_canonicalize:true — SchoolAdder sets it
+    // when the user expands a duplicate group and deliberately picks
+    // an alternate. See lib/research-room/school-canonical.ts.
+    //
+    // 2026-05-19 — the LLM-driven `propose_add_school` path now has its
+    // own canonicalize wrap at propose-time inside
+    // build-mode/finalize/route.ts (so the parent never sees the wrong
+    // school name in the proposal pill). This route stays as the
+    // belt-and-braces for manual SchoolAdder + any future programmatic
+    // callers.
+    let writeSlug = body.school_slug
+    if (!body.skip_canonicalize) {
+      try {
+        const { canonical, swapped, reason } = await canonicalizeSlug(body.school_slug)
+        if (swapped) {
+          console.info('[shortlist] canonicalized', body.school_slug, '→', canonical, reason)
+          writeSlug = canonical
+        }
+      } catch (e) {
+        // Canonicalization is best-effort. If it fails we fall through
+        // to the submitted slug and let the RPC produce its normal
+        // school-not-found / validation errors.
+        console.warn('[shortlist] canonicalize failed:', e)
+      }
     }
 
     const { data, error: rpcErr } = await supabase
       .rpc('add_school_to_shortlist', {
         p_child_id:    body.child_id,
-        p_school_slug: body.school_slug,
+        p_school_slug: writeSlug,
       })
     if (rpcErr) return rpcErrorToResponse(rpcErr, 'add_school_to_shortlist')
 
@@ -147,37 +164,32 @@ export async function POST(req: NextRequest) {
     // 2026-05-10-fix-shortlist-rpc-ambiguity.sql to avoid the
     // school_slug name colliding with the table column).
     const { out_slug, out_status } = result as { out_slug: string; out_status: string }
-    if (out_status === 'added' || out_status === 'already_present') {
-      let comparisonBackfill = null
-      try {
-        comparisonBackfill = await backfillAddedSchoolComparisonCells({
-          supabaseUser: supabase,
-          supabaseService: service,
-          userId: user.id,
-          childId: body.child_id,
-          schoolSlug: out_slug,
-        })
-      } catch (backfillError) {
-        // The school has already been added, so do not misreport the shortlist
-        // mutation as failed. Surface a retryable partial status for telemetry.
-        console.error('[research-room/shortlist] comparison backfill failed', backfillError)
-        comparisonBackfill = {
-          status: 'partial',
-          rows_examined: 0,
-          cells_filled: 0,
-          cells_preserved: 0,
-          cells_unfilled: 0,
-          rows_update_failed: 1,
-          missing_database_topics: [],
-          research_requests_queued: 0,
-        }
-      }
+    // 2026-05-18 — DB-level gender validation. The RPC rejects schools whose
+    // gender_split is incompatible with the child's child_gender BEFORE
+    // INSERT (no row written, no side effects). Surface a 409 so the UI
+    // can show "School is girls-only; this child is a boy" instead of a
+    // generic 500.
+    if (out_status === 'rejected_gender_mismatch') {
       return NextResponse.json({
-        ok: true,
-        status: out_status,
+        ok: false,
+        code: 'rejected_gender_mismatch',
+        detail: 'This school does not match this child\'s gender.',
         school_slug: out_slug,
-        comparison_backfill: comparisonBackfill,
-      }, { status: out_status === 'added' ? 201 : 200 })
+      }, { status: 409 })
+    }
+    if (out_status === 'added' || out_status === 'already_present') {
+      // Build 2 r1 (Codex P2 #6) + r2 Q5: compute match_reasons and write
+      // via a null-only UPDATE. Runs on BOTH 'added' (fresh row) AND
+      // 'already_present' — the UPDATE's `.is('match_reasons', null)`
+      // clause means prior non-null reasons are preserved, so it's safe
+      // to re-fire on already_present to backfill null rows. Best-effort:
+      // failure logs and doesn't affect the user-facing response.
+      try {
+        await writeMatchReasonsForInRoomAdd(user.id, body.child_id, out_slug)
+      } catch (e) {
+        console.warn('[research-room/shortlist] match_reasons write failed:', e)
+      }
+      return NextResponse.json({ ok: true, status: out_status, school_slug: out_slug }, { status: out_status === 'added' ? 201 : 200 })
     }
     console.error('[research-room/shortlist] unexpected add status:', out_status)
     return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
@@ -196,33 +208,13 @@ export async function POST(req: NextRequest) {
 
   const { out_slug, out_status } = result as { out_slug: string; out_status: string }
   if (out_status === 'removed' || out_status === 'not_present') {
-    let comparisonCleanup = null
-    try {
-      comparisonCleanup = await pruneRemovedSchoolComparisonCells({
-        supabase,
-        userId: user.id,
-        childId: body.child_id,
-        schoolSlug: out_slug,
-      })
-    } catch (cleanupError) {
-      // The shortlist mutation has already succeeded. Loader and duplicate
-      // checks also scope values to current schools, so stale cells cannot
-      // surface even when this best-effort persistence cleanup needs retrying.
-      console.error('[research-room/shortlist] comparison prune failed', cleanupError)
-      comparisonCleanup = {
-        status: 'partial',
-        rows_examined: 0,
-        rows_updated: 0,
-        rows_failed: 1,
-      }
-    }
-    return NextResponse.json({
-      ok: true,
-      status: out_status,
-      school_slug: out_slug,
-      comparison_cleanup: comparisonCleanup,
-    }, { status: 200 })
+    return NextResponse.json({ ok: true, status: out_status, school_slug: out_slug }, { status: 200 })
   }
   console.error('[research-room/shortlist] unexpected remove status:', out_status)
   return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
 }
+
+// Slice 8 Build 6 r-step2 Q2/Q9 — writeMatchReasonsForInRoomAdd was
+// extracted to lib/research-room/write-match-reasons.ts so the new
+// add_school write-action branch can share the same null-only UPDATE
+// behaviour.

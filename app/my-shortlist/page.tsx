@@ -115,10 +115,19 @@ type ShortlistSchool = {
 }
 
 async function loadShortlistData(userId: string): Promise<ShortlistSchool[]> {
+  // Build 2 r5 (Codex P3): scope to the parent-wide shortlist (child_id IS
+  // NULL rows only) so this page stays consistent with the GET
+  // /api/shortlist endpoint that powers the school-page ShortlistButton.
+  // Pre-r5 this read returned ALL rows for the user — including child-bound
+  // rows the Research Room manages — which produced duplicate cards for
+  // multi-child users and made the count/badge inconsistent with the
+  // button's "saved" state. Child-bound shortlists live in the Research
+  // Room (Brief tab + comparison column), not here.
   const { data: shortlisted } = await serviceClient
     .from('shortlisted_schools')
     .select('school_slug, added_at')
     .eq('user_id', userId)
+    .is('child_id', null)
     .order('added_at', { ascending: false })
 
   if (!shortlisted || shortlisted.length === 0) return []

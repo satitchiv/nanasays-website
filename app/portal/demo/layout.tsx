@@ -25,12 +25,13 @@ export default function DemoPortalLayout({ children }: { children: React.ReactNo
   return (
     <div style={{ minHeight: '100vh', background: off, display: 'flex', flexDirection: 'column' }}>
 
-      {/* Demo banner */}
+      {/* Demo banner — generic so it suits both Bangkok-school admin walkthroughs
+          AND the agent assistant for international schools (Disentis, etc.). */}
       <div style={{
         background: teal, color: '#fff', textAlign: 'center',
         padding: '8px 16px', fontSize: 12, fontWeight: 700, letterSpacing: '0.02em',
       }}>
-        Demo Mode — Demo International School Bangkok
+        NanaSays Demo
         <a href="/demo" style={{ marginLeft: 16, color: 'rgba(255,255,255,0.8)', fontSize: 11, textDecoration: 'underline' }}>
           Back to walkthrough
         </a>

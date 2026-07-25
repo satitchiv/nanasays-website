@@ -4,8 +4,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { sendWelcomeEmail } from '@/lib/email'
 import { isPaidModeOn } from '@/lib/paid-mode'
 
-const ALLOWED_EXACT = new Set(['/my-reports', '/unlock', '/portal'])
+const ALLOWED_EXACT = new Set(['/my-reports', '/unlock', '/portal', '/nana/research-room'])
 const ALLOWED_PREFIXES = ['/schools/']
+
+function siteUrlForRequest(req: NextRequest): string {
+  if (process.env.NODE_ENV !== 'production') return req.nextUrl.origin
+  return process.env.NEXT_PUBLIC_SITE_URL || req.nextUrl.origin
+}
 
 function defaultNext(): string {
   return isPaidModeOn() ? '/my-reports' : '/'
@@ -42,7 +47,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
   const code = searchParams.get('code')
   const next = validateNext(searchParams.get('next'))
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || req.nextUrl.origin
+  const siteUrl = siteUrlForRequest(req)
 
   if (!code) {
     return NextResponse.redirect(`${siteUrl}${isPaidModeOn() ? '/login' : '/'}?error=missing_code`)

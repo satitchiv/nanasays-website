@@ -4,6 +4,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { verifyAdmin, supabaseService } from '@/lib/supabase-admin'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 const EDITABLE_FIELDS = [
   'angle', 'scheduled_for', 'school_id', 'channel_slug', 'design_family',
   'headline', 'audience', 'pain_point', 'key_insight', 'proof_points',

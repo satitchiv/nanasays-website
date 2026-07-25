@@ -3,15 +3,26 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import type { ResearchMessage, StreamFormat, ProposedAction } from '@/lib/nana/types'
+// parseInlineBold extracted to ./nana-bubble-md.ts so it's unit-testable
+// without a JSX runtime (node test runner can import .ts but not .tsx).
+import { parseInlineBold } from './nana-bubble-md'
+// 2026-05-25 PM streaming-flash fix: lax citation scrubber. The server
+// already strips `[source](https://rankSchools)` from the final prose, but
+// the bubble renders streamBuf live as it arrives — so parents saw the
+// fake citation flash for ~1s before the final payload replaced it. The
+// shared client-safe scrubber drops tool-name hosts on every render of
+// streamBuf so the flash never reaches the screen. STRICT allow-list
+// enforcement stays server-side (allowedUrls not yet known mid-stream).
+import { scrubForbiddenCitations, scrubInvalidCitations } from '@/lib/prose-citation-scrubber'
 // The bubble's classNames (dh-msg-nana, dh-msg-nana-prose, etc.) live in
-// decision-hub.css. Importing it here means anywhere NanaBubble is mounted
+// nana-bubble.css. Importing it here means anywhere NanaBubble is mounted
 // gets the styles automatically — Research Room's right rail can embed
-// the bubble without having to also import decision-hub.css separately.
-import './decision-hub.css'
+// the bubble without having to also import nana-bubble.css separately.
+import './nana-bubble.css'
 
 // Slice 3d phase 2: chat bubble + streaming helpers extracted from
 // DecisionHub.tsx. Behaviour-preserving — same className contract
-// (dh-msg-nana, dh-msg-nana-prose, etc. styled by decision-hub.css), same
+// (dh-msg-nana, dh-msg-nana-prose, etc. styled by nana-bubble.css), same
 // section-by-section progressive extraction, same prose vs structured
 // branching. DecisionHub imports NanaMsgBubble + helpers from here; the
 // Research Room right rail (slice 3d phase 4) embeds NanaMsgBubble in a
@@ -94,16 +105,17 @@ export function renderMd(text: unknown): React.ReactNode[] {
     str = ''
   }
   if (!str) return []
-  return str.split('\n').map((line, i) => {
-    const parts = line.split(/(\*\*[^*]+\*\*)/g)
+  const lines = str.split('\n')
+  return lines.map((line, i) => {
+    const segments = parseInlineBold(line)
     return (
       <span key={i}>
-        {parts.map((p, j) =>
-          p.startsWith('**') && p.endsWith('**')
-            ? <strong key={j}>{p.slice(2, -2)}</strong>
-            : <span key={j}>{p}</span>
+        {segments.map((seg, j) =>
+          seg.bold
+            ? <strong key={j}>{seg.text}</strong>
+            : <span key={j}>{seg.text}</span>,
         )}
-        {i < str.split('\n').length - 1 && <br />}
+        {i < lines.length - 1 && <br />}
       </span>
     )
   })
@@ -146,12 +158,22 @@ export interface NanaMsgBubbleProps {
   // no fetch — the consumer applies the view_spec as a sort/filter
   // overlay on the comparison table. Save-as-lens UX is commit 8.
   onApplyReRank?: (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
+  // Slice 7: render "Add to partner brief" affordances for
+  // propose_add_to_letter entries. Like add-row, confirmation is
+  // pointer-only; the server re-reads the proposal from the message.
+  onAddToLetter?: (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
   // Slice 6.5: when set, render the "Create [topic] lens with N new
   // rows ▸" pill for each propose_create_topic_lens entry. First click
   // expands to show the row specs; second click POSTs to write-action
   // (action='create_topic_lens') which triggers the create_topic_lens
   // RPC on the server.
   onConfirmTopicLens?: (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string; merged?: { rows_inserted: number; rows_updated: number } }>
+  // Slice 8 Build 6: render the "Add {School}" pill for each
+  // propose_add_school entry. POSTs to write-action with action='add_school',
+  // which triggers the confirm_add_school RPC on the server. Codex
+  // r-merge Q5 NIT: uses #ic-school sprite + tooltip for rationale,
+  // distinct from the topic-lens sparkle.
+  onConfirmAddSchool?: (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
 }
 
 export function NanaMsgBubble({
@@ -161,7 +183,9 @@ export function NanaMsgBubble({
   streamFormat,
   onConfirmAddRow,
   onApplyReRank,
+  onAddToLetter,
   onConfirmTopicLens,
+  onConfirmAddSchool,
 }: NanaMsgBubbleProps) {
   const parsed = msg?.parsed as any
   const s = parsed?.sections ?? {}
@@ -181,11 +205,19 @@ export function NanaMsgBubble({
     // (not HTML), so the comment opener would otherwise be visible mid-stream
     // until the closing --> arrives. After final, parsed.prose is the
     // already-cleaned text from the runner.
+    //
+    // 2026-05-25 PM: ALSO scrub forbidden-host citations (rankSchools,
+    // getSchoolFacts, etc.) on every streamBuf render so fake URLs don't
+    // flash on screen mid-stream. Server-side strict scrub still runs on
+    // the final payload — this client scrub only catches the cases we KNOW
+    // are bogus regardless of the final allow-list.
     const rawProse = isStreaming
       ? (streamBuf || '')
       : (parsed?.prose || msg?.rawText || '')
     const proseText = isStreaming
-      ? rawProse.replace(/<!--\s*nana-meta[\s\S]*$/i, '').trimEnd()
+      ? scrubForbiddenCitations(
+          rawProse.replace(/<!--\s*nana-meta[\s\S]*$/i, '').trimEnd()
+        )
       : rawProse
     const citations: string[] = Array.isArray(parsed?.citations) ? parsed.citations : []
 
@@ -216,14 +248,18 @@ export function NanaMsgBubble({
               })}
           </div>
         )}
-        {!isStreaming && msg?.id && (onConfirmAddRow || onApplyReRank || onConfirmTopicLens) && parsed?.proposed_actions && (
+        {!isStreaming && msg?.id && (onConfirmAddRow || onApplyReRank || onAddToLetter || onConfirmTopicLens || onConfirmAddSchool) && parsed?.proposed_actions && (
           <ProposedActionsList
             messageId={msg.id}
             actions={parsed.proposed_actions}
             activeProposalIds={msg.activeProposalIds}
+            activeLetterProposalIds={msg.activeLetterProposalIds}
+            activeSchoolProposalIds={msg.activeSchoolProposalIds}
             onConfirm={onConfirmAddRow}
             onApplyReRank={onApplyReRank}
+            onAddToLetter={onAddToLetter}
             onConfirmTopicLens={onConfirmTopicLens}
+            onConfirmAddSchool={onConfirmAddSchool}
           />
         )}
         {!isStreaming && msg?.shareToken && (
@@ -262,9 +298,18 @@ export function NanaMsgBubble({
 
   // Fallback: if parsing failed entirely, or sections are empty, render raw text so the
   // user always sees Nana's actual answer instead of a blank bubble.
+  //
+  // 2026-05-25 PM (Codex r1 P2 + r2 strictness): this path is FINAL — there
+  // is no later server-side strict scrub to clean it up. So use the strict
+  // scrubber here with `parsed.citations` (when present) as the allow-list,
+  // empty array otherwise. Strict empty-list semantics: when there are no
+  // known-good citations, ALL inline `[source](X)` markdown is stripped.
+  // Lax mode would only catch tool-name hosts; hallucinated-but-real-looking
+  // URLs would still survive into the rendered bubble.
   const renderedAnySection = !!(shortAnswer || confirmedFacts || whatThisMeans || tradeoff || whatWeDontKnow)
+  const fallbackAllowed = Array.isArray(parsed?.citations) ? parsed.citations : []
   const fallbackText = !isStreaming && !renderedAnySection
-    ? (parsed?.answer_markdown || msg?.rawText || '')
+    ? scrubInvalidCitations(parsed?.answer_markdown || msg?.rawText || '', fallbackAllowed)
     : ''
 
   return (
@@ -346,14 +391,18 @@ export function NanaMsgBubble({
         </div>
       )}
 
-      {!isStreaming && msg?.id && (onConfirmAddRow || onApplyReRank) && parsed?.proposed_actions && (
+      {!isStreaming && msg?.id && (onConfirmAddRow || onApplyReRank || onAddToLetter || onConfirmTopicLens || onConfirmAddSchool) && parsed?.proposed_actions && (
         <ProposedActionsList
           messageId={msg.id}
           actions={parsed.proposed_actions}
           activeProposalIds={msg.activeProposalIds}
+          activeLetterProposalIds={msg.activeLetterProposalIds}
+          activeSchoolProposalIds={msg.activeSchoolProposalIds}
           onConfirm={onConfirmAddRow}
           onApplyReRank={onApplyReRank}
+          onAddToLetter={onAddToLetter}
           onConfirmTopicLens={onConfirmTopicLens}
+          onConfirmAddSchool={onConfirmAddSchool}
         />
       )}
       {!isStreaming && msg?.shareToken && (
@@ -377,16 +426,24 @@ function ProposedActionsList({
   messageId,
   actions,
   activeProposalIds,
+  activeLetterProposalIds,
+  activeSchoolProposalIds,
   onConfirm,
   onApplyReRank,
+  onAddToLetter,
   onConfirmTopicLens,
+  onConfirmAddSchool,
 }: {
-  messageId:           string
-  actions:             Record<string, ProposedAction>
-  activeProposalIds?:  string[]
-  onConfirm?:          (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
-  onApplyReRank?:      (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
-  onConfirmTopicLens?: (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string; merged?: { rows_inserted: number; rows_updated: number } }>
+  messageId:               string
+  actions:                 Record<string, ProposedAction>
+  activeProposalIds?:      string[]
+  activeLetterProposalIds?: string[]
+  activeSchoolProposalIds?: string[]
+  onConfirm?:              (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
+  onApplyReRank?:          (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
+  onAddToLetter?:          (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
+  onConfirmTopicLens?:     (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string; merged?: { rows_inserted: number; rows_updated: number } }>
+  onConfirmAddSchool?:     (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
 }) {
   // Slice 6: kind-aware dispatch. add_row keeps the existing pill/flow;
   // re_rank gets a ↻ pill that triggers a pure client-state apply.
@@ -406,27 +463,52 @@ function ProposedActionsList({
           e[1] && e[1].kind === 'propose_re_rank',
       )
     : []
+  const addToLetterEntries = onAddToLetter
+    ? allEntries.filter(
+        (e): e is [string, ProposedAction & { kind: 'propose_add_to_letter' }] =>
+          e[1] && e[1].kind === 'propose_add_to_letter',
+      )
+    : []
   const topicLensEntries = onConfirmTopicLens
     ? allEntries.filter(
         (e): e is [string, ProposedAction & { kind: 'propose_create_topic_lens' }] =>
           e[1] && e[1].kind === 'propose_create_topic_lens',
       )
     : []
-  if (addRowEntries.length === 0 && reRankEntries.length === 0 && topicLensEntries.length === 0) return null
+  const addSchoolEntries = onConfirmAddSchool
+    ? allEntries.filter(
+        (e): e is [string, ProposedAction & { kind: 'propose_add_school' }] =>
+          e[1] && e[1].kind === 'propose_add_school',
+      )
+    : []
+  if (
+    addRowEntries.length === 0 &&
+    reRankEntries.length === 0 &&
+    addToLetterEntries.length === 0 &&
+    topicLensEntries.length === 0 &&
+    addSchoolEntries.length === 0
+  ) return null
 
-  const activeSet = new Set(activeProposalIds ?? [])
-  const hasMultipleKinds = [
-    addRowEntries.length > 0,
-    reRankEntries.length > 0,
-    topicLensEntries.length > 0,
-  ].filter(Boolean).length > 1
-  const eyebrow = hasMultipleKinds
-    ? 'Try one of these on your comparison?'
+  const activeSet       = new Set(activeProposalIds ?? [])
+  const activeLetterSet = new Set(activeLetterProposalIds ?? [])
+  const activeSchoolSet = new Set(activeSchoolProposalIds ?? [])
+  const kindsShown =
+    (addRowEntries.length > 0 ? 1 : 0) +
+    (reRankEntries.length > 0 ? 1 : 0) +
+    (addToLetterEntries.length > 0 ? 1 : 0) +
+    (topicLensEntries.length > 0 ? 1 : 0) +
+    (addSchoolEntries.length > 0 ? 1 : 0)
+  const eyebrow = kindsShown > 1
+    ? 'Try one of these?'
     : addRowEntries.length > 0
       ? 'Add to your comparison?'
       : reRankEntries.length > 0
         ? 'Try a different ranking?'
-        : 'Build a focused view?'
+        : addToLetterEntries.length > 0
+          ? 'Add to your partner brief?'
+          : addSchoolEntries.length > 0
+            ? 'Add a school to your shortlist?'
+            : 'Build a focused view?'
 
   return (
     <div className="rr-proposed-actions">
@@ -449,6 +531,15 @@ function ProposedActionsList({
             onClick={() => onApplyReRank!(messageId, proposalId, action.view_spec, action.label)}
           />
         ))}
+        {addToLetterEntries.map(([proposalId, action]) => (
+          <AddToLetterButton
+            key={proposalId}
+            label={action.label}
+            section={action.section}
+            isActiveInBrief={activeLetterSet.has(proposalId)}
+            onClick={() => onAddToLetter!(messageId, proposalId)}
+          />
+        ))}
         {topicLensEntries.map(([proposalId, action]) => (
           <TopicLensButton
             key={proposalId}
@@ -458,6 +549,16 @@ function ProposedActionsList({
             visibleBaseRows={action.visible_base_rows}
             isAddedInTable={activeSet.has(proposalId)}
             onConfirm={() => onConfirmTopicLens!(messageId, proposalId)}
+          />
+        ))}
+        {addSchoolEntries.map(([proposalId, action]) => (
+          <AddSchoolButton
+            key={proposalId}
+            displayName={action.display_name}
+            rationale={action.rationale}
+            matchSignals={action.match_signals}
+            isInShortlist={activeSchoolSet.has(proposalId)}
+            onClick={() => onConfirmAddSchool!(messageId, proposalId)}
           />
         ))}
       </div>
@@ -659,11 +760,73 @@ function ReRankButton({
   )
 }
 
+function letterSectionLabel(section: string): string {
+  switch (section) {
+    case 'opening':        return 'Opening'
+    case 'why_it_matters': return 'Why it matters'
+    case 'tradeoffs':      return 'Tradeoffs'
+    case 'questions':      return 'Questions'
+    case 'next_step':      return 'Next step'
+    default:               return 'Partner brief'
+  }
+}
+
 // 'optimistic-merged' is set by TopicLensButton (slice 6.6 Tier 2) when
 // the server returned status='merged' instead of 'fresh'. Other buttons
 // don't use it. Same lifecycle as 'optimistic-added' — cleared once the
 // table reflects server truth via msg.activeProposalIds.
 type LocalOverride = 'pending' | 'optimistic-added' | 'optimistic-merged' | 'error' | null
+
+function AddToLetterButton({
+  label,
+  section,
+  isActiveInBrief,
+  onClick,
+}: {
+  label:           string
+  section:         string
+  isActiveInBrief: boolean
+  onClick:         () => Promise<{ ok: boolean; code?: string }>
+}) {
+  const [override, setOverride] = useState<LocalOverride>(null)
+
+  async function handle() {
+    if (override === 'pending') return
+    if (override === 'optimistic-added' || isActiveInBrief) return
+    setOverride('pending')
+    const result = await onClick()
+    setOverride(result.ok ? 'optimistic-added' : 'error')
+  }
+
+  useEffect(() => {
+    if (override === 'optimistic-added' && isActiveInBrief) {
+      setOverride(null)
+    }
+  }, [override, isActiveInBrief])
+
+  const isPending = override === 'pending'
+  const isError   = override === 'error'
+  const isAdded   = !isPending && !isError && (override === 'optimistic-added' || isActiveInBrief)
+  const group     = letterSectionLabel(section)
+
+  return (
+    <button
+      type="button"
+      className={`rr-proposed-btn rr-proposed-btn--letter${isAdded ? ' is-added' : ''}${isError ? ' is-error' : ''}${isPending ? ' is-pending' : ''}`}
+      onClick={handle}
+      disabled={isPending || isAdded}
+      title={isAdded ? `${group} — already in your partner brief` : `${group} · ${label}`}
+    >
+      <span className="rr-proposed-btn-icon" aria-hidden="true">
+        {isAdded ? '✓' : isPending ? '…' : isError ? '!' : '+'}
+      </span>
+      <span className="rr-proposed-btn-label">
+        {isAdded ? 'Added to brief' : isPending ? 'Adding…' : isError ? 'Try again' : label}
+      </span>
+      <span className="rr-proposed-btn-group">{group}</span>
+    </button>
+  )
+}
 
 function ProposedActionButton({
   label,
@@ -734,6 +897,77 @@ function ProposedActionButton({
         {isAdded ? 'Added' : isPending ? 'Adding…' : isError ? 'Try again' : label}
       </span>
       <span className="rr-proposed-btn-group">{group}</span>
+    </button>
+  )
+}
+
+// Slice 8 Build 6 — pill for `propose_add_school` proposals emitted by
+// the Build Mode finalize endpoint. Mirrors ProposedActionButton's
+// pending/added/error state machine but uses the #ic-school SVG sprite
+// (per Codex r-merge Q5 NIT — distinct from the topic-lens sparkle) and
+// surfaces the rationale + match_signals via the title attribute and a
+// secondary line beneath the school name.
+function AddSchoolButton({
+  displayName,
+  rationale,
+  matchSignals,
+  isInShortlist,
+  onClick,
+}: {
+  displayName:   string
+  rationale:     string
+  matchSignals:  string[]
+  isInShortlist: boolean
+  onClick:       () => Promise<{ ok: boolean; code?: string }>
+}) {
+  const [override, setOverride] = useState<LocalOverride>(null)
+
+  async function handle() {
+    if (override === 'pending') return
+    if (override === 'optimistic-added' || isInShortlist) return
+    setOverride('pending')
+    const result = await onClick()
+    setOverride(result.ok ? 'optimistic-added' : 'error')
+  }
+
+  useEffect(() => {
+    if (override === 'optimistic-added' && isInShortlist) {
+      setOverride(null)
+    }
+  }, [override, isInShortlist])
+
+  const isPending = override === 'pending'
+  const isError   = override === 'error'
+  const isAdded   = !isPending && !isError && (override === 'optimistic-added' || isInShortlist)
+  const signalChips = matchSignals.slice(0, 3).join(' · ')
+
+  return (
+    <button
+      type="button"
+      className={`rr-proposed-btn rr-proposed-btn--school${isAdded ? ' is-added' : ''}${isError ? ' is-error' : ''}${isPending ? ' is-pending' : ''}`}
+      onClick={handle}
+      disabled={isPending || isAdded}
+      title={isAdded ? `${displayName} — already in your shortlist` : `${displayName}: ${rationale}`}
+    >
+      <span className="rr-proposed-btn-icon" aria-hidden="true">
+        {isAdded
+          ? <>✓</>
+          : isPending
+            ? <>…</>
+            : isError
+              ? <>!</>
+              : (
+                <svg width="16" height="16" viewBox="0 0 32 32" fill="none" aria-hidden="true">
+                  <use href="#ic-school" />
+                </svg>
+              )}
+      </span>
+      <span className="rr-proposed-btn-label">
+        {isAdded ? `Added ${displayName}` : isPending ? `Adding ${displayName}…` : isError ? 'Try again' : `Add ${displayName}`}
+      </span>
+      {!isAdded && !isPending && !isError && signalChips && (
+        <span className="rr-proposed-btn-group">{signalChips}</span>
+      )}
     </button>
   )
 }

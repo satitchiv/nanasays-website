@@ -1,28 +1,33 @@
 'use client'
 
 // Slice 6.6 — in-room school adder. Self-contained button + search
-// popup. Owns its own open/close + search state. Used in two places:
-// (1) ResearchRoom header next to the active-child pill (compact rail
-//     layout — no vertical space for a separate row), and
-// (2) ComparisonView's empty state when the user has removed every
-//     school (otherwise they'd be stuck without an in-room recovery).
+// popup. Used in two places:
+//   (1) ResearchRoom header next to the active-child pill (compact rail
+//       layout — no vertical space for a separate row), and
+//   (2) ComparisonView's empty state when the user has removed every
+//       school (otherwise they'd be stuck without an in-room recovery).
 //
-// Trust pattern: POST /api/research-room/shortlist {action:'add'} —
-// route + RPC re-validate ownership server-side.
+// Trust pattern:
+//   • Search        → POST /api/research-room/search-schools  (server-side
+//                     richness + grouping + canonicalization; uses
+//                     service-role to bypass RLS on school_structured_data)
+//   • Add school    → POST /api/research-room/shortlist {action:'add'}
+//                     The route re-canonicalizes by default; SchoolAdder
+//                     passes `skip_canonicalize:true` only when the user
+//                     deliberately picks an alternate (group expanded).
+//
+// 2026-05-18 — moved search+richness from the browser to a server route
+// after Codex deep-investigation flagged 8 picker bugs, most material:
+// browser anon role gets permission_denied on school_structured_data
+// since the 2026-05-03 RLS lockdown, which made the empty richness map
+// fall through to the `-uk wins` tiebreaker and return the data-poor
+// twin for ~79 duplicate-name UK school groups.
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-type Hit = {
-  slug: string
-  name: string
-  region: string | null
-  country: string | null
-  richness: number
-}
-// Comparison-ready slugs only. Higher values mean more populated structural
-// fields (sports/fees/facilities/etc.); zero is still a valid curated row.
-type Richness = Map<string, number>
+type Hit = { slug: string; name: string; region: string | null; country: string | null }
+type Group = { name: string; primary: Hit; alternates: Hit[] }
 
 export default function SchoolAdder({
   childId,
@@ -62,7 +67,7 @@ export default function SchoolAdder({
   // is per-child, so the RPC needs a target.
   if (!childId) return null
 
-  async function handlePick(slug: string) {
+  async function handlePick(slug: string, skipCanonicalize: boolean) {
     if (pending) return
     setPending(true)
     setError(null)
@@ -70,7 +75,12 @@ export default function SchoolAdder({
       const res = await fetch('/api/research-room/shortlist', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'add', child_id: childId, school_slug: slug }),
+        body: JSON.stringify({
+          action:            'add',
+          child_id:          childId,
+          school_slug:       slug,
+          skip_canonicalize: skipCanonicalize,
+        }),
       })
       if (!res.ok) {
         const j = await res.json().catch(() => ({}))
@@ -80,8 +90,6 @@ export default function SchoolAdder({
         // sites, leaving the user thinking nothing had happened.
         if (code === 'payment_required') {
           setError('Adding schools is a paid-tier feature.')
-        } else if (code === 'school_not_comparison_ready') {
-          setError('That school is still being researched and cannot be compared reliably yet.')
         } else if (code === 'invalid_payload') {
           setError("Couldn't add that school (invalid input).")
         } else if (code === 'unauthorized') {
@@ -130,64 +138,12 @@ export default function SchoolAdder({
   )
 }
 
-// Normalize school name for grouping: lowercase + collapse whitespace.
-// Names like "Reed's School" and "Reed's School " collapse to one key.
+// Local normalisation purely for the expand-group key. Mirrors the
+// server's normName closely enough for keyboard nav / expanded-state
+// to stay coherent; we don't need exact parity because the server is
+// the source of truth for group membership.
 function normName(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, ' ')
-}
-
-// Pick the "primary" record from a duplicate-name group.
-//
-// Codex t13: previous heuristic put metadata-completeness ahead of
-// data-richness, which fails on cases like Reed's where the WRONG
-// record has region+country populated but no actual structured data.
-// New heuristic ordering:
-//   1. Highest data-richness score (count of populated structural
-//      fields per school_structured_data row; 0 if no row exists).
-//   2. Tie → prefer slug ending in `-uk` (informal canonical marker).
-//   3. Tie → entry with country populated.
-//   4. Tie → shortest slug.
-//
-// `region` is intentionally NOT a tiebreaker because Reed's proves
-// region can be incorrect/garbage on the empty record while NULL on
-// the rich one.
-function pickPrimary(entries: Hit[], richness: Richness): Hit {
-  const sorted = [...entries].sort((a, b) => {
-    const ra = richness.get(a.slug) ?? 0
-    const rb = richness.get(b.slug) ?? 0
-    if (ra !== rb) return rb - ra                                          // higher richness first
-    const ua = a.slug.endsWith('-uk') ? 1 : 0
-    const ub = b.slug.endsWith('-uk') ? 1 : 0
-    if (ua !== ub) return ub - ua                                          // -uk suffix wins
-    const ca = a.country ? 1 : 0
-    const cb = b.country ? 1 : 0
-    if (ca !== cb) return cb - ca                                          // country populated wins
-    if (a.slug.length !== b.slug.length) return a.slug.length - b.slug.length
-    return a.slug.localeCompare(b.slug)
-  })
-  return sorted[0]
-}
-
-type Group = { name: string; primary: Hit; alternates: Hit[] }
-
-function groupByName(hits: Hit[], richness: Richness): Group[] {
-  const map = new Map<string, Hit[]>()
-  for (const h of hits) {
-    const key = normName(h.name)
-    if (!map.has(key)) map.set(key, [])
-    map.get(key)!.push(h)
-  }
-  // Stable order: by name (for display), entries already came pre-sorted by name asc.
-  const out: Group[] = []
-  Array.from(map.values()).forEach((entries: Hit[]) => {
-    const primary = pickPrimary(entries, richness)
-    // Sort alternates by richness too so the most useful ones surface first.
-    const alternates = entries
-      .filter((e: Hit) => e.slug !== primary.slug)
-      .sort((a, b) => (richness.get(b.slug) ?? 0) - (richness.get(a.slug) ?? 0))
-    out.push({ name: primary.name, primary, alternates })
-  })
-  return out
 }
 
 function SchoolAddPopup({
@@ -200,24 +156,33 @@ function SchoolAddPopup({
   excludeSlugs:    string[]
   error:           string | null
   onDismissError:  () => void
-  onPick:          (slug: string) => void
+  onPick:          (slug: string, skipCanonicalize: boolean) => void
   onClose:         () => void
 }) {
   const [query, setQuery] = useState('')
-  const [hits, setHits] = useState<Hit[]>([])
-  const [richness, setRichness] = useState<Richness>(new Map())
-  const [unreadyCount, setUnreadyCount] = useState(0)
-  const [searchError, setSearchError] = useState<string | null>(null)
+  const [groups, setGroups] = useState<Group[]>([])
   const [loading, setLoading] = useState(false)
   const [activeIdx, setActiveIdx] = useState(0)
-  // Codex t12 T1.3: groups with >1 entry are collapsed by default;
-  // user clicks a toggle to reveal alternates. Don't silently hide.
+  // Groups with >1 entry are collapsed by default; user clicks a toggle
+  // to reveal alternates. Don't silently hide.
   const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set())
   const inputRef = useRef<HTMLInputElement | null>(null)
+  // Codex r2 P2 #3 + r3 P2: monotonic request id. A fetch that resolves
+  // AFTER a newer query started must not overwrite the newer query's
+  // groups. Bumped synchronously in onChange (so the gap between
+  // setQuery and the effect re-run is covered) and again at the top of
+  // every effect run (so prop-driven re-runs invalidate too). Captured
+  // in each effect closure; setGroups guarded by reqId match on every
+  // write path. setLoading(true) at the timer-fire is unguarded —
+  // intentional, cosmetic: a stale timer can briefly flash "Searching…"
+  // before the new effect's setLoading lands, but it cannot repopulate
+  // stale groups. No separate pick-time check needed — `flat` is
+  // recomputed from `groups` every render, so any click can only target
+  // rows from the latest setGroups call.
+  const reqIdRef = useRef(0)
 
-  // Validate excludeSlugs once per render so a stray UUID-shaped or
-  // bad string can't poison the SQL .not(...) clause. Strings already
-  // match ^[a-z0-9-]+$ in production data; this is belt-and-braces.
+  // Validate excludeSlugs once per render — belt-and-braces; the route
+  // re-validates with the same regex.
   const safeExclude = excludeSlugs.filter(s => /^[a-z0-9-]{1,80}$/.test(s))
 
   useEffect(() => {
@@ -225,69 +190,58 @@ function SchoolAddPopup({
   }, [])
 
   useEffect(() => {
+    // Codex r3 P2: invalidate any in-flight fetch on EVERY effect
+    // re-run (covers prop-driven re-runs like excludeSlugs changing,
+    // and the <2-char short-circuit below). Combined with the bump in
+    // onChange, every state transition that could produce stale results
+    // also produces a new reqId.
+    reqIdRef.current += 1
+    const myReqId = reqIdRef.current
     const q = query.trim()
     if (q.length < 2) {
-      setHits([])
-      setRichness(new Map())
-      setUnreadyCount(0)
-      setSearchError(null)
+      setGroups([])
       setLoading(false)
       return
     }
     const ac = new AbortController()
+    // Codex r1 P2 #5: clear previous hits synchronously (also done in
+    // onChange) so a click during the debounce window can't act on the
+    // wrong result set.
+    setGroups([])
+    setActiveIdx(0)
     const timer = setTimeout(async () => {
       setLoading(true)
-      setHits([])
-      setRichness(new Map())
-      setUnreadyCount(0)
-      setSearchError(null)
       try {
-        const params = new URLSearchParams({ q })
-        safeExclude.forEach(slug => params.append('exclude', slug))
-        const response = await fetch(
-          `/api/research-room/school-search?${params.toString()}`,
-          { signal: ac.signal },
-        )
-        const payload = await response.json().catch(() => ({}))
-        if (!response.ok || payload?.ok !== true) {
-          if (!ac.signal.aborted) {
-            console.error(
-              '[SchoolAddPopup search]',
-              typeof payload?.code === 'string' ? payload.code : response.status,
-            )
-            setSearchError('School comparison search is temporarily unavailable. Please try again.')
-          }
+        const res = await fetch('/api/research-room/search-schools', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ q, excludeSlugs: safeExclude }),
+          signal:  ac.signal,
+        })
+        if (ac.signal.aborted || myReqId !== reqIdRef.current) return
+        if (!res.ok) {
+          // Don't surface the network error here — the popup is the
+          // search affordance, the user will retry by typing again. The
+          // add-school error path already handles fetch failures.
+          console.warn('[SchoolAddPopup search]', res.status, await res.text().catch(() => ''))
+          if (myReqId === reqIdRef.current) setGroups([])
           return
         }
-        const candidates: Hit[] = Array.isArray(payload.schools)
-          ? (payload.schools as unknown[]).filter((candidate: unknown): candidate is Hit => {
-              if (!candidate || typeof candidate !== 'object') return false
-              const item = candidate as Record<string, unknown>
-              return typeof item.slug === 'string'
-                && typeof item.name === 'string'
-                && typeof item.richness === 'number'
-            })
-          : []
-        setHits(candidates)
-        setRichness(new Map(
-          candidates.map(candidate => [candidate.slug, candidate.richness]),
-        ))
-        setUnreadyCount(
-          typeof payload.unready_count === 'number'
-            ? payload.unready_count
-            : 0,
-        )
-        setActiveIdx(0)
-      } catch (searchError) {
-        if (
-          !ac.signal.aborted
-          && !(searchError instanceof DOMException && searchError.name === 'AbortError')
-        ) {
-          console.error('[SchoolAddPopup search]', searchError)
-          setSearchError('School comparison search is temporarily unavailable. Please try again.')
+        const json = await res.json() as { ok: true; groups: Group[] } | { ok: false; code: string }
+        if (myReqId !== reqIdRef.current) return
+        if (!('ok' in json) || !json.ok) {
+          console.warn('[SchoolAddPopup search]', (json as { code?: string }).code)
+          setGroups([])
+          return
         }
+        setGroups(json.groups)
+        setActiveIdx(0)
+      } catch (e) {
+        if (ac.signal.aborted) return
+        const aborted = (e as { name?: string })?.name === 'AbortError'
+        if (!aborted) console.warn('[SchoolAddPopup search]', e)
       } finally {
-        if (!ac.signal.aborted) setLoading(false)
+        if (!ac.signal.aborted && myReqId === reqIdRef.current) setLoading(false)
       }
     }, 200)
     return () => {
@@ -306,12 +260,6 @@ function SchoolAddPopup({
     isPrimary:        boolean
     isOnlyMember:     boolean
   }
-  // Group comparison-ready candidate hits, then slice the top
-  // 8 groups for display. Previously `.limit(8)` ran before grouping,
-  // so a same-name group of 65 records exposed only the first 7
-  // alternates inside one group and starved every other group.
-  const allGroups = groupByName(hits, richness)
-  const groups = allGroups.slice(0, 8)
   const flat: FlatEntry[] = []
   for (const group of groups) {
     flat.push({ hit: group.primary, group, isPrimary: true, isOnlyMember: group.alternates.length === 0 })
@@ -331,6 +279,15 @@ function SchoolAddPopup({
     })
   }
 
+  function pickFlat(entry: FlatEntry) {
+    // skip_canonicalize is true when the user deliberately picks an
+    // alternate (group expanded). For the primary row, the server
+    // already canonicalized — but we still send skip_canonicalize:false
+    // so the shortlist route's belt-and-braces fires uniformly
+    // regardless of whether a future caller bypasses the search route.
+    onPick(entry.hit.slug, !entry.isPrimary)
+  }
+
   function handleKey(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === 'ArrowDown') {
       e.preventDefault()
@@ -341,7 +298,7 @@ function SchoolAddPopup({
     } else if (e.key === 'Enter') {
       if (flat[activeIdx]) {
         e.preventDefault()
-        onPick(flat[activeIdx].hit.slug)
+        pickFlat(flat[activeIdx])
       }
     } else if (e.key === 'Escape') {
       onClose()
@@ -354,7 +311,20 @@ function SchoolAddPopup({
         ref={inputRef}
         type="search"
         value={query}
-        onChange={e => { setQuery(e.target.value); onDismissError() }}
+        onChange={e => {
+          // Codex r1 P2 #5 + r3 P2: clear groups, reset active row, AND
+          // bump reqIdRef SYNCHRONOUSLY on every keystroke so an in-flight
+          // fetch from the previous query that resolves between this
+          // onChange and the effect re-run can't pass the
+          // `myReqId === reqIdRef.current` check and repopulate stale
+          // groups. Effect also bumps on its own re-run (covers prop-
+          // driven re-runs like excludeSlugs changing).
+          reqIdRef.current += 1
+          setQuery(e.target.value)
+          setGroups([])
+          setActiveIdx(0)
+          onDismissError()
+        }}
         onKeyDown={handleKey}
         placeholder="Search UK schools by name…"
         className="rr-cmp-add-input"
@@ -375,13 +345,7 @@ function SchoolAddPopup({
           <div className="rr-cmp-add-hint">Searching…</div>
         )}
         {query.trim().length >= 2 && !loading && flat.length === 0 && (
-          <div className="rr-cmp-add-hint">
-            {searchError
-              ? searchError
-              : unreadyCount > 0
-              ? 'Matching schools were found, but their verified comparison data is not ready yet.'
-              : 'No comparison-ready matches. Already-shortlisted schools are filtered out.'}
-          </div>
+          <div className="rr-cmp-add-hint">No matches in the UK directory. (Already-shortlisted schools are filtered out.)</div>
         )}
         {flat.map((entry, i) => {
           const { hit, group, isPrimary } = entry
@@ -397,7 +361,7 @@ function SchoolAddPopup({
                 role="option"
                 aria-selected={i === activeIdx}
                 className={`rr-cmp-add-result${i === activeIdx ? ' is-active' : ''}`}
-                onClick={() => onPick(hit.slug)}
+                onClick={() => pickFlat(entry)}
                 onMouseEnter={() => setActiveIdx(i)}
               >
                 <span className="rr-cmp-add-result-name">{hit.name}</span>
@@ -426,11 +390,6 @@ function SchoolAddPopup({
             </div>
           )
         })}
-        {!loading && flat.length > 0 && unreadyCount > 0 && (
-          <div className="rr-cmp-add-hint">
-            {unreadyCount} additional {unreadyCount === 1 ? 'record is' : 'records are'} hidden until comparison research is ready.
-          </div>
-        )}
       </div>
     </div>
   )

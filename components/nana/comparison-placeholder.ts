@@ -6,6 +6,20 @@ export type SchoolColumn = {
   slug: string
   name: string
   meta: string
+  // Slice 8 Build 2b (2026-05-18): pre-joined display string of the
+  // human-readable reasons stored on shortlisted_schools.match_reasons
+  // ("boarding school · strong rugby · offers IB diploma"). Rendered as
+  // an "Added because:" line under the school name in the comparison
+  // column header. Null/undefined when the school has no match_reasons
+  // row (legacy pre-Build-2 shortlist entries, or chat-added schools
+  // whose best-effort reasons write failed).
+  addedBecause?: string | null
+  // Research Room redesign (data side, 2026-07-16): schools.hero_image /
+  // schools.logo_url, so the comparison column header can show real school
+  // imagery instead of the text-only "slice 2 placeholder" header. Undefined
+  // when the school row has no image (older/thin school_slug records).
+  heroImage?: string
+  logoUrl?: string
 }
 
 export type RowCell =
@@ -13,13 +27,27 @@ export type RowCell =
       kind: 'value'
       primary: string
       sub?: string
+      // Pre-existing CSS-alignment flag ("is this a number, so right-align
+      // it") — unrelated to `numericValue` below. Kept as-is; renamed the
+      // new field to avoid colliding with this one.
       numeric?: boolean
-      source?: string
-      checkedAt?: string
+      // Research Room redesign (data side, 2026-07-16): the raw numeric
+      // value behind `primary` (e.g. 44400 for "£44,400", 62 for "62%"),
+      // so the presentation layer can compute a row winner without parsing
+      // the display string. Undefined for non-numeric / free-text cells.
+      numericValue?: number
     }
   | { kind: 'lights'; lights: Array<{ label: string; tone: 'green' | 'amber' | 'red' }> }
-  | { kind: 'loading' }
   | { kind: 'empty' }
+
+// Research Room redesign (data side, 2026-07-16): row-level "does a higher
+// or lower value win" hint. Additive metadata on the row (NOT a new RowCell
+// variant — widening the RowCell union risks breaking exhaustive switches
+// in the Verdict tab / verdict generator that share these types). Explicit
+// founder decision: fees/price rows are 'neutral' — cheapest isn't always
+// "best" for every family. Free text / descriptive rows are 'neutral' too.
+// Defaults to 'neutral' when unset (safer than guessing a direction wrong).
+export type WinnerRule = 'higher-is-better' | 'lower-is-better' | 'neutral'
 
 export type ComparisonRow = {
   id: string
@@ -32,6 +60,19 @@ export type ComparisonRow = {
   // affordance — slice 5.5f-bis — would be needed before making them
   // user-removable). Defaults to false.
   removable?: boolean
+  // Slice 8 Step 0.6: optional group_name lets ComparisonView render
+  // section headers (e.g. "For your child") between groups of rows.
+  group_name?: string | null
+  // R7-MUST-5 (verdict v3): when loaded for the Verdict tab, each school
+  // column carries the underlying comparison_rows.id whose cell currently
+  // wins after merge. Used by v3 path overlay narrative to attribute the
+  // exact origin row when citing evidence. UI render tables ignore it.
+  selectedCellOriginIdBySchool?: (string | undefined)[]
+  // Research Room redesign (data side, 2026-07-16): see WinnerRule above.
+  // Resolved by the loader (lib/research-comparison.ts) from the seeded
+  // row's semantic meaning; defaults to 'neutral' when the row has no
+  // known rule (e.g. a chat-added row).
+  winnerRule?: WinnerRule
 }
 
 export type ComparisonData = {
@@ -52,11 +93,14 @@ const ROWS: ComparisonRow[] = [
     label: 'Fees',
     emphasis: 'Year 9',
     blurb: 'Annual boarding rate, 2024–25',
+    // Explicit founder decision: fees/price is 'neutral' — cheapest isn't
+    // always "best" for every family, so no winner is marked on this row.
+    winnerRule: 'neutral',
     cells: [
-      { kind: 'value', primary: '£44,400', numeric: true, sub: 'Lowest in shortlist' },
-      { kind: 'value', primary: '£52,260', numeric: true },
-      { kind: 'value', primary: '£51,180', numeric: true },
-      { kind: 'value', primary: '£46,500', numeric: true },
+      { kind: 'value', primary: '£44,400', numeric: true, numericValue: 44400, sub: 'Lowest in shortlist' },
+      { kind: 'value', primary: '£52,260', numeric: true, numericValue: 52260 },
+      { kind: 'value', primary: '£51,180', numeric: true, numericValue: 51180 },
+      { kind: 'value', primary: '£46,500', numeric: true, numericValue: 46500 },
     ],
   },
   {
@@ -64,11 +108,12 @@ const ROWS: ComparisonRow[] = [
     label: 'A*–A',
     emphasis: 'A-level 2024',
     blurb: 'Share of grades at A* or A',
+    winnerRule: 'higher-is-better',
     cells: [
-      { kind: 'value', primary: '62%', numeric: true },
-      { kind: 'value', primary: '79%', numeric: true, sub: 'Highest in shortlist' },
-      { kind: 'value', primary: '71%', numeric: true },
-      { kind: 'value', primary: '65%', numeric: true },
+      { kind: 'value', primary: '62%', numeric: true, numericValue: 62 },
+      { kind: 'value', primary: '79%', numeric: true, numericValue: 79, sub: 'Highest in shortlist' },
+      { kind: 'value', primary: '71%', numeric: true, numericValue: 71 },
+      { kind: 'value', primary: '65%', numeric: true, numericValue: 65 },
     ],
   },
   {
@@ -76,11 +121,12 @@ const ROWS: ComparisonRow[] = [
     label: 'Oxbridge',
     emphasis: '3-yr average',
     blurb: 'Leavers placed at Oxford or Cambridge',
+    winnerRule: 'higher-is-better',
     cells: [
-      { kind: 'value', primary: '11%', numeric: true },
-      { kind: 'value', primary: '26%', numeric: true, sub: 'Highest in shortlist' },
-      { kind: 'value', primary: '19%', numeric: true },
-      { kind: 'value', primary: '14%', numeric: true },
+      { kind: 'value', primary: '11%', numeric: true, numericValue: 11 },
+      { kind: 'value', primary: '26%', numeric: true, numericValue: 26, sub: 'Highest in shortlist' },
+      { kind: 'value', primary: '19%', numeric: true, numericValue: 19 },
+      { kind: 'value', primary: '14%', numeric: true, numericValue: 14 },
     ],
   },
   {
@@ -88,6 +134,9 @@ const ROWS: ComparisonRow[] = [
     label: 'House size',
     emphasis: '+ tutor ratio',
     blurb: 'Average girls per house · pupils per academic tutor',
+    // Mixed "count · ratio" free text, not a single comparable number —
+    // default to neutral per the "if genuinely unsure" rule.
+    winnerRule: 'neutral',
     cells: [
       { kind: 'value', primary: '~32 · 1:6', sub: 'Smallest houses' },
       { kind: 'value', primary: '~58 · 1:8' },
@@ -99,6 +148,7 @@ const ROWS: ComparisonRow[] = [
     id: 'sport',
     label: 'Sport intensity',
     blurb: 'Programme weight in week + weekend rhythm',
+    winnerRule: 'neutral',
     cells: [
       { kind: 'value', primary: 'Participation' },
       { kind: 'value', primary: 'Strong but balanced' },
@@ -110,6 +160,10 @@ const ROWS: ComparisonRow[] = [
     id: 'isi',
     label: 'ISI inspection',
     blurb: 'Most recent overall outcome',
+    // Text tiers ("Excellent"/"Good"), not numerically scaled in this
+    // placeholder set — neutral per the ISI guidance (only numerically
+    // scaled inspection ratings get a direction).
+    winnerRule: 'neutral',
     cells: [
       { kind: 'value', primary: 'Excellent', sub: '2023' },
       { kind: 'value', primary: 'Excellent', sub: '2022' },
@@ -121,6 +175,7 @@ const ROWS: ComparisonRow[] = [
     id: 'y9-entry',
     label: 'Y9 entry window',
     blurb: 'Application deadline for September 2027 entry',
+    winnerRule: 'neutral',
     cells: [
       { kind: 'value', primary: "Open · Jan '27" },
       { kind: 'value', primary: "Open · Oct '26", sub: 'Earliest deadline' },
@@ -132,6 +187,7 @@ const ROWS: ComparisonRow[] = [
     id: 'bursary',
     label: 'Bursary',
     blurb: 'Maximum means-tested fee remission',
+    winnerRule: 'neutral',
     cells: [
       { kind: 'value', primary: 'Up to 50%', sub: 'Means-tested' },
       { kind: 'value', primary: 'Up to 100%' },
@@ -146,6 +202,7 @@ const ROWS: ComparisonRow[] = [
     id: 'boarding',
     label: 'Boarding',
     blurb: 'Type · gender mix at Y9',
+    winnerRule: 'neutral',
     cells: [
       { kind: 'value', primary: 'Full', sub: 'All girls' },
       { kind: 'value', primary: 'Full', sub: 'All girls' },

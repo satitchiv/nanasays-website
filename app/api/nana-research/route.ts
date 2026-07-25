@@ -67,6 +67,24 @@ function answerPreview(parsed: any, max = 200): string {
   return parsed.sections?.short_answer ?? ''
 }
 
+// Slice 8 Step 0.5 v5: grapheme-safe truncation. Used for first-message
+// title backfill so emoji/combining marks don't get split mid-character.
+function truncateGrapheme(s: string, max: number): string {
+  if (s.length <= max) return s
+  try {
+    const seg = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+    const segments = Array.from(seg.segment(s), ({ segment }) => segment)
+    let out = ''
+    for (const segment of segments) {
+      if (out.length + segment.length > max) break
+      out += segment
+    }
+    return out
+  } catch {
+    return s.slice(0, max)
+  }
+}
+
 function buildParentContext(profile: Record<string, string | boolean | null>): string | null {
   const parts: string[] = []
   if (profile.child_year)    parts.push(`child entering ${profile.child_year}`)
@@ -174,13 +192,35 @@ export async function POST(req: NextRequest) {
     // this child").
     const { data: sess } = await supabase
       .from('research_sessions')
-      .select('id, child_id')
+      .select('id, title, child_id')
       .eq('id', incomingSessionId)
       .eq('user_id', user.id)
-      .maybeSingle<{ id: string; child_id: string | null }>()
+      .maybeSingle<{ id: string; title: string | null; child_id: string | null }>()
 
     if (sess && sess.child_id === activeChildId) {
       sessionId = sess.id
+      // Slice 8 Step 0.5 v5: backfill title on first message for sessions
+      // created by ensure_research_session_for_child (which leaves title NULL).
+      // Grapheme-safe truncation handles emoji + combining marks.
+      // r4 P2 #3: await the update inside try/catch — `void supabase.update()`
+      // is a no-op because the query builder is thenable and never starts.
+      if (sess.title === null && question) {
+        const titleCandidate = truncateGrapheme(question.trim(), 80)
+        if (titleCandidate.length > 0) {
+          try {
+            const { error: titleErr } = await supabase
+              .from('research_sessions')
+              .update({ title: titleCandidate })
+              .eq('id', sess.id)
+              .eq('user_id', user.id)
+            if (titleErr) {
+              console.error('[nana-research] title backfill failed', titleErr)
+            }
+          } catch (e) {
+            console.error('[nana-research] title backfill threw', e)
+          }
+        }
+      }
     } else {
       if (!activeChildId) {
         return jsonError(400, 'Add or select a child before starting a research session.')
@@ -337,15 +377,40 @@ export async function POST(req: NextRequest) {
     // when the user is on the base view, breaking lens save/create.
     const { data: rows } = await supabase
       .from('comparison_rows')
-      .select('row_name, sort_order')
+      .select('row_name, sort_order, lens_kind, created_at')
       .eq('session_id', sessionId)
-      .eq('lens_kind', baseLensKind)
+      .in('lens_kind', [baseLensKind, 'chat'])
       .is('undone_at', null)
       .is('created_by_lens_id', null)
       .order('sort_order', { ascending: true })
       .limit(100)
-    activeRowNames = (rows ?? [])
-      .map((r: { row_name: string }) => r.row_name)
+
+    type ActiveComparisonRow = {
+      row_name: string
+      sort_order: number | null
+      lens_kind: 'general' | 'child_fit' | 'chat'
+      created_at: string
+    }
+    const normRowName = (s: string) => s.trim().toLowerCase()
+    const allRows = ((rows ?? []) as ActiveComparisonRow[])
+      .filter(r => typeof r.row_name === 'string' && r.row_name.length > 0)
+    const baseNames = new Set(
+      allRows
+        .filter(r => r.lens_kind === baseLensKind)
+        .map(r => normRowName(r.row_name)),
+    )
+    activeRowNames = allRows
+      .filter(r => r.lens_kind !== 'chat' || !baseNames.has(normRowName(r.row_name)))
+      .sort((a, b) => {
+        const aIsChat = a.lens_kind === 'chat'
+        const bIsChat = b.lens_kind === 'chat'
+        if (aIsChat !== bIsChat) return aIsChat ? 1 : -1
+        const aSort = a.sort_order ?? 0
+        const bSort = b.sort_order ?? 0
+        if (aSort !== bSort) return aSort - bSort
+        return a.created_at.localeCompare(b.created_at)
+      })
+      .map(r => r.row_name)
       .filter((s): s is string => typeof s === 'string' && s.length > 0)
   } catch (e) {
     // Loader failure is non-fatal — Pass 2 silently skips C/D when
@@ -392,7 +457,12 @@ export async function POST(req: NextRequest) {
             ? {
                 kind: (intentMatch as any).intent ?? null,
                 dimension: (intentMatch as any).dimension ?? null,
-                target_slugs: (intentMatch as any).schoolSlugs ?? [],
+                // 2026-06-11 review fix: routeIntent returns
+                // `recommendedSchoolSlugs` — the old `.schoolSlugs` read
+                // (hidden by the `as any`) meant intent targets NEVER
+                // reached the pack, so the assembler's targets-first
+                // ordering only ever saw mentioned/active slugs.
+                target_slugs: (intentMatch as any).recommendedSchoolSlugs ?? [],
                 confidence: (intentMatch as any).confidence ?? null,
               }
             : null,

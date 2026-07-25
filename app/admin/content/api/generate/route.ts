@@ -3,6 +3,8 @@ import { spawn } from 'child_process'
 import { verifyAdmin } from '@/lib/supabase-admin'
 import path from 'path'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 export const maxDuration = 300   // 5 minutes for local; Netlify free tier will cap earlier
 
 export async function POST(req: NextRequest) {

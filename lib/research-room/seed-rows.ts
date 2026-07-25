@@ -1,29 +1,31 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { KNOWN_FULL_BOARDING_NAMES, normalizeSchoolName } from '@/lib/school-name-overrides'
+import type { WinnerRule } from '@/components/nana/comparison-placeholder'
 import {
-  approvedNotionBoardingEntry,
-  approvedNotionFee,
-  approvedNotionNumber,
-  approvedNotionValue,
-  formatGbp,
-  resolveNotionClassSize,
-  resolvePupilComposition,
-  type NotionBackfillRow,
-} from './pupil-composition'
-import { generalSeedRowSlug } from './seed-row-names'
-import { planSeedRowReconciliation } from './seed-row-reconciliation'
-import {
-  resolveHeathrowTravel,
-} from './travel-data'
+  type BriefProfile,
+  isIbCurriculum,
+  isSportPriority,
+} from './brief-predicates'
+import { canonicalJson } from './canonical-json'
 
-// Slice 5.5d — General-lens row seeder.
+// Slice 5.5d / Slice 8 Build 2 — General-lens row seeder.
 //
-// Populate universally relevant rows so the comparison table never starts
-// empty. Every spec has a stable seed key (seed:v1:general:<slug>). Active
-// rows are refreshed from the latest structured + approved Notion data on
-// each room load; the insert RPC remains idempotent for missing rows.
-// Soft-deleted rows stay deleted across re-seeds.
+// On first load of a Research Room session, populate ~18 universally-relevant
+// rows so the comparison table never starts empty. Re-runs are idempotent
+// because every spec carries a stable seed key (seed:v1:general:<slug>) and
+// the database-level partial unique on (session_id, idempotency_key) skips
+// duplicate inserts.
+//
+// Slice 8 Build 2 added brief-aware specs (`seed:v1:general:brief_<slug>`)
+// gated on the parent's child_profile, plus reconcileSeededRows() which
+// runs BEFORE the RPC to (a) soft-delete brief rows whose gate is no
+// longer satisfied, (b) refresh cell_data on existing rows so they
+// reflect the latest shortlist (the RPC's ON CONFLICT DO NOTHING would
+// otherwise leave them stale), and (c) reactivate previously-soft-deleted
+// brief rows when the brief re-gates them. Manual user-soft-deletes can
+// therefore be reactivated by a brief change — see the Codex r2 Q1 note
+// in reconcileSeededRows.
 //
 // Trust model: this module is `server-only` and the RPC it calls
 // (seed_research_session_rows) is GRANTed only to service_role. Cell content
@@ -32,10 +34,16 @@ import {
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-export type CellValue = {
+type CellValue = {
   value: string | number | null
   source?: string
   note?: string
+  // Research Room redesign (data side, 2026-07-16): raw numeric value behind
+  // `value` (e.g. 44400 for "£44,400", 62 for "62%"), so the presentation
+  // layer can compare/mark a row winner without parsing the display string.
+  // Set only by builders whose underlying field is genuinely numeric;
+  // undefined for free-text cells (school type, location, sport tiers, ...).
+  numeric?: number
 }
 
 type CellData = Record<string, CellValue>
@@ -54,18 +62,15 @@ export type StructuredRow = {
   fees_by_grade:      Record<string, unknown> | null
   application_fee_usd: number | null
   bursary_note:       string | null
-  curriculum:         unknown[] | null
-  languages:          unknown[] | null
-  scholarships_available: unknown[] | null
-  pastoral_care:      string | null
-  pastoral_model:     string | null
-  wellbeing_staffing: Record<string, unknown> | null
-  school_life:        Record<string, unknown> | null
-  facilities:         unknown[] | null
+  curriculum?: unknown[] | null
+  languages?: unknown[] | null
+  scholarships_available?: unknown[] | null
+  pastoral_care?: string | null
+  pastoral_model?: string | null
+  wellbeing_staffing?: Record<string, unknown> | null
+  school_life?: Record<string, unknown> | null
+  facilities?: unknown[] | null
 }
-
-export const RESEARCH_ROOM_STRUCTURED_SELECT =
-  'school_slug, fees_min, fees_max, fees_currency, exam_results, university_destinations, admissions_format, sports_profile, student_community, location_profile, fees_by_grade, application_fee_usd, bursary_note, curriculum, languages, scholarships_available, pastoral_care, pastoral_model, wellbeing_staffing, school_life, facilities' as const
 
 export type SchoolMeta = {
   slug:          string
@@ -74,7 +79,27 @@ export type SchoolMeta = {
   region:        string | null
   boarding:      boolean | null
   gender_split:  string | null
-  distance_airport?: string | null
+}
+
+// Shared by the server-side Research Room loaders and the verified batch jobs.
+// Keep this limited to database/mirror columns; no website-crawl fields belong
+// in this select.
+export const RESEARCH_ROOM_STRUCTURED_SELECT =
+  'school_slug, fees_min, fees_max, fees_currency, exam_results, university_destinations, admissions_format, sports_profile, student_community, location_profile, fees_by_grade, application_fee_usd, bursary_note, curriculum, languages, scholarships_available, pastoral_care, pastoral_model, wellbeing_staffing, school_life, facilities' as const
+
+// One row of school_notion_backfill (Phase 1 sidecar). `parsed` holds the
+// fields the parser was confident enough to write — extractor is still the
+// primary source; Notion fills nulls per the precedence rules. See
+// scripts/sync-notion-schools.mjs FIELD_RULES.
+//
+// Codex r1 P2: deliberately omit `flagged_review` from this type. Cell builders
+// must NEVER surface flagged values (Wellington `66% (9-8)` GCSE trap, Sevenoaks
+// `IB 3957%`, etc.) — keeping the property out of the type prevents accidental
+// reads and keeps the SELECT lean.
+type NotionBackfillRow = {
+  school_slug: string
+  status:      string
+  parsed:      Record<string, unknown> | null
 }
 
 type SeedContext = {
@@ -93,6 +118,49 @@ type SeedRowSpec = {
   // renders '—' for absent cells; lenient strictness per the round-1
   // architecture decision.
   build:       (ctx: SeedContext) => CellValue | null
+  // Research Room redesign (data side, 2026-07-16): which direction "wins"
+  // this row for the comparison table's winner mark. Omitted specs default
+  // to 'neutral' via GENERAL_ROW_WINNER_RULES below — the safer default
+  // when a row's cells aren't a clean, universally-agreed-direction metric
+  // (fees, free text, qualitative tiers).
+  winnerRule?: WinnerRule
+}
+
+// ─── Notion sidecar accessors ───────────────────────────────────────────────
+//
+// The sync writes only safe-to-surface values to `parsed` (extractor was null
+// OR no conflict was detected). Anything that needed manual reconciliation
+// landed in `flagged_review` and we deliberately do NOT read those here.
+// Cell-builder rule: extractor first; if null, fall back to notion.parsed[key].
+
+function notionParsed(notion: NotionBackfillRow | null, field: string): unknown {
+  if (!notion?.parsed) return null
+  const v = (notion.parsed as Record<string, unknown>)[field]
+  return v == null ? null : v
+}
+
+function notionParsedNumber(notion: NotionBackfillRow | null, field: string): number | null {
+  const v = notionParsed(notion, field)
+  return typeof v === 'number' && Number.isFinite(v) ? v : null
+}
+
+// Format a parsed-fee value (scalar or {min,max}) as £XX,XXX or £XX,XXX–£XX,XXX.
+function formatGbp(value: number | { min: number; max: number }): string {
+  if (typeof value === 'number') return `£${Math.round(value).toLocaleString()}`
+  const { min, max } = value
+  if (min === max) return `£${Math.round(min).toLocaleString()}`
+  return `£${Math.round(min).toLocaleString()}–£${Math.round(max).toLocaleString()}`
+}
+
+// Read a parsed-fee value: number or {min,max} object. Returns null if neither.
+function notionParsedFee(notion: NotionBackfillRow | null, field: string): number | { min: number; max: number } | null {
+  const v = notionParsed(notion, field)
+  if (typeof v === 'number' && Number.isFinite(v)) return v
+  if (v && typeof v === 'object') {
+    const o = v as { min?: unknown; max?: unknown }
+    if (typeof o.min === 'number' && typeof o.max === 'number') return { min: o.min, max: o.max }
+  }
+  return null
 }
 
 // ─── Cell builders (ported from lib/research-comparison.ts) ─────────────────
@@ -117,186 +185,261 @@ function buildLocation({ meta }: SeedContext): CellValue | null {
   return { value: parts.join(', ') }
 }
 
-function buildHeathrowMinutes({ meta, struct }: SeedContext): CellValue | null {
+function buildHeathrowMinutes({ struct }: SeedContext): CellValue | null {
   const lp = struct?.location_profile
-  const airports = lp && typeof lp === 'object'
-    ? (lp as { airports?: unknown }).airports
-    : null
+  if (!lp || typeof lp !== 'object') return null
+  const airports = (lp as { airports?: unknown }).airports
+  if (!Array.isArray(airports)) return null
   // location_profile.airports[] entries vary in shape — grab the one whose
   // name/code mentions Heathrow and pull the minutes value.
-  return resolveHeathrowTravel(airports, meta.distance_airport)
+  for (const a of airports) {
+    if (!a || typeof a !== 'object') continue
+    const obj = a as Record<string, unknown>
+    const nameStr = String(obj.name ?? obj.label ?? obj.code ?? '').toLowerCase()
+    if (!/heathrow|lhr/.test(nameStr)) continue
+    const m = obj.drive_time_min_estimate ?? obj.minutes ?? obj.travel_minutes ?? obj.drive_minutes ?? obj.duration_minutes
+    if (typeof m === 'number' && m > 0) return { value: `${m} min`, source: 'location_profile' }
+    if (typeof m === 'string' && m.trim()) return { value: m, source: 'location_profile' }
+  }
+  return null
 }
 
 function buildClassSize({ notion }: SeedContext): CellValue | null {
-  return resolveNotionClassSize(notion)
+  // Extractor doesn't currently surface class_size; Notion fills it.
+  // Notion shape (parser v1.0.2):
+  //   { senior?: number|{min,max}, sixth?: number|{min,max} }
+  //   OR { average: number|{min,max} }
+  // 2026-05-19: range averages (e.g. "12-15" → {average:{min:12,max:15}}) now
+  // supported via fmtBucket on the average branch.
+  const parsed = notionParsed(notion, 'class_size')
+  if (!parsed || typeof parsed !== 'object') return null
+  const o = parsed as { senior?: unknown; sixth?: unknown; average?: unknown }
+  const fmtBucket = (v: unknown): string | null => {
+    if (typeof v === 'number') return String(v)
+    if (v && typeof v === 'object') {
+      const r = v as { min?: unknown; max?: unknown }
+      if (typeof r.min === 'number' && typeof r.max === 'number') {
+        return r.min === r.max ? String(r.min) : `${r.min}–${r.max}`
+      }
+    }
+    return null
+  }
+  const senior = fmtBucket(o.senior)
+  const sixth = fmtBucket(o.sixth)
+  if (senior && sixth) return { value: `Senior ${senior} · Sixth ${sixth}`, source: 'notion.parsed.class_size' }
+  if (senior) return { value: senior, source: 'notion.parsed.class_size' }
+  if (sixth) return { value: sixth, source: 'notion.parsed.class_size' }
+  const avg = fmtBucket(o.average)
+  if (avg) return { value: `~${avg} avg`, source: 'notion.parsed.class_size' }
+  return null
 }
 
 function buildTotalPupils({ struct, notion }: SeedContext): CellValue | null {
-  const structuredTotal = (struct?.student_community as Record<string, unknown> | undefined)?.total_pupils
-  const total = typeof structuredTotal === 'number'
-    ? structuredTotal
-    : approvedNotionNumber(notion, 'total_pupils')
+  const sc = struct?.student_community as Record<string, unknown> | null | undefined
+  const ext = typeof sc?.total_pupils === 'number' ? sc.total_pupils as number : null
+  // Conflict-gated in the sync — Notion's parsed value is only set when extractor
+  // was empty, so the precedence here is just "extractor first, else Notion".
+  const total = ext ?? notionParsedNumber(notion, 'total_pupils')
   if (total == null) return null
   let bucket = ''
   if (total <= 400) bucket = 'Small'
   else if (total <= 800) bucket = 'Mid-size'
   else if (total <= 1200) bucket = 'Larger'
   else bucket = 'Very large'
-  return {
-    value: `~${total.toLocaleString()}`,
-    note: bucket,
-    source: typeof structuredTotal === 'number'
-      ? 'student_community.total_pupils'
-      : 'school_notion_backfill.parsed.total_pupils',
-  }
+  const source = ext != null ? 'student_community.total_pupils' : 'notion.parsed.total_pupils'
+  return { value: `~${total.toLocaleString()}`, note: bucket, source, numeric: total }
 }
 
-const PLUS_TO_YEAR: Record<string, number> = {
-  '7+': 3,
-  '8+': 4,
-  '9+': 5,
-  '10+': 6,
+// Map UK "NN+" admissions notation to its corresponding Year. Per Codex pre-flight:
+// "13+" is admissions notation (entry to Year 9), NOT Year 13. This shared map +
+// the helper below prevent buildLowestBoardingEntry and buildY9Y10Admissions from
+// drifting on this rule.
+const PLUS_TO_YEAR: Readonly<Record<string, number>> = Object.freeze({
+  '7+':  3,
+  '8+':  4,
   '11+': 7,
-  '12+': 8,
   '13+': 9,
   '14+': 10,
   '16+': 12,
-}
+})
 
-function extractUkYearFromString(value: string): number | null {
-  const year = value.match(/\byears?\s*(\d{1,2})/i)
-  if (year) {
-    const number = Number(year[1])
-    if (number >= 1 && number <= 13) return number
+// Extract a UK Year (1-13) from a free-text entry_point string. Order of precedence:
+//   1. "Year N" with (?!\d) lookahead so "Year 100" doesn't match "Year 10"
+//   2. "NN+" admissions notation via PLUS_TO_YEAR (covers "13+", "11+", etc.)
+//   3. "Sixth Form" mention → Year 12
+//   4. Bare-digit fallback ONLY when no admissions notation present, capped 1-13
+// Returns null when nothing valid is extractable.
+function extractUkYearFromString(s: string): number | null {
+  // 1. "Year N" with no trailing digit
+  const yearM = s.match(/\byear\s+(\d{1,2})(?!\d)/i)
+  if (yearM) {
+    const n = Number(yearM[1])
+    if (n >= 1 && n <= 13) return n
   }
-  const plus = value.match(/\b(\d{1,2}\+)/)
-  if (plus?.[1] && PLUS_TO_YEAR[plus[1]]) return PLUS_TO_YEAR[plus[1]]
-  if (/sixth\s*form/i.test(value)) return 12
-  return null
-}
-
-function narrativeBoardingEntry(struct: StructuredRow | null): number | null {
-  const schoolLife = struct?.school_life as Record<string, unknown> | null | undefined
-  const candidates = [
-    schoolLife?.boarding_life,
-    struct?.pastoral_care,
-  ].filter((value): value is string => typeof value === 'string')
-  const years: number[] = []
-  for (const text of candidates) {
-    const patterns = [
-      /boarding houses?\s+(?:are\s+)?available from Year\s+(\d{1,2})/gi,
-      /\b(?:girls|boys)\s+Year\s+(\d{1,2})\s*[-–]\s*\d{1,2}/gi,
-    ]
-    for (const pattern of patterns) {
-      let match: RegExpExecArray | null
-      while ((match = pattern.exec(text)) != null) {
-        const year = Number(match[1])
-        if (year >= 1 && year <= 13) years.push(year)
-      }
+  // 2. NN+ admissions notation
+  const plusM = s.match(/\b(\d{1,2}\+)/)
+  if (plusM && plusM[1] in PLUS_TO_YEAR) {
+    return PLUS_TO_YEAR[plusM[1]]
+  }
+  // 3. Sixth Form
+  if (/sixth\s*form/i.test(s)) return 12
+  // 4. Bare-digit fallback (only when no NN+ is present — guards against "13+ entry"
+  //    being misread as Year 13).
+  if (!plusM) {
+    const anyM = s.match(/\b(\d{1,2})(?!\d)/)
+    if (anyM) {
+      const n = Number(anyM[1])
+      if (n >= 1 && n <= 13) return n
     }
   }
-  return years.length > 0 ? Math.min(...years) : null
+  return null
 }
 
 function buildLowestBoardingEntry({ struct, notion }: SeedContext): CellValue | null {
   const af = struct?.admissions_format as Record<string, unknown> | null | undefined
   const ep = af?.entry_points
+  // Notion fallback when extractor's entry_points array is missing/empty
+  // (e.g. Rugby School in the original audit). Notion stores a normalised
+  // integer 1-13. We return early so the existing extractor logic still
+  // runs first when entry_points is present.
+  //
+  // Codex r1 P2: the sync's readExtractorField() treats any non-empty
+  // entry_points as "extractor present" and skips Notion writes. So the
+  // SECOND fallback below (entries present but pick == null) is defensive
+  // dead code today, but worth keeping in case the sync predicate gets
+  // tightened later to mean "can parse a year."
+  if (!Array.isArray(ep) || ep.length === 0) {
+    const n = notionParsedNumber(notion, 'lowest_boarding_entry')
+    if (n != null && n >= 1 && n <= 13) {
+      return { value: `Year ${n}`, source: 'notion.parsed.lowest_boarding_entry' }
+    }
+    return null
+  }
+  // Find the lowest year/age across entry points that mentions boarding,
+  // or fall back to the lowest year overall if none flag boarding explicitly.
   let lowestBoarding: number | null = null
-  for (const e of Array.isArray(ep) ? ep : []) {
+  let lowestOverall: number | null = null
+  for (const e of ep) {
     if (!e) continue
     let y: number | null = null
     let mentionsBoarding = false
     if (typeof e === 'object') {
       const o = e as Record<string, unknown>
+      // Extractor writes free-text `entry_point` (e.g. "Year 9 (Third Form, age ~13)").
+      // Legacy/alternative shapes used numeric `year`/`age`. Walk all candidates in
+      // priority order and stop at the FIRST that yields a usable value — this avoids
+      // entry_point="Overseas students" (unparseable) masking a numeric `year: 9`.
+      // Per Codex r2 finding.
       for (const raw of [o.entry_point, o.year, o.age]) {
-        if (typeof raw === 'number') {
-          y = raw
-          break
-        }
+        if (typeof raw === 'number') { y = raw; break }
         if (typeof raw === 'string') {
-          y = extractUkYearFromString(raw)
-          if (y != null) break
+          const parsed = extractUkYearFromString(raw)
+          if (parsed != null) { y = parsed; break }
         }
       }
-      const blob = `${o.entry_point ?? ''} ${o.label ?? ''} ${o.note ?? ''} ${o.boarding ?? ''}`
-      mentionsBoarding = /\bboard(?:ing|er|ers)?\b/i.test(blob) || o.boarding === true
+      // Boarding signal blob: include entry_point text + adjacent metadata fields.
+      // Deliberately EXCLUDE `assessment` — per Codex r3, "Set by the exam board"
+      // would false-positive on the boarding regex and incorrectly flag day-only
+      // entries as boarding entries (worst-case: Year 7 with exam-board assessment
+      // beats a real Year 9 boarder row for lowest-boarding-entry).
+      // Use \bboard regex (not board\b) so "boarder"/"boarders" also matches.
+      const blob = `${o.entry_point ?? ''} ${o.label ?? ''} ${o.note ?? ''} ${o.boarding ?? ''}`.toLowerCase()
+      mentionsBoarding = /\bboard(?:ing|er|ers)?\b/.test(blob) || o.boarding === true
     } else if (typeof e === 'string') {
       y = extractUkYearFromString(e)
       mentionsBoarding = /\bboard(?:ing|er|ers)?\b/i.test(e)
     }
-    if (y == null || y < 1 || y > 13) continue
+    if (y == null) continue
+    // Valid UK Year range is 1-13 (Codex sanity check). Out-of-range = parser bug or wild data.
+    if (y < 1 || y > 13) continue
     if (mentionsBoarding && (lowestBoarding == null || y < lowestBoarding)) lowestBoarding = y
+    if (lowestOverall == null || y < lowestOverall) lowestOverall = y
   }
-  if (lowestBoarding != null) {
-    return { value: `Year ${lowestBoarding}`, source: 'admissions_format.entry_points' }
+  const pick = lowestBoarding ?? lowestOverall
+  if (pick == null) {
+    // Extractor entries existed but nothing parsed cleanly — try Notion.
+    const n = notionParsedNumber(notion, 'lowest_boarding_entry')
+    if (n != null && n >= 1 && n <= 13) {
+      return { value: `Year ${n}`, source: 'notion.parsed.lowest_boarding_entry' }
+    }
+    return null
   }
-  const narrative = narrativeBoardingEntry(struct)
-  if (narrative != null) {
-    return { value: `Year ${narrative}`, source: 'school_life.boarding_life' }
-  }
-  const sidecar = approvedNotionBoardingEntry(notion)
-  return sidecar
-    ? { value: `Year ${sidecar.year}`, source: sidecar.source }
-    : null
+  return { value: `Year ${pick}`, source: 'admissions_format.entry_points' }
 }
 
 function buildBoardingPupils({ struct, notion }: SeedContext): CellValue | null {
-  const result = resolvePupilComposition(
-    struct as unknown as Record<string, unknown> | null,
-    notion,
-  )
-  if (result.status !== 'ready') return null
-  const { composition } = result
-  return {
-    value: `~${composition.boarding.toLocaleString()}`,
-    note: `${composition.boardingPct}% of pupils`,
-    source: `${composition.source}.boarding`,
-  }
+  // Extractor's student_community.boarder_count is mostly NULL today —
+  // Notion is the de-facto source. Honour extractor if it ever lands a value.
+  const sc = struct?.student_community as Record<string, unknown> | null | undefined
+  const ext = typeof sc?.boarder_count === 'number' ? sc.boarder_count as number : null
+  if (ext != null) return { value: `~${ext.toLocaleString()}`, source: 'student_community.boarder_count', numeric: ext }
+  const n = notionParsedNumber(notion, 'boarder_count')
+  if (n != null) return { value: `~${n.toLocaleString()}`, source: 'notion.parsed.boarder_count', numeric: n }
+  return null
 }
 
 function buildInternationalPupils({ struct, notion }: SeedContext): CellValue | null {
-  const result = resolvePupilComposition(
-    struct as unknown as Record<string, unknown> | null,
-    notion,
-  )
-  if (result.status !== 'ready') return null
-  const { composition } = result
-  const international = composition.international
-  if (international == null) return null
-  return {
-    value: `~${international.toLocaleString()}`,
-    note: composition.internationalPct == null
-      ? undefined
-      : `${composition.internationalPct}% of pupils`,
-    source: `${composition.source}.international`,
-  }
+  const sc = struct?.student_community as Record<string, unknown> | null | undefined
+  const ext = typeof sc?.intl_count === 'number' ? sc.intl_count as number : null
+  if (ext != null) return { value: `~${ext.toLocaleString()}`, source: 'student_community.intl_count', numeric: ext }
+  const n = notionParsedNumber(notion, 'intl_count')
+  if (n != null) return { value: `~${n.toLocaleString()}`, source: 'notion.parsed.intl_count', numeric: n }
+  return null
 }
 
 function buildDayPupils({ struct, notion }: SeedContext): CellValue | null {
-  const result = resolvePupilComposition(
-    struct as unknown as Record<string, unknown> | null,
-    notion,
-  )
-  if (result.status !== 'ready') return null
-  const { composition } = result
-  return {
-    value: `~${composition.day.toLocaleString()}`,
-    note: `${composition.dayPct}% of pupils`,
-    source: `${composition.source}.day`,
+  // 2026-05-19 — derive day pupils from total_pupils − boarder_count when both
+  // come from the SAME source family. Mixing extractor's total with Notion's
+  // boarder count would compare different cohort definitions / snapshot dates,
+  // so each branch (extractor / Notion) only fires when both sides are present
+  // for that source. Sanity: total > boarders (≤0 ⇒ data error, fall through).
+  const sc = struct?.student_community as Record<string, unknown> | null | undefined
+  const extTotal    = typeof sc?.total_pupils  === 'number' ? sc.total_pupils  as number : null
+  const extBoarders = typeof sc?.boarder_count === 'number' ? sc.boarder_count as number : null
+  if (extTotal != null && extBoarders != null && extTotal > extBoarders) {
+    const day = extTotal - extBoarders
+    return {
+      value:  `~${day.toLocaleString()}`,
+      source: 'derived: student_community.total_pupils − boarder_count',
+      note:   'Total − Boarders',
+      numeric: day,
+    }
   }
+  const notionTotal    = notionParsedNumber(notion, 'total_pupils')
+  const notionBoarders = notionParsedNumber(notion, 'boarder_count')
+  if (notionTotal != null && notionBoarders != null && notionTotal > notionBoarders) {
+    const day = notionTotal - notionBoarders
+    return {
+      value:  `~${day.toLocaleString()}`,
+      source: 'derived: notion.parsed.total_pupils − boarder_count',
+      note:   'Total − Boarders',
+      numeric: day,
+    }
+  }
+  return null
 }
 
 function buildBoardingRatio({ struct, notion }: SeedContext): CellValue | null {
-  const result = resolvePupilComposition(
-    struct as unknown as Record<string, unknown> | null,
-    notion,
-  )
-  if (result.status !== 'ready') return null
-  const { composition } = result
-  return {
-    value: `${composition.boardingPct}% boarding · ${composition.dayPct}% day`,
-    source: `${composition.source}.boarding_mix`,
+  // Codex r1 P1: extractor (extract-batch-culture.js) writes student_community.boarding_pct
+  // as a percentage 0-100. Earlier draft of this builder read `boarding_ratio` which never
+  // existed in extractor data — Notion was always winning by default. Read both keys; if a
+  // value < 1 sneaks in (legacy fraction shape), treat as 0-1 and rescale.
+  const sc = struct?.student_community as Record<string, unknown> | null | undefined
+  let ext: number | null = null
+  for (const k of ['boarding_pct', 'boarding_ratio']) {
+    const v = sc?.[k]
+    if (typeof v === 'number' && Number.isFinite(v)) { ext = v; break }
   }
+  if (ext != null) {
+    const pct = ext > 0 && ext <= 1 ? ext * 100 : ext
+    return { value: `${Math.round(pct)}%`, source: ext === sc?.boarding_pct ? 'student_community.boarding_pct' : 'student_community.boarding_ratio', numeric: Math.round(pct) }
+  }
+  const n = notionParsedNumber(notion, 'boarding_ratio')
+  if (n != null) {
+    // Notion stores percentages as 75.6 (already %, not 0.756). Round for display.
+    return { value: `${Math.round(n)}%`, source: 'notion.parsed.boarding_ratio', numeric: Math.round(n) }
+  }
+  return null
 }
 
 function buildGcsePct({ struct, notion }: SeedContext): CellValue | null {
@@ -304,17 +447,19 @@ function buildGcsePct({ struct, notion }: SeedContext): CellValue | null {
     | Record<string, unknown>
     | undefined
   const pct = gcse?.pct_7_to_9
-  if (typeof pct === 'number') {
-    return { value: `${Math.round(pct)}%`, source: 'exam_results.gcse' }
+  if (typeof pct === 'number') return { value: `${Math.round(pct)}%`, source: 'exam_results.gcse', numeric: Math.round(pct) }
+  // Conflict-gated: Notion's parsed value only set when extractor was empty.
+  // The (9-8) trap was caught in the parser — anything in parsed is safely 9-7.
+  const n = notionParsedNumber(notion, 'gcse_pct')
+  if (n != null) return { value: `${Math.round(n)}%`, source: 'notion.parsed.gcse_pct', numeric: Math.round(n) }
+  // Wellington / Harrow only publish 9-8, not 9-7. Promoted into a separate slot
+  // (gcse_pct_alt_band) so parsed.gcse_pct's 9-7 invariant stays intact; cell
+  // renders the band inline so the column-default "GCSE 9–7" header isn't a lie.
+  const alt = notionParsed(notion, 'gcse_pct_alt_band')
+  if (typeof alt === 'string' && alt.length > 0) {
+    return { value: alt, source: 'notion.parsed.gcse_pct_alt_band' }
   }
-  const sidecar = approvedNotionNumber(notion, 'gcse_pct')
-  if (sidecar != null) {
-    return { value: `${Math.round(sidecar)}%`, source: 'school_notion_backfill.parsed.gcse_pct' }
-  }
-  const alternateBand = approvedNotionValue(notion, 'gcse_pct_alt_band')
-  return typeof alternateBand === 'string' && alternateBand.trim()
-    ? { value: alternateBand.trim(), source: 'school_notion_backfill.parsed.gcse_pct_alt_band' }
-    : null
+  return null
 }
 
 function buildALevelPct({ struct, notion }: SeedContext): CellValue | null {
@@ -322,13 +467,10 @@ function buildALevelPct({ struct, notion }: SeedContext): CellValue | null {
     | Record<string, unknown>
     | undefined
   const pct = al?.pct_a_star_a
-  if (typeof pct === 'number') {
-    return { value: `${Math.round(pct)}%`, source: 'exam_results.a_level' }
-  }
-  const sidecar = approvedNotionNumber(notion, 'a_level_pct')
-  return sidecar == null
-    ? null
-    : { value: `${Math.round(sidecar)}%`, source: 'school_notion_backfill.parsed.a_level_pct' }
+  if (typeof pct === 'number') return { value: `${Math.round(pct)}%`, source: 'exam_results.a_level', numeric: Math.round(pct) }
+  const n = notionParsedNumber(notion, 'a_level_pct')
+  if (n != null) return { value: `${Math.round(n)}%`, source: 'notion.parsed.a_level_pct', numeric: Math.round(n) }
+  return null
 }
 
 function buildBoardingFeeTerm({ struct, notion }: SeedContext): CellValue | null {
@@ -340,23 +482,26 @@ function buildBoardingFeeTerm({ struct, notion }: SeedContext): CellValue | null
   const rows = (struct?.fees_by_grade as Record<string, unknown> | null | undefined)?.rows
   const cur = (struct?.fees_by_grade as { currency?: string } | null | undefined)?.currency ?? struct?.fees_currency ?? 'GBP'
   const sym = cur === 'GBP' ? '£' : cur === 'USD' ? '$' : ''
-  let max: number | null = null
-  for (const r of Array.isArray(rows) ? rows : []) {
-    if (!r || typeof r !== 'object') continue
-    const o = r as Record<string, unknown>
-    const phase = String(o.phase ?? '').toLowerCase()
-    if (!/boarding|7 nights/.test(phase)) continue
-    if (/flexi/.test(phase)) continue
-    const per = typeof o.per_term === 'number' ? o.per_term : (typeof o.per_term === 'string' ? Number(o.per_term) : null)
-    if (per && (max == null || per > max)) max = per
+  if (Array.isArray(rows)) {
+    let max: number | null = null
+    for (const r of rows) {
+      if (!r || typeof r !== 'object') continue
+      const o = r as Record<string, unknown>
+      const phase = String(o.phase ?? '').toLowerCase()
+      if (!/boarding|7 nights/.test(phase)) continue
+      if (/flexi/.test(phase)) continue
+      const per = typeof o.per_term === 'number' ? o.per_term : (typeof o.per_term === 'string' ? Number(o.per_term) : null)
+      if (per && (max == null || per > max)) max = per
+    }
+    if (max != null) return { value: `${sym}${Math.round(max).toLocaleString()}`, source: 'fees_by_grade', numeric: Math.round(max) }
   }
-  if (max != null) {
-    return { value: `${sym}${Math.round(max).toLocaleString()}`, source: 'fees_by_grade' }
+  // Notion fallback (Phase 1) — value is GBP scalar or {min,max}.
+  const fee = notionParsedFee(notion, 'boarding_fee_term')
+  if (fee != null) {
+    const numeric = typeof fee === 'number' ? fee : fee.max
+    return { value: formatGbp(fee), source: 'notion.parsed.boarding_fee_term', numeric }
   }
-  const sidecar = approvedNotionFee(notion, 'boarding_fee_term')
-  return sidecar == null
-    ? null
-    : { value: formatGbp(sidecar), source: 'school_notion_backfill.parsed.boarding_fee_term' }
+  return null
 }
 
 function buildAnnualBoardingFee({ struct, notion }: SeedContext): CellValue | null {
@@ -367,14 +512,18 @@ function buildAnnualBoardingFee({ struct, notion }: SeedContext): CellValue | nu
     const sym = cur === 'GBP' ? '£' : cur === 'USD' ? '$' : ''
     const fmt = (n: number) => `${sym}${n.toLocaleString()}`
     if (min != null && max != null && max !== min) {
-      return { value: `${fmt(min)}–${fmt(max)}`, source: 'school_structured_data.fees' }
+      return { value: `${fmt(min)}–${fmt(max)}`, source: 'school_structured_data.fees', numeric: min }
     }
-    return { value: fmt(min ?? max!), source: 'school_structured_data.fees' }
+    const single = min ?? max!
+    return { value: fmt(single), source: 'school_structured_data.fees', numeric: single }
   }
-  const sidecar = approvedNotionFee(notion, 'boarding_fee_year')
-  return sidecar == null
-    ? null
-    : { value: formatGbp(sidecar), source: 'school_notion_backfill.parsed.boarding_fee_year' }
+  // Notion fallback — conflict-gated, so only set when extractor was empty.
+  const fee = notionParsedFee(notion, 'boarding_fee_year')
+  if (fee != null) {
+    const numeric = typeof fee === 'number' ? fee : fee.max
+    return { value: formatGbp(fee), source: 'notion.parsed.boarding_fee_year', numeric }
+  }
+  return null
 }
 
 function buildRegistrationFee({ struct }: SeedContext): CellValue | null {
@@ -402,7 +551,7 @@ function buildRegistrationFee({ struct }: SeedContext): CellValue | null {
       if (py && (bestNumber == null || py > bestNumber)) bestNumber = py
     }
     if (bestNumber != null) {
-      return { value: `${sym}${Math.round(bestNumber).toLocaleString()}`, source: 'compulsory_extras' }
+      return { value: `${sym}${Math.round(bestNumber).toLocaleString()}`, source: 'compulsory_extras', numeric: Math.round(bestNumber) }
     }
   }
 
@@ -417,7 +566,7 @@ function buildRegistrationFee({ struct }: SeedContext): CellValue | null {
       if (m) {
         const cleaned = Number(m[1].replace(/,/g, ''))
         if (Number.isFinite(cleaned) && cleaned > 0) {
-          return { value: `£${cleaned.toLocaleString()}`, source: 'process_steps' }
+          return { value: `£${cleaned.toLocaleString()}`, source: 'process_steps', numeric: cleaned }
         }
       }
     }
@@ -434,28 +583,85 @@ function buildY9Y10Admissions({ struct }: SeedContext): CellValue | null {
   for (const e of ep) {
     if (!e || typeof e !== 'object') continue
     const o = e as Record<string, unknown>
+    // Extractor writes free-text `entry_point` (e.g. "Year 9 (Third Form, age ~13)").
+    // Walk candidates in priority order so an unparseable entry_point doesn't mask
+    // a structured numeric `year`/`age`. Per Codex r2 finding — keeps lockstep with
+    // buildLowestBoardingEntry. The helper handles "13+ entry" → Year 9 correctly.
     let y: number | null = null
     for (const raw of [o.entry_point, o.year, o.age]) {
-      if (typeof raw === 'number') {
-        y = raw
-        break
-      }
+      if (typeof raw === 'number') { y = raw; break }
       if (typeof raw === 'string') {
-        y = extractUkYearFromString(raw)
-        if (y != null) break
+        const parsed = extractUkYearFromString(raw)
+        if (parsed != null) { y = parsed; break }
       }
     }
     if (y !== 9 && y !== 10) continue
-    const timeline = [o.registration_deadline, o.assessment_date]
-      .find(value => typeof value === 'string' && value.trim())
-    if (typeof timeline === 'string') {
-      const entryPoint = typeof o.entry_point === 'string' ? o.entry_point.trim() : `Year ${y}`
-      return {
-        value: timeline.trim().slice(0, 80),
-        note: `${entryPoint} entry`,
-        source: 'admissions_format.entry_points',
-      }
+    const labelRaw = o.entry_point ?? o.label ?? o.note ?? o.requirement
+    if (typeof labelRaw === 'string' && labelRaw.trim()) {
+      const trimmed = labelRaw.trim().slice(0, 80)
+      return { value: trimmed, source: 'admissions_format.entry_points' }
     }
+    return { value: `Year ${y} entry`, source: 'admissions_format.entry_points' }
+  }
+  return null
+}
+
+function buildSchoolView(_: SeedContext): CellValue | null {
+  return null  // not extracted yet
+}
+
+// ─── Brief-aware cell builders (Slice 8 Build 2) ────────────────────────────
+//
+// These cells fire only when the parent's brief gates them on. They surface
+// data from sports_profile.<sport>.competitive_tier / strength_signals and
+// from school_facts when the topic-score columns are populated. Cells return
+// null when their underlying field is empty — the row still seeds (so the
+// topic appears in Build 4's weighting) but renders '—' for that school.
+
+function sportTierCell(
+  struct: StructuredRow | null,
+  sportKey: 'rugby' | 'tennis' | 'cricket' | 'hockey' | 'football' | 'netball',
+): CellValue | null {
+  const sport = (struct?.sports_profile as Record<string, unknown> | null | undefined)?.[sportKey]
+  if (!sport || typeof sport !== 'object') return null
+  const obj = sport as Record<string, unknown>
+  const tier = obj.competitive_tier
+  if (typeof tier !== 'string' || !tier.trim()) return null
+  // Most cells benefit from a fixture-count hint when present (e.g. tennis
+  // shows team counts via SOCS discovery). Keep the cell compact: tier label
+  // as the primary value, optional fixture count in note.
+  const teams = obj.team_count ?? obj.teams ?? obj.fixtures_count
+  const note = typeof teams === 'number' && teams > 0 ? `${teams} teams` : undefined
+  return { value: tier.charAt(0).toUpperCase() + tier.slice(1), note, source: `sports_profile.${sportKey}` }
+}
+
+function buildRugbyStrength({ struct }: SeedContext): CellValue | null {
+  return sportTierCell(struct, 'rugby')
+}
+function buildTennisStrength({ struct }: SeedContext): CellValue | null {
+  return sportTierCell(struct, 'tennis')
+}
+function buildCricketStrength({ struct }: SeedContext): CellValue | null {
+  return sportTierCell(struct, 'cricket')
+}
+function buildHockeyStrength({ struct }: SeedContext): CellValue | null {
+  return sportTierCell(struct, 'hockey')
+}
+function buildFootballStrength({ struct }: SeedContext): CellValue | null {
+  return sportTierCell(struct, 'football')
+}
+
+function buildIbOffered({ struct }: SeedContext): CellValue | null {
+  // Schools that offer the IB will have either an exam_results.ib block
+  // populated or an admissions_format.curriculum hint. Keep it boolean
+  // until Slice 8 follow-up wires the avg-points cell.
+  const ib = (struct?.exam_results as Record<string, unknown> | null | undefined)?.ib
+  if (ib && typeof ib === 'object') {
+    const points = (ib as Record<string, unknown>).avg_points
+    if (typeof points === 'number' && points > 0) {
+      return { value: `${points} avg`, note: 'IB diploma', source: 'exam_results.ib', numeric: points }
+    }
+    return { value: 'Offered', source: 'exam_results.ib' }
   }
   return null
 }
@@ -464,43 +670,112 @@ function buildY9Y10Admissions({ struct }: SeedContext): CellValue | null {
 // sort_order uses 100, 200, 300, ... so future specs can slot between
 // existing values without renumbering the whole list.
 
+// Research Room redesign (data side, 2026-07-16): winnerRule per spec.
+//   - gcse_pct / a_level_pct: exam results — higher-is-better.
+//   - boarding_fee_term / boarding_fee_year / registration_fee: fees/price —
+//     explicit founder decision, 'neutral' (cheapest isn't always "best").
+//   - everything else here is either free text (location, entry windows),
+//     a logistics/preference field with no universal "better" direction
+//     (travel time, class size, pupil counts, boarding ratio), or a row
+//     that never actually populates (school_view) — 'neutral' per the
+//     "if genuinely unsure, default to neutral" rule. Omitted winnerRule
+//     also resolves to 'neutral' via GENERAL_ROW_WINNER_RULES below; set
+//     explicitly here anyway for readability.
 const GENERAL_SPECS: SeedRowSpec[] = [
   // 'School name' was in the v1 spec but redundant with column headers,
   // dropped in v1.1. Existing rows in deployed sessions get a one-shot
   // soft-delete via the migration that ships alongside this change.
-  { slug: 'school_type',           row_name: 'School type',                 group_name: 'About',      sort_order:  200, build: buildSchoolType },
-  { slug: 'location',              row_name: 'Location',                    group_name: 'About',      sort_order:  300, build: buildLocation },
-  { slug: 'heathrow_minutes',      row_name: 'Travel from Heathrow',        group_name: 'About',      sort_order:  400, build: buildHeathrowMinutes },
-  { slug: 'class_size',            row_name: 'Class size',                  group_name: 'Pastoral',   sort_order:  500, build: buildClassSize },
-  { slug: 'total_pupils',          row_name: 'Total pupils',                group_name: 'Pastoral',   sort_order:  600, build: buildTotalPupils },
-  { slug: 'lowest_boarding_entry', row_name: 'Lowest boarding entry',       group_name: 'Admissions', sort_order:  700, build: buildLowestBoardingEntry },
-  { slug: 'boarding_pupils',       row_name: 'Boarding pupils',             group_name: 'Pastoral',   sort_order:  800, build: buildBoardingPupils },
-  { slug: 'international_pupils',  row_name: 'International pupils',        group_name: 'Pastoral',   sort_order:  900, build: buildInternationalPupils },
-  { slug: 'day_pupils',            row_name: 'Day pupils',                  group_name: 'Pastoral',   sort_order: 1000, build: buildDayPupils },
-  { slug: 'boarding_ratio',        row_name: 'Boarding ratio',              group_name: 'Pastoral',   sort_order: 1100, build: buildBoardingRatio },
-  { slug: 'gcse_pct',              row_name: 'GCSE 9–7',                    group_name: 'Academics',  sort_order: 1200, build: buildGcsePct },
-  { slug: 'a_level_pct',           row_name: 'A-level A*–A',                group_name: 'Academics',  sort_order: 1300, build: buildALevelPct },
-  { slug: 'boarding_fee_term',     row_name: 'Boarding fee · per term',     group_name: 'Fees',       sort_order: 1400, build: buildBoardingFeeTerm },
-  { slug: 'boarding_fee_year',     row_name: 'Boarding fee · per year',     group_name: 'Fees',       sort_order: 1500, build: buildAnnualBoardingFee },
-  { slug: 'registration_fee',      row_name: 'Registration fee',            group_name: 'Fees',       sort_order: 1600, build: buildRegistrationFee },
-  { slug: 'y9_y10_admissions',     row_name: 'Year 9 / 10 admissions',      group_name: 'Admissions', sort_order: 1700, build: buildY9Y10Admissions },
+  { slug: 'school_type',           row_name: 'School type',                 group_name: 'About',      sort_order:  200, build: buildSchoolType, winnerRule: 'neutral' },
+  { slug: 'location',              row_name: 'Location',                    group_name: 'About',      sort_order:  300, build: buildLocation, winnerRule: 'neutral' },
+  { slug: 'heathrow_minutes',      row_name: 'Travel from Heathrow',        group_name: 'About',      sort_order:  400, build: buildHeathrowMinutes, winnerRule: 'neutral' },
+  { slug: 'class_size',            row_name: 'Class size',                  group_name: 'Pastoral',   sort_order:  500, build: buildClassSize, winnerRule: 'neutral' },
+  { slug: 'total_pupils',          row_name: 'Total pupils',                group_name: 'Pastoral',   sort_order:  600, build: buildTotalPupils, winnerRule: 'neutral' },
+  { slug: 'lowest_boarding_entry', row_name: 'Lowest boarding entry',       group_name: 'Admissions', sort_order:  700, build: buildLowestBoardingEntry, winnerRule: 'neutral' },
+  { slug: 'boarding_pupils',       row_name: 'Boarding pupils',             group_name: 'Pastoral',   sort_order:  800, build: buildBoardingPupils, winnerRule: 'neutral' },
+  { slug: 'international_pupils',  row_name: 'International pupils',        group_name: 'Pastoral',   sort_order:  900, build: buildInternationalPupils, winnerRule: 'neutral' },
+  { slug: 'day_pupils',            row_name: 'Day pupils',                  group_name: 'Pastoral',   sort_order: 1000, build: buildDayPupils, winnerRule: 'neutral' },
+  { slug: 'boarding_ratio',        row_name: 'Boarding ratio',              group_name: 'Pastoral',   sort_order: 1100, build: buildBoardingRatio, winnerRule: 'neutral' },
+  { slug: 'gcse_pct',              row_name: 'GCSE 9–7',                    group_name: 'Academics',  sort_order: 1200, build: buildGcsePct, winnerRule: 'higher-is-better' },
+  { slug: 'a_level_pct',           row_name: 'A-level A*–A',                group_name: 'Academics',  sort_order: 1300, build: buildALevelPct, winnerRule: 'higher-is-better' },
+  { slug: 'boarding_fee_term',     row_name: 'Boarding fee · per term',     group_name: 'Fees',       sort_order: 1400, build: buildBoardingFeeTerm, winnerRule: 'neutral' },
+  { slug: 'boarding_fee_year',     row_name: 'Boarding fee · per year',     group_name: 'Fees',       sort_order: 1500, build: buildAnnualBoardingFee, winnerRule: 'neutral' },
+  { slug: 'registration_fee',      row_name: 'Registration fee',            group_name: 'Fees',       sort_order: 1600, build: buildRegistrationFee, winnerRule: 'neutral' },
+  { slug: 'y9_y10_admissions',     row_name: 'Year 9 / 10 admissions',      group_name: 'Admissions', sort_order: 1700, build: buildY9Y10Admissions, winnerRule: 'neutral' },
+  { slug: 'school_view',           row_name: 'School view',                 group_name: 'Media',      sort_order: 1800, build: buildSchoolView, winnerRule: 'neutral' },
+]
+
+// ─── Brief-aware specs (Slice 8 Build 2) ────────────────────────────────────
+//
+// Each spec has a gate(profile) predicate. Specs fire only when their gate
+// returns true for the parent's brief. Group name is 'child-specific' so the
+// loader renders them in the "For your child" section (header wired in
+// Slice 8 Step 5, commit 7e9b934). sort_order starts at 50 — brief rows
+// appear ABOVE the general rows so the parent sees personalised data first.
+//
+// Idempotency: rows carry `seed:v1:general:brief_<slug>` keys. The
+// `seed:v1:general:` prefix is required by the RPC validator (the
+// lens_kind segment must match the spec's `lens_kind`, which is 'general'
+// here because brief rows share the general lens). Brief origin is
+// encoded as `brief_` inside the slug portion. The slug-collision
+// reservation is enforced by `seed-rows-keys.test.mjs` (no GENERAL_SPECS
+// slug starts with `brief_`).
+
+type BriefSeedRowSpec = SeedRowSpec & {
+  gate: (profile: BriefProfile) => boolean
+}
+
+// Build 2 r1 (Codex Q8): drop topic-only specs that have no cell builders
+// wired today (pastoral_depth, sen_support, inclusive_culture, weekend_programme,
+// music_programme, drama_programme). They previously seeded rows full of '—'
+// and added UX noise without surfacing comparable data. When the loader
+// learns to read school_facts.pastoral_care_score / inclusive_culture_score
+// AND `extracurricular`-style fields, re-introduce them with real builders.
+const BRIEF_SPECS: BriefSeedRowSpec[] = [
+  // Sport priority — 5 sport-strength rows so the parent sees which schools
+  // shine where. Cell builders read sports_profile.<sport>.competitive_tier,
+  // a qualitative tier label (e.g. "Elite"/"Strong"/"Developing") with no
+  // codified ordinal scale in this codebase — 'neutral' per the "if
+  // genuinely unsure, default to neutral" rule.
+  { slug: 'rugby_strength',    row_name: 'Rugby strength',    group_name: 'child-specific', sort_order:  50, gate: isSportPriority, build: buildRugbyStrength, winnerRule: 'neutral' },
+  { slug: 'tennis_strength',   row_name: 'Tennis strength',   group_name: 'child-specific', sort_order:  60, gate: isSportPriority, build: buildTennisStrength, winnerRule: 'neutral' },
+  { slug: 'cricket_strength',  row_name: 'Cricket strength',  group_name: 'child-specific', sort_order:  70, gate: isSportPriority, build: buildCricketStrength, winnerRule: 'neutral' },
+  { slug: 'hockey_strength',   row_name: 'Hockey strength',   group_name: 'child-specific', sort_order:  80, gate: isSportPriority, build: buildHockeyStrength, winnerRule: 'neutral' },
+  { slug: 'football_strength', row_name: 'Football strength', group_name: 'child-specific', sort_order:  90, gate: isSportPriority, build: buildFootballStrength, winnerRule: 'neutral' },
+
+  // Curriculum — IB diploma offered / avg points. avg_points is a real
+  // academic score (IB diploma average, out of 45) — higher-is-better,
+  // same bucket as GCSE/A-level pass rates.
+  { slug: 'ib_offered',        row_name: 'IB diploma',        group_name: 'child-specific', sort_order: 100, gate: isIbCurriculum, build: buildIbOffered, winnerRule: 'higher-is-better' },
 ]
 
 /**
- * Resolve one existing seeded row for a newly added school. This reuses the
- * exact builders used at session creation, so shortlist additions cannot
- * drift from the original comparison values.
+ * Filter BRIEF_SPECS to the ones that fire for this profile. Exported as a
+ * pure function so unit tests can assert spec selection without a DB.
  */
-export function resolveSeedComparisonCell(
-  rowName: string,
-  meta: SchoolMeta,
-  struct: StructuredRow | null,
-  notion: NotionBackfillRow | null = null,
-): CellValue | null {
-  const slug = generalSeedRowSlug(rowName)
-  const spec = GENERAL_SPECS.find(item => item.slug === slug)
-  return spec?.build({ meta, struct, notion }) ?? null
+export function briefSpecsForProfile(profile: BriefProfile | null): BriefSeedRowSpec[] {
+  if (!profile) return []
+  return BRIEF_SPECS.filter(spec => spec.gate(profile))
 }
+
+// ─── Row winner-rule lookup (Research Room redesign, data side, 2026-07-16) ─
+//
+// Keyed by the exact row_name string every spec above writes verbatim to
+// comparison_rows.row_name (see seedResearchSession's buildCells → the RPC
+// btrim()s but does not otherwise alter it). Consumed by
+// lib/research-comparison.ts to resolve ComparisonRow.winnerRule without
+// that module needing to know each spec's semantics. Includes BOTH
+// GENERAL_SPECS and BRIEF_SPECS — brief rows carry `lens_kind: 'general'`
+// in the DB (see seedResearchSession) but their row_name is unique enough
+// (e.g. "Rugby strength") that a plain row_name keyed map works fine
+// without needing the brief_ slug prefix.
+//
+// Rows not in this map (chat-added rows, any future row_name not seeded
+// here) resolve to 'neutral' at the call site — the safer default.
+export const GENERAL_ROW_WINNER_RULES: Readonly<Record<string, WinnerRule>> = Object.freeze(
+  Object.fromEntries(
+    [...GENERAL_SPECS, ...BRIEF_SPECS].map(spec => [spec.row_name, spec.winnerRule ?? 'neutral'])
+  )
+)
 
 // ─── Public entrypoint ──────────────────────────────────────────────────────
 
@@ -509,25 +784,26 @@ type ShortlistContext = {
   schoolMap: Map<string, SchoolMeta>
   structMap: Map<string, StructuredRow>
   notionMap: Map<string, NotionBackfillRow>
-  notionAvailable: boolean
 }
 
 /**
- * Build cell_data for every (spec × school) pair, refresh active managed
- * rows, then call the service-role RPC to insert any missing populated rows.
+ * Build cell_data for every (spec × school) pair, then call the
+ * service-role RPC to bulk-INSERT with ON CONFLICT DO NOTHING.
  *
- * Idempotent: each spec's idempotency_key is stable across calls.
- * Soft-deleted rows stay soft-deleted.
+ * Idempotent: re-runs are no-ops because each spec's idempotency_key is
+ * stable across calls. Soft-deleted rows stay soft-deleted.
  */
 export async function seedResearchSession(
   supabase: SupabaseClient,
   userId:   string,
   sessionId: string,
   ctx: ShortlistContext,
+  profile: BriefProfile | null = null,
 ): Promise<{ inserted: number } | null> {
   if (ctx.slugs.length === 0) return { inserted: 0 }
 
-  const specs = GENERAL_SPECS.map(spec => {
+  // Build per-school cell_data for a single spec.
+  const buildCells = (spec: SeedRowSpec): CellData => {
     const cell_data: CellData = {}
     for (const slug of ctx.slugs) {
       const meta = ctx.schoolMap.get(slug)
@@ -538,72 +814,77 @@ export async function seedResearchSession(
       if (cell == null || cell.value == null || cell.value === '') continue
       cell_data[slug] = cell
     }
-    return {
-      idempotency_key: `seed:v1:general:${spec.slug}`,
-      lens_kind:       'general',
-      row_name:        spec.row_name,
-      group_name:      spec.group_name,
-      weight:          spec.weight ?? 1.0,
-      sort_order:      spec.sort_order,
-      cell_data,
-    }
-  })
-
-  // The seed RPC is insert-only. Reconcile active v1 seed rows first so
-  // older sessions gain newly available structured/Notion values whenever
-  // they are opened. Soft-deleted rows are deliberately excluded and are
-  // never reactivated.
-  if (ctx.notionAvailable) {
-    const { data: existingRows, error: existingError } = await supabase
-      .from('comparison_rows')
-      .select('id, idempotency_key, group_name, weight, sort_order, cell_data')
-      .eq('user_id', userId)
-      .eq('session_id', sessionId)
-      .like('idempotency_key', 'seed:v1:general:%')
-      .is('undone_at', null)
-
-    if (existingError) {
-      console.error('[seedResearchSession reconcile read]', existingError.message)
-    } else {
-      const reconciliation = planSeedRowReconciliation(existingRows ?? [], specs)
-      const reconciledAt = new Date().toISOString()
-      const results = await Promise.all([
-        ...reconciliation.updates.map(update =>
-          supabase
-            .from('comparison_rows')
-            .update(update.values)
-            .eq('id', update.id)
-            .eq('user_id', userId)
-            .eq('session_id', sessionId)
-            .is('undone_at', null),
-        ),
-        ...reconciliation.hideIds.map(id =>
-          supabase
-            .from('comparison_rows')
-            .update({ undone_at: reconciledAt })
-            .eq('id', id)
-            .eq('user_id', userId)
-            .eq('session_id', sessionId)
-            .is('undone_at', null),
-        ),
-      ])
-      for (const result of results) {
-        if (result.error) {
-          console.error('[seedResearchSession reconcile write]', result.error.message)
-        }
-      }
-    }
-  } else {
-    console.warn(
-      '[seedResearchSession] skipping active-row reconciliation because the Notion mirror is unavailable',
-    )
+    return cell_data
   }
 
-  const populatedSpecs = specs.filter(spec => Object.keys(spec.cell_data).length > 0)
+  const generalSpecs = GENERAL_SPECS.map(spec => ({
+    idempotency_key: `seed:v1:general:${spec.slug}`,
+    lens_kind:       'general',
+    row_name:        spec.row_name,
+    group_name:      spec.group_name,
+    weight:          spec.weight ?? 1.0,
+    sort_order:      spec.sort_order,
+    cell_data:       buildCells(spec),
+  }))
+
+  // Brief-aware specs fire only when the parent's profile gates them on.
+  // Profile is null for legacy/anonymous flows — no brief rows in that case.
+  //
+  // Key prefix stays `seed:v1:general:` so the existing seed_research_session_rows
+  // RPC validator (which requires the lens_kind segment to match the spec's
+  // `lens_kind`) accepts them. Brief origin is encoded in the slug as `brief_`.
+  // Slug format: brief_<slug> stays within the [a-zA-Z0-9_-]{1,40} cap.
+  const briefSpecs = briefSpecsForProfile(profile).map(spec => ({
+    idempotency_key: `seed:v1:general:brief_${spec.slug}`,
+    lens_kind:       'general',
+    row_name:        spec.row_name,
+    group_name:      spec.group_name,
+    weight:          spec.weight ?? 1.0,
+    sort_order:      spec.sort_order,
+    cell_data:       buildCells(spec),
+  }))
+
+  const specs = [...briefSpecs, ...generalSpecs]
+
+  // Build 2 r1/r2/r3: seeded-row reconcile.
+  //
+  // Three categories of existing seeded rows on every seed pass:
+  //   1. SOFT-DELETE — row exists, key NOT in current spec set, currently
+  //      active → set undone_at = now. (Brief-only in practice; general
+  //      specs don't churn.)
+  //   2. REFRESH — row exists, key IN current spec set, currently active →
+  //      rewrite cell_data + row_name + group/sort/weight from fresh spec
+  //      so cells reflect the latest shortlist + struct data. Without this,
+  //      ON CONFLICT DO NOTHING in the RPC means existing rows keep stale
+  //      cells when the shortlist grows.
+  //   3. REACTIVATE — row exists, key IN current spec set, currently
+  //      undone → clear undone_at AND rewrite cell_data.
+  //
+  // r3 P1: reconcile applies to BOTH brief and general seeded rows. A
+  // pre-existing bug affected general rows: when the shortlist grew,
+  // existing Location/Fees/GCSE rows didn't get cells for the new column
+  // because the RPC's ON CONFLICT DO NOTHING short-circuited the insert.
+  // Sharing the reconcile path for both row classes is the cleanest fix.
+  //
+  // user_id filter on the reads (r2 Q6 defense-in-depth — service-role
+  // already bypasses RLS but adds a clean ownership predicate).
+  //
+  // Caveat (brief-only): today we cannot distinguish "system soft-delete
+  // (brief changed)" from "user soft-delete (parent dismissed the row from
+  // the UI)". The reactivate path can therefore bring a parent-dismissed
+  // row back when their brief later re-gates the spec. Tracked as a
+  // Build 2 v1 known limitation; the fix is a new `undone_reason` column
+  // (deferred to a Build 3 follow-up). See Codex r2 Q1.
+  try {
+    await reconcileSeededRows(supabase, userId, sessionId, specs)
+  } catch (e) {
+    console.error('[seedResearchSession reconcile]', e)
+  }
+
   const { data, error } = await supabase.rpc('seed_research_session_rows', {
     p_user_id:    userId,
     p_session_id: sessionId,
-    p_specs:      populatedSpecs,
+    p_specs:      specs,
   })
 
   if (error) {
@@ -615,6 +896,132 @@ export async function seedResearchSession(
 
   const row = Array.isArray(data) ? data[0] : data
   return { inserted: typeof row?.inserted_count === 'number' ? row.inserted_count : 0 }
+}
+
+/**
+ * Reconcile seeded rows (general + brief) with the parent's CURRENT brief
+ * and shortlist.
+ *
+ * specs: the freshly-built spec payloads (cell_data already computed
+ *   against the current shortlist + struct data). Pass general + brief
+ *   together — the reconcile loop treats them uniformly.
+ *
+ * For each existing seeded row on this session/user (identified by the
+ * `seed:v1:general:` idempotency-key prefix):
+ *   - key NOT in spec set + active → soft-delete
+ *   - key IN  spec set + active    → refresh cell_data/metadata
+ *   - key IN  spec set + undone    → reactivate AND refresh cell_data
+ *
+ * Best-effort: any single update failure logs and proceeds.
+ *
+ * r3 P1: previously this only handled brief rows. Extended to general
+ * rows so the "shortlist grew, existing rows have empty cells for the
+ * new column" bug also gets fixed.
+ */
+type SeededSpecPayload = {
+  idempotency_key: string
+  row_name:        string
+  group_name:      string
+  weight:          number
+  sort_order:      number
+  cell_data:       CellData
+}
+
+async function reconcileSeededRows(
+  supabase: SupabaseClient,
+  userId:   string,
+  sessionId: string,
+  specs:    SeededSpecPayload[],
+): Promise<void> {
+  // LIKE pattern matches all `seed:v1:general:*` rows (both brief and
+  // general — brief rows are `seed:v1:general:brief_<slug>` per the
+  // RPC-validator-compatible namespacing).
+  //
+  // r3 Q2: select cell_data + metadata too so the loop can skip no-op
+  // UPDATEs (most page loads find nothing changed). Avoids ~23 write
+  // round-trips per render when the shortlist + brief are stable.
+  const { data, error } = await supabase
+    .from('comparison_rows')
+    .select('id, idempotency_key, undone_at, row_name, group_name, weight, sort_order, cell_data')
+    .eq('session_id', sessionId)
+    .eq('user_id', userId)
+    .like('idempotency_key', 'seed:v1:general:%')
+
+  if (error || !data) return
+
+  const specByKey = new Map(specs.map(s => [s.idempotency_key, s]))
+  type Row = {
+    id: string
+    idempotency_key: string
+    undone_at: string | null
+    row_name: string
+    group_name: string
+    weight: number
+    sort_order: number
+    cell_data: CellData
+  }
+  const rows = data as Row[]
+
+  const toSoftDelete: string[] = []
+  const toRefresh:    Array<{ id: string; spec: SeededSpecPayload; reactivate: boolean }> = []
+
+  for (const row of rows) {
+    const spec = specByKey.get(row.idempotency_key)
+    if (!spec) {
+      // Row whose key is no longer in the active spec set — soft-delete
+      // (only fires for brief rows in practice; general specs don't
+      // churn between page loads).
+      if (row.undone_at == null) toSoftDelete.push(row.id)
+      continue
+    }
+    // Skip no-op refreshes. If the row is active AND every refreshable
+    // field already matches the spec's value, there's nothing to write.
+    // Reactivation (undone → active) ALWAYS triggers a write so cells
+    // are guaranteed fresh after the parent re-engages.
+    const reactivate = row.undone_at != null
+    const unchanged =
+      !reactivate &&
+      row.row_name   === spec.row_name &&
+      row.group_name === spec.group_name &&
+      Number(row.weight)     === spec.weight &&
+      row.sort_order === spec.sort_order &&
+      // r4 P3 fix: Postgres jsonb does NOT preserve object key order on
+      // round-trips. Comparing with plain JSON.stringify would flag
+      // semantically-equal rows as "changed" whenever Postgres serialized
+      // keys in a different order than our build loop. Use canonicalJson
+      // (recursive key-sort) to get a stable byte-level representation.
+      canonicalJson(row.cell_data) === canonicalJson(spec.cell_data)
+    if (unchanged) continue
+    toRefresh.push({ id: row.id, spec, reactivate })
+  }
+
+  if (toSoftDelete.length > 0) {
+    const { error: delErr } = await supabase
+      .from('comparison_rows')
+      .update({ undone_at: new Date().toISOString() })
+      .in('id', toSoftDelete)
+    if (delErr) console.warn('[reconcileSeededRows soft-delete]', delErr.message)
+  }
+
+  // Sequential per-row UPDATEs — N is at most |GENERAL_SPECS| + |BRIEF_SPECS|
+  // (~23 today). Most page loads find every row unchanged via the
+  // canonicalJson diff above, so N tends toward 0 in practice. When the
+  // shortlist or brief actually changes, N = number of affected rows.
+  for (const { id, spec, reactivate } of toRefresh) {
+    const patch: Record<string, unknown> = {
+      row_name:   spec.row_name,
+      group_name: spec.group_name,
+      weight:     spec.weight,
+      sort_order: spec.sort_order,
+      cell_data:  spec.cell_data,
+    }
+    if (reactivate) patch.undone_at = null
+    const { error: updErr } = await supabase
+      .from('comparison_rows')
+      .update(patch)
+      .eq('id', id)
+    if (updErr) console.warn('[reconcileSeededRows refresh]', spec.idempotency_key, updErr.message)
+  }
 }
 
 /**
@@ -637,33 +1044,31 @@ export async function loadShortlistContext(
 
   const slugs = (rows ?? []).map((r: { school_slug: string }) => r.school_slug)
   if (slugs.length === 0) {
-    return {
-      slugs: [],
-      schoolMap: new Map(),
-      structMap: new Map(),
-      notionMap: new Map(),
-      notionAvailable: true,
-    }
+    return { slugs: [], schoolMap: new Map(), structMap: new Map(), notionMap: new Map() }
   }
 
   const [schoolsRes, structRes, notionRes] = await Promise.all([
     supabase.from('schools')
-      .select('slug, name, city, region, boarding, gender_split, distance_airport')
+      .select('slug, name, city, region, boarding, gender_split')
       .in('slug', slugs),
     supabase.from('school_structured_data')
-      .select(RESEARCH_ROOM_STRUCTURED_SELECT)
+      .select('school_slug, fees_min, fees_max, fees_currency, exam_results, university_destinations, admissions_format, sports_profile, student_community, location_profile, fees_by_grade, application_fee_usd, bursary_note')
       .in('school_slug', slugs),
+    // school_notion_backfill is the Phase 1 sidecar — one row per school×Notion-page.
+    // Always queried alongside struct so cell builders can fall back per the
+    // precedence rules (extractor wins; Notion fills nulls / conflict-gated).
+    // Soft-fail (treat as empty) if the table read errors so the comparison
+    // table never breaks because of a Notion sync hiccup.
     supabase.from('school_notion_backfill')
-      .select('school_slug, status, parsed, raw_properties')
+      .select('school_slug, status, parsed')
       .in('school_slug', slugs),
   ])
 
   if (schoolsRes.error) throw new Error(`loadShortlistContext: schools read failed: ${schoolsRes.error.message}`)
   if (structRes.error)  throw new Error(`loadShortlistContext: structured read failed: ${structRes.error.message}`)
   if (notionRes.error) {
-    // The sidecar supplements structured extraction. A temporary read failure
-    // must not make the whole comparison room unavailable.
-    console.warn(`[loadShortlistContext] Notion sidecar read failed: ${notionRes.error.message}`)
+    // Don't throw — Notion is supplementary. Log + continue with empty map.
+    console.warn(`[loadShortlistContext] notion sidecar read failed: ${notionRes.error.message}`)
   }
 
   const schoolMap = new Map<string, SchoolMeta>(
@@ -673,14 +1078,7 @@ export async function loadShortlistContext(
     (structRes.data ?? []).map((s: StructuredRow) => [s.school_slug, s])
   )
   const notionMap = new Map<string, NotionBackfillRow>(
-    ((notionRes.error ? [] : notionRes.data) ?? [])
-      .map((row: NotionBackfillRow) => [row.school_slug, row])
+    (notionRes.data ?? []).map((n: NotionBackfillRow) => [n.school_slug, n])
   )
-  return {
-    slugs,
-    schoolMap,
-    structMap,
-    notionMap,
-    notionAvailable: !notionRes.error,
-  }
+  return { slugs, schoolMap, structMap, notionMap }
 }

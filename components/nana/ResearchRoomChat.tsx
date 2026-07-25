@@ -4,7 +4,13 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useNanaChat } from '@/lib/nana/use-nana-chat'
 import { NanaMsgBubble, prettyToolName } from './NanaBubble'
+import BuildModeProgressBar from './BuildModeProgressBar'
 import type { Session, ResearchMessage } from '@/lib/nana/types'
+// rr-8-build3-sibling-gender-year proactive opener (2026-05-21) —
+// uk-school-year.ts is pure functions (no 'server-only' marker) so it's
+// safe to import client-side. Used to derive a year suggestion from
+// DOB and weave it into the welcome bubble's basics question.
+import { buildUkYearHint } from '@/lib/server/research-room/uk-school-year'
 
 // Codex P2 #2 fix: gate desktop vs mobile ChatBody rendering by viewport
 // so we mount only ONE instance at a time. Both surfaces share inputRef +
@@ -12,6 +18,114 @@ import type { Session, ResearchMessage } from '@/lib/nana/types'
 // LATER-mounted one (mobile) win those refs even on desktop, silently
 // breaking auto-scroll and "+ New" focus.
 const MOBILE_BREAKPOINT = 880
+
+// Slice 8 Build 7 Phase C followup #4 — synthetic empty Build Mode state.
+// Used when the parent toggles Build Mode ON but no turn has fired yet,
+// so the progress bar can render at 0% with the "Nana is following your
+// lead" heading (focus='free'). Real progress events from /turn always
+// override via `buildModeState ?? SYNTH`. NOT persisted; pure display.
+//
+// `mode: 'minimal'` mirrors the server's emptyProgress('minimal') path in
+// app/api/research-room/build-mode/turn/route.ts so the sentinel stays
+// semantically aligned if display code later starts reading `mode`.
+// `last_updated_at` is the Unix epoch so any real progress event trivially
+// wins on first comparison.
+const SYNTH_EMPTY_BUILD_MODE_STATE: import('@/lib/nana/types').BuildModeStreamState = {
+  progress: {
+    targets:               {},
+    total:                 0,
+    usable_total:          0,
+    mode:                  'minimal',
+    pending_confirmations: [],
+    last_updated_at:       '1970-01-01T00:00:00.000Z',
+  },
+  focus:    'free',
+  lastDiff: null,
+}
+
+// rr-8-build3-sibling-gender-year proactive opener (2026-05-21) — the
+// welcome bubble's content when sibling basics are missing. Renders
+// Nana's first message as an actual gender/year question (with DOB-
+// derived suggestion when available) so the parent can respond right
+// away, instead of staring at a generic "Tell me about your child"
+// placeholder. The copy mirrors the server-side sibling_basics prompt
+// branch's intent — Nana sounds the same whether the opener is this
+// static welcome bubble or a streamed LLM turn.
+function renderSiblingBasicsOpener(args: {
+  name: string | null
+  dob:  string | null
+}) {
+  const childRef = args.name?.trim() ? args.name.trim() : 'them'
+  const hint = buildUkYearHint(args.dob ?? null)
+
+  // Reused-preferences signage stays — sets the "we're not asking
+  // everything from scratch" context that the user explicitly wanted.
+  const reusedLine = (
+    <div className="rr-bubble-lead">
+      <strong>Welcome back.</strong>{' '}
+      I’ve reused your family preferences from your earlier child: region, boarding, budget, and curriculum.
+      Just a couple of quick checks about {childRef} first, then we’ll keep going.
+    </div>
+  )
+
+  // The actual question. Three shapes depending on what the DOB hint
+  // gives us — mirrors the server-side prompt branching but the COPY
+  // here is what the parent sees first, before any LLM turn fires.
+  const curSuggestable  = !!(hint?.currentLabel  && hint.currentValue)
+  const nextSuggestable = !!(hint?.nextSeptemberLabel && hint.nextSeptemberValue)
+  const cur  = hint?.currentLabel
+  const next = hint?.nextSeptemberLabel
+  const curValue  = hint?.currentValue
+  const nextValue = hint?.nextSeptemberValue
+
+  let questionLead: React.ReactNode
+  if (curSuggestable && nextSuggestable && curValue !== nextValue) {
+    // E.g. "Year 9 now, likely Year 10 from September" — different enums.
+    questionLead = (
+      <>
+        Is {childRef} your son or daughter? And from the birthday, I have {childRef} as <strong>{cur}</strong> now,
+        likely <strong>{next}</strong> from September — which year should I use for the search?
+      </>
+    )
+  } else if (curSuggestable) {
+    // E.g. "Year 7 now" and either no September suggestion or same enum.
+    questionLead = (
+      <>
+        Is {childRef} your son or daughter? And from the birthday, I have {childRef} as <strong>{cur}</strong> — is that right?
+      </>
+    )
+  } else if (nextSuggestable) {
+    // Current year isn't an entry-point year (e.g. Y8 / Y11), but
+    // September IS. Say so explicitly.
+    questionLead = (
+      <>
+        Is {childRef} your son or daughter? From the birthday, {childRef} would be <strong>{next}</strong> from September —
+        should I search for that year? (Right now they’re between our entry years of 7, 9, 10, and Sixth Form.)
+      </>
+    )
+  } else {
+    // No DOB or out-of-band → ask plainly.
+    questionLead = (
+      <>
+        Is {childRef} your son or daughter, and what school year — Year 7, Year 9, Year 10, or Sixth Form?
+      </>
+    )
+  }
+
+  return (
+    <>
+      {reusedLine}
+      <div className="rr-bubble-lead">
+        <strong>Quick one before we dive in.</strong>{' '}
+        {questionLead}
+      </div>
+      <div className="rr-bubble-lead">
+        You can skip anything you’d rather not answer, pause with the “Skip for now” button at any time,
+        and I’ll remember where we left off.
+      </div>
+    </>
+  )
+}
 
 function useIsMobile(): boolean {
   // Default to false on the server — SSR mounts the desktop branch first;
@@ -39,12 +153,69 @@ type Props = {
   onExpandDefault:     () => void
   onToggleFocus:       () => void
   onToggleBuildMode:   () => void
+  // Slice 8 Build 7: parent-owned skip handler. ResearchRoom holds
+  // activeChildId so the POST to /api/research-room/build-mode/skip
+  // can target the right child; the handler lives there. Optional
+  // for back-compat — if absent, the skip button hides.
+  onSkipBuildMode?:    () => void
+  // Slice 8 Build 7 Phase C — fullscreen Build Mode flag derived from
+  // the active child's funnel_state ('interview') in ResearchRoom. When
+  // true: chat takes the full viewport (via .rr-shell-fullscreen), the
+  // ⤢ + › chrome hides (nothing to collapse TO), the Build Mode toggle
+  // is disabled (the funnel forces it on), and the mobile bottom-sheet
+  // grows to 100dvh with scrim + drag handle + ✕ suppressed. Orthogonal
+  // to ChatState (per Codex r9) — focus/default/closed still mean the
+  // same thing, just visually pinned to full width.
+  fullscreenBuildMode?: boolean
+  // rr-8-build3-sibling-gender-year (2026-05-21) — true when this is a
+  // sibling landing in Build Mode whose child_gender or child_year is
+  // missing on the row. ResearchRoom derives this from currentChild +
+  // childSummaries.length. Drives an extra signage paragraph in the
+  // welcome bubble explaining that family preferences are reused from
+  // the earlier child and that Build Mode will check year group + the
+  // boys/girls/co-ed mix for this child first. Defaults to false
+  // (back-compat for any other embedder).
+  siblingNeedsBasics?:  boolean
+  // rr-8-build3-sibling-gender-year chip-strip (2026-05-21) — initial
+  // captured state for the BuildModeProgressBar basics chips, derived
+  // in ResearchRoom from currentChild.child_profile. Threaded through
+  // ChatBody into the progress bar so the chips seed correctly on
+  // first paint after a reload. Live updates flow via SSE diff inside
+  // the bar itself. Optional with safe default.
+  siblingBasicsCaptured?: { gender: boolean; year: boolean }
+  // rr-8-build3-sibling-gender-year proactive opener (2026-05-21) —
+  // browser smoke caught that the welcome bubble's generic "Tell me
+  // about your child first..." copy did NOT lead with the basics
+  // question, so parents typed an unrelated answer first and only got
+  // the gender/year ask AFTER one round-trip. The fix: when
+  // siblingNeedsBasics is true, the welcome bubble swaps its generic
+  // opener for a proactive question that includes the DOB-derived
+  // year suggestion (computed client-side via buildUkYearHint on
+  // siblingActiveChildDob). Optional + safe defaults so non-sibling
+  // path is unchanged.
+  siblingActiveChildName?: string | null
+  siblingActiveChildDob?:  string | null
+  // Slice 8 Build 7 Phase C — single-shot exit primitive. Sets user-
+  // buildMode to false AND dismisses fullscreen for the active child.
+  // Used by both Skip (via onSkipBuildMode → ResearchRoom's handler)
+  // AND the in-chat Build-my-table-now CTA (handleBuildTableNow below).
+  onExitInterview?:     () => void
+  // Slice 8 Build 7 Phase C followup #2 — fired by handleBuildTableNow
+  // *after* exitInterview, *before* the finalize ask. ResearchRoom routes
+  // the comparison-area tab to 'compare' so the parent watches the newly-
+  // streamed rows land on the surface they were just sent back to. No-op
+  // when caller doesn't pass it (older embeddings unaffected).
+  onTableBuilt?:        () => void
   // Slice 3d phase 4 — slugs from the active child's comparison data.
   // Threaded into the chat hook's API call so Nana scopes answers to
   // the parent's current shortlist, mirroring DecisionHub's behaviour.
   shortlistSlugs?:     string[]
   initialSession?:     Session | null
   initialMessages?:    ResearchMessage[]
+  // Session 4 follow-up — DB-hydrated Build Mode progress so the bar +
+  // welcome-back bubble render on first paint when the parent re-enters
+  // a session with prior Build Mode history.
+  initialBuildModeState?: import('@/lib/nana/types').BuildModeStreamState | null
   // Slice 6: the page's active ?lens= selection. Threaded through
   // use-nana-chat → /api/nana-research as `lensView` so the route's
   // active-lens fallback resolves to the right base when the parent
@@ -82,10 +253,21 @@ const DRAG_SNAP_THRESHOLD = 70
 // tab switching — those land in slice 5/6.
 function ChatBody({
   buildMode,
+  fullscreenBuildMode,
+  siblingNeedsBasics,
+  siblingBasicsCaptured,
+  siblingActiveChildName,
+  siblingActiveChildDob,
   onToggleBuildMode,
+  onSkipBuildMode,
+  onBuildTableNow,
   chat,
+  showWelcomeBack,
+  onDismissWelcomeBack,
   onConfirmAddRow,
+  onConfirmAddSchool,
   onApplyReRank,
+  onAddToLetter,
   onConfirmTopicLens,
   canSaveAsLens,
   onSaveAsLens,
@@ -93,10 +275,36 @@ function ChatBody({
   onDismissActionError,
 }: {
   buildMode:            boolean
+  // Slice 8 Build 7 Phase C — gates the build-toggle disabled state +
+  // the wrap-up CTA bubble render. See outer Props type for full docs.
+  fullscreenBuildMode:  boolean
+  // rr-8-build3-sibling-gender-year — gates a sibling-aware signage
+  // paragraph in the welcome bubble. See outer Props type.
+  siblingNeedsBasics:   boolean
+  // rr-8-build3-sibling-gender-year chip-strip — seed for the basics
+  // chips inside BuildModeProgressBar. See outer Props type.
+  siblingBasicsCaptured: { gender: boolean; year: boolean }
+  // rr-8-build3-sibling-gender-year proactive opener — child name +
+  // DOB so the welcome bubble can render a year suggestion. See outer
+  // Props type.
+  siblingActiveChildName: string | null
+  siblingActiveChildDob:  string | null
   onToggleBuildMode:    () => void
+  // Slice 8 Build 3 session 4 — Build Mode session-exit affordances.
+  // Both are pure callbacks; ResearchRoomChat owns the state transitions
+  // (toggle flip + post-toggle ask for the "build table" path).
+  onSkipBuildMode?:     () => void
+  onBuildTableNow?:     () => void
   chat:                 ReturnType<typeof useNanaChat>
+  // Codex welcome-back design pass — bubble visibility owned by
+  // ResearchRoomChat (state lives there so it survives desktop↔mobile
+  // ChatBody re-mounts). ChatBody just renders + dispatches dismiss.
+  showWelcomeBack:      boolean
+  onDismissWelcomeBack: () => void
   onConfirmAddRow:      (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
+  onConfirmAddSchool:   (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
   onApplyReRank?:       (messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) => void
+  onAddToLetter:        (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string }>
   onConfirmTopicLens?:  (messageId: string, proposalId: string) => Promise<{ ok: boolean; code?: string; merged?: { rows_inserted: number; rows_updated: number } }>
   canSaveAsLens?:       boolean
   onSaveAsLens?:        (lensName: string) => Promise<{ ok: boolean; code?: string; existingLensId?: string }>
@@ -112,6 +320,7 @@ function ChatBody({
     askError,
     ask,             stopStream, startNewConversation,
     chatEndRef,      inputRef,
+    buildModeState,
   } = chat
 
   function handleKey(e: React.KeyboardEvent<HTMLTextAreaElement>) {
@@ -134,7 +343,19 @@ function ChatBody({
         type="button"
         className={`rr-build-toggle${buildMode ? ' is-active' : ''}`}
         onClick={onToggleBuildMode}
+        // Codex Q8 — disable toggle while a turn is streaming. Toggling
+        // mid-stream creates confusing entry/reset timing: the active
+        // SSE turn writes to whichever route was selected at submit time
+        // (turn vs finalize), but the UI may flicker buildMode state +
+        // re-trigger the welcome-back reset effect.
+        // Slice 8 Build 7 Phase C (Codex r1 P1 #1) — also disable in
+        // fullscreen: the toggle has no meaningful action when the funnel
+        // forces Build Mode on; clicking would hide the bar + Skip while
+        // leaving the chrome hidden — confusing. Skip + Build-table-now
+        // are the canonical exits.
+        disabled={chat.isStreaming || fullscreenBuildMode}
         aria-pressed={buildMode}
+        title={fullscreenBuildMode ? 'Build Mode is on while you set up this child' : undefined}
       >
         <span className="rr-bt-ic" aria-hidden="true">⚒</span>
         <span className="rr-bt-body">
@@ -143,6 +364,145 @@ function ChatBody({
         </span>
         <span className="rr-bt-state">{buildMode ? 'ON' : 'OFF'}</span>
       </button>
+
+      {buildMode && (
+        <BuildModeProgressBar
+          // Slice 8 Build 7 Phase C followup #4 — fall back to a synthetic
+          // 0% state when no Build Mode turn has fired yet. Real progress
+          // overrides on the next /turn SSE event.
+          state={buildModeState ?? SYNTH_EMPTY_BUILD_MODE_STATE}
+          // Slice 8 Build 7 Phase C (Codex r1 P2 #6) — suppress the bar's
+          // "Build table now" button once the wrap-up bubble takes over.
+          // The bar CTA exists as an early-exit at ≥80%; post-wrap-up the
+          // bubble is the single primary action.
+          onBuildTableNow={chat.buildModeWrapUp ? undefined : onBuildTableNow}
+          // rr-8-build3-sibling-gender-year (2026-05-21) — seed for the
+          // basics chip-strip; only rendered when focus==='sibling_basics'.
+          basics={siblingBasicsCaptured}
+        />
+      )}
+
+      {buildMode && !isStreaming && onSkipBuildMode && (
+        // Slice 8 Build 3 session 4 — escape hatch from Build Mode.
+        // Always available while the toggle is on; client-only — progress
+        // survives via the DB (research_sessions.build_mode_progress) so
+        // re-entering picks up where the parent left off.
+        <button
+          type="button"
+          className="rr-build-skip"
+          onClick={onSkipBuildMode}
+        >
+          ↩ Skip Build Mode for now — your progress is saved
+        </button>
+      )}
+
+      {/* Welcome-back bubble (Codex design pass). Owned by ResearchRoomChat
+          via `showWelcomeBack` so dismiss-state survives desktop↔mobile
+          re-mounts. Reads chat.buildModeState (LIVE, mutates as turns
+          fire) so the % is current. role="status" + aria-live="polite"
+          announce to screen readers; dismiss button is keyboard-
+          accessible. Placed OUTSIDE rr-thread to avoid the auto-scroll
+          (v4 fix). */}
+      {showWelcomeBack && chat.buildModeState && (
+        <div
+          className="rr-bubble-nana rr-bubble-nana--pinned"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="rr-bubble-head">
+            <svg className="rr-bubble-avatar" aria-hidden="true">
+              <use href="#ic-nana" />
+            </svg>
+            <div className="rr-bubble-name">Nana</div>
+            <button
+              type="button"
+              className="rr-bubble-dismiss"
+              onClick={onDismissWelcomeBack}
+              aria-label="Dismiss welcome back message"
+              title="Dismiss"
+            >×</button>
+          </div>
+          <div className="rr-bubble-lead">
+            <strong>Welcome back.</strong>{' '}
+            You’re at <strong>{Math.round((chat.buildModeState.progress?.usable_total ?? 0) * 100)}%</strong> on Build Mode.
+            We can pick up right where we left off — just answer the next question below,
+            or hit <em>Skip Build Mode for now</em> to head back to the table.
+          </div>
+        </div>
+      )}
+
+      {/* Slice 8 Build 7 Phase C followup #4 — Build Mode fresh-start
+          notice. Fires when parent toggled Build Mode ON but no turn has
+          fired yet AND the thread has prior non-Build-Mode messages
+          (e.g. they chatted in regular mode first, then toggled Build
+          Mode). The empty-thread welcome bubble below (~line 311) handles
+          the empty-thread case; this handles the "had prior chat" gap.
+
+          Pinned OUTSIDE rr-thread so it doesn't pretend to be a
+          retroactive chat message; mirrors the welcome-back v4 fix.
+
+          Disjoint from welcome-back (above) by !buildModeState, so a
+          child with real progress never shows both at once. Hides when
+          (a) parent sends first turn → buildModeState becomes non-null,
+          or (b) parent hits Skip → buildMode flips false. */}
+      {buildMode && !buildModeState && messages.length > 0 && !isStreaming && (
+        <div
+          className="rr-bubble-nana rr-bubble-nana--pinned"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="rr-bubble-head">
+            <svg className="rr-bubble-avatar" aria-hidden="true">
+              <use href="#ic-nana" />
+            </svg>
+            <div className="rr-bubble-name">Nana</div>
+          </div>
+          <div className="rr-bubble-lead">
+            <strong>You&rsquo;re in Build Mode.</strong>{' '}
+            Tell me about your child to start — a few sentences is enough.
+            I&rsquo;ll fill in the rest with small follow-up questions. Or hit{' '}
+            <em>Skip Build Mode for now</em> to head back to the table.
+          </div>
+        </div>
+      )}
+
+      {/* Slice 8 Build 7 Phase C — WrapUp CTA bubble. Renders only in
+          fullscreen Build Mode after the route emits build_mode_wrap_up
+          (gated server-side on nextFocus==='free' + RPC apply success).
+          Pinned OUTSIDE rr-thread so auto-scroll doesn't hide it. The
+          "Build my table now" button fires handleBuildTableNow which
+          exits the interview locally (onExitInterview) and fires the
+          finalize route. Copy hand-tuned via Codex r1 NIT #10. */}
+      {fullscreenBuildMode && chat.buildModeWrapUp && !chat.isStreaming && (
+        <div
+          className="rr-bubble-nana rr-bubble-nana--pinned rr-bubble-wrap-up"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="rr-bubble-head">
+            <svg className="rr-bubble-avatar" aria-hidden="true">
+              <use href="#ic-nana" />
+            </svg>
+            <div className="rr-bubble-name">Nana</div>
+          </div>
+          <div className="rr-bubble-lead">
+            <strong>I&rsquo;ve got enough to start.</strong>{' '}
+            Want me to build your comparison table from what we&rsquo;ve covered?
+            We can keep adjusting it as we go.
+          </div>
+          {onBuildTableNow && (
+            <button
+              type="button"
+              className="rr-bubble-wrap-up-cta"
+              onClick={onBuildTableNow}
+            >
+              <span className="rr-bubble-wrap-up-icon" aria-hidden="true">✦</span>
+              <span>Build my table now</span>
+              <span className="rr-bubble-wrap-up-arrow" aria-hidden="true">→</span>
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="rr-thread">
         {messages.length === 0 && !isStreaming && (
@@ -153,16 +513,70 @@ function ChatBody({
               </svg>
               <div className="rr-bubble-name">Nana</div>
             </div>
-            <div className="rr-bubble-lead">
-              Ask me anything about the schools in your comparison — fees, results, pastoral care, how they stack up against each other.
-            </div>
+            {buildMode ? (
+              // Slice 8 Build 3 session 4 — Build Mode opener.
+              // Client-side synthetic message: no LLM call, no DB row.
+              // Re-renders fresh every time the parent enters Build Mode
+              // with an empty thread; once they send the first reply,
+              // messages.length > 0 and this branch hides naturally.
+              //
+              // Slice 8 Build 7 Phase D (2026-05-15) — blurb-first opener.
+              // rr-8-build3-sibling-gender-year proactive opener
+              // (2026-05-21) — when siblingNeedsBasics is true, swap the
+              // generic "Tell me about your child" lead for a focused
+              // basics question that the parent can answer right away.
+              // Browser smoke caught that without this, the parent saw
+              // only a placeholder ("Ask Nana about these schools…")
+              // and felt like the chat hadn't started — they typed an
+              // unrelated message ("loves football and is very smart in
+              // academics") and only got the gender/year ask AFTER one
+              // round-trip. The proactive variant uses the DOB hint
+              // when storable so Nana suggests a year rather than
+              // listing enum options.
+              siblingNeedsBasics
+                ? renderSiblingBasicsOpener({
+                    name: siblingActiveChildName ?? null,
+                    dob:  siblingActiveChildDob  ?? null,
+                  })
+                : (
+              <>
+                <div className="rr-bubble-lead">
+                  <strong>Welcome to Build Mode.</strong>{' '}
+                  The comparison table on the right is generic right now — every parent sees the same rows.
+                  In Build Mode, I’ll learn about your child so we can build rows tailored to
+                  <em> what matters for them and your family</em>, not generic ones.
+                </div>
+                <div className="rr-bubble-lead">
+                  You can skip anything you’d rather not answer, pause with the “Skip for now” button at any time,
+                  and I’ll remember where we left off.
+                </div>
+                <div className="rr-bubble-lead">
+                  <strong>Tell me about your child first.</strong>{' '}
+                  What are they like as a person, what do they love, and how does school feel for them right now?
+                  A few sentences is enough, but write as much as you like. Once I have that picture,
+                  I’ll ask small follow-up questions to fill in the rest.
+                </div>
+              </>
+                )
+            ) : (
+              <div className="rr-bubble-lead">
+                Ask me anything about the schools in your comparison — fees, results, pastoral care, how they stack up against each other.
+              </div>
+            )}
           </div>
         )}
 
         {messages.map(msg => (
           <div key={msg.id}>
             <div className="rr-bubble-user">{msg.question}</div>
-            <NanaMsgBubble msg={msg} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onConfirmTopicLens={onConfirmTopicLens} />
+            <NanaMsgBubble
+              msg={msg}
+              onConfirmAddRow={onConfirmAddRow}
+              onConfirmAddSchool={onConfirmAddSchool}
+              onApplyReRank={onApplyReRank}
+              onAddToLetter={onAddToLetter}
+              onConfirmTopicLens={onConfirmTopicLens}
+            />
           </div>
         ))}
 
@@ -237,7 +651,12 @@ function ChatBody({
         className="rr-chat-input"
         onSubmit={e => { e.preventDefault(); ask() }}
       >
-        {(messages.length > 0 || isStreaming) && (
+        {(messages.length > 0 || isStreaming) && !buildMode && (
+          // Codex r6 P1 — startNewConversation() clears the chat
+          // hook's session, but the Build Mode turn route requires
+          // sessionId to be a UUID. Hiding the affordance in Build
+          // Mode prevents the parent from getting wedged mid-
+          // interview; the Skip button is the right exit instead.
           <button
             type="button"
             className="rr-chat-new-btn"
@@ -283,25 +702,46 @@ function ChatBody({
 export default function ResearchRoomChat({
   state,
   buildMode,
+  fullscreenBuildMode = false,
+  siblingNeedsBasics = false,
+  siblingBasicsCaptured = { gender: false, year: false },
+  siblingActiveChildName = null,
+  siblingActiveChildDob = null,
+  onExitInterview,
+  onTableBuilt,
   onCollapse,
   onExpandDefault,
   onToggleFocus,
   onToggleBuildMode,
+  onSkipBuildMode,
   shortlistSlugs   = [],
   initialSession   = null,
   initialMessages  = [],
+  initialBuildModeState = null,
   lensView         = 'general',
   onApplyReRank,
   canSaveAsLens    = false,
   onSaveAsLens,
   pendingRefreshTopicLens = null,
 }: Props) {
+  // Slice 8 Build 3 session 2: when Build Mode is active, route to the
+  // dedicated /api/research-room/build-mode/turn endpoint instead of
+  // the regular /api/nana-research. The build-mode route is fully
+  // isolated from nana-brain.js (Codex r1 #12: avoid Anthropic fallback).
+  // The endpoint switches live on each render — useNanaChat reads it
+  // via ref so the same ask() closure picks up the change next call.
+  const chatEndpoint = buildMode
+    ? '/api/research-room/build-mode/turn'
+    : '/api/nana-research'
+
   // One chat hook instance — but only ONE ChatBody (desktop OR mobile)
   // is mounted at a time so the hook's inputRef/chatEndRef attach to the
   // visible surface. See useIsMobile + the gated branches below.
   const chat = useNanaChat({
     initialSession,
     initialMessages,
+    initialBuildModeState,
+    endpoint: chatEndpoint,
     getServerParams: () => ({
       activeTab:        'compare',
       activeSchoolSlug: null,
@@ -314,6 +754,35 @@ export default function ResearchRoomChat({
 
   const isMobile = useIsMobile()
   const router   = useRouter()
+
+  // Codex welcome-back design pass — dismiss-state lifted here (NOT
+  // ChatBody) because ChatBody mounts separately for desktop vs
+  // mobile, so local state would reset on viewport-class change.
+  // Lifecycle:
+  //   • Mount with buildMode=true (rare): dismissed=false → bubble shows
+  //   • buildMode flips false→true: reset to false + snapshot submitSeq
+  //   • submitSeq advances past snapshot: dismissed=true (auto-dismiss
+  //     on user engagement)
+  //   • × click: dismissed=true (manual dismiss)
+  const [welcomeBackDismissed, setWelcomeBackDismissed] = useState(false)
+  const submitSeqAtToggleRef = useRef<number>(chat.submitSeq)
+  useEffect(() => {
+    if (buildMode) {
+      setWelcomeBackDismissed(false)
+      submitSeqAtToggleRef.current = chat.submitSeq
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [buildMode])
+  useEffect(() => {
+    if (buildMode && chat.submitSeq > submitSeqAtToggleRef.current) {
+      setWelcomeBackDismissed(true)
+    }
+  }, [chat.submitSeq, buildMode])
+  const showWelcomeBack =
+       buildMode
+    && !!chat.buildModeState
+    && !chat.isStreaming
+    && !welcomeBackDismissed
 
   // Slice 6.6 Tier 3 — react to ComparisonView's ↻ Refresh lens click.
   // Parent passes a {topicName, nonce} payload; the nonce changes on
@@ -405,6 +874,99 @@ export default function ResearchRoomChat({
     }
   }, [pendingAutoConfirmTopic, chat.messages, chat.isStreaming])
 
+  // 2026-05-19 — Option A: auto-refresh after finalize auto-accept.
+  // When the parent reaches Build Mode finalize from an empty
+  // shortlist (fresh-start mode), the server now auto-confirms each
+  // propose_add_school proposal server-side (confirm_add_school RPC
+  // + match_reasons + seedResearchSession) instead of waiting for
+  // the parent to click each chip individually. The server's final
+  // event carries `build_mode.auto_accepted_count > 0` as the
+  // signal. This effect calls router.refresh() once per such
+  // message so:
+  //   • activeShortlistSlugs + activeSchoolProposalIds re-derive
+  //     from the new actions[] stamps + shortlisted_schools rows,
+  //   • the chips render in their "✓ Added" state,
+  //   • the comparison table renders the new schools + seeded rows.
+  // The ref watermark stops repeat-firing on the same message
+  // (subsequent React re-renders re-run this effect; without the
+  // watermark we'd refresh infinitely while the message stays in
+  // chat.messages).
+  const lastAutoAcceptedMsgIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    const last = chat.messages[chat.messages.length - 1]
+    if (!last) return
+    if (lastAutoAcceptedMsgIdRef.current === last.id) return
+    const buildMode = (last.parsed as {
+      build_mode?: { auto_accepted_count?: number }
+    } | null)?.build_mode
+    const count = typeof buildMode?.auto_accepted_count === 'number'
+      ? buildMode.auto_accepted_count
+      : 0
+    if (count <= 0) return
+    lastAutoAcceptedMsgIdRef.current = last.id
+    router.refresh()
+  }, [chat.messages, router])
+
+  // Slice 8 Build 3 session 4 — "Build my table" CTA. Posts to the
+  // dedicated /api/research-room/build-mode/finalize route (NOT through
+  // the regular Nana brain — the C-option fix replaced the earlier
+  // synthetic-prompt flow that hallucinated schools and ignored
+  // captured priorities). The finalize route reads child_profile +
+  // shortlist server-side and emits 3-5 propose_add_row proposals in
+  // the standard parsed_answer shape so the existing "+ Add as row"
+  // pills render unchanged.
+  //
+  // We toggle Build Mode off in the same handler so the chat panel
+  // returns to the regular-answering shell — the bar disappears, the
+  // header switches from "BUILD MODE · CO-BUILDER" to "ANSWERING".
+  // Order matters: endpointOverride is consumed at ask() submit time
+  // (not from the ref), so we can call both synchronously without
+  // racing the re-render.
+  // Slice 8 Build 7: handleSkipBuildMode moved UP to ResearchRoom.tsx
+  // where activeChildId lives. onSkipBuildMode is now received as a
+  // prop (above) and passed straight through to ChatBody.
+  const handleBuildTableNow  = () => {
+    // Slice 8 Build 7 Phase C (Codex r1 P1 #1): use onExitInterview
+    // instead of onToggleBuildMode. onExitInterview is an explicit
+    // setter (sets buildMode false + dismisses fullscreen for the active
+    // child) — never a toggle. Blind toggling could re-enable Build
+    // Mode in pathological flows where the toggle had been flipped off.
+    // Exit BEFORE firing finalize so the comparison panel re-appears
+    // while finalize's row proposals stream in.
+    onExitInterview?.()
+    // Followup #2 — switch the comparison-area tab to 'compare' so the
+    // streamed rows land on the visible panel. Fires AFTER exitInterview
+    // (fullscreen cleared first) and BEFORE chat.ask() so the tab swap
+    // is committed to state by the time finalize's SSE deltas arrive.
+    // No-op when parent is already on 'compare'; harmless on mobile.
+    onTableBuilt?.()
+    void chat.ask('Build my comparison table now', {
+      endpointOverride: '/api/research-room/build-mode/finalize',
+    })
+    // [FOLLOWUP] Phase C — Codex r2 P2 #5 deferred: surface finalize
+    // POST failure to the user with a small non-blocking retry affordance.
+  }
+
+  // Slice 8 Build 7 Phase C (Codex r3 P1 / r4 P1): universal focus-on-
+  // fullscreen effect. When fullscreen flips on, move focus to the chat
+  // input so any focus that was inside .rr-main (now visibility:hidden)
+  // moves to a visible, interactable target.
+  //
+  // Deps include `state` because if fullscreen flips on while
+  // chatState==='closed' the chat-open effect (in ResearchRoom) promotes
+  // state→'default' on a subsequent render, and we want THIS effect to
+  // re-fire then so focus lands once ChatBody mounts. Guard short-circuits
+  // when state==='closed' so the inputRef-is-null case doesn't strand the
+  // call.
+  //
+  // Fires on BOTH desktop and mobile. The mobile-specific focus effect
+  // below complements (doesn't replace) this — that one handles sheet-
+  // open transitions when already in fullscreen-static mode.
+  useEffect(() => {
+    if (!fullscreenBuildMode || state === 'closed') return
+    chat.inputRef.current?.focus()
+  }, [fullscreenBuildMode, state, chat.inputRef])
+
   // Slice 5: confirm a "+ Add as row" proposal. Posts to write-action; on
   // success refreshes the page so loadComparisonData re-reads
   // comparison_rows. Errors get surfaced via askError-style alert below
@@ -433,6 +995,55 @@ export default function ResearchRoomChat({
     } catch (e) {
       console.error('[research-room write-action]', e)
       setActionError('Network error while adding the row.')
+      return { ok: false, code: 'network' }
+    }
+  }
+
+  // Slice 8 Build 6: confirm a "+ Add Sherborne" school proposal. Posts to
+  // write-action; the server calls confirm_add_school RPC + best-effort
+  // refreshes seeded rows so the new column populates on next render.
+  async function onConfirmAddSchool(messageId: string, proposalId: string): Promise<{ ok: boolean; code?: string }> {
+    try {
+      const res = await fetch('/api/research-room/write-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add_school', message_id: messageId, proposal_id: proposalId }),
+      })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        const code = typeof j?.code === 'string' ? j.code : 'request_failed'
+        setActionError(`Could not add that school (${code}).`)
+        return { ok: false, code }
+      }
+      setActionError(null)
+      router.refresh()
+      return { ok: true }
+    } catch (e) {
+      console.error('[research-room add-school]', e)
+      setActionError('Network error while adding the school.')
+      return { ok: false, code: 'network' }
+    }
+  }
+
+  async function onAddToLetter(messageId: string, proposalId: string): Promise<{ ok: boolean; code?: string }> {
+    try {
+      const res = await fetch('/api/research-room/write-action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add_to_letter', message_id: messageId, proposal_id: proposalId }),
+      })
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}))
+        const code = typeof j?.code === 'string' ? j.code : 'request_failed'
+        setActionError(`Could not add that note to the partner brief (${code}).`)
+        return { ok: false, code }
+      }
+      setActionError(null)
+      router.refresh()
+      return { ok: true }
+    } catch (e) {
+      console.error('[research-room add-to-letter]', e)
+      setActionError('Network error while adding that note to the partner brief.')
       return { ok: false, code: 'network' }
     }
   }
@@ -569,13 +1180,24 @@ export default function ResearchRoomChat({
   // When the mobile sheet opens, move focus to the close button so screen
   // readers and keyboard users land inside the dialog. Only fires on mobile —
   // desktop rail uses the rail's native focus order.
+  //
+  // Slice 8 Build 7 Phase C (Codex r2 P1 #2): in fullscreen the close ✕
+  // is hidden, so sheetCloseRef is null. Retarget to chat.inputRef so the
+  // parent can start typing immediately. Effect deps include
+  // fullscreenBuildMode so transitions IN and OUT of fullscreen rewire
+  // focus correctly. Gate updated to also keep the sheet behavior when
+  // state==='closed' but fullscreen is on (sheet renders anyway).
   useEffect(() => {
-    if (state === 'closed') return
+    if (state === 'closed' && !fullscreenBuildMode) return
     const isMobile =
       typeof window !== 'undefined' && window.matchMedia('(max-width: 880px)').matches
     if (!isMobile) return
-    sheetCloseRef.current?.focus()
-  }, [state])
+    if (fullscreenBuildMode) {
+      chat.inputRef.current?.focus()
+    } else {
+      sheetCloseRef.current?.focus()
+    }
+  }, [state, fullscreenBuildMode, chat.inputRef])
 
   return (
     <>
@@ -624,34 +1246,43 @@ export default function ResearchRoomChat({
                 Nana
                 <span>{buildMode ? 'BUILD MODE · CO-BUILDER' : 'ANSWERING'}</span>
               </div>
-              <button
-                type="button"
-                className="rr-chat-state-btn"
-                onClick={onToggleFocus}
-                aria-label={state === 'focus' ? 'Shrink chat' : 'Expand chat'}
-                title={state === 'focus' ? 'Shrink' : 'Expand'}
-              >
-                ⤢
-              </button>
-              <button
-                type="button"
-                className="rr-chat-state-btn"
-                onClick={onCollapse}
-                aria-label="Collapse chat"
-                title="Collapse"
-              >
-                ›
-              </button>
+              {/* Slice 8 Build 7 Phase C — chrome (⤢ + ›) hides in
+                  fullscreen because there's nothing to collapse TO and
+                  the chat already owns the viewport. */}
+              {!fullscreenBuildMode && (
+                <>
+                  <button
+                    type="button"
+                    className="rr-chat-state-btn"
+                    onClick={onToggleFocus}
+                    aria-label={state === 'focus' ? 'Shrink chat' : 'Expand chat'}
+                    title={state === 'focus' ? 'Shrink' : 'Expand'}
+                  >
+                    ⤢
+                  </button>
+                  <button
+                    type="button"
+                    className="rr-chat-state-btn"
+                    onClick={onCollapse}
+                    aria-label="Collapse chat"
+                    title="Collapse"
+                  >
+                    ›
+                  </button>
+                </>
+              )}
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} fullscreenBuildMode={fullscreenBuildMode} siblingNeedsBasics={siblingNeedsBasics} siblingBasicsCaptured={siblingBasicsCaptured} siblingActiveChildName={siblingActiveChildName} siblingActiveChildDob={siblingActiveChildDob} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={onSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onConfirmAddSchool={onConfirmAddSchool} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         )}
       </aside>
       )}
 
-      {/* ─── Mobile FAB (rendered only when chat is closed AND on mobile) ─ */}
-      {isMobile && state === 'closed' && (
+      {/* ─── Mobile FAB (rendered only when chat is closed AND on mobile AND not fullscreen) ─ */}
+      {/* Slice 8 Build 7 Phase C — FAB hidden in fullscreen because the
+          sheet is always open (no closed state) in the forced funnel. */}
+      {isMobile && state === 'closed' && !fullscreenBuildMode && (
         <button
           type="button"
           className="rr-fab is-visible"
@@ -665,35 +1296,44 @@ export default function ResearchRoomChat({
         </button>
       )}
 
-      {/* ─── Mobile bottom sheet (only when chat is open AND on mobile) ── */}
-      {isMobile && state !== 'closed' && (
+      {/* ─── Mobile bottom sheet (open OR fullscreen) ─────────────────
+          Slice 8 Build 7 Phase C — render gate widened to include
+          fullscreen-when-closed (the funnel forces the sheet open even
+          if chatState says 'closed'). Scrim + drag handle + close ✕ are
+          suppressed in fullscreen since the parent's only exits are the
+          in-chat Skip + Build-my-table-now CTAs. */}
+      {isMobile && (state !== 'closed' || fullscreenBuildMode) && (
         <>
-          <button
-            type="button"
-            className="rr-scrim"
-            onClick={onCollapse}
-            aria-label="Close chat"
-            tabIndex={-1}
-          />
+          {!fullscreenBuildMode && (
+            <button
+              type="button"
+              className="rr-scrim"
+              onClick={onCollapse}
+              aria-label="Close chat"
+              tabIndex={-1}
+            />
+          )}
           <div
             ref={sheetRef}
-            className={`rr-sheet rr-sheet-${state}`}
+            className={`rr-sheet rr-sheet-${state}${fullscreenBuildMode ? ' rr-sheet-fullscreen' : ''}`}
             role="dialog"
             aria-modal="true"
             aria-label="Chat with Nana"
           >
-            <button
-              type="button"
-              className="rr-sheet-handle"
-              onPointerDown={handleDragStart}
-              onPointerMove={handleDragMove}
-              onPointerUp={handleDragEnd}
-              onPointerCancel={handleDragEnd}
-              onClick={handleHandleClick}
-              aria-label="Drag to resize chat. Tap to expand or shrink."
-            >
-              <span className="rr-sheet-grip" aria-hidden="true" />
-            </button>
+            {!fullscreenBuildMode && (
+              <button
+                type="button"
+                className="rr-sheet-handle"
+                onPointerDown={handleDragStart}
+                onPointerMove={handleDragMove}
+                onPointerUp={handleDragEnd}
+                onPointerCancel={handleDragEnd}
+                onClick={handleHandleClick}
+                aria-label="Drag to resize chat. Tap to expand or shrink."
+              >
+                <span className="rr-sheet-grip" aria-hidden="true" />
+              </button>
+            )}
 
             <header className="rr-sheet-head">
               <svg className="rr-chat-avatar" aria-hidden="true">
@@ -703,19 +1343,21 @@ export default function ResearchRoomChat({
                 Nana
                 <span>{buildMode ? 'BUILD MODE · CO-BUILDER' : 'ANSWERING'}</span>
               </div>
-              <button
-                ref={sheetCloseRef}
-                type="button"
-                className="rr-chat-state-btn"
-                onClick={onCollapse}
-                aria-label="Close chat"
-                title="Close"
-              >
-                ✕
-              </button>
+              {!fullscreenBuildMode && (
+                <button
+                  ref={sheetCloseRef}
+                  type="button"
+                  className="rr-chat-state-btn"
+                  onClick={onCollapse}
+                  aria-label="Close chat"
+                  title="Close"
+                >
+                  ✕
+                </button>
+              )}
             </header>
 
-            <ChatBody buildMode={buildMode} onToggleBuildMode={onToggleBuildMode} chat={chat} onConfirmAddRow={onConfirmAddRow} onApplyReRank={onApplyReRank} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
+            <ChatBody buildMode={buildMode} fullscreenBuildMode={fullscreenBuildMode} siblingNeedsBasics={siblingNeedsBasics} siblingBasicsCaptured={siblingBasicsCaptured} siblingActiveChildName={siblingActiveChildName} siblingActiveChildDob={siblingActiveChildDob} onToggleBuildMode={onToggleBuildMode} onSkipBuildMode={onSkipBuildMode} onBuildTableNow={handleBuildTableNow} chat={chat} showWelcomeBack={showWelcomeBack} onDismissWelcomeBack={() => setWelcomeBackDismissed(true)} onConfirmAddRow={onConfirmAddRow} onConfirmAddSchool={onConfirmAddSchool} onApplyReRank={onApplyReRank} onAddToLetter={onAddToLetter} onConfirmTopicLens={onConfirmTopicLens} canSaveAsLens={canSaveAsLens} onSaveAsLens={onSaveAsLens} actionError={actionError} onDismissActionError={() => setActionError(null)} />
           </div>
         </>
       )}
@@ -826,4 +1468,3 @@ function ChatActionsRail({
     </div>
   )
 }
-

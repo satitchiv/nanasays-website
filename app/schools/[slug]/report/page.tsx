@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import { supabaseService } from '@/lib/supabase-admin'
 import { getPaidSchoolReportData } from '@/lib/school-page-data'
+import { isResearchRoomEnabled } from '@/lib/feature-flags'
 
 import RptHeader              from '@/components/report/RptHeader'
 import VerdictBox, { Verdict } from '@/components/report/VerdictBox'
@@ -354,9 +355,11 @@ export default async function SchoolReportPage({ params, searchParams }: Props) 
           return (
             <div className="report-action-row">
               <ShortlistButton slug={slug} />
-              <a href={`/nana/research?school=${slug}`} className="report-research-btn">
-                🔬 Research Mode
-              </a>
+              {isResearchRoomEnabled() && (
+                <a href="/nana/research-room" className="report-research-btn">
+                  🔬 Research Mode
+                </a>
+              )}
               {hasDate ? (
                 <a
                   href={`/api/calendar/${slug}`}

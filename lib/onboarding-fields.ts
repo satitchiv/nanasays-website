@@ -1,7 +1,19 @@
-// Shared schema for the 9 onboarding fields. The OnboardingForm reads
-// this to render its step-by-step UI; the Research Room Brief tab uses
-// the same data to display + format saved values. Keeping it in one
-// place means Adding/renaming a field updates both surfaces.
+// Shared schema for the parent-preference fields. Split into two surfaces
+// (Slice 8 Build 1 · 2026-05-14):
+//
+//   FORM_FIELDS  — the 5 structural questions in the onboarding wizard.
+//                  Quick yes/no facts a parent can answer in <90 seconds.
+//                  These narrow the candidate pool before Nana takes over.
+//
+//   BRIEF_FIELDS — everything else (curriculum, top priority, class size,
+//                  SEN need, ethos, intl mix, phones, LGBTQ+, pastoral).
+//                  Editable in the Research Room Child Brief tab.
+//                  Future Build Mode (Build 3) will fill these
+//                  conversationally instead of via dropdowns.
+//
+// Why split: front-loading 9+ dropdowns produced rushed low-quality
+// answers. The 5 structural questions are the floor; the rest is the
+// ceiling that Nana raises through conversation.
 
 export type OnboardingField = {
   field:    string
@@ -14,11 +26,19 @@ export type OnboardingField = {
 
 export const ONBOARDING_FIELDS: OnboardingField[] = [
   {
+    // DB column stays `home_region` (no migration). The label changed
+    // 2026-05-19 from "Where (are you based)" to "Interested location"
+    // because the field is really "where do you want to look for
+    // schools", not "where the family lives". An overseas family
+    // looking at UK boarding shouldn't have to pick 'overseas' as their
+    // school location — they should be able to say "anywhere in the UK"
+    // or pick a specific region. Added 'anywhere' option for that.
     field: 'home_region',
-    short: 'Where',
-    question: 'Where are you based?',
+    short: 'Interested location',
+    question: 'Where do you want to look for schools?',
     level: 'family',
     options: [
+      { value: 'anywhere',       label: 'Anywhere in the UK (no preference)' },
       { value: 'london',         label: 'London' },
       { value: 'south-east',     label: 'South East England' },
       { value: 'south-west',     label: 'South West England' },
@@ -124,15 +144,128 @@ export const ONBOARDING_FIELDS: OnboardingField[] = [
       { value: 'no-concern',   label: "No, this doesn't apply" },
     ],
   },
+  // T4.16 Gap B (2026-05-09): three preference fields that feed the
+  // ethos_match / intl_share / device_policy ranking dims. Stored on
+  // child_profile JSONB like every other field (Slice 3.3 pattern).
+  // 'no-preference' values are normalized → null in the ctx.parent
+  // builder before reaching dim.rank(), matching the scorer's
+  // if (!want) null-short-circuit semantics.
+  //
+  // 2026-05-19 — ethos_pref and intl_pref field definitions REMOVED from
+  // the Brief form. User decision: these felt out-of-place at the
+  // parent-brief level — they're better surfaced as filters on the
+  // school-detail / comparison-table side, not as a recommender
+  // gate. The columns stay in parent_profiles (no DB migration); the
+  // recommender code that reads them still functions if they ever come
+  // back. The DIMENSIONS.ethos_match + .intl_share scorers stay live
+  // for any caller that wires them in later (currently neither Picker
+  // is wired to read ethos_pref / intl_pref).
+  //
+  // History of the removed fields preserved here for reference if we
+  // need to reinstate (e.g. as a "/schools filter" rather than a brief
+  // field): ethos_pref dropdown values mapped to school_facts.ethos_label
+  // (church_of_england, christian_general, secular, roman_catholic,
+  // mixed_faith, methodist, quaker); intl_pref had low/high/no-preference.
+  // phone_pref scorer is binary: 'flexible' inverts the score (rewards
+  // open-phone schools); anything else rewards stricter policies.
+  {
+    field: 'phone_pref',
+    short: 'Phones',
+    question: "What's your view on phones at school?",
+    level: 'family',
+    options: [
+      { value: 'strict',        label: 'Strict — phones banned or heavily restricted' },
+      { value: 'flexible',      label: 'Flexible — supervised use is fine' },
+      { value: 'no-preference', label: 'No strong view' },
+    ],
+  },
+  // 2026-05-10 ISI deep extraction: lgbtq_pref drives the inclusive_culture
+  // scorer. Binary: 'important' enables ranking; 'no-preference' normalizes
+  // to null in ctx.parent → scorer null-short-circuits.
+  {
+    field: 'lgbtq_pref',
+    short: 'LGBTQ+',
+    question: 'Is an LGBTQ+-inclusive school culture particularly important for your family?',
+    level: 'family',
+    options: [
+      { value: 'important',     label: "Yes — it's important to us" },
+      { value: 'no-preference', label: 'Not specifically' },
+    ],
+  },
+  // pastoral_pref drives the pastoral_care scorer. Three-way: 'high_priority'
+  // gives full score weight, 'standard' gives half-weight, 'no-preference'
+  // normalizes to null and the scorer short-circuits.
+  {
+    field: 'pastoral_pref',
+    short: 'Pastoral',
+    question: 'How important is strong pastoral care and mental health support?',
+    level: 'family',
+    options: [
+      { value: 'high_priority', label: 'Very important — a top priority' },
+      { value: 'standard',      label: 'Standard provision is fine' },
+      { value: 'no-preference', label: 'No strong view' },
+    ],
+  },
 ]
 
-// Slice 3.3 polish (2026-05-05): all 9 fields are now per-child. The
-// level metadata stays for analytics + potential future "sync across
-// kids" UX, but the Brief tab treats every field as editable per child.
+// Slice 3.3 polish (2026-05-05): all fields are now per-child. The level
+// metadata stays for analytics + potential future "sync across kids" UX,
+// but the Brief tab treats every field as editable per child.
 export const FAMILY_FIELDS = ONBOARDING_FIELDS.filter(f => f.level === 'family')
 export const CHILD_FIELDS  = ONBOARDING_FIELDS.filter(f => f.level === 'child')
 export const CHILD_FIELD_NAMES   = CHILD_FIELDS.map(f => f.field)
 export const ONBOARDING_FIELD_NAMES = ONBOARDING_FIELDS.map(f => f.field)
+
+// Slice 8 Build 7 Phase C followup #3 (2026-05-16) — which fields inherit
+// from parent_profiles into a new SIBLING's child_profile. The first-ever
+// child create still copies everything (those wizard answers ARE about
+// that child); a second or third "+Add child" only inherits these six
+// family-level constants so the parent doesn't accidentally clone the
+// first child's age / gender / priorities onto a sibling.
+//
+// Note: this allowlist is INTENTIONALLY independent of OnboardingField.level.
+// `level` is analytics metadata (kept for the "sync across kids" UX
+// some future build may want); this allowlist is operational policy for
+// what gets COPIED on +Add child. `phone_pref`, `lgbtq_pref`, `pastoral_pref`
+// are flagged 'family' for analytics but RESET per-child here because
+// they describe "what THIS child needs" not "what this family believes."
+//
+// Adding a new entry to ONBOARDING_FIELDS auto-defaults to "child-specific"
+// (i.e. start blank for siblings) unless explicitly added below.
+export const FAMILY_CONSTANT_FIELD_NAMES = [
+  'home_region',
+  'boarding_pref',
+  'budget_range',
+  'curriculum_pref',
+  // ethos_pref + intl_pref removed 2026-05-19 — those fields are no
+  // longer in the Brief form (parent doesn't pick them) so there's
+  // nothing to inherit from parent_profiles onto siblings. The
+  // columns still exist in DB for callers that may reinstate the UX.
+] as const
+export type FamilyConstantFieldName = typeof FAMILY_CONSTANT_FIELD_NAMES[number]
+
+// Slice 8 Build 1: which 5 fields ship in the onboarding wizard. The
+// remaining 9 stay editable in ChildBriefTab (and Build 3's Nana
+// interview will populate them conversationally).
+//
+// Order matches the existing form sequence for analytics continuity —
+// reordering to the brief's recommended funnel (year → gender →
+// boarding → budget → region) is a separate UX call, deferred.
+export const FORM_FIELD_NAMES = [
+  'home_region',
+  'child_gender',
+  'child_year',
+  'boarding_pref',
+  'budget_range',
+] as const
+export type FormFieldName = typeof FORM_FIELD_NAMES[number]
+
+const FORM_FIELD_SET = new Set<string>(FORM_FIELD_NAMES)
+
+export const FORM_FIELDS = ONBOARDING_FIELDS.filter(f => FORM_FIELD_SET.has(f.field))
+
+// Everything else: editable in ChildBriefTab but not asked during onboarding.
+export const BRIEF_ONLY_FIELDS = ONBOARDING_FIELDS.filter(f => !FORM_FIELD_SET.has(f.field))
 
 export function getOptionLabel(fieldName: string, value: string | null | undefined): string {
   if (!value) return '—'

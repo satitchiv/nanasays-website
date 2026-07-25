@@ -4,6 +4,10 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import type { DemoQuestion, DemoAnswer, DemoComparisonTable } from '@/lib/demo-questions'
+// Was a duplicate of NanaBubble.renderMd with the same broken regex
+// (/(\*\*[^*]+\*\*)/g — failed on A*-A notation). Codex r1 flagged the
+// duplication 2026-05-24 — now imports the shared helper.
+import { parseInlineBold } from '@/components/nana/nana-bubble-md'
 import './demo.css'
 
 interface Props {
@@ -14,20 +18,21 @@ interface Props {
   demoAnswers: Record<string, DemoAnswer>
 }
 
-// ── Markdown renderer (mirrors NanaFullScreen) ───────────────────────────────
+// ── Markdown renderer (uses shared parseInlineBold) ──────────────────────────
 
 function renderMd(text: string): React.ReactNode[] {
   if (!text) return []
-  return text.split('\n').map((line, i, arr) => {
-    const parts = line.split(/(\*\*[^*]+\*\*)/g)
+  const lines = text.split('\n')
+  return lines.map((line, i) => {
+    const segments = parseInlineBold(line)
     return (
       <span key={i}>
-        {parts.map((p, j) =>
-          p.startsWith('**') && p.endsWith('**')
-            ? <strong key={j}>{p.slice(2, -2)}</strong>
-            : <span key={j}>{p}</span>
+        {segments.map((seg, j) =>
+          seg.bold
+            ? <strong key={j}>{seg.text}</strong>
+            : <span key={j}>{seg.text}</span>,
         )}
-        {i < arr.length - 1 && <br />}
+        {i < lines.length - 1 && <br />}
       </span>
     )
   })

@@ -1,0 +1,340 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createServerClient } from '@supabase/ssr'
+import { cookies, headers } from 'next/headers'
+import { isResearchRoomEnabled } from '@/lib/feature-flags'
+import { getUnlockedUser } from '@/lib/paid-status'
+import { supabaseService } from '@/lib/supabase-admin'
+import { loadVerdictEvidenceData, type LensKind } from '@/lib/research-comparison'
+import { loadVerdictSchoolFacts } from '@/lib/server/research-room/load-verdict-school-facts'
+import { buildResearchVerdictDraft, type ResearchVerdictRecord } from '@/lib/server/research-room/verdict-generator'
+import { enrichVerdictWithAdvisorRoundups, type AdvisorCallTelemetry } from '@/lib/server/research-room/verdict-generator-v3-advisor'
+import { computeCostUSD } from '@/lib/server/nana-brain.js'
+
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
+type Body = {
+  session_id: string
+  base_lens_kind: LensKind
+  force?: boolean
+}
+
+const UUID_RX = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/
+
+function parseBody(raw: unknown): { body: Body | null; error?: string } {
+  if (!raw || typeof raw !== 'object') return { body: null, error: 'body must be a JSON object' }
+  const o = raw as Record<string, unknown>
+  if (typeof o.session_id !== 'string' || !UUID_RX.test(o.session_id)) {
+    return { body: null, error: 'session_id must be a UUID' }
+  }
+  const baseLensKind: LensKind = o.base_lens_kind === 'child_fit' ? 'child_fit' : 'general'
+  return { body: { session_id: o.session_id, base_lens_kind: baseLensKind, force: o.force === true } }
+}
+
+// Phase 2.5 cost tracking (2026-05-24): per-advisor-call INSERT to
+// nana_chat_logs so Mission Control sees verdict-advisor spend. computeCostUSD
+// is shared with Build Mode + chat — it expects Anthropic-style usage keys, so
+// we map OpenAI's prompt_tokens / completion_tokens / cached_tokens into that
+// shape. Returns null cost when model isn't in the PRICING_PER_MTOK table
+// (gpt-5-4-mini IS in the table — see nana-brain.js:1843).
+async function logAdvisorCall(svc: ReturnType<typeof supabaseService>, t: AdvisorCallTelemetry): Promise<void> {
+  // Map OpenAI usage → Anthropic-style for computeCostUSD lookup. OpenAI's
+  // model id 'gpt-5.4-mini' normalises to 'gpt-5-4-mini' inside computeCostUSD.
+  const cachedIn = t.cachedInputTokens ?? 0
+  const rawIn    = t.inputTokens ?? 0
+  // OpenAI's prompt_tokens INCLUDES cached_tokens, so split into uncached + cached.
+  const uncachedIn = Math.max(0, rawIn - cachedIn)
+  const cost = computeCostUSD({
+    input_tokens:                 uncachedIn,
+    cache_creation_input_tokens:  0,
+    cache_read_input_tokens:      cachedIn,
+    output_tokens:                t.outputTokens ?? 0,
+  }, t.model)
+  // Codex r1 #1 add-on: warn if we got tokens but no cost — means
+  // VERDICT_ADVISOR_MODEL was overridden to an unknown model and the spend is
+  // being logged with null costs. Mission Control won't catch the silent gap.
+  if (!cost && (uncachedIn > 0 || (t.outputTokens ?? 0) > 0)) {
+    console.warn(`[verdict-advisor] cost=null for model="${t.model}" with tokens — add it to PRICING_PER_MTOK or set VERDICT_ADVISOR_MODEL back to gpt-5.4-mini`)
+  }
+  // Codex r1 #1 (2026-05-24): Supabase .insert() does NOT reject on DB errors —
+  // it resolves with { error }. The previous `.catch()` at the call site only
+  // caught network/throws. Surface { error } explicitly so failed inserts hit
+  // the console (matches build-mode/turn/route.ts:646 pattern).
+  const { error } = await svc.from('nana_chat_logs').insert({
+    school_slug:          t.schoolSlug || null,
+    question:             `verdict-advisor path ${t.pathKey}: ${t.schoolName}`.slice(0, 2000),
+    answer_preview:       t.errorMessage ? `[FAIL] ${t.errorMessage}`.slice(0, 500) : `[OK] ${t.paragraphCount} paragraphs`,
+    tokens_in:            uncachedIn,
+    tokens_cache_write:   null,
+    tokens_cache_read:    cachedIn,
+    tokens_out:           t.outputTokens ?? null,
+    cost_input_usd:       cost?.cost_input ?? null,
+    cost_cache_write_usd: null,
+    cost_cache_read_usd:  cost?.cost_cache_read ?? null,
+    cost_output_usd:      cost?.cost_output ?? null,
+    cost_total_usd:       cost?.total_usd ?? null,
+    cache_hit_pct:        cost?.cache_hit_pct ?? null,
+    chunk_count:          null,
+    sensitive_count:      null,
+    backend:              'verdict-advisor',
+    model:                t.model,
+    confidence:           t.errorMessage ? 'low' : 'high',
+    claude_ms:            null,
+    total_ms:             t.latencyMs,
+  })
+  if (error) {
+    console.error('[verdict] advisor nana_chat_logs insert returned error:', error.message)
+  }
+}
+
+function isMissingMigrationError(e: unknown): boolean {
+  const msg = e instanceof Error ? e.message : String(e ?? '')
+  return msg.includes("Could not find the table 'public.research_verdicts'") ||
+    msg.includes('research_verdicts') && msg.includes('schema cache')
+}
+
+async function getAuthClient() {
+  const cookieStore = await cookies()
+  return createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } },
+  )
+}
+
+async function isAllowedOrigin(): Promise<boolean> {
+  const h = await headers()
+  const origin = h.get('origin')
+  if (!origin) return true
+  const host = h.get('host')
+  if (!host) return false
+  try {
+    return new URL(origin).host === host
+  } catch {
+    return false
+  }
+}
+
+async function loadMatchingCachedVerdict(
+  svc: ReturnType<typeof supabaseService>,
+  sessionId: string,
+  childId: string,
+  inputHash: string,
+): Promise<ResearchVerdictRecord | null> {
+  // R4-MUST-2 + R5-MUST-2: drop lens filtering. Cache identity is now
+  // (session_id, child_id, input_hash) only — matches the new UNIQUE index
+  // from 2026-05-21-verdict-cache-identity-drop-lens.sql.
+  const { data, error } = await svc
+    .from('research_verdicts')
+    .select('id, input_hash, verdict_json, body_markdown, generated_at')
+    .eq('session_id', sessionId)
+    .eq('child_id', childId)
+    .eq('input_hash', inputHash)
+    .maybeSingle()
+  if (error) throw new Error(`verdict cache read failed: ${error.message}`)
+  if (!data) return null
+  return {
+    id: data.id,
+    input_hash: data.input_hash,
+    verdict_json: data.verdict_json as ResearchVerdictRecord['verdict_json'],
+    body_markdown: data.body_markdown,
+    generated_at: data.generated_at,
+  }
+}
+
+// R2-F2 + R4-MUST-2: `collectLensWeights` deleted in v3. Lens weights no
+// longer drive scoring or cache identity (verdict is all-evidence).
+
+export async function POST(req: NextRequest) {
+  if (!isResearchRoomEnabled()) {
+    return NextResponse.json({ ok: false, code: 'feature_disabled' }, { status: 404 })
+  }
+  if (!(await isAllowedOrigin())) {
+    return NextResponse.json({ ok: false, code: 'forbidden_origin' }, { status: 403 })
+  }
+
+  let raw: unknown
+  try { raw = await req.json() }
+  catch { return NextResponse.json({ ok: false, code: 'invalid_json' }, { status: 400 }) }
+
+  const { body, error } = parseBody(raw)
+  if (!body) return NextResponse.json({ ok: false, code: 'invalid_payload', detail: error }, { status: 400 })
+
+  const auth = await getAuthClient()
+  const { data: { user } } = await auth.auth.getUser()
+  if (!user) return NextResponse.json({ ok: false, code: 'unauthorized' }, { status: 401 })
+
+  const { isPaid } = await getUnlockedUser()
+  if (!isPaid) return NextResponse.json({ ok: false, code: 'payment_required' }, { status: 402 })
+
+  const svc = supabaseService()
+  // Codex r1 NIT + r2 carry-forward (2026-05-22): active_lens_id is no longer
+  // used by the v3 verdict — cache identity dropped lens scope. Selecting it
+  // was dead weight.
+  const { data: session, error: sessionErr } = await svc
+    .from('research_sessions')
+    .select('id, user_id, child_id')
+    .eq('id', body.session_id)
+    .eq('user_id', user.id)
+    .maybeSingle<{ id: string; user_id: string; child_id: string | null }>()
+
+  if (sessionErr) {
+    console.error('[verdict] session lookup failed', sessionErr)
+    return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
+  }
+  if (!session || !session.child_id) {
+    return NextResponse.json({ ok: false, code: 'not_found' }, { status: 404 })
+  }
+
+  const { data: child, error: childErr } = await svc
+    .from('children')
+    .select('id, name, child_profile')
+    .eq('id', session.child_id)
+    .eq('user_id', user.id)
+    .eq('is_archived', false)
+    .maybeSingle<{ id: string; name: string; child_profile: Record<string, unknown> | null }>()
+
+  if (childErr) {
+    console.error('[verdict] child lookup failed', childErr)
+    return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
+  }
+  if (!child) return NextResponse.json({ ok: false, code: 'not_found' }, { status: 404 })
+
+  // R4-MUST-2: active-lens lookup REMOVED in v3. Verdict reads all-evidence
+  // rows regardless of which lens is active. base_lens_kind is no longer
+  // part of cache identity; we write 'general' as an ignored legacy value
+  // when inserting (see upsert below).
+
+
+  let comparisonData
+  try {
+    comparisonData = await loadVerdictEvidenceData(svc, user.id, child.id, session.id)
+  } catch (e) {
+    console.error('[verdict] evidence load failed', e)
+    return NextResponse.json({ ok: false, code: 'comparison_failed' }, { status: 500 })
+  }
+  if (comparisonData.schools.length < 1 || comparisonData.rows.length < 1) {
+    return NextResponse.json({ ok: false, code: 'empty_comparison' }, { status: 409 })
+  }
+
+  // R2-F2 + R4-MUST-2: lens-weight collection block REMOVED. Lens weights no
+  // longer drive scoring or cache identity.
+
+  // R5-MUST-5 + R6-MUST-3: enrich the verdict with structured-data facts
+  // (grades, fees, location, students, curriculum) so v3 path overlays +
+  // budget tensions + the fact ribbon have real values.
+  const schoolFacts = await loadVerdictSchoolFacts(
+    svc,
+    comparisonData.schools.map(s => s.slug),
+  )
+
+  // v3.1 (2026-05-26): fetch the recommender ranking from
+  // shortlisted_schools.match_reasons.rank_position so the v3.1 path
+  // selectors (Path A = recommender #1, etc.) have one source of truth.
+  // .eq('user_id', user.id) is defense-in-depth — `svc` is the service-role
+  // client which bypasses RLS, so we explicitly scope to the caller.
+  // Fail-open: if the shortlist read errors, the recommenderRanking arg
+  // is `[]` and Path A falls back to scored[0] with a provisional banner.
+  type ShortlistRow = {
+    school_slug:   string
+    match_reasons: { rank_position?: number | null } | null
+  }
+  const { data: shortlistRows, error: shortlistErr } = await svc
+    .from('shortlisted_schools')
+    .select('school_slug, match_reasons')
+    .eq('user_id', user.id)
+    .eq('child_id', child.id)
+  if (shortlistErr) {
+    console.warn('[verdict] shortlist fetch failed; Path A will fall back to scored[0]', shortlistErr)
+  }
+  const recommenderRanking = ((shortlistRows ?? []) as ShortlistRow[])
+    .map(r => ({
+      slug:           r.school_slug,
+      rank_position:  typeof r.match_reasons?.rank_position === 'number'
+        ? r.match_reasons.rank_position
+        : Number.POSITIVE_INFINITY,
+    }))
+    .filter(r => Number.isFinite(r.rank_position) && r.rank_position >= 0)
+    .sort((a, b) => a.rank_position - b.rank_position || a.slug.localeCompare(b.slug))
+
+  const draft = buildResearchVerdictDraft({
+    comparisonData,
+    childName: child.name,
+    childProfile: child.child_profile,
+    sessionId: session.id,
+    childId: child.id,
+    schoolFacts,
+    recommenderRanking,
+  })
+
+  try {
+    const cached = await loadMatchingCachedVerdict(svc, session.id, child.id, draft.inputHash)
+    if (cached && !body.force) {
+      return NextResponse.json({ ok: true, status: 'cached', verdict: cached }, { status: 200 })
+    }
+
+    // UX iteration Phase 2 (2026-05-24): enrich the fresh draft with LLM
+    // advisor roundups before persistence. Fail-open — if OpenAI is
+    // unavailable, advisor_roundup stays undefined and the UI falls back to
+    // deterministic reasoning[] (no regression vs today). Parent can hit
+    // Regenerate (force: true) to retry the LLM call. req.signal so client
+    // disconnects cancel in-flight OpenAI calls rather than running to
+    // 12s timeout per Codex r5 P3 #2.
+    if (draft.verdict.paths) {
+      try {
+        await enrichVerdictWithAdvisorRoundups({
+          paths:             draft.verdict.paths,
+          schoolFactsBySlug: schoolFacts,
+          briefContext:      draft.briefContext,
+          signal:            req.signal,
+          // Phase 2.5 cost tracking: fire-and-forget INSERT into nana_chat_logs
+          // per LLM call so Mission Control sees verdict-advisor spend alongside
+          // Build Mode + chat spend. Matches the pattern in
+          // app/api/research-room/build-mode/turn/route.ts:621.
+          onCallTelemetry:   (t) => logAdvisorCall(svc, t).catch(err =>
+            console.error('[verdict] advisor nana_chat_logs insert failed', err)),
+        })
+      } catch (err) {
+        console.warn('[verdict] advisor enrichment failed (using fallback prose):',
+          err instanceof Error ? err.message : String(err))
+      }
+    }
+
+    // R4-MUST-1: atomic upsert keyed on (session_id, child_id, input_hash) so
+    // two concurrent "Generate verdict" requests don't race on the UNIQUE
+    // index from 2026-05-21-verdict-cache-identity-drop-lens.sql.
+    // R5-MUST-2: base_lens_kind written as 'general' (ignored legacy value)
+    // because the slice-7 schema's NOT NULL + CHECK constraint still applies.
+    const { data: upserted, error: upsertErr } = await svc
+      .from('research_verdicts')
+      .upsert(
+        {
+          user_id:        user.id,
+          child_id:       child.id,
+          session_id:     session.id,
+          lens_id:        null,
+          base_lens_kind: 'general',
+          input_hash:     draft.inputHash,
+          verdict_json:   draft.verdict,
+          body_markdown:  draft.bodyMarkdown,
+          generated_at:   new Date().toISOString(),
+        },
+        { onConflict: 'session_id,child_id,input_hash' },
+      )
+      .select('id, input_hash, verdict_json, body_markdown, generated_at')
+      .single()
+    if (upsertErr) throw upsertErr
+
+    return NextResponse.json({
+      ok:      true,
+      status:  cached ? 'refreshed' : 'fresh',
+      verdict: upserted,
+    }, { status: cached ? 200 : 201 })
+  } catch (e) {
+    if (isMissingMigrationError(e)) {
+      return NextResponse.json({ ok: false, code: 'migration_missing' }, { status: 500 })
+    }
+    console.error('[verdict] save failed', e)
+    return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
+  }
+}

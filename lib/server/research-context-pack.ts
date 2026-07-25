@@ -10,6 +10,17 @@ import {
   type SafeRecentMessage,
 } from './pack-redactors'
 import { loadDimensionEvidencePack } from './dimension-evidence-pack'
+import { projectSubjectStrengths } from './subject-strengths-projection.mjs'
+import { projectMetaFees } from './project-meta-fees.mjs'
+import { projectSchoolPdfs } from './project-meta-pdfs.mjs'
+// Notion-sidecar wiring slice (2026-05-24). The projector enforces:
+// - whitelist of allowed fields (drops fees + unknown keys)
+// - SSD-wins on overlapping fields (total_pupils, boarders, intl, boarding_pct,
+//   GCSE / A-Level %, lowest_boarding_entry)
+// - unit normalisation (decimal boarding ratios → percent)
+// Running it at the fetch boundary stops raw `parsed` from leaking into any
+// downstream surface (Codex r1 P1.1).
+import { projectNotionBackfill } from './nana-brain.js'
 
 /**
  * research-context-pack.ts — single source of truth for chatbot context.
@@ -84,12 +95,100 @@ export type PackSchool = {
     country: string | null
     boarding_type: string | null
     gender_split: string | null
-    fees_min_gbp: number | null
-    fees_max_gbp: number | null
+    /** Local-currency annual fees (Tab A Step 4, 2026-05-25). Prefers
+     * school_structured_data.fees_min/max + fees_currency (post-2026-05-15
+     * fees-currency migration these are accurate). Falls back to
+     * schools.fees_usd_min/max + 'USD' when SSD has no fees. null when both
+     * sources empty. Replaces the misleading fees_min_gbp / fees_max_gbp
+     * fields that were carrying USD values under a GBP-suffixed name. */
+    fees_min: number | null
+    fees_max: number | null
+    /** ISO 4217 (GBP, USD, CHF, EUR, THB, ...) or null when fees null. */
+    fees_currency: string | null
+    /** Bug 1 fix: the school's own published local-currency fee text
+     * (schools.fees_original), used in place of USD-converted numbers so a
+     * conversion is never shown as the local price. null when SSD numeric
+     * fees are used or no original text exists. */
+    fees_text?: string | null
     is_uk: boolean
   }
   /** Whitelisted SSD fields (per plan §6.1). Object shape varies by school. */
   structured: Record<string, unknown> | null
+  /**
+   * Hand-curated UK school facts from school_notion_backfill (Phase 1 sidecar,
+   * Phase 1.5 promotion 2026-05-18). Only `parsed` (cleaned values) for `clean`
+   * rows surfaces here — `raw_properties`, `rejected`, `flagged_review` are
+   * never selected. Fields parents ask about that SSD doesn't cover today:
+   * class_size, total_pupils, boarder_count, intl_count, boarding_pct,
+   * gcse_pct (+ gcse_pct_alt_band), a_level_pct, lowest_boarding_entry,
+   * heathrow_distance (miles). Dropped by reducer when pack is over hard cap.
+   */
+  notion_backfill?: Record<string, unknown> | null
+  /**
+   * Curated supplementary facts from the `schools` table (Tab A Step 3,
+   * 2026-05-25). Compact scalars/short text parents ask about that SSD
+   * doesn't carry: head + tenure, houses, EAL, Thai community, open day,
+   * prospectus URL, bus, food, USP. Reducer-friendly — `dropped_curated_meta`
+   * nulls this whole object when pack is over hard cap.
+   */
+  curated_meta?: {
+    eal_support: boolean | null
+    eal_hours_per_week: number | null
+    eal_cost_usd: number | null
+    thai_students: number | null
+    thai_community: string | null
+    open_day_text: string | null
+    open_day_url: string | null
+    prospectus_url: string | null
+    head_of_school: string | null
+    head_tenure_start: string | null
+    house_system: string | null
+    house_names: string[] | null
+    /** Pre-cap count of house_names. Renderer uses this so schools with
+     * many houses (e.g. Eton's 25) don't get mis-reported as the capped
+     * length. */
+    house_count: number | null
+    food_options: string | null
+    /** true when the school runs a bus service; null otherwise (false
+     * collapses to null at projection time — false doesn't render, no
+     * point bloating the JSON). */
+    bus_service: true | null
+    unique_selling_points: string | null
+    /**
+     * Tab A Step 10 v2 Commit 3 (2026-05-26). 14 additional parent-facing
+     * fields wired alongside the original Step 3 group.
+     *
+     * A-slice (richness, single-line bits): est. year, ISI inspection date,
+     * top-university destinations, notable alumni (wiki-cruft scrubbed),
+     * Instagram + YouTube full URLs, school crest + hero photo URLs,
+     * top-4 readable PDFs filtered by parent-relevance whitelist.
+     *
+     * B-slice (ISI narrative block, multi-line render via
+     * renderISINarrative): summary prose + grade verdicts + key strengths
+     * array + areas-for-improvement array.
+     */
+    founded_year: number | null
+    isi_report_date: string | null
+    top_universities: string[] | null
+    /** Wiki citation markers (`#cite note-N`, `[1]`) and inline URLs are
+     * scrubbed at projection time; field is capped at 500 chars. */
+    alumni_notable: string | null
+    instagram_url: string | null
+    youtube_url: string | null
+    logo_url: string | null
+    hero_image: string | null
+    /** Filtered readable PDFs (max 4). null when no row matches the
+     * parent-relevance whitelist — better than offering parents a
+     * Fire Risk Assessment. */
+    school_pdfs: Array<{ title: string; url: string }> | null
+    /** ISI inspectorate verdicts/prose. isi_summary is the gate — when
+     * null, renderISINarrative emits no block (non-UK schools). */
+    isi_summary: string | null
+    isi_key_strengths: string[] | null
+    isi_areas_for_improvement: string[] | null
+    isi_academic_quality: string | null
+    isi_pastoral_care: string | null
+  } | null
   /** Optional: regulatory rows (only when intent fires). */
   sensitive?: Array<{ type: string; date: string | null; severity: string | null; title: string; summary: string | null }>
   /** Optional: atomic facts where present. */
@@ -111,6 +210,15 @@ export type ResearchContextPack = {
     top_priority: string | null
     boarding_pref: string | null
     child_year: string | null
+    // T4.16 Gap B prefs (ranking inputs for ethos_match / intl_share /
+    // device_policy dims). 'no-preference' option in onboarding maps to
+    // null here so dim.rank()'s if (!want) short-circuit fires cleanly.
+    ethos_pref: string | null
+    intl_pref: string | null
+    phone_pref: string | null
+    // 2026-05-10 ISI deep extraction prefs (inclusive_culture, pastoral_care).
+    lgbtq_pref: string | null
+    pastoral_pref: string | null
   }
   child: MinimisedChild | null
   session: { id: string; title: string; rolling_summary: string | null; turn_count: number }
@@ -145,12 +253,22 @@ export type ResearchContextPack = {
 }
 
 // ── Token caps per shortlist size (plan §6.5) ─────────────────────────────
+// 2026-06-11 evidence-based raise (whole-landscape slice). Live data: 11 of 21
+// shortlists hold 6+ schools, so the old 8k tier — which fired the full
+// reducer cascade — was the COMMON case, not the edge. Measured against live
+// production data on 2026-06-11 (uncapped probe): the heaviest real pack is
+// ≈52k JSON tokens for 10 schools and ≈26.5k for 3 schools, while the
+// RENDERED prompt string from that 52k pack is only ≈4.7k tokens — the JSON
+// estimate is dominated by sections no consumer renders (see reducer-order
+// note below). Caps sized with headroom over those measurements; reducers
+// stay as the safety net for pathological growth. perSchool*/comparison/
+// recent/citations are advisory sub-budgets (only `hard` is enforced today).
 
 function capsForShortlistSize(n: number) {
-  if (n <= 2) return { hard: 4000, perSchoolStructured: 350, perSchoolChunks: 600, comparison: 800, recent: 600, citations: 200 }
-  if (n === 3) return { hard: 5000, perSchoolStructured: 350, perSchoolChunks: 400, comparison: 800, recent: 600, citations: 200 }
-  if (n <= 5) return { hard: 6500, perSchoolStructured: 300, perSchoolChunks: 250, comparison: 1000, recent: 500, citations: 200 }
-  return { hard: 8000, perSchoolStructured: 250, perSchoolChunks: 0, comparison: 1200, recent: 500, citations: 200 }
+  if (n <= 2) return { hard: 24000, perSchoolStructured: 1000, perSchoolChunks: 1800, comparison: 1600, recent: 800, citations: 200 }
+  if (n === 3) return { hard: 36000, perSchoolStructured: 1000, perSchoolChunks: 1200, comparison: 1600, recent: 800, citations: 200 }
+  if (n <= 5) return { hard: 48000, perSchoolStructured: 900, perSchoolChunks: 750, comparison: 2000, recent: 700, citations: 200 }
+  return { hard: 72000, perSchoolStructured: 750, perSchoolChunks: 500, comparison: 2400, recent: 700, citations: 200 }
 }
 
 // SSD fields whitelisted into the pack (plan §6.1).
@@ -162,6 +280,12 @@ const SSD_WHITELIST = [
   'exam_results',
   'university_destinations',
   'sports_profile',
+  // Recommender Phase 2 (2026-05-21): subject_strengths is the v2.0 polymorphic
+  // per-subject blob (maths/biology/.../economics_business, each with items[]
+  // + summary_paragraph_for_chatbot). nana-brain's buildStructuredBlock projects
+  // this to one compact line per subject; full row is dropped first by the pack
+  // reducers if the token budget is hit.
+  'subject_strengths',
   'pastoral_care',
   'pastoral_model',
   'wellbeing_staffing',
@@ -177,6 +301,10 @@ const SSD_WHITELIST = [
   'languages',
   'grade_levels',
   'accreditations',
+  // 2026-05-24 (Notion-sidecar wiring slice, Codex r1 bonus): `boarding_options`
+  // was rendered by buildStructuredBlock but never in the whitelist, so it was
+  // silently absent from the pack. Adding it closes the dead path.
+  'boarding_options',
   'policies_summary',
   'report_verdict',
   'report_parent_fit',
@@ -197,12 +325,18 @@ export async function assembleResearchContextPack(
   const overflow_actions: string[] = []
 
   // Resolve in-scope school slugs deterministically.
-  const inScope = uniq([
-    ...ctx.shortlist,
-    ...ctx.mentioned_slugs,
+  // 2026-06-11 (whole-landscape slice, Codex Commit-3 follow-up bonus bug):
+  // TARGETS — the active school, schools the user just named, and the intent
+  // router's resolved targets — go FIRST, shortlist fills the tail. The old
+  // shortlist-first order let a full shortlist slice off the school the
+  // parent was literally asking about. Ceiling raised 8 → 10 to match
+  // route.ts's slice(0, 10) shortlist cap (live max observed shortlist = 9).
+  const targetSlugs = uniq([
     ...(ctx.active_school_slug ? [ctx.active_school_slug] : []),
+    ...ctx.mentioned_slugs,
     ...((ctx.intent?.target_slugs ?? []) as string[]),
-  ]).slice(0, 8) // hard ceiling — pack assembler never pulls > 8 schools per call
+  ])
+  const inScope = uniq([...targetSlugs, ...ctx.shortlist]).slice(0, 10) // hard ceiling — pack assembler never pulls > 10 schools per call
 
   const caps = capsForShortlistSize(inScope.length)
 
@@ -274,6 +408,34 @@ export async function assembleResearchContextPack(
   }
 
   // ── Build draft pack ─────────────────────────────────────────────────────
+  // T4.16 Gap B: child-first read for the 3 ranking prefs (Slice 3.3 model
+  // — child_profile is source of truth, parent_profiles is the seed
+  // template + fallback for childless flows). 'no-preference' → null so
+  // dim.rank()'s if (!want) short-circuit fires cleanly and the dim
+  // contributes 0 to ranking instead of biasing it. child_profile is JSONB
+  // and editable via API, so allowlist here too; unknown intl/phone values
+  // must not behave like high/strict by accident.
+  const childProfileObj = (childRow?.child_profile ?? {}) as Record<string, unknown>
+  const prefAllowed = {
+    ethos_pref: new Set([
+      'church_of_england', 'roman_catholic', 'methodist', 'quaker',
+      'jewish', 'muslim', 'mixed_faith', 'christian_general', 'secular',
+    ]),
+    intl_pref: new Set(['low', 'high']),
+    phone_pref: new Set(['strict', 'flexible']),
+    // 2026-05-10 ISI deep extraction: drives inclusive_culture + pastoral_care
+    // scorers. Same 'no-preference' → null pattern as the T4.16 prefs above.
+    lgbtq_pref:    new Set(['important']),
+    pastoral_pref: new Set(['high_priority', 'standard']),
+  } as const
+  type PrefKey = keyof typeof prefAllowed
+  const readPref = (key: PrefKey): string | null => {
+    const childVal = childProfileObj[key]
+    const parentVal = parentProfile?.[key] ?? null
+    const raw = (typeof childVal === 'string' && childVal) ? childVal : parentVal
+    if (!raw || raw === 'no-preference') return null
+    return prefAllowed[key].has(raw) ? raw : null
+  }
   const pack: ResearchContextPack = {
     parent: {
       user_id: ctx.user_id,
@@ -282,6 +444,11 @@ export async function assembleResearchContextPack(
       top_priority: parentProfile?.top_priority ?? null,
       boarding_pref: parentProfile?.boarding_pref ?? null,
       child_year: parentProfile?.child_year ?? null,
+      ethos_pref: readPref('ethos_pref'),
+      intl_pref:  readPref('intl_pref'),
+      phone_pref: readPref('phone_pref'),
+      lgbtq_pref:    readPref('lgbtq_pref'),
+      pastoral_pref: readPref('pastoral_pref'),
     },
     child: childMinimal,
     session: {
@@ -309,11 +476,52 @@ export async function assembleResearchContextPack(
   }
 
   // ── Token-budget enforcement (plan §6.5) ─────────────────────────────────
-  // Codex 2026-05-08: enforcement now iterates until under cap or all reducible
-  // sections exhausted. Earlier version stopped after a few drops and could
-  // still return over cap. Now: chunks → sensitive → projection → visible_rows →
-  // comparison-row tail → older messages → facts → structured-trim. Never drops
-  // parent/child/session/shortlist/intent.
+  overflow_actions.push(...applyOverflowReducers(pack, new Set(targetSlugs), caps.hard))
+
+  pack.meta.elapsed_ms = Date.now() - t0
+  const json = JSON.stringify(pack)
+  pack.meta.bytes = Buffer.byteLength(json, 'utf8')
+  pack.meta.estimated_tokens = estimateTokens(pack)
+  pack.meta.overflow_actions = overflow_actions
+
+  return pack
+}
+
+// ── Overflow reducers (plan §6.5; target-aware split 2026-06-11) ───────────
+// Codex 2026-05-08: enforcement iterates until under cap or all reducible
+// sections exhausted. Never drops parent/child/session/shortlist/intent.
+//
+// 2026-06-11 (Codex Commit-3 follow-up design, REVISE-then-proceed verdict):
+// before the curated_meta full nuke, three TARGET-AWARE stages shed the
+// bulkiest curated fields from BACKGROUND schools only — schools the parent
+// is actually asking about (`targetSlugs`: active school + mentioned +
+// intent targets) keep their ISI prose / PDFs / rich text until the
+// last-resort full nuke. "What did ISI say about Winchester?" must keep
+// Winchester intact even while the rest of the shortlist sheds weight.
+//
+// ORDER (live-data finding, 2026-06-11 smoke): chunks / sensitive /
+// projection / facts / structured have NO downstream consumer — the runners
+// only consume the pack via buildPackContextString (which renders meta /
+// notion / curated only) and citation-validator reads s.citations +
+// comparison cell sources, never facts or structured. Those never-rendered
+// sections dominate the JSON estimate (a measured 52k-token pack rendered
+// to just 4.7k prompt tokens), so they shed FIRST; sections the model
+// actually sees (curated_meta, notion, comparison, messages) shed last.
+// Earlier orderings dropped rendered curated_meta while 38k tokens of
+// unrendered facts/structured stayed aboard — the parent-visible answer
+// paid for invisible weight.
+//
+// A reducer's name is recorded only when it actually shrank the pack —
+// overflow_actions now means "this dropped something", not "this ran".
+// Exported for direct unit testing (synthetic packs, no fixture calibration).
+export function applyOverflowReducers(
+  pack: ResearchContextPack,
+  targetSlugs: ReadonlySet<string>,
+  hardCap: number,
+): string[] {
+  const backgroundSlugs = () =>
+    Object.keys(pack.schools).filter((slug) => !targetSlugs.has(slug))
+
   const reducers: Array<{ name: string; reduce: () => void }> = [
     {
       name: 'dropped_chunks',
@@ -328,8 +536,53 @@ export async function assembleResearchContextPack(
       reduce: () => { for (const slug of Object.keys(pack.schools)) delete pack.schools[slug].projection },
     },
     {
+      // Moved ahead of all rendered sections 2026-06-11: pack.facts has no
+      // consumer (renderer + citation-validator verified) — pure JSON weight.
+      name: 'dropped_facts',
+      reduce: () => { for (const slug of Object.keys(pack.schools)) delete pack.schools[slug].facts },
+    },
+    {
+      // Moved ahead of all rendered sections 2026-06-11: runners build their
+      // structured blocks from their own retrieve calls, not from the pack.
+      name: 'truncated_structured_to_meta_only',
+      reduce: () => { for (const slug of Object.keys(pack.schools)) pack.schools[slug].structured = null },
+    },
+    {
       name: 'truncated_visible_rows',
       reduce: () => { pack.comparison.visible_rows = pack.comparison.visible_rows.slice(0, 4) },
+    },
+    {
+      // Stage 1 (target-aware): ISI narrative prose off background schools.
+      // Fires before comparison-row truncation — comparison rows are the
+      // user's own workspace; background ISI prose is just context.
+      name: 'dropped_isi_prose_background',
+      reduce: () => {
+        for (const slug of backgroundSlugs()) {
+          const cm = pack.schools[slug].curated_meta
+          if (cm) { cm.isi_summary = null; cm.isi_key_strengths = null; cm.isi_areas_for_improvement = null }
+        }
+      },
+    },
+    {
+      // Stage 2 (target-aware): PDF URLs are bulky and rarely needed unless
+      // the user asks about documents.
+      name: 'dropped_school_pdfs_background',
+      reduce: () => {
+        for (const slug of backgroundSlugs()) {
+          const cm = pack.schools[slug].curated_meta
+          if (cm) cm.school_pdfs = null
+        }
+      },
+    },
+    {
+      // Stage 3 (target-aware): remaining rich-text curated fields.
+      name: 'dropped_rich_meta_background',
+      reduce: () => {
+        for (const slug of backgroundSlugs()) {
+          const cm = pack.schools[slug].curated_meta
+          if (cm) { cm.alumni_notable = null; cm.top_universities = null }
+        }
+      },
     },
     {
       name: 'truncated_comparison_rows_to_4',
@@ -345,8 +598,22 @@ export async function assembleResearchContextPack(
       reduce: () => { if (pack.recent_messages.length > 3) pack.recent_messages = pack.recent_messages.slice(-3) },
     },
     {
-      name: 'dropped_facts',
-      reduce: () => { for (const slug of Object.keys(pack.schools)) delete pack.schools[slug].facts },
+      // Tab A Step 3 (2026-05-25); now the Stage-4 LAST-RESORT full nuke —
+      // hits target schools too. Stays ahead of notion_backfill: Notion
+      // carries higher-impact quant facts (class size, pupil counts,
+      // GCSE / A-Level %) than the curated head/food/USP fields.
+      name: 'dropped_curated_meta',
+      reduce: () => { for (const slug of Object.keys(pack.schools)) pack.schools[slug].curated_meta = null },
+    },
+    {
+      // Notion sidecar (2026-05-24 wiring slice). Per Codex r1: do NOT rely on
+      // the implicit reducer chain to shed Notion data. Drop notion_backfill
+      // BEFORE facts because facts are higher-signal (atomic, dimension-tagged,
+      // citation-bearing). Notion duplicates parent-facing facts (class size,
+      // pupil counts) that are also nice-to-have but lower-priority than the
+      // citation-bearing facts the recommender depends on.
+      name: 'dropped_notion_backfill',
+      reduce: () => { for (const slug of Object.keys(pack.schools)) pack.schools[slug].notion_backfill = null },
     },
     {
       name: 'truncated_comparison_rows_to_2',
@@ -356,27 +623,18 @@ export async function assembleResearchContextPack(
       name: 'truncated_recent_messages_to_1',
       reduce: () => { if (pack.recent_messages.length > 1) pack.recent_messages = pack.recent_messages.slice(-1) },
     },
-    {
-      name: 'truncated_structured_to_meta_only',
-      reduce: () => { for (const slug of Object.keys(pack.schools)) pack.schools[slug].structured = null },
-    },
   ]
 
+  const actions: string[] = []
   let estimated = estimateTokens(pack)
   for (const r of reducers) {
-    if (estimated <= caps.hard) break
+    if (estimated <= hardCap) break
     r.reduce()
-    overflow_actions.push(r.name)
-    estimated = estimateTokens(pack)
+    const after = estimateTokens(pack)
+    if (after < estimated) actions.push(r.name)
+    estimated = after
   }
-
-  pack.meta.elapsed_ms = Date.now() - t0
-  const json = JSON.stringify(pack)
-  pack.meta.bytes = Buffer.byteLength(json, 'utf8')
-  pack.meta.estimated_tokens = estimateTokens(pack)
-  pack.meta.overflow_actions = overflow_actions
-
-  return pack
+  return actions
 }
 
 // ── Internals ──────────────────────────────────────────────────────────────
@@ -386,9 +644,13 @@ function uniq<T>(xs: T[]): T[] {
 }
 
 async function fetchParent(supabase: SupabaseClient, userId: string) {
+  // T4.16 Gap B (2026-05-09): added ethos_pref / intl_pref / phone_pref.
+  // Read here as the *fallback* template only — Slice 3.3 source of truth
+  // is each child's child_profile JSONB. The pack.parent constructor below
+  // reads child-first, parent-fallback for these 3 keys.
   const { data } = await supabase
     .from('parent_profiles')
-    .select('id, child_year, boarding_pref, budget_range, top_priority, home_region')
+    .select('id, child_year, boarding_pref, budget_range, top_priority, home_region, ethos_pref, intl_pref, phone_pref, lgbtq_pref, pastoral_pref')
     .eq('id', userId)
     .maybeSingle<{
       id: string
@@ -397,6 +659,11 @@ async function fetchParent(supabase: SupabaseClient, userId: string) {
       budget_range: string | null
       top_priority: string | null
       home_region: string | null
+      ethos_pref: string | null
+      intl_pref: string | null
+      phone_pref: string | null
+      lgbtq_pref: string | null
+      pastoral_pref: string | null
     }>()
   return data
 }
@@ -605,6 +872,13 @@ async function fetchSensitive(supabase: SupabaseClient, slugs: string[]) {
   return out
 }
 
+// Recommender Phase 2 (2026-05-21, Codex r1 P1.3): the heavy subject_strengths
+// v2.0 blob is projected down before it lands in the pack. The helper lives
+// in subject-strengths-projection.mjs so it's testable without dragging in
+// .ts dependencies (Node 25 strip-types choked on the existing import-type
+// chain through dimension-evidence-pack.ts). See that module for the full
+// projection rules.
+
 async function fetchSchoolBundle(
   supabase: SupabaseClient,
   slug: string,
@@ -615,10 +889,25 @@ async function fetchSchoolBundle(
   // T4.17: rugby projection now goes through loadDimensionEvidencePack which
   // filters on the trusted projection_version. Non-rugby dimensions still
   // return null (no entry in KNOWN_PROJECTION_VERSIONS yet).
-  const [metaRes, structuredRes, projectionPack, factsRes] = await Promise.all([
+  const [metaRes, structuredRes, projectionPack, factsRes, notionRes, pdfsRes] = await Promise.all([
     supabase
       .from('schools')
-      .select('slug, name, country, boarding_type, gender_split, fees_usd_min, fees_usd_max, is_international')
+      .select(
+        'slug, name, country, boarding_type, gender_split, fees_original, fees_usd_min, fees_usd_max, is_international,' +
+        // Tab A Step 3 curated_meta fields (2026-05-25):
+        ' eal_support, eal_hours_per_week, eal_cost_usd,' +
+        ' thai_students, thai_community,' +
+        ' open_day_text, open_day_url, prospectus_url,' +
+        ' head_of_school, head_tenure_start,' +
+        ' house_system, house_names,' +
+        ' food_options, bus_service, unique_selling_points,' +
+        // Tab A Step 10 v2 Commit 3 curated_meta fields (2026-05-26):
+        ' founded_year, isi_report_date, top_universities,' +
+        ' alumni_notable, instagram_url, youtube_url,' +
+        ' logo_url, hero_image,' +
+        ' isi_summary, isi_key_strengths, isi_areas_for_improvement,' +
+        ' isi_academic_quality, isi_pastoral_care',
+      )
       .eq('slug', slug)
       .maybeSingle(),
     supabase
@@ -634,21 +923,236 @@ async function fetchSchoolBundle(
       .eq('school_slug', slug)
       .eq('status', 'active')
       .limit(80),
+    // Notion sidecar (Phase 1, 2026-05-24 wiring slice). Only clean rows; only
+    // safe columns — never `raw_properties` / `rejected` / `flagged_review`
+    // (Codex r1 RLS guidance).
+    supabase
+      .from('school_notion_backfill')
+      .select('school_slug, status, parsed')
+      .eq('school_slug', slug)
+      // Codex r3 P1: accept both `clean` (post-Phase 1.5 promotion) and
+      // `matched` (pure-write rows from the original sync). See retrieve.js
+      // for the live-status-distribution rationale.
+      .in('status', ['clean', 'matched'])
+      .maybeSingle(),
+    // Tab A Step 10 v2 Commit 3 (2026-05-26). Pull readable PDF rows
+    // ordered newest-first so projectSchoolPdfs has enough to find ≤4 that
+    // match the parent-relevance whitelist. Filenames like "Fire-Risk-2025"
+    // are dropped at projection time.
+    //
+    // Codex r1 F2: raised from 20 to 100 because some schools (e.g.
+    // Ardingly) have ≥20 recent policy PDFs that bury the prospectus.
+    // school_pdfs has ~2,079 readable rows across 178 schools (avg 12 per
+    // school, max in the 30s), so 100 covers the long tail cheaply.
+    supabase
+      .from('school_pdfs')
+      .select('filename, url, readable, status, found_at')
+      .eq('school_slug', slug)
+      .eq('readable', true)
+      .eq('status', 'ingested')
+      .order('found_at', { ascending: false })
+      .limit(100),
   ])
   const metaRow: any = metaRes.data
   if (!metaRow) return null
+
+  // Tab A Step 4 (2026-05-25): fees-currency truth-in-labelling. The
+  // legacy fields fees_min_gbp / fees_max_gbp were sourced from
+  // schools.fees_usd_min/max — a USD value under a GBP-named field that
+  // the renderer then prefixed with £. Real bug, no migration cleaned it.
+  // Projection moved to project-meta-fees.mjs so the SSD-vs-USD precedence
+  // logic can be unit-tested without mocking Supabase. Codex r1 r2 mods
+  // (single-sided "from"/"up to", numeric overflow guard) live there.
+  let { fees_min, fees_max, fees_currency } = projectMetaFees(structuredRes.data as any, metaRow)
+
+  // Bug 1 fix: when the only numeric fees are USD-converted (SSD had none),
+  // prefer the school's own published local-currency fee text if we have it,
+  // so the pack never quotes a USD conversion as the local price. Local-
+  // currency SSD numbers (fees_currency !== 'USD') are left untouched.
+  let fees_text: string | null = null
+  const feesOriginal =
+    typeof metaRow.fees_original === 'string' && metaRow.fees_original.trim()
+      ? metaRow.fees_original.trim()
+      : null
+  if (fees_currency === 'USD' && feesOriginal) {
+    fees_text = feesOriginal
+    fees_min = null
+    fees_max = null
+    fees_currency = null
+  }
 
   const meta = {
     name: metaRow.name ?? slug,
     country: metaRow.country ?? null,
     boarding_type: metaRow.boarding_type ?? null,
     gender_split: metaRow.gender_split ?? null,
-    fees_min_gbp: metaRow.fees_usd_min ?? null,
-    fees_max_gbp: metaRow.fees_usd_max ?? null,
+    fees_min,
+    fees_max,
+    fees_currency,
+    fees_text,
     is_uk: metaRow.country === 'United Kingdom',
   }
 
+  // Tab A Step 3 (2026-05-25): project the 15 curated `schools` columns into
+  // a compact object. Free-text fields are capped at 120 chars (USP / food /
+  // open-day blurb can be long). Array (house_names) capped at 12. If every
+  // field is null, the whole object becomes null so the reducer doesn't have
+  // to walk it later.
+  // Tab A Step 10 v2 Commit 3 (2026-05-26), Codex r1 P1: every string that
+  // lands in the prompt must be sanitized for prompt-injection vectors.
+  // Embedded newlines/control chars in DB values let a malicious or
+  // accidentally-scraped wiki value break the per-school line and inject
+  // fake "Ignore previous instructions" markers (Codex reproduced this).
+  // Strategy: strip ASCII control chars (incl. \n \r \t), collapse
+  // remaining whitespace runs to a single space, trim. Applied BEFORE
+  // length-capping so the cap counts post-sanitisation characters.
+  const sanitizeForPrompt = (s: string): string => {
+    // Strip C0 control chars (NUL through US) + DEL. Source uses
+    // \uHHHH escape syntax so it stays readable AND avoids the
+    // Unicode `u` regex flag (which requires ES2018+ target).
+    return s.replace(/[\u0000-\u001F\u007F]+/g, " ").replace(/\s+/g, " ").trim()
+  }
+  const CURATED_TEXT_CAP = 120
+  const clipText = (s: unknown): string | null => {
+    if (s == null) return null
+    const t = sanitizeForPrompt(String(s))
+    if (!t) return null
+    return t.length > CURATED_TEXT_CAP ? t.slice(0, CURATED_TEXT_CAP - 1).trimEnd() + '…' : t
+  }
+  // Tab A Step 10 v2 Commit 3 (2026-05-26). Longer cap for prose fields
+  // (alumni, ISI summary) since they're closer to one paragraph than to
+  // one-line scalars. 500 chars covers ~99% of observed values; max
+  // observed alumni_notable is 870 chars (rare).
+  const CURATED_PROSE_CAP = 500
+  const clipProse = (s: unknown): string | null => {
+    if (s == null) return null
+    const t = sanitizeForPrompt(String(s))
+    if (!t) return null
+    return t.length > CURATED_PROSE_CAP ? t.slice(0, CURATED_PROSE_CAP - 1).trimEnd() + '…' : t
+  }
+  // Alumni values sometimes contain wiki-export cruft (`#cite note-N`,
+  // `[1]`, inline `https://…` URLs from MediaWiki source, MediaWiki ref
+  // tags, citation-needed markers). Strip BEFORE the prompt sanitizer
+  // so the URL-strip regex sees the original characters intact.
+  const scrubAlumni = (s: unknown): string | null => {
+    if (s == null) return null
+    let t = String(s)
+    t = t.replace(/#cite[_ ]note[-_]\d+/gi, '')
+    t = t.replace(/\bhttps?:\/\/\S+/g, '')
+    t = t.replace(/\[\d+\]/g, '')
+    t = t.replace(/\[citation[ _-]needed\]/gi, '')
+    t = t.replace(/<\/?ref(\s+[^>]*)?>(?:[^<]*<\/ref>)?/gi, '')
+    t = t.replace(/\{\{cite[^}]*\}\}/gi, '')
+    t = sanitizeForPrompt(t)
+    if (!t) return null
+    return t.length > CURATED_PROSE_CAP ? t.slice(0, CURATED_PROSE_CAP - 1).trimEnd() + '…' : t
+  }
+  const TOP_UNIVERSITIES_CAP = 10
+  const ISI_STRENGTHS_CAP = 8
+  const ISI_AREAS_CAP = 4
+  // Codex r1 P1: URLs must be parseable AND free of whitespace/control
+  // chars (otherwise an embedded \n breaks the per-school line in the
+  // prompt). Reject anything that doesn't parse via WHATWG `new URL()`
+  // or contains any whitespace character at all.
+  const httpUrl = (s: unknown): string | null => {
+    if (typeof s !== 'string') return null
+    const t = s.trim()
+    if (!t || /\s/.test(t)) return null
+    try {
+      const u = new URL(t)
+      if (u.protocol !== 'http:' && u.protocol !== 'https:') return null
+      // Codex r2 Q4: reject userinfo URLs (`https://trusted.com@evil.com/`)
+      // — technically valid but commonly used to mislead readers into
+      // thinking the URL points at the prefix host.
+      if (u.username || u.password) return null
+      return u.toString()
+    } catch {
+      return null
+    }
+  }
+  const trimString = (s: unknown): string | null => {
+    if (typeof s !== 'string') return null
+    const t = sanitizeForPrompt(s)
+    return t || null
+  }
+  const stringArray = (v: unknown, cap: number): string[] | null => {
+    if (!Array.isArray(v) || v.length === 0) return null
+    const out: string[] = []
+    for (const item of v) {
+      if (out.length >= cap) break
+      if (typeof item !== 'string') continue
+      const t = sanitizeForPrompt(item)
+      if (t) out.push(t)
+    }
+    return out.length > 0 ? out : null
+  }
+  // ISI report date is stored as a Postgres `date` (serialises as ISO
+  // "YYYY-MM-DD"). Keep the raw ISO string here — renderer formats it.
+  const isoDate = (v: unknown): string | null => {
+    if (typeof v !== 'string') return null
+    return /^\d{4}-\d{2}-\d{2}$/.test(v.trim()) ? v.trim() : null
+  }
+  const integerOrNull = (v: unknown): number | null => {
+    if (typeof v === 'number' && Number.isInteger(v) && Number.isFinite(v)) return v
+    return null
+  }
+  // Codex r1 P7: preserve the pre-cap house count so the renderer can show
+  // "houses (25): name1…name6" instead of mis-reporting 12 (the projection
+  // cap) as the school's house count.
+  const houseNamesRaw = Array.isArray(metaRow.house_names) ? (metaRow.house_names as unknown[]) : null
+  const houseNamesCount = houseNamesRaw ? houseNamesRaw.length : null
+  const curatedMetaRaw = {
+    eal_support: typeof metaRow.eal_support === 'boolean' ? metaRow.eal_support : null,
+    eal_hours_per_week: typeof metaRow.eal_hours_per_week === 'number' ? metaRow.eal_hours_per_week : null,
+    eal_cost_usd: typeof metaRow.eal_cost_usd === 'number' ? metaRow.eal_cost_usd : null,
+    thai_students: typeof metaRow.thai_students === 'number' ? metaRow.thai_students : null,
+    thai_community: clipText(metaRow.thai_community),
+    open_day_text: clipText(metaRow.open_day_text),
+    // Codex r2 F1: Step 3 fields were being passed through raw. An
+    // embedded \n in any of these would break the per-school line and
+    // inject fake instructions. Route them through the same sanitizers
+    // we added for the Step 10 v2 fields.
+    open_day_url: httpUrl(metaRow.open_day_url),
+    prospectus_url: httpUrl(metaRow.prospectus_url),
+    head_of_school: clipText(metaRow.head_of_school),
+    head_tenure_start: trimString(metaRow.head_tenure_start),
+    house_system: clipText(metaRow.house_system),
+    // Codex r2 F1: stringArray applies sanitizeForPrompt per item.
+    house_names: stringArray(houseNamesRaw, 12),
+    house_count: houseNamesCount,
+    food_options: clipText(metaRow.food_options),
+    // Codex r1 P8: collapse false → null. false produces no rendering
+    // anyway (positive-only line, like `bus service: yes`); storing the
+    // raw false would just bloat the JSON.
+    bus_service: metaRow.bus_service === true ? (true as const) : null,
+    unique_selling_points: clipText(metaRow.unique_selling_points),
+    // Tab A Step 10 v2 Commit 3 (2026-05-26). 14 additional fields.
+    founded_year: integerOrNull(metaRow.founded_year),
+    isi_report_date: isoDate(metaRow.isi_report_date),
+    top_universities: stringArray(metaRow.top_universities, TOP_UNIVERSITIES_CAP),
+    alumni_notable: scrubAlumni(metaRow.alumni_notable),
+    instagram_url: httpUrl(metaRow.instagram_url),
+    youtube_url: httpUrl(metaRow.youtube_url),
+    logo_url: httpUrl(metaRow.logo_url),
+    hero_image: httpUrl(metaRow.hero_image),
+    school_pdfs: projectSchoolPdfs(pdfsRes.data as unknown as Parameters<typeof projectSchoolPdfs>[0]),
+    isi_summary: clipProse(metaRow.isi_summary),
+    isi_key_strengths: stringArray(metaRow.isi_key_strengths, ISI_STRENGTHS_CAP),
+    isi_areas_for_improvement: stringArray(metaRow.isi_areas_for_improvement, ISI_AREAS_CAP),
+    isi_academic_quality: trimString(metaRow.isi_academic_quality),
+    isi_pastoral_care: trimString(metaRow.isi_pastoral_care),
+  }
+  const curated_meta: PackSchool['curated_meta'] =
+    Object.values(curatedMetaRaw).every((v) => v === null) ? null : curatedMetaRaw
+
   const structured: Record<string, unknown> | null = structuredRes.data ? { ...(structuredRes.data as object) } : null
+  // Recommender Phase 2 (Codex r1 P1.3): project the heavy subject_strengths
+  // v2.0 blob down to top-3 subjects + counts BEFORE it lands in the pack,
+  // so a per-school 10-20KB column doesn't bust the token budget and force
+  // the overflow reducer to nuke ALL structured fields.
+  if (structured && 'subject_strengths' in structured) {
+    structured.subject_strengths = projectSubjectStrengths(structured.subject_strengths)
+  }
 
   let projection: Record<string, unknown> | undefined
   let source: PackSchool['source'] = structured ? 'structured' : 'empty'
@@ -691,10 +1195,20 @@ async function fetchSchoolBundle(
     }
   }
 
+  const notionRow: any = notionRes.data
+  const rawNotionParsed: Record<string, unknown> | null =
+    notionRow && notionRow.parsed && typeof notionRow.parsed === 'object'
+      ? (notionRow.parsed as Record<string, unknown>)
+      : null
+  const notion_backfill: Record<string, unknown> | null =
+    projectNotionBackfill(rawNotionParsed, structured) as Record<string, unknown> | null
+
   return {
     slug,
     meta,
     structured,
+    notion_backfill,
+    curated_meta,
     facts: facts.length > 0 ? facts : undefined,
     projection,
     source,

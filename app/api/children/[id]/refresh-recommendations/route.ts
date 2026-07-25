@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { supabaseService } from '@/lib/supabase-admin'
-import { pickTopSchoolSlugs } from '@/lib/recommend-shortlist'
 import {
   interpretChildNotes,
   isCacheValid,
@@ -11,6 +10,56 @@ import {
   type NotesInput,
   type ProfileContext,
 } from '@/lib/interpret-child-notes'
+import {
+  loadMatchReasonsBatch,
+  type MatchReasonsRecord,
+} from '@/lib/research-room/match-reasons'
+import type { BriefProfile } from '@/lib/research-room/brief-predicates'
+// 2026-05-24 Yoko slice option (b) — Refresh button now uses the richer
+// Build Mode scorer (Picker #2) instead of the onboarding scorer (Picker
+// #1, `pickTopSchoolSlugs`). Reason: parents edit notes/nonneg/etc in the
+// Brief tab and expect Refresh to honor those edits — but Picker #1 only
+// reads the 5 wizard fields. Picker #2 reads the full Build Mode
+// interview output (sports/arts/nonneg/notes/intent/etc.) — same as
+// what Build Mode finalize uses. Mirrors the overlay + classifier flow
+// in app/api/research-room/build-mode/finalize/route.ts:378-490.
+import { scoreForBuildMode } from '@/lib/research-room/score-for-build-mode'
+import { classifyBuildModeIntent, CLASSIFICATION_VERSION, FALLBACK_INTENT } from '@/lib/server/research-room/classify-build-mode-intent'
+import { writeIntentFocusCacheIfChanged } from '@/lib/research-room/intent-cache-writer'
+// Codex r1 finding 3 — schema-validate child_profile via the same zod
+// schema finalize uses, so malformed interests_sports / nonnegotiables /
+// etc. can't sneak past into the scorer.
+import {
+  BuildModeExtractionHTTPSchema,
+  type BuildModeExtractionHTTP,
+} from '@/lib/server/research-room/build-mode-schemas'
+
+// Constant top-N for Refresh button shortlist. Mirrors prior
+// pickTopSchoolSlugs cap (6) so existing UX is unchanged in count.
+const REFRESH_TOP_N = 6
+
+// Reasoned shortlist (2026-07-06): when NANA_REASONED_SHORTLIST=on, retrieve
+// a wider pool for the reasoning stage. Flag off → limit stays REFRESH_TOP_N
+// and behavior is byte-identical (rankCandidates sorts, filters zero-signal,
+// then slices — limit does not affect scoring; the wrapper query is fixed at
+// 250 rows independent of limit. Codex r1 #3 verified).
+const POOL_LIMIT_REASONED = 20
+
+// Mirror of finalize route's overlay helper. Child value wins when set,
+// else parent value. Used to compose the BriefProfile passed to the scorer.
+function pickInherited(childVal: unknown, parentVal: unknown): string | null {
+  if (typeof childVal  === 'string' && childVal)  return childVal
+  if (typeof parentVal === 'string' && parentVal) return parentVal
+  return null
+}
+
+// Mirror of finalize route's WRITABLE filter (route.ts:144). Keeps the
+// scorer-visible child_profile shape stable.
+const WRITABLE_PROFILE_KEYS = [
+  'personality_notes', 'anchors_notes', 'academic_notes', 'goals_notes',
+  'child_wants', 'nonnegotiables', 'goal_orientation',
+  'interests_sports', 'interests_arts', 'child_gender', 'child_year',
+] as const
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -134,17 +183,172 @@ export async function POST(
     // recommender falls back to dropdown profile only. Don't block refresh.
   }
 
-  // Codex P2.1: compute first, then replace. Old flow was DELETE → run
-  // recommender (which inserts). If the recommender threw or returned
-  // 'no_matches', the user was left with zero schools. Now we compute the
-  // new top 6 BEFORE touching shortlisted_schools — only replace if we
-  // got a usable list.
-  let pick: Awaited<ReturnType<typeof pickTopSchoolSlugs>>
+  // Codex P2.1: compute first, then replace (preserved from prior flow).
+  // 2026-05-24 Yoko slice option (b) — swap Picker #1 (pickTopSchoolSlugs)
+  // for Picker #2 (scoreForBuildMode). This lets Refresh honor Build Mode
+  // interview output (sports/arts/nonneg/notes/intent), so parents who
+  // edit notes and click Refresh see results that reflect those edits.
+  // Mirrors finalize route's overlay + classifier pattern at route.ts:378-490.
+
+  // 1) Load parent_profiles for the overlay (mirror of finalize route)
+  const { data: parentRow } = await svc
+    .from('parent_profiles')
+    .select('home_region, child_gender, child_year, boarding_pref, budget_range, top_priority, curriculum_pref, class_size_pref, sen_need, ethos_pref, lgbtq_pref, pastoral_pref')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  // 2) Compose the BriefProfile via child_profile → parent_profiles overlay
+  //    (mirror of finalize:383-389 + Codex r1 finding 1 extension).
+  //    Codex r1: original 4-field overlay missed Brief-tab-editable fields
+  //    (top_priority / class_size_pref / sen_need / lgbtq_pref / pastoral_pref
+  //    / ethos_pref). Without these, Refresh used stale parent values for
+  //    fields the parent had edited per-child. Extended to cover every
+  //    scorer-consumed BriefProfile field child-first.
+  const briefProfile: BriefProfile | null = parentRow == null ? null : {
+    ...parentRow,
+    boarding_pref:   pickInherited(profile.boarding_pref,   parentRow.boarding_pref),
+    home_region:     pickInherited(profile.home_region,     parentRow.home_region),
+    budget_range:    pickInherited(profile.budget_range,    parentRow.budget_range),
+    curriculum_pref: pickInherited(profile.curriculum_pref, parentRow.curriculum_pref),
+    top_priority:    pickInherited(profile.top_priority,    parentRow.top_priority),
+    class_size_pref: pickInherited(profile.class_size_pref, parentRow.class_size_pref),
+    sen_need:        pickInherited(profile.sen_need,        parentRow.sen_need),
+    lgbtq_pref:      pickInherited(profile.lgbtq_pref,      parentRow.lgbtq_pref),
+    pastoral_pref:   pickInherited(profile.pastoral_pref,   parentRow.pastoral_pref),
+    ethos_pref:      pickInherited(profile.ethos_pref,      parentRow.ethos_pref),
+  } as BriefProfile
+
+  // 3) Resolve child gender + year (prefer child_profile, fall back to parent)
+  const childGender = (typeof profile.child_gender === 'string' && profile.child_gender)
+    ? profile.child_gender as string
+    : (parentRow?.child_gender ?? null)
+  const childYear = (typeof profile.child_year === 'string' && profile.child_year)
+    ? profile.child_year as string
+    : (parentRow?.child_year ?? null)
+
+  // 4) Build the scorer-visible child_profile via the SAME schema-validated
+  //    pattern finalize uses (route.ts:142). Codex r1 finding 3 — malformed
+  //    interests_sports / nonnegotiables in child_profile must not reach
+  //    the scorer. safeParse + legacy-data retry-without-basics fallback.
+  const filteredProfile: Record<string, unknown> = {}
+  for (const k of WRITABLE_PROFILE_KEYS) {
+    if (k in profile && profile[k] != null) filteredProfile[k] = profile[k]
+  }
+  let childInput: Partial<BuildModeExtractionHTTP>
+  const parsed = BuildModeExtractionHTTPSchema.safeParse(filteredProfile)
+  if (parsed.success) {
+    childInput = parsed.data
+  } else {
+    // Legacy-data hardening: strip basics (child_gender/child_year) and retry.
+    // Same fallback as finalize:149.
+    const { child_gender: _g, child_year: _y, ...withoutBasics } = filteredProfile
+    const retry = BuildModeExtractionHTTPSchema.safeParse(withoutBasics)
+    childInput = retry.success ? retry.data : {}
+    if (!retry.success) {
+      console.warn('[refresh-recommendations] childInput schema parse failed twice; using empty')
+    }
+  }
+
+  // 5) Classify Build Mode intent from prose (5 fields). Mirrors finalize:461.
+  //    Classifier never throws — falls back to FALLBACK_INTENT on any error.
+  const strOrNull = (v: unknown): string | null => typeof v === 'string' ? v : null
+  const buildModeIntent = await classifyBuildModeIntent({
+    academic_notes:    strOrNull(profile.academic_notes),
+    goals_notes:       strOrNull(profile.goals_notes),
+    personality_notes: strOrNull(profile.personality_notes),
+    child_wants:       strOrNull(profile.child_wants),
+    anchors_notes:     strOrNull(profile.anchors_notes),
+  })
+
+  // Sport-gate fix (2026-05-24, Codex r3 P2): mirror finalize's cache-write
+  // so editing prose + clicking Refresh updates the cached drill_focus too.
+  // Without this, the next page-load seed would read stale/missing cache and
+  // fall back to wizard → sport rows soft-delete. Skip write on classifier
+  // fallback (Codex r5 P1).
+  const intentCacheable = buildModeIntent !== FALLBACK_INTENT
+  const { updatedProfile: profileWithCache } = await writeIntentFocusCacheIfChanged({
+    svc,
+    childId:         id,
+    rawChildProfile: profile as Record<string, unknown>,
+    drillFocus:      buildModeIntent.parent_drill_focus,
+    sportFocus:      buildModeIntent.sport_focus,
+    version:         CLASSIFICATION_VERSION,
+    cacheable:       intentCacheable,
+  })
+
+  // 6) Score with the rich Picker #2. excludeSlugs=[] because the Refresh
+  //    button is an atomic replace; no need to exclude the current list.
+  //    Reasoned shortlist: flag on → retrieve the 20-pool for the reasoning
+  //    stage; flag off → identical to today.
+  const reasonedOn = process.env.NANA_REASONED_SHORTLIST === 'on'
+  let pickResult: Awaited<ReturnType<typeof scoreForBuildMode>>
   try {
-    pick = await pickTopSchoolSlugs(svc, user.id, id)
+    pickResult = await scoreForBuildMode(
+      svc,
+      {
+        parent:       briefProfile,
+        child:        childInput,
+        excludeSlugs: [],
+        childGender,
+        childYear,
+        intent:       buildModeIntent,
+      },
+      reasonedOn ? POOL_LIMIT_REASONED : REFRESH_TOP_N,
+    )
   } catch (e) {
-    console.error('[POST refresh-recommendations] pick threw:', e)
+    console.error('[POST refresh-recommendations] scoreForBuildMode threw:', e)
     return NextResponse.json({ error: 'recommender_failed' }, { status: 500 })
+  }
+
+  // Codex r1 finding 2 — fetch_failed must surface as 500, not silent 200.
+  // The downstream "shortlist_unchanged" path is for legitimate
+  // no_candidates / incomplete scenarios; backend DB errors are different.
+  if (pickResult.reason === 'fetch_failed') {
+    console.error('[POST refresh-recommendations] scoreForBuildMode returned fetch_failed (DB error)')
+    return NextResponse.json({ error: 'recommender_failed' }, { status: 500 })
+  }
+
+  // Reasoned shortlist stage (2026-07-06) — flag-gated, fail-open. All
+  // reasoned imports stay inside the flag branch (Codex r2 #4) so flag-off
+  // keeps a clean static module graph and byte-identical behavior.
+  // applyReasonedOrder guarantees EXACTLY min(REFRESH_TOP_N, pool) rows in
+  // every path — the 20-pool never leaks into shortlist rows (Codex r1 #3).
+  let orderedCandidates = pickResult.candidates
+  let reasonedWhyBySlug: Map<string, string> = new Map()
+  let mergeReasonedWhyFn: ((records: Map<string, MatchReasonsRecord>, why: Map<string, string>) => void) | null = null
+  if (reasonedOn && pickResult.reason === 'ok' && pickResult.candidates.length > 0) {
+    const { buildEvidencePacks } = await import('@/lib/server/research-room/evidence-packs')
+    const { reasonShortlist, applyReasonedOrder, mergeReasonedWhy } = await import('@/lib/server/research-room/reason-shortlist')
+    mergeReasonedWhyFn = mergeReasonedWhy
+    const packs = await buildEvidencePacks(svc, pickResult.candidates.map(c => c.slug))
+    const reasonedResult = await reasonShortlist({
+      prose: {
+        academic_notes:    strOrNull(profile.academic_notes) ?? '',
+        goals_notes:       strOrNull(profile.goals_notes) ?? '',
+        personality_notes: strOrNull(profile.personality_notes) ?? '',
+        child_wants:       strOrNull(profile.child_wants) ?? '',
+        anchors_notes:     strOrNull(profile.anchors_notes) ?? '',
+      },
+      intent: buildModeIntent,
+      pool:   pickResult.candidates,
+      packs,
+      topN:   REFRESH_TOP_N,
+    })
+    if (reasonedResult.pool_flags.length) {
+      console.warn('[refresh-recommendations] reason-shortlist pool_flags:', reasonedResult.pool_flags)
+    }
+    const applied = applyReasonedOrder(pickResult.candidates, reasonedResult, REFRESH_TOP_N)
+    orderedCandidates = applied.ordered
+    reasonedWhyBySlug = applied.whyBySlug
+  }
+
+  // Adapt to the shape downstream code expects (slug list + reason string).
+  // Maintains backwards compat with prior pickTopSchoolSlugs contract so
+  // match_reasons + upsert + delete logic stays unchanged. Flag off:
+  // orderedCandidates === pickResult.candidates (limit was REFRESH_TOP_N).
+  const pick = {
+    slugs: orderedCandidates.map(c => c.slug),
+    reason: pickResult.reason === 'ok' ? 'inserted' : pickResult.reason,
   }
 
   if (pick.slugs.length === 0) {
@@ -160,20 +364,93 @@ export async function POST(
     })
   }
 
+  // Slice 8 Build 2 r1: compute match_reasons per (child, school) pair via
+  // the shared batch helper. Best-effort — failure logs and proceeds with
+  // a reason-less upsert.
+  let reasonsBySlug: Map<string, MatchReasonsRecord> = new Map()
+  try {
+    // Codex r4 P2 #2 (2026-05-24): thread the cache-merged profile so match
+    // reasons see the freshly cached drill_focus.
+    // Phase 2.8.5 (Codex r1 chip-bundle P1): pass includeEmpty so slugs
+    // whose chips just dropped to zero (e.g. brief switched from tennis to
+    // academic — Harrow's "strong tennis" chip no longer qualifies under
+    // Phase 2.8.3's national-tier floor) get an OVERWRITE with empty
+    // reasons, clearing the stale chip. Without this, the per-slug UPDATE
+    // loop below silently skips zero-reason slugs and the old chip text
+    // persists across briefs.
+    // Phase 2.8.6: embedRankFromSlugIndex bakes the slug's index in
+    // pick.slugs (recommender-score-ordered) into match_reasons.rank_position
+    // so the comparison view sorts by recommender rank instead of added_at.
+    reasonsBySlug = await loadMatchReasonsBatch(svc, profileWithCache as BriefProfile, pick.slugs, { includeEmpty: true, embedRankFromSlugIndex: true })
+  } catch (e) {
+    console.warn('[refresh-recommendations] match_reasons compute failed:', e)
+  }
+
+  // Reasoned shortlist: carry the parent-facing "why" additively inside
+  // match_reasons (typed reasoned_why field). Mutating the map here means
+  // both the upsert and the per-slug backfill UPDATE below carry it.
+  if (reasonedWhyBySlug.size && mergeReasonedWhyFn) {
+    mergeReasonedWhyFn(reasonsBySlug, reasonedWhyBySlug)
+  }
+
   // Upsert new rows first (idempotent thanks to NULLS NOT DISTINCT
   // unique constraint), THEN delete stale rows not in the new set. The
   // user's shortlist always has rows during the swap.
-  const upsertRows = pick.slugs.map(slug => ({
-    user_id: user.id,
-    school_slug: slug,
-    child_id: id,
-  }))
+  const upsertRows = pick.slugs.map(slug => {
+    const row: { user_id: string; school_slug: string; child_id: string; match_reasons?: unknown } = {
+      user_id: user.id,
+      school_slug: slug,
+      child_id: id,
+    }
+    const reasons = reasonsBySlug.get(slug)
+    if (reasons) row.match_reasons = reasons
+    return row
+  })
   const { error: upsertErr } = await svc
     .from('shortlisted_schools')
     .upsert(upsertRows, { onConflict: 'user_id,child_id,school_slug', ignoreDuplicates: true })
   if (upsertErr) {
     console.error('[POST refresh-recommendations] upsert failed:', upsertErr.message)
     return NextResponse.json({ error: 'insert_failed' }, { status: 500 })
+  }
+
+  // Build 2 r1 (Codex P1 #2): backfill UPDATE — Phase 2.8.5 (2026-05-25)
+  // raised scope from null-only to "always refresh".
+  //
+  // `ignoreDuplicates: true` above means existing (user_id, child_id,
+  // school_slug) rows are SKIPPED entirely — their match_reasons column
+  // stays null OR stale when we just computed a fresh value. Without this
+  // pass, every shortlist row added before Build 2 shipped never gets
+  // reasons populated.
+  //
+  // Phase 2.8.5: the prior `.is('match_reasons', null)` filter meant
+  // that once a row had ANY match_reasons set (from a prior Refresh),
+  // the chip text never refreshed even when the brief changed. Live
+  // smoke 2026-05-25 surfaced "strong tennis" stuck on Harrow after a
+  // rugby Refresh + on every school after an academic Refresh. Removed
+  // the .is(null) guard so chips track the current brief. Trade-off:
+  // we cannot today distinguish "parent manually edited chips" from
+  // "system wrote chips" — but the schema has no manual-chip concept,
+  // so blanket refresh is the honest behaviour.
+  //
+  // Per-slug UPDATE because upsert(ignoreDuplicates: true) won't touch
+  // reason set" if any). N is at most 6 (top recommendations cap), so
+  // sequential awaits are fine here.
+  for (const slug of pick.slugs) {
+    const reasons = reasonsBySlug.get(slug)
+    if (!reasons) continue
+    const { error: backfillErr } = await svc
+      .from('shortlisted_schools')
+      .update({ match_reasons: reasons })
+      .eq('user_id', user.id)
+      .eq('child_id', id)
+      .eq('school_slug', slug)
+      // Phase 2.8.5: `.is('match_reasons', null)` filter dropped here so
+      // returning slugs (already in shortlist from prior Refresh) get
+      // fresh chips for the current brief.
+    if (backfillErr) {
+      console.warn('[POST refresh-recommendations] match_reasons backfill failed:', slug, backfillErr.message)
+    }
   }
 
   // Delete stale rows: same (user, child) but NOT in the new slug set.

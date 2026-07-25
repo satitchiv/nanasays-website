@@ -7,6 +7,8 @@ import { spawn } from 'child_process'
 import path from 'path'
 import { verifyAdmin, supabaseService } from '@/lib/supabase-admin'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 export const maxDuration = 120
 
 export async function POST(

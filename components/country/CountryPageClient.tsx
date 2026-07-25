@@ -700,6 +700,7 @@ export default function CountryPageClient({ meta, schools }: Props) {
                 schools={schools}
                 center={meta.mapCenter}
                 zoom={meta.mapZoom}
+                country={meta.name}
                 hoveredSchoolId={hoveredSchoolId}
                 selectedSchoolId={selectedSchoolId}
                 onSchoolClick={(id) => {
@@ -769,6 +770,7 @@ export default function CountryPageClient({ meta, schools }: Props) {
               schools={schools}
               center={meta.mapCenter}
               zoom={meta.mapZoom}
+              country={meta.name}
               hoveredSchoolId={hoveredSchoolId}
               selectedSchoolId={selectedSchoolId}
               onSchoolClick={handleSchoolClick}

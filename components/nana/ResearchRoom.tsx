@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import ChildSelector, { type ChildOption } from './ChildSelector'
 import ChildBriefTab, { type ChildSummary, type FamilyPreferences } from './ChildBriefTab'
+import PartnerBriefTab, { type PartnerBrief } from './PartnerBriefTab'
+import VerdictTab, { type ResearchVerdictForUi } from './VerdictTab'
 import ResearchRoomChat, { type ChatState } from './ResearchRoomChat'
 import ComparisonView from './ComparisonView'
 import type { ComparisonData } from './comparison-placeholder'
@@ -48,8 +50,15 @@ type Props = {
   lens?: Lens
   initialSession?: Session | null
   initialMessages?: ResearchMessage[]
+  // Session 4 follow-up — hydrate the Build Mode progress bar + welcome-
+  // back bubble from DB so they appear on first paint, not after the
+  // next turn. Null = no prior Build Mode progress for this session
+  // (first-time toggle or session never used Build Mode).
+  initialBuildModeState?: import('@/lib/nana/types').BuildModeStreamState | null
   savedLenses?: SavedLens[]
   activeLensId?: string | null
+  partnerBrief?: PartnerBrief | null
+  researchVerdict?: ResearchVerdictForUi | null
 }
 
 const TAB_ORDER: Tab[] = ['brief', 'compare', 'verdict', 'partner']
@@ -90,14 +99,37 @@ export default function ResearchRoom({
   lens             = 'general',
   initialSession   = null,
   initialMessages  = [],
+  initialBuildModeState = null,
   savedLenses      = [],
   activeLensId     = null,
+  partnerBrief     = null,
+  researchVerdict  = null,
 }: Props) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<Tab>('compare')
-  const [chatState, setChatState] = useState<ChatState>('default')
+  // Diagnostic follow-up (2026-07-17): the landing tab is always
+  // 'compare', and 'default' chat width (400px desktop rail / 50dvh
+  // mobile bottom-sheet+scrim) buried the comparison table on first
+  // paint — on mobile the sheet+scrim covered nearly the whole screen,
+  // and on desktop 400px of chat squeezed a 4-5 school table into
+  // awkward horizontal scroll before the parent had done anything.
+  // 'closed' still leaves the chat one tap/click away (a slim "ASK
+  // NANA" rail on desktop, a pulsing FAB on mobile) — it just stops
+  // defaulting to covering the primary content the parent lands on.
+  const [chatState, setChatState] = useState<ChatState>('closed')
   const [buildMode, setBuildMode] = useState(false)
   const [activeChildId, setActiveChildId] = useState<string | null>(initialActiveChildId)
+  // Slice 8 Build 7 Phase C — per-child dismiss set for fullscreen Build
+  // Mode. Holds child ids whose fullscreen has been locally dismissed
+  // (Skip / Build-table-now exits). Keyed individually so dismissing
+  // child A doesn't bleed to B and vice-versa.
+  //
+  // Pure derivation gives us the gate (see currentChild + fullscreenBuildMode
+  // below); this Set is just the user-override layer. The pruning effect
+  // further down drops entries whose child's funnel_state has left
+  // 'interview' so the Set stays bounded.
+  const [dismissedFullscreenChildIds, setDismissedFullscreenChildIds] =
+    useState<ReadonlySet<string>>(() => new Set())
 
   // 6-FU5 — optimistic active-lens id. Declared up here (before any
   // closure that references it) because handleSwitchActiveLens flips
@@ -257,6 +289,19 @@ export default function ResearchRoom({
     }
   }
 
+  // Slice 8 Build 7 Phase C followup: invoked by ChildBriefTab when a
+  // new child is added via the +Add child form. The server's /api/children
+  // POST already wrote parent_profiles.active_child_id to the new id, but
+  // router.refresh() doesn't reset useState(initialActiveChildId) — so we
+  // setActiveChildId optimistically here so Phase C's gate fires on the
+  // new child immediately. The refresh that follows re-loads
+  // childSummaries which will include the new child + its funnel_state.
+  // No POST to /api/active-child needed (server already persisted).
+  const handleChildAdded = (newChildId: string) => {
+    setActiveChildId(newChildId)
+    router.refresh()
+  }
+
   // Persist the active child to parent_profiles + refresh server data
   // so the comparison table re-fetches per the new child's shortlist.
   // Failures revert local state to keep UI consistent with DB truth.
@@ -293,9 +338,141 @@ export default function ResearchRoom({
   }, [activeTab])
 
   const handleToggleBuildMode = () => {
-    const next = !buildMode
-    setBuildMode(next)
-    setChatState(next ? 'focus' : 'default')
+    // Browser smoke 2026-05-16: previous version forced
+    // setChatState('focus' / 'default') on toggle which jolted the chat
+    // panel from 400px ↔ 620px every time the parent flipped the
+    // switch. Removed — chat width stays wherever the parent put it
+    // (closed / default / focus); they can manually widen via ⤢ if
+    // they want more room for the interview.
+    setBuildMode(b => !b)
+  }
+
+  // ── Slice 8 Build 7 Phase C — fullscreen Build Mode gate ───────────
+  //
+  // Phase B threaded `funnel_state` into childSummaries from the children
+  // table. Phase C derives a client-side gate from that prop, with a
+  // per-child dismiss set so the parent can locally exit fullscreen
+  // (Skip / Build-table-now) without waiting for the server-side
+  // funnel_state UPDATE to land via router.refresh.
+  //
+  // Why pure derivation (no useState mirror of the server prop): early
+  // sketch rounds tried a useState + useEffect resync pattern; Codex r2
+  // flagged it as brittle (stale prop on child switch). Derived values
+  // recompute every render — no resync window.
+
+  // Pruning: drop dismissed entries whose child's funnel_state has left
+  // 'interview' (post-skip / post-finalize router.refresh). Without
+  // pruning the Set grows monotonically and prevents future re-entry to
+  // fullscreen if SQL ever flips a child back to 'interview'. Cheap —
+  // childSummaries is tiny, set size capped by interactions.
+  useEffect(() => {
+    setDismissedFullscreenChildIds(prev => {
+      // forEach (rather than for…of) keeps this compatible with the
+      // current tsconfig target — ReadonlySet's iterator needs es2015
+      // or --downlevelIteration, neither set here.
+      let next: Set<string> | null = null
+      prev.forEach(id => {
+        const child = childSummaries.find(c => c.id === id) ?? null
+        if (!child || child.funnel_state !== 'interview') {
+          if (!next) next = new Set(prev)
+          next.delete(id)
+        }
+      })
+      return next ?? prev
+    })
+  }, [childSummaries])
+
+  const currentChild = activeChildId
+    ? childSummaries.find(c => c.id === activeChildId) ?? null
+    : null
+  const fullscreenBuildMode = !!(
+    currentChild?.funnel_state === 'interview' &&
+    !dismissedFullscreenChildIds.has(activeChildId ?? '')
+  )
+  // chatBuildMode = user-controlled buildMode OR fullscreen-forced. Passed
+  // to ResearchRoomChat as `buildMode`. The chat sees a single value that
+  // drives bar / header / endpoint switching; it reads fullscreenBuildMode
+  // separately (via its own prop) for things like disabling the toggle.
+  const chatBuildMode = buildMode || fullscreenBuildMode
+
+  // rr-8-build3-sibling-gender-year (2026-05-21): a sibling that lands in
+  // fullscreen Build Mode without child_gender or child_year captured on
+  // its row. Drives a one-line signage paragraph in the welcome bubble so
+  // the parent knows the wizard was deliberately skipped and that the
+  // first turn will ask a couple of basics. Two gates:
+  //   - childSummaries.length > 1 → this user actually has multiple
+  //     children, so "reuse your family preferences" copy is accurate.
+  //   - basics missing on THIS child's profile → the sibling_basics
+  //     opener will fire. Existing siblings who've already filled basics
+  //     via the Brief tab don't see the message.
+  const currentChildProfile = currentChild?.child_profile ?? null
+  const siblingNeedsBasics  = !!(
+    fullscreenBuildMode &&
+    currentChildProfile &&
+    childSummaries.length > 1 &&
+    (!currentChildProfile.child_gender || !currentChildProfile.child_year)
+  )
+  // rr-8-build3-sibling-gender-year chip-strip (2026-05-21) — initial
+  // captured state for the BuildModeProgressBar basics chips. Derived
+  // from THIS child's profile (NOT parent_profiles, which would carry
+  // first-child values for siblings). Live updates flow via the SSE
+  // build_mode_progress diff inside BuildModeProgressBar — this prop
+  // just seeds the initial render so a refresh/reload preserves any
+  // basics already captured. Always defined so child component
+  // doesn't need to null-check.
+  const siblingBasicsCaptured = {
+    gender: !!currentChildProfile?.child_gender,
+    year:   !!currentChildProfile?.child_year,
+  }
+
+  // Chat-must-be-open invariant: when fullscreen is on AND state goes
+  // 'closed' (Escape listener in ResearchRoomChat, or any future close
+  // path), force back to 'default'. Codex r4 P1 — depending only on
+  // [fullscreenBuildMode] missed the state→closed transition while
+  // fullscreen was already on. Including chatState in deps self-heals.
+  useEffect(() => {
+    if (fullscreenBuildMode && chatState === 'closed') {
+      setChatState('default')
+    }
+  }, [fullscreenBuildMode, chatState])
+
+  // Shared exit primitive — sets user-buildMode to false AND dismisses
+  // fullscreen for the active child. Used by both Skip and the in-chat
+  // Build-my-table-now CTA (the chat invokes via onExitInterview prop).
+  // Codex r2 P1 #1 — using onToggleBuildMode in handleBuildTableNow was
+  // a foot-gun (could re-enable Build Mode in pathological flows); this
+  // explicit setter is the canonical exit.
+  const handleExitInterview = () => {
+    setBuildMode(false)
+    if (activeChildId) {
+      setDismissedFullscreenChildIds(prev => {
+        if (prev.has(activeChildId)) return prev
+        const next = new Set(prev)
+        next.add(activeChildId)
+        return next
+      })
+    }
+  }
+
+  const handleSkipBuildMode = () => {
+    // Slice 8 Build 7: optimistic UX — flip local Build Mode state
+    // immediately so the parent isn't waiting on a network call.
+    // Phase C: also dismiss fullscreen locally via handleExitInterview.
+    // Fire the server persist (funnel_state → 'comparison') as fire-and-
+    // forget. If it fails, the next page load's gate self-heals based on
+    // whatever state actually landed in the DB (and the pruning effect
+    // re-includes this child once funnel_state genuinely changes).
+    handleExitInterview()
+    if (!activeChildId) return
+    void fetch('/api/research-room/build-mode/skip', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ childId: activeChildId }),
+    })
+      .then(res => {
+        if (!res.ok) console.warn('[skip] non-2xx', res.status)
+      })
+      .catch(err => console.warn('[skip] network error', err))
   }
 
   const handleCollapseChat = () => setChatState('closed')
@@ -338,6 +515,20 @@ export default function ResearchRoom({
   const handleTabClick = (tab: Tab) => {
     setActiveTab(tab)
     scrollPagerToTab(tab)
+  }
+
+  // Slice 8 Build 7 Phase C followup #2 — fired by ResearchRoomChat's
+  // handleBuildTableNow after the parent clicks the wrap-up CTA. Routes
+  // them to the Comparison tab so the finalize-streamed rows land on a
+  // panel they can actually see. handleTabClick (not raw setActiveTab)
+  // so the mobile pager scrolls alongside. No-op when activeTab is
+  // already 'compare'.
+  const handleTableBuilt = () => {
+    handleTabClick('compare')
+  }
+
+  const handleShortlistRefreshed = () => {
+    handleTabClick('compare')
   }
 
   // Initial scroll position: jump (no animation) to the default active tab so
@@ -514,6 +705,7 @@ export default function ResearchRoom({
     'rr-shell',
     chatState === 'closed' ? 'rr-shell-chat-closed' : '',
     chatState === 'focus' ? 'rr-shell-chat-focus' : '',
+    fullscreenBuildMode ? 'rr-shell-fullscreen' : '',
   ].filter(Boolean).join(' ')
 
   return (
@@ -559,7 +751,7 @@ export default function ResearchRoom({
       </header>
 
       <div className={shellClass}>
-        <main className="rr-main">
+        <main className="rr-main" aria-hidden={fullscreenBuildMode || undefined}>
           <div className="rr-view-pager" ref={pagerRef}>
             {TAB_ORDER.map((t) => (
               <section
@@ -594,29 +786,71 @@ export default function ResearchRoom({
                       activeChildId={activeChildId}
                       familyPreferences={familyPreferences}
                       onActiveChildChange={handleActiveChildChange}
+                      onChildAdded={handleChildAdded}
+                      onShortlistRefreshed={handleShortlistRefreshed}
+                      // Phase 3 sidebar smoke fix r1 #3 (Codex 2026-05-24):
+                      // guard auto-scroll so it only fires when this tab is
+                      // the active view (the pager renders all tabs but only
+                      // one is visible). Otherwise switching child via the
+                      // top-right dropdown while on Verdict could scroll
+                      // inside the hidden Brief panel.
+                      isActiveTab={activeTab === 'brief'}
                     />
-                  ) : (
-                    <>
-                      <div className="rr-view-head">
-                        <div>
-                          <div className="rr-view-eyebrow">{TAB_LABELS[t]}</div>
-                          <h1 className="rr-view-title">
-                            {TAB_LABELS[t]} · <em>placeholder.</em>
-                          </h1>
-                          <p className="rr-view-meta">{PLACEHOLDER_COPY[t].sub}</p>
-                        </div>
-                      </div>
-
-                      <div className="rr-placeholder-card" role="status">
-                        <div className="rr-placeholder-eyebrow">Slice 1 · shell only</div>
-                        <div className="rr-placeholder-body">
-                          The four tabs and the chat states work. Swipe left/right on
-                          mobile to flip between tabs. Real content appears in later
-                          slices.
-                        </div>
-                      </div>
-                    </>
-                  )}
+                  ) : t === 'verdict' ? (
+                    // Codex r5 P1 + r6 P2 (2026-05-23):
+                    //
+                    // r5: key on sessionId forces a full remount when the
+                    // active child/session changes — without it, VerdictTab's
+                    // autoHydrateAttemptedRef would stay set across session
+                    // swaps and leave previous child's verdict visible.
+                    //
+                    // r6: but `activeChildId` flips immediately on child
+                    // switch, while `initialSession` lags until router.refresh
+                    // delivers new server props. During that window, the OLD
+                    // session.child_id !== the NEW activeChildId, so old
+                    // verdict would render under new child name. Gate via
+                    // verdictReady — when child_id mismatches activeChildId,
+                    // pass sessionId=null + verdict=null so VerdictTab shows
+                    // its loading placeholder instead of the stale verdict.
+                    (() => {
+                      // Codex r6 P2 + r7 P1 (2026-05-23):
+                      //
+                      // r6: detect optimistic child-switch via
+                      //   verdictReady = activeChildId === initialActiveChildId
+                      // (client vs SSR prop). r7 then surfaced that gating the
+                      // verdict/sessionId props to null isn't enough — VerdictTab
+                      // holds its own `localVerdict` state populated by
+                      // auto-hydrate, and `useEffect([verdict])` only clears it
+                      // when the prop CHANGES. If researchVerdict is already
+                      // null going into the switch, the prop doesn't change,
+                      // localVerdict stays populated, old verdict renders under
+                      // new child name.
+                      //
+                      // Fix: include activeChildId in the key. When the client
+                      // flips activeChildId, the key changes immediately,
+                      // VerdictTab unmounts + remounts with fresh state
+                      // (including a fresh autoHydrateAttemptedRef). When
+                      // router.refresh later delivers the new session id, the
+                      // key changes again and we remount once more — two
+                      // remounts per switch, but neither shows stale data.
+                      const verdictReady = activeChildId === initialActiveChildId
+                      return (
+                        <VerdictTab
+                          key={`${activeChildId ?? 'no-child'}:${initialSession?.id ?? 'no-session'}`}
+                          verdict={verdictReady ? researchVerdict : null}
+                          sessionId={verdictReady ? (initialSession?.id ?? null) : null}
+                          childName={activeChild?.name ?? null}
+                        />
+                      )
+                    })()
+                  ) : t === 'partner' ? (
+                    <PartnerBriefTab
+                      brief={partnerBrief}
+                      childId={activeChildId}
+                      sessionId={initialSession?.id ?? null}
+                      childName={activeChild?.name ?? null}
+                    />
+                  ) : null}
                 </div>
               </section>
             ))}
@@ -624,15 +858,25 @@ export default function ResearchRoom({
         </main>
 
         <ResearchRoomChat
+          key={`${activeChildId ?? 'none'}:${initialSession?.id ?? 'none'}`}
           state={chatState}
-          buildMode={buildMode}
+          buildMode={chatBuildMode}
+          fullscreenBuildMode={fullscreenBuildMode}
+          siblingNeedsBasics={siblingNeedsBasics}
+          siblingBasicsCaptured={siblingBasicsCaptured}
+          siblingActiveChildName={currentChild?.name ?? null}
+          siblingActiveChildDob={currentChild?.date_of_birth ?? null}
+          onExitInterview={handleExitInterview}
+          onTableBuilt={handleTableBuilt}
           onCollapse={handleCollapseChat}
           onExpandDefault={handleExpandDefault}
           onToggleFocus={handleToggleFocus}
           onToggleBuildMode={handleToggleBuildMode}
+          onSkipBuildMode={handleSkipBuildMode}
           shortlistSlugs={comparisonData?.schools.map(s => s.slug) ?? []}
           initialSession={initialSession}
           initialMessages={initialMessages}
+          initialBuildModeState={initialBuildModeState}
           lensView={lens ?? 'general'}
           onApplyReRank={handleApplyReRank}
           canSaveAsLens={canSaveAsLens}

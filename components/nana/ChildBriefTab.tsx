@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ONBOARDING_FIELDS,
   getOptionLabel,
   getOptionShortLabel,
 } from '@/lib/onboarding-fields'
+import type { FunnelState } from '@/lib/children'
 
 export type ChildSummary = {
   id:            string
@@ -14,6 +15,7 @@ export type ChildSummary = {
   date_of_birth: string | null
   child_profile: Record<string, string | null>
   is_archived:   boolean
+  funnel_state:  FunnelState
 }
 
 // FamilyPreferences kept exported for backward-compat with the page
@@ -25,11 +27,36 @@ type Props = {
   activeChildId: string | null
   familyPreferences?: FamilyPreferences
   onActiveChildChange?: (id: string) => void
+  // Phase 3 smoke fix r1 #3 (Codex 2026-05-24): only auto-scroll when this
+  // tab is the active view in ResearchRoom's horizontal pager. Without this
+  // guard, switching child via the top-right dropdown while on Verdict tab
+  // would trigger scrollIntoView inside the hidden Brief tab and could leak
+  // to ancestor scroll containers. Defaults to true for back-compat with
+  // callers that mount ChildBriefTab as the only view.
+  isActiveTab?: boolean
+  // Slice 8 Build 7 Phase C followup: parent (ResearchRoom) owns the
+  // activeChildId useState. Server-side /api/children POST already wrote
+  // active_child_id, but router.refresh() doesn't reset useState — so
+  // we hand back the new id here and let ResearchRoom setActiveChildId
+  // + router.refresh together. Optional for back-compat; if absent we
+  // fall back to a plain router.refresh().
+  onChildAdded?: (childId: string) => void
+  // rr-8-brief-refresh-auto-jump: parent owns activeTab. When the user
+  // clicks "Refresh recommendations" we ask the parent to flip Brief →
+  // Comparison so the freshly-recommended shortlist lands on a visible
+  // panel. Optional for back-compat / tests.
+  onShortlistRefreshed?: () => void
 }
 
 const BASICS_FIELDS     = ['child_year', 'child_gender'] as const
-const SCHOOL_FIELDS     = ['home_region', 'boarding_pref', 'budget_range', 'curriculum_pref'] as const
-const PRIORITY_FIELDS   = ['top_priority', 'class_size_pref', 'sen_need'] as const
+// T4.16 Gap B (2026-05-09): ethos_pref + intl_pref slotted into School
+// (they're about what kind of school the family wants); phone_pref into
+// Priorities (it's a parental philosophy alongside class size + SEN).
+// Slice 8 Build 1 (2026-05-14): lgbtq_pref + pastoral_pref added to
+// Priorities — they're parental-philosophy fields too, and the onboarding
+// form no longer collects them so this is now their only editable surface.
+const SCHOOL_FIELDS     = ['home_region', 'boarding_pref', 'budget_range', 'curriculum_pref', 'ethos_pref', 'intl_pref'] as const
+const PRIORITY_FIELDS   = ['top_priority', 'class_size_pref', 'sen_need', 'phone_pref', 'lgbtq_pref', 'pastoral_pref'] as const
 
 // Slice 3.4 polish: rich free-text cards. Slice 3 captures (write side);
 // slice 4's fit-score lens reads them. JSONB keys are stable so the slice 4
@@ -68,11 +95,53 @@ export default function ChildBriefTab({
   children,
   activeChildId,
   onActiveChildChange,
+  onChildAdded,
+  onShortlistRefreshed,
+  isActiveTab = true,
 }: Props) {
   const [adding, setAdding] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+
+  // Phase 3 sidebar (r1 Codex smoke fix #1): hooks MUST run on every render —
+  // moved ABOVE the children.length === 0 early-return. Putting them after
+  // would violate Rules of Hooks when the user adds their first child
+  // (zero-child render: 4 hooks → first-child render: 5 hooks → "Rendered
+  // more hooks than during the previous render" error).
+  const showSidebar = children.length >= 2
+
+  // Phase 3 sidebar auto-scroll (r1 Codex smoke fix #2): track the child id
+  // we LAST auto-scrolled to. Initialised to current activeChildId so:
+  // (a) the first render doesn't trigger a scroll (no mismatch), and
+  // (b) React 18 StrictMode's double-mount is harmless — both invocations
+  //     see ref.current === activeChildId and skip. Replaces the brittle
+  //     useRef(true)-then-flip pattern.
+  const lastAutoScrolledChildId = useRef<string | null>(activeChildId)
+
+  // r2 Codex smoke fix #1 (2026-05-24): `children.length` in deps would miss
+  // a same-length swap (one archived, one added). `activeChildIsRendered`
+  // flips precisely when the anchor for the current activeChildId is ready
+  // — narrower + semantically correct retry signal.
+  const activeChildIsRendered = !!activeChildId && children.some(c => c.id === activeChildId)
+
+  useEffect(() => {
+    // r1 Codex smoke fix #3: skip when this tab isn't the active view.
+    if (!isActiveTab) return
+    if (!activeChildId || !showSidebar) return
+    // r1 Codex smoke fix #2: only scroll when the id has actually CHANGED
+    // from what we last scrolled to. StrictMode-safe + dedupes re-renders.
+    if (lastAutoScrolledChildId.current === activeChildId) return
+    // r1 Codex smoke fix #4: anchor may not be in the DOM yet when the
+    // parent just set a new activeChildId before router.refresh delivered
+    // the new children prop. Don't update the ref on miss — the effect
+    // re-runs when activeChildIsRendered flips (next render with new
+    // children prop) and tries again.
+    const el = document.getElementById(`child-brief-${activeChildId}`)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    lastAutoScrolledChildId.current = activeChildId
+  }, [activeChildId, showSidebar, isActiveTab, activeChildIsRendered])
 
   async function addChild(name: string, dob: string) {
     setBusy(true); setError(null)
@@ -85,7 +154,16 @@ export default function ChildBriefTab({
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Failed to add child')
       setAdding(false)
-      router.refresh()
+      // Phase C followup: defer activation + refresh to the parent if
+      // it provided onChildAdded (it sets activeChildId optimistically
+      // so Phase C's fullscreen gate fires on the new child). Falls
+      // back to plain router.refresh() for back-compat.
+      const newId = typeof json?.child?.id === 'string' ? json.child.id : null
+      if (newId && onChildAdded) {
+        onChildAdded(newId)
+      } else {
+        router.refresh()
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error')
     } finally {
@@ -108,56 +186,162 @@ export default function ChildBriefTab({
     )
   }
 
+  // (Phase 3 sidebar showSidebar + useEffect moved ABOVE the early-return —
+  //  see top of function. Codex r1 #1 Rules of Hooks fix.)
+
   return (
-    <div className="rr-brief-wrap">
-      <header className="rr-brief-tab-head">
-        <div className="rr-brief-eyebrow">Child brief · the lens for everything</div>
-        <p className="rr-brief-tab-meta">
-          Each child has their own answers to the 9 questions. Edit any field — the recommender re-runs for that child.
-        </p>
-      </header>
+    <div className={`rr-brief-wrap${showSidebar ? ' rr-cb-sidebar-layout has-sidebar' : ''}`}>
+      <div className="rr-cb-cards-col">
+        <header className="rr-brief-tab-head">
+          <div className="rr-brief-eyebrow">Child brief · the lens for everything</div>
+          <p className="rr-brief-tab-meta">
+            Each child has their own answers. Edit any field — the recommender re-runs for that child.
+          </p>
+        </header>
 
-      {error && <div className="rr-brief-error" role="alert">{error}</div>}
+        {error && <div className="rr-brief-error" role="alert">{error}</div>}
 
-      {children.map(c => (
-        <ChildPanel
-          key={c.id}
-          child={c}
-          isActive={c.id === activeChildId}
-          busy={busy}
-          setBusy={setBusy}
-          setError={setError}
-          onSetActive={() => onActiveChildChange?.(c.id)}
+        {children.map(c => (
+          <ChildPanel
+            key={c.id}
+            child={c}
+            isActive={c.id === activeChildId}
+            busy={busy}
+            setBusy={setBusy}
+            setError={setError}
+            onSetActive={() => onActiveChildChange?.(c.id)}
+            onShortlistRefreshed={onShortlistRefreshed}
+          />
+        ))}
+
+        {adding ? (
+          <ChildMetaForm
+            initialName=""
+            initialDob=""
+            busy={busy}
+            submitLabel="Add child"
+            onCancel={() => { setAdding(false); setError(null) }}
+            onSave={addChild}
+          />
+        ) : (
+          <button
+            type="button"
+            className="rr-brief-add-btn"
+            onClick={() => { setAdding(true); setError(null) }}
+            disabled={busy}
+          >
+            + Add child
+          </button>
+        )}
+      </div>
+
+      {showSidebar && (
+        <ChildBriefSidebar
+          children={children}
+          activeChildId={activeChildId}
+          onJumpToChild={(id) => {
+            onActiveChildChange?.(id)
+            // r2 Codex smoke fix #2 (2026-05-24): direct scroll on EVERY
+            // sidebar click so clicking the already-selected child still
+            // re-jumps to its panel. The useEffect above handles EXTERNAL
+            // activeChildId changes (top-right dropdown); the inline scroll
+            // here covers the click case where activeChildId may or may not
+            // change. Both paths are smooth-scrolling to the same anchor —
+            // if both fire (id actually changed), the second is a no-op.
+            document.getElementById(`child-brief-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+          }}
+          onAddChild={() => { setAdding(true); setError(null) }}
+          addDisabled={busy || adding}
         />
-      ))}
+      )}
+    </div>
+  )
+}
 
-      {adding ? (
-        <ChildMetaForm
-          initialName=""
-          initialDob=""
-          busy={busy}
-          submitLabel="Add child"
-          onCancel={() => { setAdding(false); setError(null) }}
-          onSave={addChild}
-        />
-      ) : (
+// ─── Sidebar — Phase 3 (2026-05-24) ──────────────────────────────────────
+//
+// Sticky middle column. Lists every child with name + year + status pill,
+// click to scroll-into-view + set active. At 1300px viewport collapses to
+// name + status dot (drops year sub-label + pill). At 1000px collapses to
+// initials-only rail. Hidden entirely for single-child households (see
+// `showSidebar` gate above).
+
+function ChildBriefSidebar({
+  children,
+  activeChildId,
+  onJumpToChild,
+  onAddChild,
+  addDisabled,
+}: {
+  children:      ChildSummary[]
+  activeChildId: string | null
+  onJumpToChild: (childId: string) => void
+  onAddChild:    () => void
+  addDisabled:   boolean
+}) {
+  return (
+    <aside className="rr-cb-sidebar" aria-label="Jump to child">
+      <div className="rr-cb-sidebar-head">Jump to child</div>
+      <ul className="rr-cb-sidebar-list">
+        {children.map(c => {
+          // FunnelState values: 'onboarding' | 'interview' | 'comparison'.
+          // 'comparison' means the child has cleared interview + reached the
+          // research/comparison stage (likely has a usable shortlist + verdict),
+          // so it's the "active" state in sidebar terms.
+          const status: 'active' | 'draft' | 'archived' =
+            c.is_archived ? 'archived'
+            : c.funnel_state === 'comparison' ? 'active'
+            : 'draft'
+          const initials = c.name.split(/[\s-]+/).map(p => p[0] ?? '').join('').slice(0, 2).toUpperCase() || '?'
+          // Codex r1 #3: reuse existing ageFromDOB helper — handles invalid
+          // and future dates safely (returns null instead of NaN/negative).
+          const ageYears = ageFromDOB(c.date_of_birth)
+          // Codex r1 #1: 'is-active' previously collided between status='active'
+          // (every comparison-stage child) and "this is the selected child"
+          // (activeChildId === c.id). Rename the selected modifier to
+          // 'is-selected' so non-selected active-status children don't get the
+          // selected styling.
+          const isSelected = activeChildId === c.id
+          return (
+            <li key={c.id}>
+              <button
+                type="button"
+                className={`rr-cb-sidebar-item is-status-${status}${isSelected ? ' is-selected' : ''}`}
+                onClick={() => onJumpToChild(c.id)}
+                data-initials={initials}
+                title={c.name}
+                // Codex r1 #2: initials-only mode (1000px) hides the visible
+                // name. aria-label keeps the button announceable to screen
+                // readers regardless of viewport.
+                aria-label={c.name}
+                aria-current={isSelected ? 'true' : undefined}
+              >
+                <span className="rr-cb-sidebar-name">{c.name}</span>
+                {ageYears != null && <span className="rr-cb-sidebar-sub">age {ageYears}</span>}
+                <span className={`rr-cb-sidebar-pill is-${status}`}>{status}</span>
+              </button>
+            </li>
+          )
+        })}
+      </ul>
+      <div className="rr-cb-sidebar-foot">
         <button
           type="button"
-          className="rr-brief-add-btn"
-          onClick={() => { setAdding(true); setError(null) }}
-          disabled={busy}
+          className="rr-cb-sidebar-add"
+          onClick={onAddChild}
+          disabled={addDisabled}
         >
           + Add child
         </button>
-      )}
-    </div>
+      </div>
+    </aside>
   )
 }
 
 // ─── Child panel — one per child, fully self-contained ───────────────────
 
 function ChildPanel({
-  child, isActive, busy, setBusy, setError, onSetActive,
+  child, isActive, busy, setBusy, setError, onSetActive, onShortlistRefreshed,
 }: {
   child: ChildSummary
   isActive: boolean
@@ -165,6 +349,7 @@ function ChildPanel({
   setBusy: (b: boolean) => void
   setError: (s: string | null) => void
   onSetActive: () => void
+  onShortlistRefreshed?: () => void
 }) {
   const router = useRouter()
   const [editingMeta, setEditingMeta] = useState(false)
@@ -264,6 +449,7 @@ function ChildPanel({
       const json = await res.json()
       if (!res.ok) throw new Error(json.error ?? 'Failed to refresh recommendations')
       router.refresh()
+      onShortlistRefreshed?.()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Unknown error')
     } finally {
@@ -272,7 +458,10 @@ function ChildPanel({
   }
 
   return (
-    <section className={`rr-cb-panel${isActive ? ' is-active' : ''}`}>
+    // id used by Phase 3 sidebar's scrollIntoView (2026-05-24). scroll-margin
+    // is set on .rr-cb-panel in research-room.css so the sticky top nav
+    // doesn't cover the header on smooth-scroll.
+    <section id={`child-brief-${child.id}`} className={`rr-cb-panel${isActive ? ' is-active' : ''}`}>
       <header className="rr-cb-head">
         <div className="rr-cb-head-main">
           {editingMeta ? (

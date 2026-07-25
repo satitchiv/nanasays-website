@@ -3,6 +3,8 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import {
   KNOWN_DAY_ONLY_NAMES,
   KNOWN_FULL_BOARDING_NAMES,
+  isGenderCompatible,
+  type ChildYear,
   assertUserId,
   normalizeSchoolName,
 } from './school-name-overrides'
@@ -11,6 +13,34 @@ import {
 // failure) leaves last-cycle's interpretation paired with this-cycle's
 // notes for one refresh.
 import { notesHash, type NotesInput } from './interpret-child-notes'
+// Slice 8 Build 2 r1: write match_reasons alongside the initial shortlist
+// rows so the "Added because: …" column header has data from day one.
+// Codex r1 P1 #3: this is the actual onboarding-to-shortlist path; without
+// wiring here, the JSONB column stays null on the very rows that matter
+// most.
+import { loadMatchReasonsBatch, type MatchReasonsRecord } from './research-room/match-reasons'
+import type { BriefProfile } from './research-room/brief-predicates'
+// 2026-05-24 Yoko slice — parity import. These exported helpers from the
+// Build Mode scorer let nonneg directives ("day school only" / "London or
+// nearby" / "any curriculum") override stale inherited wizard fields.
+// Without this import, the Refresh-recommendations button (which lands
+// here) ignores nonneg overrides and reproduces the Yoko 0-candidates bug.
+import {
+  matchedNonnegFilters,
+  resolveBoardingPref,
+  resolveHomeRegion,
+  resolveCurriculumPref,
+  matchesCurriculumPreference,
+  NONNEG_FILTERS,
+} from './research-room/score-for-build-mode'
+// Phase 2.8 (2026-05-25) — sport-specific scoring. effectiveSportFocus
+// reads cache (Refresh-recommendations clears + re-classifies the cache
+// before calling pickTopSchoolSlugs). DIMENSIONS gives per-sport rank().
+import {
+  effectiveSportFocus,
+  type EffectiveTopPriorityProfile,
+} from './research-room/effective-top-priority'
+import { DIMENSIONS } from './server/dimensions.js'
 
 // Auto-recommend shortlist after onboarding completes.
 //
@@ -30,52 +60,12 @@ const GBP_TO_USD = 1.27
 
 // schools.region values are very granular (90+ UK locations + London
 // neighborhoods). Bucket them into the 7 onboarding regions. 'England' is
-// included in every UK bucket because some schools are coarsely tagged at
-// country level — we'd rather over-include than drop them.
-const REGION_BUCKETS: Record<string, string[]> = {
-  'london': [
-    'London', 'Greater London',
-    'Hammersmith', 'Brook Green', 'South Kensington',
-    'Royal Borough of Kensington and Chelsea',
-    'Notting Hill, Royal Borough of Kensington and Chelsea',
-    'Marylebone, Central London',
-    'North West London, Camden',
-    'Wimbledon', 'Wandsworth', 'Battersea',
-    'Richmond', 'Barnes and Kew', 'Bromley', 'Kentish Town', 'E10',
-  ],
-  'south-east': [
-    'Berkshire', 'West Berkshire', 'Buckinghamshire',
-    'Hampshire', 'Hertfordshire',
-    'Kent', 'Kent/Sussex borders', 'Dartford',
-    'Surrey', 'East Sussex', 'West Sussex',
-    'Oxfordshire', 'South Oxfordshire',
-    'Bedfordshire', 'Middlesex', 'Essex', 'Isle of Wight',
-  ],
-  'south-west': [
-    'Bristol', 'Cornwall', 'Devon', 'Dorset',
-    'Gloucestershire', 'Somerset', 'North Somerset', 'Wiltshire',
-  ],
-  'midlands': [
-    'Derbyshire', 'Herefordshire', 'Leicestershire', 'Lincolnshire',
-    'Northamptonshire', 'Nottinghamshire', 'Rutland',
-    'Shropshire', 'Staffordshire', 'South Staffordshire',
-    'Warwickshire', 'West Midlands', 'Worcestershire',
-  ],
-  'north': [
-    'Cheshire', 'Cumbria', 'County Durham', 'Greater Manchester',
-    'Lancashire', 'Merseyside', 'Northumberland',
-    'East Yorkshire', 'North Yorkshire', 'West Yorkshire', 'Yorkshire',
-  ],
-  'scotland-wales': [
-    'Scotland', 'Wales', 'Northern Ireland',
-    'Angus', 'Argyll and Bute', 'Clackmannanshire', 'East Lothian',
-    'Fife', 'Moray', 'Perthshire', 'Stirling',
-    'Carmarthenshire', 'Conwy', 'Denbighshire', 'Monmouthshire',
-    'Powys', 'South Wales', 'Vale of Glamorgan',
-    'Co Down', 'County Tyrone',
-  ],
-  'overseas': [],
-}
+// Region buckets — canonical source moved to lib/uk-regions.ts in Build 2 r2
+// so the recommender's filter and the match-reasons gate share one map.
+// REGION_BUCKETS is re-exported here as a mutable string[][] to preserve
+// the historical signature used inside this file (e.g. .concat() patterns).
+import { REGION_BUCKETS as SHARED_REGION_BUCKETS, regionInBucket } from './uk-regions'
+const REGION_BUCKETS: Record<string, readonly string[]> = SHARED_REGION_BUCKETS
 
 const BUDGET_CEILING_USD: Record<string, number | null> = {
   'under-30k': Math.round(30000 * GBP_TO_USD),
@@ -96,21 +86,14 @@ const YEAR_TO_ENTRY_AGE: Record<string, number | null> = {
 // schools.gender_split values are case-inconsistent: 'boys', 'Boys',
 // 'Boys only', 'co-ed', 'Co-educational', 'girls', 'Girls', 'Mixed'.
 // Normalize on lowercase and match against these allowlists.
-const BOY_COMPAT  = new Set(['boys', 'boys only', 'co-ed', 'co-educational', 'mixed'])
-const GIRL_COMPAT = new Set(['girls', 'girls only', 'co-ed', 'co-educational', 'mixed'])
+// BOY_COMPAT / GIRL_COMPAT removed 2026-05-26 — gender compatibility
+// now flows through isGenderCompatible() in school-name-overrides.ts.
 
-// Curriculum overlaps. IB shows up in the data under 5 different labels;
-// match any of them. A-Level is mostly a single label but rarely tagged
-// because it's the UK default — so a lot of A-Level schools have
-// curriculum=NULL or just []. We accept either explicit or empty/null.
-const IB_VARIANTS = [
-  'IB',
-  'IB Diploma',
-  'IB Diploma Programme',
-  'IB Middle Years Programme',
-  'IB Primary Years Programme',
-]
-const ALEVEL_VARIANTS = ['A-Level']
+// 2026-05-24 Slice A — IB_VARIANTS / ALEVEL_VARIANTS removed. Used to back
+// the SQL `overlaps('curriculum', ...)` hard filter which trusted the
+// legacy schools.curriculum column. Replaced by matchesCurriculumPreference
+// (imported from research-room/score-for-build-mode; prefers extracted
+// ssd.curriculum which is the actual source of truth).
 
 // Boarding/day classification + name normalization moved to
 // lib/school-name-overrides.ts to share with research-comparison.ts.
@@ -126,6 +109,54 @@ function scoreCompetitiveTier(tier: string | null | undefined): number {
   if (/regional|county/.test(lc)) return 0.3
   if (/local|school.level|recreational|inter.house/.test(lc)) return 0.1
   return 0.3
+}
+
+// Phase 2.8 — per-sport empirical caps for normalizing dimensions.rank()
+// output to <=1.5 to match the existing `Math.min(sportQ, 1.5)` cap on
+// generic sport scoring. CALIBRATED to the actual rank() output ranges
+// from `lib/server/dimensions.js`:
+//   TIER_SCORE                   = elite 50, strong 25, mid 18, regional 10
+//   tennis cup max               = ~10 (national bonus 2× on Youll/Aberdare)
+//   tennis alumni cap            = 8  (pro ATP/WTA/Wimbledon)
+//   tennis teams cap             = 3
+//   rugby RUGBY_TIER_SCORE       = elite 22, strong 16, national 11
+//   rugby DMT/SOCS/cup/depth/... = max ~94 total (Phase 2 design doc)
+// At national-elite the rank() for tennis/football/cricket/hockey lands
+// ~50-70 once cups/alumni/teams fire; rugby tops out higher (~94). Caps
+// set so a top-3 school normalizes to ~1.5 and a regional school sits
+// ~0.25 (re-rankable but not dominant). (Codex r2 corrected v1 caps of
+// {24} which saturated every national-tier school at 1.5.)
+const SPORT_RAW_CAPS: Record<string, number> = {
+  tennis:   60,
+  rugby:    70,
+  cricket:  62,
+  football: 60,
+  hockey:   63,
+}
+const DIMENSION_BY_SPORT: Record<string, keyof typeof DIMENSIONS> = {
+  tennis:   'tennis_strength',
+  rugby:    'rugby_standing',
+  cricket:  'cricket_strength',
+  football: 'football_strength',
+  hockey:   'hockey_strength',
+}
+function scoreSportSpecific(
+  sport:         string,
+  schoolSlug:    string,
+  sportsProfile: Record<string, unknown> | undefined,
+): number {
+  const dimKey = DIMENSION_BY_SPORT[sport]
+  if (!dimKey || !sportsProfile) return 0
+  const dim = DIMENSIONS[dimKey] as { rank?: (row: { school_slug: string; sports_profile: Record<string, unknown> }) => number } | undefined
+  if (!dim || typeof dim.rank !== 'function') return 0
+  try {
+    const raw = dim.rank({ school_slug: schoolSlug, sports_profile: sportsProfile })
+    const cap = SPORT_RAW_CAPS[sport] ?? 24
+    if (!Number.isFinite(raw) || raw <= 0) return 0
+    return Math.min((raw / cap) * 1.5, 1.5)
+  } catch {
+    return 0
+  }
 }
 
 // team_count_approx is stored as a JSON-string-inside-JSONB:
@@ -156,6 +187,11 @@ type Profile = {
   class_size_pref: string | null
   sen_need:        string | null
   onboarding_complete: boolean | null
+  // 2026-05-24 Yoko slice — child_profile.nonnegotiables (string[]) flows
+  // through via the JSONB spread. Used by the resolver helpers to honor
+  // explicit nonneg directives ("day school only" / "London or nearby" /
+  // "any curriculum") over stale inherited wizard values.
+  nonnegotiables?: unknown
 }
 
 // Slice 4d preview: structured signals the refresh-recommendations endpoint
@@ -300,17 +336,31 @@ export async function pickTopSchoolSlugs(
   if (ukSlugs.length === 0) return { slugs: [], reason: 'no_matches' }
 
   // 4. Build candidate query — hard filters in SQL
-  // confidence_score >= 60 was removed — Westminster + St Paul's have
-  // confidence_score=0 in the data despite being substantial-evidence
-  // UK schools. The schools_status filter (is_uk_evidence +
-  // has_substantial_chunks) is already a meaningful quality bar; the
-  // additional confidence threshold was double-filtering and dropping
-  // famous schools whose extraction never finished. confidence_score
-  // still acts as a tiebreaker via the JS scoring base.
+  // Min-confidence floor (added 2026-05-18): drop confidence_score < 10.
+  // The earlier comment "Westminster + St Paul's have confidence_score=0"
+  // is stale — verified live, Westminster=100, St Paul's=79, Eton=79.
+  // The conf=0 cohort is now state primary schools (Gladstone Primary,
+  // City of London Freemen's etc.) that slipped into the is_uk_evidence
+  // set, plus the `reeds-school-uk` duplicate (the real `reeds-school`
+  // is conf=64). NULL confidence is kept (unknown, don't punish).
   // is_international filter dropped: Westminster + several famous schools
   // have is_international=NULL despite being substantial UK independents.
   // The schools_status filter (is_uk_evidence) is already a stricter
   // quality gate, so this was double-filtering and hiding famous schools.
+  //
+  // Phase 2.8 (2026-05-25) — `confidence_score IS NULL OR >= 10` floor
+  // REMOVED. Live-DB audit (Supabase MCP) showed the floor dropped 13
+  // canonical 100%-complete schools (St Paul's, Westminster, Reed's,
+  // Cheltenham College, King's Canterbury, Stowe, Headington,
+  // Haberdashers' Boys', Ashville, Ashford, MPW Birmingham, MPW Cambridge,
+  // Handcross Park) whose canonical row has conf=0 because conf was
+  // scored on a stale shell row (e.g. `reeds-school` empty shell with
+  // conf=64 vs `reeds-school-uk` canonical with 185 chunks + conf=0).
+  // The schools_status.has_substantial_chunks filter via loadUkEvidenceSlugs
+  // already drops the 23,960 conf<10 empty primaries the floor was meant
+  // to catch — so the floor is redundant for its stated purpose and
+  // actively harmful for the 13 entries it does affect.
+  // (Same removal mirrored in score-for-build-mode.ts.)
   let q = supabase
     .from('schools')
     .select('slug, name, gender_split, boarding, fees_usd_min, sen_support, strengths, confidence_score, age_min, age_max, region')
@@ -331,11 +381,19 @@ export async function pickTopSchoolSlugs(
   // null. Schools with curriculum=NULL/[] still pass for IB? No — we
   // require explicit IB tag. For A-Level we accept NULL too because most
   // UK independents teach A-Level by default but don't tag it.
-  if (profile.curriculum_pref === 'ib') {
-    q = q.overlaps('curriculum', IB_VARIANTS)
-  } else if (profile.curriculum_pref === 'a-level') {
-    q = q.or(`curriculum.ov.{${ALEVEL_VARIANTS.join(',')}},curriculum.is.null`)
-  }
+  // 2026-05-24 Yoko slice — compute firedNonneg here so it can drive the
+  // SQL curriculum filter AND the JS-side region/boarding/predicate filters
+  // below. Without this, nonneg "any curriculum" / "London or nearby" /
+  // "day school only" have NO effect on the Refresh-recommendations button.
+  const nonnegEntries = Array.isArray(profile.nonnegotiables) ? profile.nonnegotiables as string[] : null
+  const firedNonneg = matchedNonnegFilters(nonnegEntries)
+
+  // 2026-05-24 Slice A — SQL curriculum hard filter REMOVED. Moved to
+  // row-time matchesCurriculumPreference helper (post-fetch JS filter)
+  // which prefers school_structured_data.curriculum over legacy
+  // schools.curriculum (manual rot — Charterhouse case). Filter applied
+  // after the structured-data fetch below.
+  const effectiveCurric = resolveCurriculumPref(profile as unknown as BriefProfile, firedNonneg)
 
   // Drop obvious data errors: positive fees under $5,000 are extraction
   // bugs (ACS Cobham at $419, etc.). NULL is fine — means unknown, not
@@ -366,39 +424,80 @@ export async function pickTopSchoolSlugs(
     q = q.or('sen_support.is.null,sen_support.eq.true')
   }
 
-  q = q.order('confidence_score', { ascending: false }).limit(80)
+  // 2026-05-23 picker-followup #2 — raised from 80 to 250 (parity with
+  // score-for-build-mode.ts Phase 3 Bug #5). The 80-cap was too tight:
+  // ~140 UK-evidence-with-chunks schools today, and lower-confidence
+  // London schools (Latymer Upper, Highgate, Alleyn's, UCS confidence
+  // 57-71) were being clipped before the JS filters ran. Lily-test
+  // smoke 2026-05-23 surfaced this: hard filter dropped 27/29 leaving
+  // only Dulwich + Dwight because the other 7 London co-eds didn't
+  // make the top-80 SQL cut. 250 fits the full corpus with headroom.
+  q = q.order('confidence_score', { ascending: false }).limit(250)
 
   const { data: candidates, error } = await q
   if (error || !candidates || candidates.length === 0) {
     return { slugs: [], reason: 'no_matches' }
   }
 
-  // 5. Gender filter in JS (case-normalize)
-  const genderAllow =
-    profile.child_gender === 'boy'  ? BOY_COMPAT  :
-    profile.child_gender === 'girl' ? GIRL_COMPAT :
-    null
+  // Bug #3 (2026-05-22 picker-followup) + 2026-05-24 Yoko slice —
+  // explicitHomeRegion now delegated to resolveHomeRegion which honors
+  // nonneg precedence: 'no-london' → null (predicate owns drop),
+  // 'must-be-london' → 'london' (overrides stale wizard), else parent value.
+  const explicitHomeRegion = resolveHomeRegion(profile as unknown as BriefProfile, firedNonneg)
 
+  // 5. Gender filter — Codex r1 P1 #3 (2026-05-26) — delegated to the
+  // shared `isGenderCompatible(school, childGender, childYear)` helper.
+  // Layers curated overrides + year-aware exemptions + column fallback.
+  // See school-name-overrides.ts for full rationale.
   let filtered = candidates as SchoolCandidate[]
-  if (genderAllow) {
-    filtered = filtered.filter(s => {
-      const g = (s.gender_split ?? '').trim().toLowerCase()
-      // NULL gender → keep (unknown, don't penalize)
-      return !g || genderAllow.has(g)
-    })
+  const childYearForGender: ChildYear = (profile.child_year ?? null) as ChildYear
+  const childGenderForFilter: 'boy' | 'girl' | null =
+    profile.child_gender === 'boy'  ? 'boy'  :
+    profile.child_gender === 'girl' ? 'girl' :
+    null
+  if (childGenderForFilter) {
+    filtered = filtered.filter(s => isGenderCompatible(s, childGenderForFilter, childYearForGender))
   }
 
-  // 5b. Boarding workaround filter — match by normalized name (slug
-  // duplicates would leak through a slug-keyed lookup, so we collapse on
-  // the human name and match against canonical sets above).
+  // 5b. Boarding workaround filter — 2026-05-24 Yoko slice delegates to
+  // resolveBoardingPref so nonneg "day school only" overrides inherited
+  // wizard 'full'. recommend-shortlist has no intent so pass null.
+  const effectiveBoarding = resolveBoardingPref(profile as unknown as BriefProfile, null, firedNonneg)
   if (
-    profile.boarding_pref === 'full' ||
-    profile.boarding_pref === 'weekly' ||
-    profile.boarding_pref === 'flexi'
+    effectiveBoarding === 'full' ||
+    effectiveBoarding === 'weekly' ||
+    effectiveBoarding === 'flexi'
   ) {
     filtered = filtered.filter(s => !KNOWN_DAY_ONLY_NAMES.has(normalizeSchoolName(s.name)))
-  } else if (profile.boarding_pref === 'day') {
+  } else if (effectiveBoarding === 'day') {
     filtered = filtered.filter(s => !KNOWN_FULL_BOARDING_NAMES.has(normalizeSchoolName(s.name)))
+  }
+
+  // 5b.i NONNEG predicate filter — 2026-05-24 Yoko slice. Apply each fired
+  // nonneg filter's predicate (must-be-london drops non-London regions;
+  // any-curriculum no-op; etc). Mirrors score-for-build-mode.ts:750 logic.
+  if (firedNonneg.length > 0) {
+    filtered = filtered.filter(s =>
+      firedNonneg.every(f => f.predicate(s as any, null, childYearForGender)),
+    )
+  }
+
+  // 5c. Bug #3 region HARD filter (picker-followup 2026-05-23 — undoes
+  // Codex r1 Q8 deferral after the parent-visible smoke test on
+  // Lily-test showed Surrey/Oxfordshire/Somerset schools still
+  // surfacing under home_region='london'. The soft -2.0 penalty was
+  // insufficient — same parent-harm pattern as the Build Mode finalize
+  // path. Drops schools whose region is known AND not in the bucket.
+  // Keeps NULL-region and 'England' for the same reasons as the
+  // Build Mode hard filter.
+  if (explicitHomeRegion) {
+    filtered = filtered.filter(s => {
+      const r = s.region
+      if (r == null) return true
+      const lc = r.trim().toLowerCase()
+      if (lc === 'england') return true
+      return regionInBucket(explicitHomeRegion, r)
+    })
   }
 
   if (filtered.length === 0) {
@@ -407,40 +506,58 @@ export async function pickTopSchoolSlugs(
 
   // 5c. Pull structured data for the surviving candidates (for class size +
   // sport quality scoring). Single batch query; map by slug for lookups.
+  // 2026-05-24 Slice A — also fetch curriculum here for the post-fetch
+  // matchesCurriculumPreference filter (replaces the SQL hard filter
+  // that trusted the legacy schools.curriculum column).
   const slugs = filtered.map(s => s.slug)
   const { data: structRows } = await supabase
     .from('school_structured_data')
-    .select('school_slug, sports_profile, student_community')
+    .select('school_slug, sports_profile, student_community, curriculum')
     .in('school_slug', slugs)
   const structMap = new Map<string, { sports_profile: any; student_community: any }>()
+  const ssdCurricBySlug = new Map<string, string[] | null>()
   for (const row of (structRows ?? [])) {
     structMap.set(row.school_slug, {
       sports_profile: row.sports_profile,
       student_community: row.student_community,
     })
+    ssdCurricBySlug.set(row.school_slug, Array.isArray((row as any).curriculum) ? (row as any).curriculum as string[] : null)
+  }
+
+  // 2026-05-24 Slice A — curriculum row-time filter (Codex Q1 verdict).
+  // Drop schools whose SSD curriculum doesn't match parent's pref. For
+  // 'ib': require SSD-IB (NULL ssd → reject, fixes Charterhouse). For
+  // 'a-level': SSD A-Level passes OR missing passes (UK default permissive).
+  if (effectiveCurric === 'ib' || effectiveCurric === 'a-level') {
+    filtered = filtered.filter(s => matchesCurriculumPreference({
+      schoolsCurriculum: null,  // intentionally ignore legacy column per Codex Q1
+      ssdCurriculum:     ssdCurricBySlug.get(s.slug) ?? null,
+      pref:              effectiveCurric,
+    }))
+  }
+  if (filtered.length === 0) {
+    return { slugs: [], reason: 'no_matches' }
   }
 
   // 6. Score soft signals
-  const regionBucket = new Set(REGION_BUCKETS[profile.home_region ?? ''] ?? [])
-  // 'England' is treated as a regional fallback — schools tagged at the
-  // country level only, not penalized for being outside any bucket.
-  regionBucket.add('England')
+  // explicitHomeRegion + hard filter live above (block 5c) so picker
+  // matches Build Mode finalize behavior. The -2.0 wrong-bucket
+  // penalty is unreachable here (hard filter pre-screens), removed.
 
   const scored = filtered.map(s => {
     let score = (s.confidence_score ?? 0) / 100  // 0..1 base
 
-    // Region match: in bucket → +0.6, NULL → 0 (neutral, common for
-    // famous schools), wrong bucket → -1.0 (was -0.5; bumped after dry-
-    // run #7 surfaced Plymouth + Warwick in a London query — high
-    // confidence_score was overcoming the soft region penalty).
-    if (profile.home_region && profile.home_region !== 'overseas') {
-      if (s.region == null) {
-        // neutral
-      } else if (regionBucket.has(s.region)) {
+    // Region match: in bucket → +0.6, NULL / 'England' → neutral.
+    // Wrong-bucket schools were dropped by the hard filter above.
+    if (explicitHomeRegion) {
+      const broadEngland =
+        typeof s.region === 'string' && s.region.trim().toLowerCase() === 'england'
+      if (s.region == null || broadEngland) {
+        // neutral — null OR broad country-level tag
+      } else if (regionInBucket(explicitHomeRegion, s.region)) {
         score += 0.6
-      } else {
-        score -= 1.0
       }
+      // else: unreachable — hard filter pre-screens
     }
 
     // Budget closeness
@@ -450,13 +567,34 @@ export async function pickTopSchoolSlugs(
       else if (ratio <= 1.2) score += 0.2
     }
 
-    // Sport quality (top_priority=sport) — combine prose-keyword tier
-    // score, team count, and signature-sport breadth from sports_profile
-    // JSONB. Fall back to strengths-tag match when the school has no
-    // structured sport data (~20% of UK-evidence schools).
+    // Sport quality (top_priority=sport) — Phase 2.8 (2026-05-25):
+    //   - When effectiveSportFocus(profile) returns a concrete sport,
+    //     route to DIMENSIONS.<sport>_strength.rank() for tier-aware
+    //     per-sport scoring (Reed's tennis-elite > Harrow tennis-zero).
+    //   - When sport_focus is '' (no focus / stale cache), fall through
+    //     to today's generic breadth scoring (no regression on the path
+    //     that's been live since slice 4d).
+    //
+    // effectiveSportFocus reads `intent_focus_cache.sport_focus`. The
+    // Refresh-recommendations route re-classifies + re-caches BEFORE
+    // calling pickTopSchoolSlugs, so this branch sees fresh classifier
+    // output. effectiveSportFocus internally whitelists the value so a
+    // malformed cache can't enter this branch.
     const struct = structMap.get(s.slug)
     const strengthsLc = (s.strengths ?? []).map(x => x.toLowerCase())
-    if (profile.top_priority === 'sport') {
+    const effectiveSport = effectiveSportFocus(profile as unknown as EffectiveTopPriorityProfile)
+    if (profile.top_priority === 'sport' && effectiveSport) {
+      const sp = struct?.sports_profile as Record<string, unknown> | undefined
+      const sportQ = scoreSportSpecific(effectiveSport, s.slug, sp)
+      // Tag fallback only if dim returned 0 AND strengths-tag mentions
+      // the SPECIFIC sport (not generic 'sport'). Weight 0.18 — weak
+      // evidence, stays below the structured-regional floor so it can't
+      // outrank a real tier-evidenced school. (Codex r1 Q6: v1 had 0.3
+      // which was over-weighting tags.)
+      const fallback = (sportQ === 0 && strengthsLc.some(t => t.includes(effectiveSport))) ? 0.18 : 0
+      score += sportQ > 0 ? sportQ : fallback
+    } else if (profile.top_priority === 'sport') {
+      // Generic sport breadth — unchanged from pre-Phase-2.8 behaviour.
       const sp = struct?.sports_profile as Record<string, unknown> | undefined
       let sportQ = 0
       if (sp) {
@@ -635,13 +773,23 @@ export async function recommendShortlist(
     return { added: [], reason: mapped }
   }
 
+  // Slice 8 Build 2 r1: compute match_reasons in batch using the same brief
+  // profile pickTopSchoolSlugs just used. Best-effort — failure here logs
+  // and proceeds to upsert without reasons.
+  const reasonsBySlug = await loadReasonsForBriefScope(supabase, userId, childId, pick.slugs)
+
   // Upsert with ignoreDuplicates — the (user_id, child_id, school_slug)
   // UNIQUE NULLS NOT DISTINCT constraint backstops any race window.
-  const rows = pick.slugs.map(slug => ({
-    user_id: userId,
-    school_slug: slug,
-    child_id: childId,
-  }))
+  const rows = pick.slugs.map(slug => {
+    const row: { user_id: string; school_slug: string; child_id: string | null; match_reasons?: unknown } = {
+      user_id: userId,
+      school_slug: slug,
+      child_id: childId,
+    }
+    const reasons = reasonsBySlug.get(slug)
+    if (reasons) row.match_reasons = reasons
+    return row
+  })
   const { error: insertError } = await supabase
     .from('shortlisted_schools')
     .upsert(rows, { onConflict: 'user_id,child_id,school_slug', ignoreDuplicates: true })
@@ -651,4 +799,53 @@ export async function recommendShortlist(
     return { added: [], reason: 'insert_failed' }
   }
   return { added: pick.slugs, reason: 'inserted' }
+}
+
+// ── Internal helper: load brief + delegate to shared match-reasons batch.
+//   childId-aware: when childId is set we read children.child_profile;
+//   otherwise we read parent_profiles. Mirrors pickTopSchoolSlugs' read
+//   shape so the same fields are available.
+async function loadReasonsForBriefScope(
+  supabase: SupabaseClient,
+  userId:   string,
+  childId:  string | null,
+  slugs:    string[],
+): Promise<Map<string, MatchReasonsRecord>> {
+  if (slugs.length === 0) return new Map()
+
+  let profile: BriefProfile | null = null
+  try {
+    if (childId) {
+      const { data } = await supabase
+        .from('children')
+        .select('child_profile')
+        .eq('id', childId)
+        .eq('user_id', userId)
+        .maybeSingle<{ child_profile: BriefProfile | null }>()
+      profile = data?.child_profile ?? null
+    } else {
+      const { data } = await supabase
+        .from('parent_profiles')
+        .select('home_region, boarding_pref, budget_range, curriculum_pref, top_priority, class_size_pref, sen_need, ethos_pref, lgbtq_pref, pastoral_pref')
+        .eq('id', userId)
+        .maybeSingle<BriefProfile>()
+      profile = data ?? null
+    }
+  } catch (e) {
+    console.warn('[recommendShortlist] profile load for reasons failed:', e)
+    return new Map()
+  }
+
+  if (!profile) return new Map()
+  // Phase 2.8.6: slugs are passed in recommender-score order — embed rank
+  // into match_reasons so the comparison view sorts by score.
+  //
+  // Codex r1 P1: also pass includeEmpty so zero-chip schools still get
+  // rank_position. Without it, onboarding rows with no visible chips fall
+  // to the bottom of the comparison view via SENTINEL even though they
+  // were picked at a specific rank by the recommender.
+  return loadMatchReasonsBatch(supabase, profile, slugs, {
+    embedRankFromSlugIndex: true,
+    includeEmpty: true,
+  })
 }

@@ -14,6 +14,8 @@ import { spawn } from 'child_process'
 import path from 'path'
 import { verifyAdmin } from '@/lib/supabase-admin'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 export const maxDuration = 360
 
 const KNOWN_TEMPLATES = new Set(['glossary', 'tip'])

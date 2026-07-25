@@ -25,6 +25,7 @@
   --rr-amber:    #F5A623;
   --rr-rust:     #DC4F2A;
   --rr-moss:     #2F8056;
+  --rr-highlight:#FFF5B8;
 
   --rr-display: var(--font-nunito), 'Nunito', system-ui, sans-serif;
   --rr-sans:    var(--font-nunito-sans), 'Nunito Sans', system-ui, sans-serif;
@@ -202,6 +203,34 @@
 .rr-shell-chat-closed { --rr-chat-w: var(--rr-chat-w-closed); }
 .rr-shell-chat-focus  { --rr-chat-w: var(--rr-chat-w-focus); }
 
+/* Slice 8 Build 7 Phase C — fullscreen Build Mode shell.
+ * Collapses the LEFT column (main, where the comparison panel lives) and
+ * lets the chat take the full viewport. Grid is `1fr var(--rr-chat-w)`
+ * by default (main THEN chat per the column order at line 199), so
+ * column 1 = LEFT in LTR. Codex r9 corrected the original brief which
+ * said "collapse RIGHT".
+ *
+ * Specificity: this rule is defined AFTER .rr-shell-chat-focus and uses
+ * the same single-class selector, so it wins at equal specificity via
+ * document order — no !important needed.
+ *
+ * NOTE: on mobile (@media max-width: 880px below at line ~2410), the base
+ * .rr-shell rule uses `grid-template-columns: 1fr !important` which beats
+ * this rule. That's OK — mobile lays out the chat as a fixed-position
+ * sheet (.rr-sheet), not as a grid track; the meaningful mobile overrides
+ * are the display: rules in the @media block below. */
+.rr-shell-fullscreen {
+  grid-template-columns: 0 minmax(0, 1fr);
+}
+/* Visibility-hide (not display-none) so the hidden React tree stays
+ * mounted across the fullscreen transition. pointer-events: none prevents
+ * pointer interactions; aria-hidden (set on the element via JSX) keeps
+ * screen readers from announcing the hidden content. */
+.rr-shell-fullscreen .rr-main {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .rr-main {
   min-width: 0;
   overflow: hidden;
@@ -286,6 +315,548 @@
   font-size: 15px;
   line-height: 1.55;
   color: var(--rr-body);
+}
+
+/* ── Slice 7 · partner brief ─────────────────────────────────────────── */
+.rr-partner-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.rr-brief-action {
+  border: 1px solid var(--rr-border);
+  background: var(--rr-white);
+  color: var(--rr-navy);
+  border-radius: var(--rr-r-sm);
+  padding: 7px 12px;
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.rr-brief-action:hover:not(:disabled) {
+  border-color: var(--rr-teal);
+  background: var(--rr-teal-bg);
+}
+.rr-brief-action:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.rr-partner-brief {
+  width: min(760px, 100%);
+  border: 1px solid var(--rr-border);
+  border-radius: var(--rr-r-md);
+  background: var(--rr-white);
+  padding: clamp(18px, 3vw, 28px);
+  box-shadow: 0 8px 28px rgba(27, 50, 82, 0.06);
+}
+.rr-partner-brief-meta {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  color: var(--rr-muted);
+  font-family: var(--rr-sans);
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.rr-partner-brief-meta span + span::before {
+  content: "· ";
+  margin-right: 8px;
+}
+.rr-partner-brief-body {
+  color: var(--rr-navy);
+  font-size: 16px;
+  line-height: 1.68;
+}
+.rr-partner-brief-body p {
+  margin: 0 0 14px;
+}
+.rr-partner-brief-heading {
+  margin: 22px 0 8px;
+  color: var(--rr-teal-dk);
+  font-family: var(--rr-sans);
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.25;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.rr-partner-brief-heading:first-child {
+  margin-top: 0;
+}
+.rr-partner-editor {
+  width: min(760px, 100%);
+  border: 1px solid var(--rr-border);
+  border-radius: var(--rr-r-md);
+  background: var(--rr-white);
+  padding: clamp(14px, 2.4vw, 22px);
+  margin-bottom: 16px;
+  box-shadow: 0 8px 28px rgba(27, 50, 82, 0.06);
+}
+.rr-partner-editor--compact {
+  box-shadow: none;
+}
+.rr-partner-textarea {
+  width: 100%;
+  resize: vertical;
+  border: 1px solid var(--rr-border);
+  border-radius: var(--rr-r-sm);
+  padding: 12px;
+  color: var(--rr-navy);
+  background: var(--rr-off);
+  font-family: var(--rr-sans);
+  font-size: 14px;
+  line-height: 1.55;
+}
+.rr-partner-textarea:focus {
+  outline: none;
+  border-color: var(--rr-teal);
+  box-shadow: 0 0 0 3px rgba(52, 195, 160, 0.16);
+}
+.rr-partner-form-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+.rr-partner-error {
+  color: var(--rr-rust);
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  font-weight: 700;
+}
+.rr-partner-section-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.rr-partner-section-chip {
+  border: 1px solid var(--rr-border);
+  border-radius: 100px;
+  background: var(--rr-white);
+  color: var(--rr-muted);
+  padding: 6px 10px;
+  font-family: var(--rr-sans);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+.rr-partner-section-chip.is-active {
+  border-color: var(--rr-teal);
+  color: var(--rr-teal-dk);
+  background: var(--rr-teal-bg);
+}
+
+.rr-pb-wrap {
+  width: min(820px, 100%);
+  margin: 0 auto;
+}
+.rr-pb-card {
+  background: var(--rr-white);
+  border: 1px solid var(--rr-border);
+  border-radius: var(--rr-r-lg);
+  padding: clamp(24px, 4vw, 40px);
+  box-shadow: 0 8px 32px var(--rr-shadow);
+}
+.rr-pb-head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 24px;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--rr-border);
+  align-items: end;
+}
+.rr-pb-stamp {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--rr-teal-dk);
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+.rr-pb-to {
+  font-family: var(--rr-display);
+  font-size: clamp(26px, 3vw, 32px);
+  font-weight: 900;
+  line-height: 1.05;
+  color: var(--rr-navy);
+}
+.rr-pb-to em {
+  color: var(--rr-teal);
+  font-style: normal;
+}
+.rr-pb-meta {
+  font-family: var(--rr-sans);
+  font-size: 12px;
+  color: var(--rr-muted);
+  margin-top: 8px;
+}
+.rr-pb-tone {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 22px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.rr-pb-tone-label {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  letter-spacing: 1.4px;
+  color: var(--rr-muted);
+  margin-right: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.rr-pb-tone-chip {
+  font-family: var(--rr-sans);
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 6px 13px;
+  border-radius: var(--rr-r-pill);
+  border: 1.5px solid var(--rr-bmd);
+  background: var(--rr-white);
+  color: var(--rr-muted);
+}
+.rr-pb-tone-chip.is-active {
+  background: var(--rr-navy);
+  color: var(--rr-white);
+  border-color: var(--rr-navy);
+}
+.rr-pb-letter {
+  font-family: var(--rr-sans);
+  font-size: 16px;
+  line-height: 1.75;
+  color: var(--rr-body);
+}
+.rr-pb-letter p {
+  margin: 0 0 14px;
+}
+.rr-pb-list {
+  margin: 0 0 14px;
+  padding-left: 20px;
+}
+.rr-pb-list li {
+  margin-bottom: 5px;
+}
+.rr-pb-letter p:first-child {
+  font-family: var(--rr-display);
+  font-style: italic;
+  font-size: 19px;
+  color: var(--rr-teal-dk);
+  font-weight: 700;
+}
+.rr-pb-letter strong {
+  color: var(--rr-navy);
+  font-weight: 800;
+}
+.rr-pb-letter em {
+  color: var(--rr-teal-dk);
+  font-style: italic;
+  font-weight: 700;
+}
+.rr-pb-foot {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--rr-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.rr-pb-sig {
+  font-family: var(--rr-display);
+  font-size: 18px;
+  color: var(--rr-navy);
+  font-weight: 800;
+}
+.rr-pb-sig em {
+  color: var(--rr-teal-dk);
+  font-style: normal;
+}
+
+/* ── Slice 7 · verdict ───────────────────────────────────────────────── */
+.rr-verdict-layout {
+  display: grid;
+  grid-template-columns: minmax(230px, 280px) minmax(0, 1fr);
+  gap: 32px;
+  align-items: start;
+}
+.rr-verdict-rail {
+  background: var(--rr-white);
+  border: 1px solid var(--rr-border);
+  border-radius: var(--rr-r-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  position: sticky;
+  top: 16px;
+}
+.rr-verdict-rail-head {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--rr-muted);
+  font-weight: 800;
+  padding: 6px 8px;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+.rr-verdict-rail-head span {
+  color: var(--rr-teal-dk);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 11px;
+  font-weight: 700;
+}
+.rr-verdict-factor-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rr-verdict-factor-row {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--rr-r-md);
+  border: 1.5px solid transparent;
+  color: var(--rr-navy);
+  font-family: var(--rr-sans);
+  font-size: 12.5px;
+  line-height: 1.4;
+  background: var(--rr-off);
+}
+.rr-verdict-factor-row:first-child {
+  background: var(--rr-navy);
+  color: var(--rr-white);
+}
+.rr-verdict-factor-ic {
+  font-family: var(--rr-display);
+  color: var(--rr-teal-dk);
+  font-size: 16px;
+  line-height: 1;
+  font-weight: 900;
+}
+.rr-verdict-factor-row:first-child .rr-verdict-factor-ic {
+  color: var(--rr-teal);
+}
+.rr-verdict-stale {
+  border: 1px solid rgba(245, 166, 35, 0.4);
+  background: rgba(245, 166, 35, 0.1);
+  color: #8A5A00;
+  border-radius: var(--rr-r-sm);
+  padding: 9px 10px;
+  font-family: var(--rr-sans);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.rr-verdict-card {
+  width: min(860px, 100%);
+  border: 1px solid var(--rr-border);
+  border-radius: var(--rr-r-lg);
+  background: var(--rr-white);
+  padding: clamp(18px, 3vw, 30px);
+  box-shadow: 0 4px 18px var(--rr-shadow);
+}
+.rr-verdict-card--essay {
+  width: 100%;
+  padding: clamp(24px, 4vw, 36px);
+}
+.rr-verdict-stamp {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--rr-teal-dk);
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+.rr-verdict-body {
+  color: var(--rr-navy);
+  font-size: 16px;
+  line-height: 1.68;
+}
+.rr-verdict-body p {
+  margin: 0 0 14px;
+}
+.rr-verdict-main-heading {
+  margin: 0 0 12px;
+  color: var(--rr-navy);
+  font-family: var(--rr-display);
+  font-size: clamp(24px, 2.8vw, 34px);
+  font-weight: 900;
+  line-height: 1.1;
+}
+.rr-verdict-main-heading em {
+  color: var(--rr-teal);
+  font-style: normal;
+}
+.rr-verdict-question {
+  font-family: var(--rr-sans);
+  font-style: italic;
+  font-size: 16px;
+  color: var(--rr-body);
+  margin: 0 0 22px;
+  padding-left: 16px;
+  border-left: 3px solid var(--rr-teal);
+  line-height: 1.55;
+}
+.rr-verdict-ranking {
+  margin-bottom: 22px;
+  background: var(--rr-off);
+  border-radius: var(--rr-r-lg);
+  padding: 14px 18px;
+}
+.rr-verdict-rank-row {
+  display: grid;
+  grid-template-columns: 34px 1fr;
+  gap: 14px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--rr-border);
+  align-items: start;
+}
+.rr-verdict-rank-row:last-child {
+  border-bottom: none;
+}
+.rr-verdict-rank-num {
+  font-family: var(--rr-display);
+  color: var(--rr-teal-dk);
+  font-size: 20px;
+  font-weight: 900;
+  line-height: 1.15;
+}
+.rr-verdict-rank-school {
+  font-family: var(--rr-display);
+  font-weight: 800;
+  font-size: 17px;
+  color: var(--rr-navy);
+}
+.rr-verdict-rank-school small {
+  display: block;
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  color: var(--rr-muted);
+  font-weight: 400;
+  line-height: 1.5;
+  margin-top: 4px;
+  max-width: 70ch;
+}
+.rr-verdict-rank-signals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+.rr-verdict-signal {
+  font-family: var(--rr-sans);
+  font-size: 11.5px;
+  font-weight: 700;
+  line-height: 1.35;
+  padding: 5px 8px;
+  border-radius: var(--rr-r-sm);
+  border: 1px solid var(--rr-border);
+  background: var(--rr-white);
+  color: var(--rr-muted);
+  max-width: min(100%, 360px);
+}
+.rr-verdict-signal.is-strength {
+  color: var(--rr-moss);
+  border-color: rgba(47, 128, 86, 0.24);
+  background: rgba(47, 128, 86, 0.08);
+}
+.rr-verdict-signal.is-reservation {
+  color: #8A5A00;
+  border-color: rgba(245, 166, 35, 0.32);
+  background: rgba(245, 166, 35, 0.1);
+}
+.rr-verdict-prose {
+  font-family: var(--rr-sans);
+  font-size: 16px;
+  line-height: 1.7;
+  color: var(--rr-body);
+  margin-bottom: 18px;
+}
+.rr-verdict-prose p {
+  margin: 0 0 12px;
+}
+.rr-verdict-prose strong {
+  color: var(--rr-navy);
+  font-weight: 800;
+}
+.rr-verdict-prose h3 {
+  margin: 18px 0 8px;
+  color: var(--rr-teal-dk);
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.rr-verdict-prose ul {
+  margin: 0;
+  padding-left: 20px;
+}
+.rr-verdict-confidence {
+  display: flex;
+  gap: 16px;
+  font-family: var(--rr-sans);
+  font-size: 12px;
+  color: var(--rr-muted);
+  padding-top: 16px;
+  border-top: 1px solid var(--rr-border);
+  flex-wrap: wrap;
+}
+.rr-verdict-confidence strong {
+  color: var(--rr-navy);
+  font-weight: 800;
+}
+.rr-verdict-confidence strong.is-high {
+  color: var(--rr-moss);
+}
+.rr-verdict-confidence strong.is-medium {
+  color: var(--rr-amber);
+}
+.rr-verdict-confidence strong.is-low {
+  color: var(--rr-rust);
+}
+.rr-verdict-section-heading {
+  margin: 28px 0 10px;
+  color: var(--rr-teal-dk);
+  font-family: var(--rr-sans);
+  font-size: 14px;
+  font-weight: 900;
+  line-height: 1.25;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.rr-verdict-school-heading {
+  margin: 18px 0 8px;
+  color: var(--rr-navy);
+  font-family: var(--rr-sans);
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.25;
+}
+.rr-verdict-list {
+  margin: 0 0 14px;
+  padding-left: 20px;
+}
+.rr-verdict-list li {
+  margin-bottom: 5px;
 }
 
 /* ─── Chat rail ────────────────────────────────────────────────────── */
@@ -515,6 +1086,326 @@
 .rr-build-toggle.is-active .rr-bt-state::before {
   content: "● ";
   color: var(--rr-moss);
+}
+
+/* Build mode progress bar (slice 8 build 3 session 4) */
+.rr-build-progress {
+  margin: 10px 16px 0;
+  padding: 10px 12px 12px;
+  background: var(--rr-white);
+  border: 1px solid var(--rr-border);
+  border-radius: var(--rr-r-md);
+  width: calc(100% - 32px);
+  box-shadow: 0 1px 3px var(--rr-shadow);
+}
+.rr-build-progress-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-family: var(--rr-sans);
+  /* Codex r5 P2.3 — allow the chip strip to wrap to a second line on
+     narrow mobile widths. "Capturing the basics first" + the two
+     chips can exceed the container's inner width below ~360px. With
+     flex-wrap the chips drop under the heading rather than clip. */
+  flex-wrap: wrap;
+}
+.rr-build-progress-focus {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: var(--rr-navy);
+  letter-spacing: -.1px;
+}
+.rr-build-progress-pct {
+  font-family: var(--rr-mono);
+  font-size: 10.5px;
+  color: var(--rr-muted);
+  font-weight: 800;
+  letter-spacing: .04em;
+}
+/* rr-8-build3-sibling-gender-year (2026-05-21) — basics chip-strip for
+   the sibling_basics focus. Replaces the % in the bar's head: shows
+   "Year group ⋯ · Gender ⋯" with each chip flipping to "✓" as the
+   field gets captured. Visible signal that something is happening
+   while the underlying usable_total is still 0 — addresses two browser-
+   smoke gripes: (a) parent thought the bar was broken when % didn't
+   move on the basics turn, and (b) when the LLM re-asks after a non-
+   answer, the chips show the parent which field Nana is still waiting on. */
+.rr-build-progress-basics {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--rr-sans);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  color: var(--rr-muted);
+}
+.rr-build-progress-basic-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--rr-off-2);
+  border: 1px solid var(--rr-border);
+  color: var(--rr-muted);
+  transition: background .25s ease, border-color .25s ease, color .25s ease;
+}
+.rr-build-progress-basic-chip.is-captured {
+  /* Codex r5 NIT — color-mix() lands in Chrome 111+ / Safari 16.2+ /
+     Firefox 113+; the hex fallbacks below land in any browser. Both
+     fallback + color-mix lines stay so a browser that supports the
+     latter overrides the former; if it doesn't, the hex paints the
+     intended tint (--rr-teal #34C3A0 mixed 14% with white ≈ #dff5ed
+     background; 45% with --rr-border ≈ #87cdbb border). */
+  background:    #dff5ed;
+  background:    color-mix(in srgb, var(--rr-teal) 14%, var(--rr-white));
+  border-color:  #87cdbb;
+  border-color:  color-mix(in srgb, var(--rr-teal) 45%, var(--rr-border));
+  color:         var(--rr-navy);
+}
+.rr-build-progress-basic-chip-mark {
+  font-family: var(--rr-mono);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  line-height: 1;
+  color: inherit;
+}
+.rr-build-progress-basic-chip.is-captured .rr-build-progress-basic-chip-mark {
+  color: var(--rr-teal);
+}
+.rr-build-progress-basic-divider {
+  color: var(--rr-border);
+  font-weight: 700;
+}
+/* Codex r5 P2.4 — visually-hidden text node for the chip strip's
+   role="status" container. AT stacks announce live-region TEXT
+   mutations (not aria-label changes), so the chip-state text needs
+   to be a real DOM node rather than an attribute. Standard sr-only
+   pattern: keeps the element in the a11y tree + reading order but
+   removes it from visual layout. */
+.rr-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.rr-build-progress-bar {
+  position: relative;
+  height: 8px;
+  border-radius: 4px;
+  background: var(--rr-off-2);
+  overflow: hidden;
+  margin-bottom: 0;
+}
+.rr-build-progress-fill {
+  /* Single left-anchored continuous fill — replaces the segmented
+     per-target bars (browser smoke 2026-05-16: low % was misreading
+     as "centered" because the only filled segment wasn't position 1). */
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--rr-teal);
+  border-radius: 4px;
+  transition: width .3s ease;
+  min-width: 2px;
+}
+/* Dead — the segmented bar was replaced by a single continuous fill
+   in browser-smoke fix 2026-05-16. Left empty rather than deleted to
+   avoid noise in the CSS diff; the rules are unused (no .rr-build-
+   progress-seg* in the JSX). */
+
+/* Welcome-back bubble pinned ABOVE the message thread (v4 fix).
+   Sits between the progress bar / skip link and the rr-thread div so
+   it isn't subject to auto-scroll-to-bottom. */
+.rr-bubble-nana--pinned {
+  margin: 8px 16px 0;
+  width: calc(100% - 32px);
+  /* Slightly distinguish from in-thread Nana bubbles so it doesn't
+     read as "the first thing she said in this conversation" — the
+     gentle background tint + smaller padding give it a banner feel
+     while keeping the Nana avatar + voice. */
+  background: var(--rr-teal-bg);
+  border: 1px solid var(--rr-teal);
+  padding: 12px 14px;
+}
+/* Codex Q5 — pinned header needs 3 columns (avatar | name | dismiss).
+   In-thread Nana bubbles still use the base 2-column grid. */
+.rr-bubble-nana--pinned .rr-bubble-head {
+  grid-template-columns: auto 1fr auto;
+}
+.rr-bubble-nana--pinned .rr-bubble-lead {
+  font-size: 13px;
+}
+
+/* Slice 8 Build 7 Phase C — WrapUp CTA bubble. Distinguished from the
+ * welcome-back bubble (which uses muted/info chrome) by an accent border
+ * and a prominent CTA button. The bubble appears post-wrap-up turn when
+ * the interview is saturated; the parent's primary action is the "Build
+ * my table now" button. */
+.rr-bubble-wrap-up {
+  border-left: 4px solid var(--rr-teal);
+  background: linear-gradient(180deg, var(--rr-teal-bg), var(--rr-white));
+}
+.rr-bubble-wrap-up-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 12px 18px;
+  background: var(--rr-teal);
+  color: var(--rr-white);
+  border: 0;
+  border-radius: var(--rr-r-md);
+  font-family: var(--rr-sans);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background .15s, transform .08s;
+}
+.rr-bubble-wrap-up-cta:hover  { background: var(--rr-teal-dk); }
+.rr-bubble-wrap-up-cta:active { transform: scale(0.98); }
+.rr-bubble-wrap-up-cta:focus-visible {
+  outline: 2px solid var(--rr-teal-dk);
+  outline-offset: 2px;
+}
+.rr-bubble-wrap-up-icon  { font-size: 16px; line-height: 1; }
+.rr-bubble-wrap-up-arrow { margin-left: auto; font-size: 18px; line-height: 1; opacity: 0.85; }
+
+.rr-bubble-dismiss {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-family: var(--rr-sans);
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--rr-muted);
+  transition: background .15s, color .15s;
+}
+.rr-bubble-dismiss:hover {
+  background: rgba(27, 50, 82, .08);
+  color: var(--rr-navy);
+}
+.rr-bubble-dismiss:focus-visible {
+  outline: 2px solid var(--rr-teal);
+  outline-offset: 2px;
+}
+.rr-build-progress-learned {
+  margin-top: 8px;
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  color: var(--rr-muted);
+  line-height: 1.4;
+}
+.rr-build-progress-learned strong {
+  color: var(--rr-teal-dk);
+  font-weight: 800;
+}
+
+/* ≥80% CTA inside the progress bar */
+.rr-build-progress-cta {
+  margin-top: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--rr-teal);
+  background: var(--rr-teal-bg);
+  border-radius: var(--rr-r-md);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  transition: all .15s;
+}
+.rr-build-progress-cta:hover {
+  border-color: var(--rr-teal-dk);
+  background: var(--rr-white);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--rr-shadow);
+}
+.rr-build-progress-cta:focus-visible {
+  outline: 2px solid var(--rr-teal);
+  outline-offset: 2px;
+}
+.rr-build-progress-cta-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--rr-white);
+  color: var(--rr-teal-dk);
+  display: grid;
+  place-items: center;
+  font-family: var(--rr-display);
+  font-size: 14px;
+  font-weight: 900;
+}
+.rr-build-progress-cta-body { display: block; }
+.rr-build-progress-cta-title {
+  display: block;
+  font-family: var(--rr-sans);
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--rr-navy);
+  letter-spacing: -.1px;
+}
+.rr-build-progress-cta-sub {
+  display: block;
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  color: rgba(27,50,82,.7);
+  font-weight: 600;
+  margin-top: 2px;
+}
+.rr-build-progress-cta-arrow {
+  color: var(--rr-teal-dk);
+  font-size: 16px;
+  font-weight: 900;
+}
+
+/* Skip-for-now link below the bar (or below the toggle when no
+   progress streamed yet) */
+.rr-build-skip {
+  margin: 8px 16px 0;
+  width: calc(100% - 32px);
+  background: transparent;
+  border: 0;
+  padding: 6px 4px;
+  cursor: pointer;
+  font: inherit;
+  color: var(--rr-muted);
+  font-family: var(--rr-sans);
+  font-size: 11.5px;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-color: var(--rr-bmd);
+  transition: color .15s;
+}
+.rr-build-skip:hover {
+  color: var(--rr-navy);
+  text-decoration-color: var(--rr-navy);
+}
+.rr-build-skip:focus-visible {
+  outline: 2px solid var(--rr-teal);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 /* Thread + bubble */
@@ -993,6 +1884,38 @@
   font-size: 14px;
 }
 
+.rr-proposed-btn--letter {
+  border-color: var(--rr-navy);
+  color: var(--rr-navy);
+  background: rgba(27, 50, 82, 0.04);
+}
+.rr-proposed-btn--letter:hover:not(:disabled) {
+  border-color: var(--rr-navy);
+  background: rgba(27, 50, 82, 0.09);
+  transform: translateY(-1px);
+}
+
+/* ── Slice 8 Build 6 · Add-school pill ────────────────────────────────── */
+/* Visual peer of the row + letter pills; uses the teal accent so parents
+   read "new school suggestion" as a distinct affordance from + Add as row
+   (default) and topic lens (sparkle). Codex r-merge Q5 NIT chose this
+   palette + #ic-school sprite to avoid the topic-lens sparkle collision. */
+.rr-proposed-btn--school {
+  border-color: var(--rr-teal, #1f8479);
+  color: var(--rr-teal-dk, #115c54);
+  background: rgba(31, 132, 121, 0.06);
+}
+.rr-proposed-btn--school:hover:not(:disabled) {
+  border-color: var(--rr-teal, #1f8479);
+  background: rgba(31, 132, 121, 0.14);
+  transform: translateY(-1px);
+}
+.rr-proposed-btn--school .rr-proposed-btn-icon svg {
+  width: 16px;
+  height: 16px;
+  color: currentColor;
+}
+
 /* ── Slice 6.5 · topic-lens pill + review panel (✦ focused mini-table) ─ */
 /* Teal accent to read as "build a focused view" — distinct from add-row
    (neutral) and re-rank (amber). Click expands to a review panel that
@@ -1460,10 +2383,10 @@
 }
 
 /* ─── NanaMsgBubble overrides for Research Room's light chat panel ─────
-   The dh-msg-nana* rules in decision-hub.css assume a dark navy chat
+   The dh-msg-nana* rules in nana-bubble.css assume a dark navy chat
    panel (white text on rgba-white-7 backgrounds). Research Room's panel
    is light — without these overrides, all bubble copy is invisible.
-   Scoped to .rr-app so DecisionHub's existing styling stays intact. */
+   Scoped to .rr-app so the bubble's default styling stays intact. */
 .rr-app .dh-msg-nana {
   background: var(--rr-white);
   border: 1px solid var(--rr-border);
@@ -1649,6 +2572,20 @@
   /* Page typography compacts a little for phone width. */
   .rr-view-title { font-size: clamp(24px, 7vw, 30px); }
   .rr-view-meta  { font-size: 13.5px; }
+  .rr-verdict-layout {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .rr-verdict-rail {
+    position: static;
+  }
+  .rr-verdict-card--essay,
+  .rr-pb-card {
+    padding: 22px 20px;
+  }
+  .rr-pb-head {
+    grid-template-columns: 1fr;
+  }
 
   /* ─── FAB (chat closed) ─────────────────────────────────────────── */
   .rr-fab {
@@ -1790,6 +2727,30 @@
   /* Reuse the rest of the chat body styles but ensure thread can scroll. */
   .rr-sheet .rr-thread { flex: 1; }
   .rr-sheet .rr-build-toggle { width: calc(100% - 32px); }
+
+  /* Slice 8 Build 7 Phase C — mobile fullscreen variant. The bottom sheet
+   * grows to fill the entire viewport; border-radius drops since there's
+   * no surface peeking out from underneath. The scrim + drag handle + ✕
+   * are suppressed in the JSX layer (see ResearchRoomChat.tsx), so the
+   * parent's only exits are Skip / Build-my-table-now inside the chat.
+   *
+   * Specificity: .rr-sheet.rr-sheet-fullscreen is 0,2,0 — same as
+   * .rr-sheet.rr-sheet-default which sets transform/height. Defined later
+   * in the file → wins via document order. No !important needed. */
+  .rr-sheet.rr-sheet-fullscreen {
+    height: 100dvh;
+    border-radius: 0;
+    transform: translateY(0);
+  }
+  .rr-sheet.rr-sheet-fullscreen .rr-sheet-head {
+    padding-top: calc(8px + env(safe-area-inset-top));
+  }
+  /* Hide main entirely on mobile (not just visibility) so the chat can
+   * claim the full viewport. Mobile already has display:none on .rr-chat
+   * via the base @media .rr-shell rule above; fullscreen reverses that
+   * for the chat. */
+  .rr-shell-fullscreen .rr-main { display: none; }
+  .rr-shell-fullscreen .rr-chat { display: block; }
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -2030,6 +2991,76 @@
   background: var(--rr-white);
   -webkit-overflow-scrolling: touch;
 }
+
+/* ── Redesign req 5: smoother population ─────────────────────────────
+   Replaces the previous experience — router.refresh() swapping in fresh
+   server data with no transition, reading as a flash/full repaint — with
+   a brief settle-in fade+rise on the data rows. Toggled by the
+   `settling` state in ComparisonView (true for ~420ms right after the
+   `data` prop changes). Header row is excluded so it doesn't re-animate
+   every refresh. */
+.rr-cmp-table-wrap--settling .rr-cmp-table-row:not(.rr-cmp-table-row--head) {
+  animation: rr-cmp-settle .38s ease both;
+}
+@keyframes rr-cmp-settle {
+  from { opacity: .35; transform: translateY(3px); }
+  to   { opacity: 1;   transform: translateY(0); }
+}
+
+/* ── Redesign req 3: card-friendlier layout for a small shortlist ────
+   When there are only a few schools (≤3, `fewSchools` in the component),
+   columns get a bounded max-width (set via inline gridTemplateColumns)
+   instead of stretching edge-to-edge, so the table reads as a tight set
+   of comparison cards rather than a sparse spreadsheet. On narrow
+   viewports it goes further: each data row becomes a stacked card, with
+   every cell labelled by school name (see `data-school` + the ::before
+   below), letting a 1–3 school comparison work as a scroll-down list
+   instead of a side-scrolling table. */
+@media (max-width: 680px) {
+  .rr-cmp-table-wrap--cards .rr-cmp-table {
+    min-width: 0;
+  }
+  /* The header row's grid tracks still have a comfortable minimum
+     (minmax(240px,360px), set inline from gridTemplateColumns) wider than
+     a phone screen. Giving the head row its OWN horizontal scroll keeps
+     that scrolling contained to the header — swipe to see the next
+     school's photo/name — instead of dragging the whole outer table-wrap
+     (and leaving a confusing blank gutter under the now-stacked cards). */
+  .rr-cmp-table-wrap--cards .rr-cmp-table-row--head {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .rr-cmp-table-wrap--cards .rr-cmp-table-row:not(.rr-cmp-table-row--head) {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--rr-border);
+    border-radius: var(--rr-r-md);
+    margin: 0 14px 14px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px var(--rr-shadow);
+  }
+  .rr-cmp-table-wrap--cards .rr-cmp-dim {
+    position: static;
+    width: 100%;
+    border-right: none;
+    background: var(--rr-off);
+  }
+  .rr-cmp-table-wrap--cards .rr-cmp-cell {
+    width: 100%;
+    border-right: none;
+  }
+  .rr-cmp-table-wrap--cards .rr-cmp-cell[data-school]::before {
+    content: attr(data-school);
+    display: block;
+    font-family: var(--rr-sans);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--rr-muted);
+    margin-bottom: 6px;
+  }
+}
 .rr-cmp-table {
   /* Slice 6 commit 8 — switched from one big CSS grid to a flex
      column of grid-rows. Each .rr-cmp-table-row is its own
@@ -2045,6 +3076,30 @@
 .rr-cmp-table-row {
   display: grid;
   /* gridTemplateColumns set inline */
+}
+
+/* Slice 8 Step 0.6: section header rendered between groups of rows whose
+   group_name changes. Suppressed for the 'general' default group. Spans
+   the full grid via inline gridColumn: '1 / -1' on the element.
+   Redesign req 3 (2026-07-16): now sticks just below the school-header
+   row (inline `top` set from the measured header height) instead of
+   scrolling away, and reads as a firmer divider — heavier top border in
+   brand teal, tinted background, more breathing room above/below — so
+   groups of rows read as distinct sections instead of one dense list. */
+.rr-section-header {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--rr-teal-dk);
+  padding: 12px 20px;
+  margin-top: 10px;
+  border-top: 2px solid var(--rr-teal);
+  border-bottom: 1px solid var(--rr-border);
+  background: var(--rr-teal-bg);
+  position: sticky;
+  z-index: 2;
 }
 
 .rr-cmp-corner {
@@ -2072,11 +3127,6 @@
   line-height: 1.1;
   letter-spacing: -.3px;
   color: var(--rr-navy);
-  white-space: normal;
-  text-wrap: balance;
-}
-.rr-cmp-corner-title span {
-  display: block;
 }
 .rr-cmp-corner-title em {
   color: var(--rr-teal);
@@ -2096,8 +3146,52 @@
   border-right: 1px solid var(--rr-border);
   position: sticky;
   top: 0;
+  z-index: 5;
   background: var(--rr-white);
   transition: transform .2s;
+}
+
+/* ── Redesign req 4: hero photo + logo badge in the column header ────
+   Rendered only when the data-side agent has populated heroImage /
+   logoUrl for a school; omitted entirely otherwise (see the boolean
+   guards in ComparisonView.tsx). Negative margins pull the hero photo
+   flush to the head cell's own edges/top. */
+.rr-cmp-head-media {
+  position: relative;
+  margin: -16px -18px 24px;
+  height: 84px;
+  overflow: hidden;
+  background: var(--rr-off-2);
+}
+.rr-cmp-head-hero {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.rr-cmp-head-logo {
+  position: absolute;
+  left: 12px;
+  bottom: -14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--rr-white);
+  border: 2px solid var(--rr-white);
+  box-shadow: 0 2px 8px var(--rr-shadow);
+}
+/* Logo-only variant (no hero photo yet): no full-width strip, just a
+   small inline badge above the rank line. */
+.rr-cmp-head-media--logo-only {
+  height: auto;
+  margin: 0 0 10px;
+  background: none;
+}
+.rr-cmp-head-media--logo-only .rr-cmp-head-logo {
+  position: static;
+  border: 1px solid var(--rr-border);
+  box-shadow: none;
 }
 .rr-cmp-head:last-child { border-right: none; }
 .rr-cmp-head-rank {
@@ -2126,6 +3220,34 @@
   font-size: 12px;
   color: var(--rr-muted);
   margin-top: 5px;
+}
+
+/* Slice 8 Build 2b (2026-05-18) — "Added because:" line under the
+   school name. Sits between .rr-cmp-head-meta (region · gender) and
+   the remove button. Same font / size / colour as the meta line so
+   it reads as a sibling subtitle; the label is teal to give the
+   reasons a small visual anchor without shouting. */
+.rr-cmp-head-reasons {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  color: var(--rr-muted);
+  margin-top: 4px;
+  line-height: 1.35;
+  /* Two-line clamp so very long reason strings don't blow up the
+     column header height. CSS-property-supports cascade with title
+     attr handles the overflow tooltip on hover. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rr-cmp-head-reasons-label {
+  color: var(--rr-teal-dark, var(--rr-navy));
+  font-weight: 600;
+}
+.rr-cmp-head-reasons-text {
+  color: var(--rr-muted);
 }
 
 .rr-cmp-dim {
@@ -2186,6 +3308,7 @@
   color: var(--rr-navy);
   line-height: 1;
   letter-spacing: -.6px;
+  font-variant-numeric: tabular-nums;
 }
 .rr-cmp-cell-text {
   font-family: var(--rr-sans);
@@ -2207,6 +3330,83 @@
   margin-top: 7px;
   font-weight: 600;
 }
+
+/* ── Redesign req 1: winner highlighting ─────────────────────────────
+   Applied only to rows with a directional winnerRule (never 'neutral' —
+   e.g. fees never get a winner mark, cheapest isn't always best). Uses
+   the --rr-highlight token that shipped in slice 1 but was never
+   consumed until now. */
+.rr-cmp-cell--winner {
+  background: var(--rr-highlight);
+}
+.rr-cmp-cell--winner:hover {
+  background: var(--rr-highlight);
+}
+.rr-cmp-cell-winner-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--rr-teal);
+  color: var(--rr-navy);
+  font-size: 11px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px var(--rr-shadow);
+  line-height: 1;
+}
+
+/* ── Redesign req 2: type-aware cell rendering ───────────────────────
+   Percentage rows get a compact inline progress bar under the value;
+   known rating vocabularies (ISI/Ofsted-style outcomes) get a colored
+   pill badge instead of plain text. Fees/plain numbers keep the existing
+   big-number treatment (.rr-cmp-cell-num above), now with tabular-nums
+   so figures line up column-to-column. */
+.rr-cmp-cell-pct {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.rr-cmp-cell-pct-value {
+  font-family: var(--rr-display);
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--rr-navy);
+  letter-spacing: -.4px;
+  font-variant-numeric: tabular-nums;
+}
+.rr-cmp-cell-pct-track {
+  display: block;
+  width: 100%;
+  max-width: 140px;
+  height: 6px;
+  border-radius: var(--rr-r-pill);
+  background: var(--rr-off-2);
+  overflow: hidden;
+}
+.rr-cmp-cell-pct-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--rr-teal), var(--rr-teal-dk));
+  border-radius: var(--rr-r-pill);
+  transition: width .4s ease;
+}
+.rr-cmp-cell-badge {
+  display: inline-block;
+  font-family: var(--rr-sans);
+  font-size: 12.5px;
+  font-weight: 800;
+  letter-spacing: .01em;
+  padding: 5px 12px;
+  border-radius: var(--rr-r-pill);
+}
+.rr-cmp-cell-badge--green { background: var(--rr-moss-bg); color: var(--rr-moss); }
+.rr-cmp-cell-badge--amber { background: var(--rr-amber-bg); color: var(--rr-amber); }
+.rr-cmp-cell-badge--red   { background: var(--rr-rust-bg); color: var(--rr-rust); }
 
 /* 4-light verdict pills */
 .rr-cmp-stamps {
@@ -2982,1265 +4182,278 @@
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
-   Comparison display refresh · approved priority-led direction
+   Child Brief Sidebar (Phase 3 — Verdict v3 UX iteration, 2026-05-24)
+   Sticky middle column with click-name-to-scroll between children. Visible
+   only with 2+ children (single-child households see the old single-column
+   layout via .rr-brief-wrap without .has-sidebar).
    ════════════════════════════════════════════════════════════════════════════ */
 
-.rr-cmp-wrap {
-  --rr-evidence-green: #16745B;
-  --rr-evidence-green-bg: #E7F5F0;
-  --rr-evidence-amber: #925A00;
-  --rr-evidence-amber-bg: #FFF4DD;
-  --rr-action-add-border: #BBDAD2;
-  --rr-action-add-bg: #F4FBF8;
-  --rr-action-research-border: #D9C7A4;
-  --rr-action-research-bg: #FFF9EF;
-  --rr-action-research-text: #8A5A18;
-  --rr-action-view-border: #B9C9E1;
-  --rr-action-view-bg: #F4F7FC;
-  --rr-action-view-text: #315A91;
-  gap: 18px;
-}
-
-.rr-cmp-workspace-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-  padding-bottom: 18px;
-  border-bottom: 1px solid var(--rr-border);
-}
-
-.rr-cmp-workspace-title {
-  margin: 0;
-  color: var(--rr-navy);
-  font-family: var(--rr-display);
-  font-size: 30px;
-  font-weight: 900;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
-  text-wrap: balance;
-}
-
-.rr-cmp-workspace-meta {
-  margin: 3px 0 0;
-  color: var(--rr-muted);
-  font-size: 14px;
-}
-
-.rr-cmp-workspace-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.rr-cmp-display-switch {
-  display: inline-grid;
-  grid-template-columns: 1fr 1fr;
-  min-width: 236px;
-  border: 1px solid var(--rr-navy);
-  border-radius: 10px;
-  overflow: hidden;
-  background: var(--rr-white);
-}
-
-.rr-cmp-display-switch button {
-  min-height: 44px;
-  padding: 9px 18px;
-  border: 0;
-  background: var(--rr-white);
-  color: var(--rr-navy);
-  font: 700 14px/1 var(--rr-sans);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: background-color 160ms ease, color 160ms ease;
-}
-
-.rr-cmp-display-switch button + button {
-  border-left: 1px solid var(--rr-navy);
-}
-
-.rr-cmp-display-switch button.is-active {
-  background: var(--rr-navy);
-  color: var(--rr-white);
-}
-
-.rr-cmp-display-switch button:hover:not(.is-active) {
-  background: var(--rr-off);
-}
-
-.rr-cmp-priority-bar {
+.rr-brief-wrap.has-sidebar {
   display: grid;
-  grid-template-columns: minmax(170px, auto) 1fr auto;
-  align-items: center;
-  gap: 16px;
-  padding: 15px 0;
-  border-bottom: 1px solid var(--rr-border);
+  grid-template-columns: minmax(0, 1fr) 240px;
+  gap: 24px;
+  max-width: none;          /* override the 720px single-col cap */
+  align-items: start;
 }
-
-.rr-cmp-priority-copy {
+.rr-brief-wrap.has-sidebar .rr-cb-cards-col {
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 24px;
+  min-width: 0;
+  max-width: 720px;         /* keep cards readable even in wide viewports */
 }
 
-.rr-cmp-priority-copy strong,
-.rr-cmp-table-toolbar strong {
-  color: var(--rr-navy);
-  font: 800 15px/1.3 var(--rr-sans);
-}
+/* Sticky offset so the sticky top nav doesn't cover the card header on
+   scrollIntoView. Applied unconditionally to .rr-cb-panel so the sidebar
+   smooth-scroll lands the card heading below the nav. */
+.rr-cb-panel { scroll-margin-top: 80px; }
 
-.rr-cmp-priority-copy span,
-.rr-cmp-table-toolbar span {
-  color: var(--rr-muted);
-  font-size: 12.5px;
-  line-height: 1.45;
-}
-
-.rr-cmp-priority-list {
+/* ── The sidebar itself ──────────────────────────────────────────────────
+   Phase 3 smoke fix r3 (Codex 2026-05-24): r1 + r2 attempts both failed
+   because the sticky context is `.rr-view-page` (overflow-y: auto at
+   line 251), NOT the window. `top: 80px` was relative to the scroller,
+   not the viewport. And `height: calc(100vh - 100px)` was viewport-
+   relative — overshot by the top nav + .rr-view-page's own offset,
+   pushing the foot off-screen by ~40px on a 1118px viewport.
+   Codex Option A-prime: account for the real scroll container, flex
+   column with the LIST as the scroll surface (not the sidebar itself).
+   ────────────────────────────────────────────────────────────────────── */
+.rr-cb-sidebar {
+  /* CSS variables for the top + bottom gaps inside the scroll container.
+     Tweakable in one place if the nav height ever changes.
+     Bottom gap raised 24 → 60 (2026-05-24 smoke r4) per user feedback —
+     24px below the "+ Add child" button felt cramped against the
+     viewport bottom; 60px gives the sidebar visible breathing room. */
+  --rr-cb-sidebar-top:        24px;
+  --rr-cb-sidebar-bottom-gap: 60px;
+  position: sticky;
+  /* top relative to .rr-view-page scroll context (24px sits below the
+     content padding rather than chasing the absolute viewport nav). */
+  top: var(--rr-cb-sidebar-top);
+  align-self: start;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.rr-cmp-priority-list > span {
-  display: inline-flex;
-  align-items: center;
-  min-height: 34px;
-  padding: 6px 11px;
-  border: 1px solid #A9DED1;
-  border-radius: 8px;
+  flex-direction: column;
   background: var(--rr-white);
-  color: var(--rr-navy);
-  font: 700 13px/1.2 var(--rr-sans);
+  border: 1px solid var(--rr-border);
+  border-radius: var(--rr-r-lg, 14px);
+  padding: 0;
+  box-shadow: 0 2px 12px var(--rr-shadow, rgba(27,50,82,0.06));
+  /* 100dvh > 100vh for mobile chrome stability. Subtract the .rr-top
+     nav (~60px) + sidebar offsets so the sidebar fits in the visible
+     scroll area. Both height + max-height set for defensive sizing. */
+  height:     calc(100dvh - 60px - var(--rr-cb-sidebar-top) - var(--rr-cb-sidebar-bottom-gap));
+  max-height: calc(100dvh - 60px - var(--rr-cb-sidebar-top) - var(--rr-cb-sidebar-bottom-gap));
+  /* Sidebar is the visible chrome — list inside is what scrolls. */
+  overflow: hidden;
 }
-
-.rr-cmp-priority-list > span.is-empty {
-  color: var(--rr-muted);
-  border-color: var(--rr-border);
-  font-weight: 600;
-}
-
-.rr-cmp-primary-action,
-.rr-cmp-secondary-action,
-.rr-cmp-text-action {
-  min-height: 42px;
-  border-radius: 8px;
-  font: 800 13.5px/1 var(--rr-sans);
-  cursor: pointer;
-}
-
-.rr-cmp-primary-action {
-  padding: 10px 15px;
-  border: 1px solid var(--rr-teal-dk);
-  background: var(--rr-teal);
-  color: var(--rr-navy);
-}
-
-.rr-cmp-primary-action:hover {
-  background: #40D0AC;
-}
-
-.rr-cmp-primary-action:disabled {
-  opacity: 0.58;
-  cursor: wait;
-}
-
-.rr-cmp-secondary-action {
-  padding: 10px 15px;
-  border: 1px solid var(--rr-teal-dk);
+.rr-cb-sidebar-head {
+  font-family: var(--rr-sans);
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--rr-teal-dk);
+  /* r3 (Codex A-prime 2026-05-24): naturally pinned by the parent flex
+     column — no sticky needed. flex-shrink: 0 keeps it from collapsing. */
+  flex: 0 0 auto;
   background: var(--rr-white);
-  color: var(--rr-navy);
+  margin: 0;
+  padding: 16px 16px 10px;
+  border-bottom: 1px solid var(--rr-border);
 }
-
-.rr-cmp-secondary-action:hover {
-  background: var(--rr-teal-bg);
+.rr-cb-sidebar-list {
+  list-style: none;
+  /* r3 (Codex A-prime 2026-05-24): the LIST is the scroll surface. Flex
+     grow with min-height: 0 lets it shrink below intrinsic content height
+     so overflow-y: auto activates instead of pushing siblings off-screen.
+     overscroll-behavior: contain prevents wheel scroll from chaining to
+     the parent (.rr-view-page) once the list bounds are reached. */
+  padding: 8px 12px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
-
-.rr-cmp-secondary-action:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-.rr-cmp-text-action {
+.rr-cb-sidebar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
   padding: 10px 12px;
-  border: 0;
   background: transparent;
-  color: var(--rr-body);
+  border: 1px solid transparent;
+  border-radius: var(--rr-r-sm, 6px);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  transition: background 0.15s, border-color 0.15s;
 }
-
-.rr-cmp-text-action:hover {
-  background: var(--rr-off-2);
+.rr-cb-sidebar-item:hover {
+  background: var(--rr-off);
+  border-color: var(--rr-border);
 }
-
-.rr-cmp-primary-action:focus-visible,
-.rr-cmp-secondary-action:focus-visible,
-.rr-cmp-text-action:focus-visible,
-.rr-cmp-display-switch button:focus-visible,
-.rr-cmp-priority-options label:has(input:focus-visible),
-.rr-cmp-row-suggestions button:focus-visible,
-.rr-cmp-settings summary:focus-visible {
-  outline: 3px solid rgba(35, 156, 128, 0.34);
+/* Codex r1 #1 (2026-05-24): selection state class is is-selected. Previously
+   used is-active which collided with is-status-active for comparison-stage
+   children — every comparison-stage child got the selected styling. */
+.rr-cb-sidebar-item.is-selected {
+  background: var(--rr-teal-bg);
+  border-color: rgba(35, 156, 128, 0.32);
+}
+.rr-cb-sidebar-item:focus-visible {
+  outline: 2px solid var(--rr-teal);
   outline-offset: 2px;
 }
-
-.rr-cmp-priority-editor,
-.rr-cmp-row-editor {
-  padding: 18px;
-  border: 1px solid #BBDAD2;
-  border-radius: 12px;
-  background: var(--rr-white);
-}
-
-.rr-cmp-editor-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-}
-
-.rr-cmp-editor-head h2,
-.rr-snapshot-intro h2,
-.rr-snapshot-questions h3,
-.rr-snapshot-empty h2 {
-  margin: 0;
-  color: var(--rr-navy);
+.rr-cb-sidebar-name {
   font-family: var(--rr-display);
-  font-weight: 800;
-  letter-spacing: -0.01em;
-}
-
-.rr-cmp-editor-head h2,
-.rr-snapshot-intro h2,
-.rr-snapshot-empty h2 {
-  font-size: 20px;
-  line-height: 1.25;
-}
-
-.rr-cmp-editor-head p,
-.rr-snapshot-intro p,
-.rr-snapshot-empty p {
-  margin: 3px 0 0;
-  color: var(--rr-muted);
-  font-size: 13.5px;
-}
-
-.rr-cmp-editor-head > span {
-  color: var(--rr-body);
-  font-size: 12.5px;
-  font-weight: 700;
-}
-
-.rr-cmp-priority-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
-}
-
-.rr-cmp-priority-options label {
-  display: inline-flex;
-  align-items: center;
-  min-height: 42px;
-  gap: 8px;
-  padding: 8px 12px;
-  border: 1px solid var(--rr-border);
-  border-radius: 8px;
-  background: var(--rr-white);
-  color: var(--rr-body);
-  font-size: 13.5px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.rr-cmp-priority-options label.is-selected {
-  border-color: var(--rr-teal-dk);
-  background: var(--rr-teal-bg);
-  color: var(--rr-navy);
-}
-
-.rr-cmp-priority-options label.is-disabled {
-  opacity: 0.42;
-  cursor: not-allowed;
-}
-
-.rr-cmp-priority-options input {
-  width: 17px;
-  height: 17px;
-  accent-color: var(--rr-teal-dk);
-}
-
-.rr-cmp-editor-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 18px;
-}
-
-.rr-snapshot {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.rr-snapshot-intro {
-  padding-top: 2px;
-}
-
-.rr-snapshot-grid-wrap {
-  overflow-x: auto;
-  border: 1px solid var(--rr-border);
-  border-radius: 12px;
-  background: var(--rr-white);
-  -webkit-overflow-scrolling: touch;
-}
-
-.rr-snapshot-grid {
-  min-width: max-content;
-}
-
-.rr-snapshot-row {
-  display: grid;
-}
-
-.rr-snapshot-row > * {
-  min-width: 0;
-  padding: 18px 20px;
-  border-right: 1px solid var(--rr-border);
-  border-bottom: 1px solid var(--rr-border);
-}
-
-.rr-snapshot-row > *:last-child {
-  border-right: 0;
-}
-
-.rr-snapshot-row:last-child > * {
-  border-bottom: 0;
-}
-
-.rr-snapshot-row--head > div {
-  padding-top: 14px;
-  padding-bottom: 14px;
-  color: var(--rr-navy);
-  font-size: 13px;
-  font-weight: 800;
-  background: var(--rr-off);
-}
-
-.rr-snapshot-priority {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  background: #FBFCFD;
-}
-
-.rr-snapshot-priority strong {
-  color: var(--rr-navy);
-  font: 800 15px/1.35 var(--rr-sans);
-}
-
-.rr-snapshot-priority span {
-  color: var(--rr-muted);
-  font-size: 12.5px;
-  line-height: 1.45;
-}
-
-.rr-snapshot-cell {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-}
-
-.rr-snapshot-status {
-  display: inline-flex;
-  align-items: center;
-  color: var(--rr-muted);
-  font-size: 11px;
-  font-weight: 750;
-  line-height: 1.35;
-}
-
-.rr-snapshot-cell.is-missing .rr-snapshot-status,
-.rr-snapshot-cell.is-mixed .rr-snapshot-status {
-  color: var(--rr-evidence-amber);
-}
-
-.rr-snapshot-cell .rr-snapshot-result {
-  margin: 0;
-  color: var(--rr-navy);
   font-size: 15px;
   font-weight: 800;
-  line-height: 1.4;
-  text-wrap: pretty;
-}
-
-.rr-snapshot-cell.is-missing .rr-snapshot-result {
-  color: var(--rr-body);
-  font-size: 13.5px;
-  font-weight: 650;
-}
-
-.rr-snapshot-cell small {
-  color: var(--rr-muted);
-  font-size: 12px;
-  line-height: 1.4;
-}
-
-.rr-snapshot-mobile-school {
-  display: none;
-}
-
-.rr-snapshot-questions {
-  display: grid;
-  grid-template-columns: minmax(210px, 0.75fr) minmax(0, 1.6fr);
-  gap: 24px;
-  padding: 18px 20px;
-  border: 1px solid var(--rr-border);
-  border-radius: 12px;
-  background: var(--rr-white);
-}
-
-.rr-snapshot-questions-title {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-}
-
-.rr-snapshot-questions-title > span {
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--rr-navy);
-  border-radius: 50%;
   color: var(--rr-navy);
-  font-weight: 900;
+  letter-spacing: -0.2px;
 }
-
-.rr-snapshot-questions h3 {
-  font-size: 16px;
-  line-height: 1.25;
-}
-
-.rr-snapshot-questions-title p {
-  margin: 2px 0 0;
-  color: var(--rr-muted);
-  font-size: 12.5px;
-}
-
-.rr-snapshot-questions ul {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0;
-  padding: 0;
-  margin: 0;
-  list-style: none;
-}
-
-.rr-snapshot-questions li {
-  padding: 4px 16px;
-  border-left: 1px solid var(--rr-border);
-  color: var(--rr-body);
-  font-size: 12.5px;
-  line-height: 1.5;
-}
-
-.rr-snapshot-complete {
-  margin: 4px 0;
-  color: var(--rr-evidence-green);
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.rr-snapshot-empty {
-  padding: 34px 26px;
-  border: 1px solid var(--rr-border);
-  border-radius: 12px;
-  background: var(--rr-white);
-}
-
-.rr-cmp-table-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 18px;
-}
-
-.rr-cmp-table-toolbar > div {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.rr-cmp-row-editor {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.rr-cmp-row-editor-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.rr-cmp-row-editor-copy label {
-  color: var(--rr-navy);
-  font-size: 15px;
-  font-weight: 800;
-}
-
-.rr-cmp-row-editor-copy span {
-  color: var(--rr-muted);
-  font-size: 12.5px;
-}
-
-.rr-cmp-row-editor-input {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.rr-cmp-row-search {
-  position: relative;
-  flex: 1 1 260px;
-  min-width: 0;
-}
-
-.rr-cmp-row-editor-input input {
-  width: 100%;
-  min-width: 0;
-  min-height: 42px;
-  padding: 9px 12px;
-  border: 1px solid #98A2B3;
-  border-radius: 8px;
-  background: var(--rr-white);
-  color: var(--rr-navy);
-  font: 600 14px/1.3 var(--rr-sans);
-}
-
-.rr-cmp-row-editor-input input::placeholder {
-  color: #596579;
-}
-
-.rr-cmp-row-editor-input input:focus {
-  outline: 3px solid rgba(35, 156, 128, 0.24);
-  border-color: var(--rr-teal-dk);
-}
-
-.rr-cmp-autocomplete {
-  position: absolute;
-  z-index: 30;
-  top: calc(100% + 5px);
-  inset-inline: 0;
-  max-height: 320px;
-  overflow-y: auto;
-  border: 1px solid #B9C3CB;
-  border-radius: 10px;
-  background: var(--rr-white);
-  box-shadow: 0 8px 12px rgba(13, 49, 61, 0.13);
-}
-
-.rr-cmp-autocomplete [role="option"] {
-  display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  min-height: 48px;
-  padding: 10px 13px;
-  border: 0;
-  border-bottom: 1px solid var(--rr-border);
-  background: var(--rr-white);
-  color: var(--rr-body);
-  text-align: left;
-  cursor: pointer;
-}
-
-.rr-cmp-autocomplete [role="option"]:last-child {
-  border-bottom: 0;
-}
-
-.rr-cmp-autocomplete [role="option"]:hover,
-.rr-cmp-autocomplete [role="option"].is-active {
-  background: #F1F5F6;
-}
-
-.rr-cmp-autocomplete svg {
-  width: 18px;
-  height: 18px;
-  fill: none;
-  stroke: var(--rr-muted);
-  stroke-width: 1.8;
-  stroke-linecap: round;
-}
-
-.rr-cmp-autocomplete [role="option"] > span {
-  min-width: 0;
-  overflow-wrap: anywhere;
-  font: 700 14px/1.35 var(--rr-sans);
-}
-
-.rr-cmp-autocomplete [role="option"] small {
-  justify-self: end;
-  padding: 5px 8px;
-  border: 1px solid var(--rr-action-add-border);
-  border-radius: 999px;
-  background: var(--rr-action-add-bg);
-  color: var(--rr-evidence-green);
-  font: 750 11.5px/1.2 var(--rr-sans);
-  white-space: nowrap;
-}
-
-.rr-cmp-autocomplete [role="option"][data-action="research"] small {
-  border-color: var(--rr-action-research-border);
-  background: var(--rr-action-research-bg);
-  color: var(--rr-action-research-text);
-}
-
-.rr-cmp-autocomplete [role="option"][data-action="view"] small {
-  border-color: var(--rr-action-view-border);
-  background: var(--rr-action-view-bg);
-  color: var(--rr-action-view-text);
-}
-
-.rr-cmp-autocomplete-empty {
-  padding: 14px;
-  color: var(--rr-muted);
-  font-size: 13px;
-  line-height: 1.45;
-}
-
-.rr-cmp-field-error {
-  margin: -4px 0 0;
-  color: #A13B24;
-  font-size: 12.5px;
-  font-weight: 700;
-}
-
-.rr-cmp-row-notice {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 11px 14px;
-  border: 1px solid #BBDAD2;
-  border-radius: 10px;
-  background: var(--rr-teal-bg);
-  color: var(--rr-navy);
-  font-size: 13.5px;
-  font-weight: 750;
-  line-height: 1.45;
-}
-
-.rr-cmp-row-notice button {
-  display: inline-grid;
-  place-items: center;
-  flex: 0 0 auto;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--rr-body);
-  font: 700 20px/1 var(--rr-sans);
-  cursor: pointer;
-}
-
-.rr-cmp-row-notice button:hover {
-  background: rgba(13, 49, 61, 0.08);
-}
-
-.rr-cmp-cell-loading {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  color: var(--rr-muted);
-  font-size: 12.5px;
-  font-weight: 750;
-  line-height: 1.4;
-}
-
-.rr-cmp-loading-line,
-.rr-snapshot-loading-line {
-  width: min(150px, 72%);
-  height: 18px;
-  border-radius: 5px;
-  background: #E3EAED;
-  animation: rr-research-pulse 1.4s ease-in-out infinite;
-}
-
-.rr-cmp-cell-evidence {
-  margin-top: 7px;
-  color: var(--rr-muted);
+.rr-cb-sidebar-sub {
+  font-family: var(--rr-sans);
   font-size: 11.5px;
-  line-height: 1.4;
+  color: var(--rr-muted);
+  font-weight: 600;
 }
-
-.rr-cmp-cell-evidence a {
-  color: var(--rr-teal-dk);
+.rr-cb-sidebar-pill {
+  align-self: flex-start;
+  font-family: var(--rr-sans);
+  font-size: 9.5px;
   font-weight: 800;
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.rr-snapshot-cell .rr-cmp-cell-evidence {
-  margin-top: 2px;
-}
-
-.rr-snapshot-cell.is-loading {
-  min-height: 76px;
-  justify-content: center;
-}
-
-@keyframes rr-research-pulse {
-  0%,
-  100% {
-    opacity: 0.5;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-
-.rr-cmp-settings {
-  border-top: 1px solid var(--rr-border);
-  border-bottom: 1px solid var(--rr-border);
-}
-
-.rr-cmp-settings summary {
-  width: fit-content;
-  padding: 10px 0;
-  color: var(--rr-body);
-  font-size: 13px;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.rr-cmp-settings[open] {
-  padding-bottom: 14px;
-}
-
-.rr-cmp-settings .rr-cmp-controls {
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  padding: 1px 7px;
+  border-radius: 999px;
   margin-top: 4px;
 }
+.rr-cb-sidebar-pill.is-active   { background: rgba(35, 156, 128, 0.14); color: var(--rr-teal-dk); }
+.rr-cb-sidebar-pill.is-draft    { background: rgba(245, 166, 35, 0.16); color: #8A5A00; }
+.rr-cb-sidebar-pill.is-archived { background: rgba(27, 50, 82, 0.08); color: var(--rr-muted); }
 
-.rr-cmp-lens-tab {
-  min-height: 38px;
-  padding: 7px 13px;
-  border-radius: 8px;
-  box-shadow: none;
-  transform: none;
-}
-
-.rr-cmp-lens-tab:hover {
-  transform: none;
-  box-shadow: none;
-}
-
-.rr-cmp-lens-tab.is-active {
-  background: var(--rr-navy);
-  border-color: var(--rr-navy);
-  color: var(--rr-white);
-  transform: none;
-}
-
-.rr-cmp-mobile-school {
-  display: none;
-}
-
-.rr-cmp-table-wrap {
-  border-radius: 12px;
-}
-
-.rr-cmp-table-row--head {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-}
-
-.rr-cmp-table-row--head .rr-cmp-corner,
-.rr-cmp-table-row--head .rr-cmp-head {
-  top: 0;
-  z-index: 21;
+.rr-cb-sidebar-foot {
+  /* r3 (Codex A-prime 2026-05-24): naturally pinned at the bottom of the
+     parent flex column — no sticky needed. The list above takes flex
+     room; foot stays at the end. flex-shrink: 0 keeps it visible when
+     the list overflows. */
+  flex: 0 0 auto;
   background: var(--rr-white);
+  margin: 0;
+  padding: 10px 12px 12px;
+  border-top: 1px solid var(--rr-border);
 }
-
-.rr-cmp-table-row--head .rr-cmp-corner {
-  z-index: 22;
-}
-
-.rr-cmp-head-rank {
-  display: none;
-}
-
-.rr-cmp-cell-empty {
-  color: var(--rr-evidence-amber);
+.rr-cb-sidebar-add {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--rr-teal-bg);
+  border: 1px dashed rgba(35, 156, 128, 0.4);
+  border-radius: var(--rr-r-sm, 6px);
+  color: var(--rr-teal-dk);
   font-family: var(--rr-sans);
   font-size: 12.5px;
   font-weight: 800;
+  cursor: pointer;
+}
+.rr-cb-sidebar-add:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
-.rr-cmp-table-row--head .rr-cmp-corner,
-.rr-cmp-table-row--head .rr-cmp-head {
-  border-bottom-color: var(--rr-navy);
+/* ── Responsive collapse ───────────────────────────────────────────────────
+   Note: this matches viewport width, not chat-open state. The mock spec uses
+   chat-open as the trigger; since the chat rail in production lives outside
+   ChildBriefTab and we don't drill the open state down, viewport-width is a
+   reasonable proxy — narrow viewports are where space is tightest regardless
+   of chat state. Phase 3.5 can wire chat-open if real-world smoke shows the
+   viewport heuristic falls short.
+   ────────────────────────────────────────────────────────────────────────── */
+
+/* 1300px and below: drop the age sub-label and the status pill;
+   status becomes a coloured dot in the top-right of each item. */
+@media (max-width: 1300px) {
+  .rr-brief-wrap.has-sidebar { grid-template-columns: minmax(0, 1fr) 150px; }
+  .rr-cb-sidebar-sub,
+  .rr-cb-sidebar-pill { display: none; }
+  .rr-cb-sidebar-item { position: relative; padding: 10px 10px; }
+  .rr-cb-sidebar-item::after {
+    content: '';
+    position: absolute;
+    top: 10px;
+    right: 8px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--rr-muted);
+  }
+  /* Status dots match is-status-{active|draft|archived}; selected
+     children get the surrounding teal background (above) instead. */
+  .rr-cb-sidebar-item.is-status-active::after   { background: var(--rr-teal-dk); }
+  .rr-cb-sidebar-item.is-status-draft::after    { background: #F5A623; }
+  .rr-cb-sidebar-item.is-status-archived::after { background: var(--rr-muted); }
 }
 
-.rr-cmp-add-school-btn--compact {
-  min-height: 42px;
-  border-radius: 8px;
-}
-
-@media (min-width: 701px) {
-  .rr-cmp-table-wrap {
-    max-height: min(620px, calc(100dvh - 270px));
-    overflow: auto;
-    scrollbar-gutter: stable;
-  }
-
-  .rr-cmp-table-wrap .rr-cmp-corner,
-  .rr-cmp-table-wrap .rr-cmp-dim {
-    position: sticky;
-    left: 0;
-    background: var(--rr-white);
-    box-shadow: 1px 0 0 var(--rr-border);
-  }
-}
-
-@media (max-width: 980px) {
-  .rr-cmp-workspace-head {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 14px;
-  }
-
-  .rr-cmp-workspace-actions {
-    justify-content: space-between;
-  }
-
-  .rr-cmp-priority-bar {
-    grid-template-columns: 1fr auto;
-  }
-
-  .rr-cmp-priority-list {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-
-  .rr-snapshot-questions {
-    grid-template-columns: 1fr;
-    gap: 12px;
+/* 1000px and below: collapse to initials-only rail. */
+@media (max-width: 1000px) {
+  .rr-brief-wrap.has-sidebar { grid-template-columns: minmax(0, 1fr) 56px; }
+  .rr-cb-sidebar-name,
+  .rr-cb-sidebar-head,
+  .rr-cb-sidebar-foot { display: none; }
+  .rr-cb-sidebar-item { align-items: center; padding: 10px 0; }
+  .rr-cb-sidebar-item::before {
+    content: attr(data-initials);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--rr-teal-bg);
+    color: var(--rr-teal-dk);
+    font-family: var(--rr-display);
+    font-weight: 900;
+    font-size: 13px;
   }
 }
 
-@media (max-width: 700px) {
-  .rr-cmp-wrap {
-    gap: 14px;
-  }
-
-  .rr-cmp-workspace-title {
-    font-size: 28px;
-  }
-
-  .rr-cmp-workspace-meta {
-    font-size: 16px;
-  }
-
-  .rr-cmp-workspace-actions {
-    display: grid;
-    grid-template-columns: auto 1fr;
-  }
-
-  .rr-cmp-display-switch {
-    width: 100%;
-    min-width: 0;
-  }
-
-  .rr-cmp-display-switch button {
-    font-size: 16px;
-  }
-
-  .rr-cmp-add-school-btn--compact {
-    font-size: 15px;
-  }
-
-  .rr-cmp-priority-bar {
-    display: flex;
-    align-items: stretch;
-    flex-direction: column;
-    gap: 11px;
-  }
-
-  .rr-cmp-priority-list {
-    order: 2;
-  }
-
-  .rr-cmp-priority-copy strong,
-  .rr-cmp-table-toolbar strong {
-    font-size: 20px;
-  }
-
-  .rr-cmp-priority-copy span,
-  .rr-cmp-table-toolbar span {
-    font-size: 15px;
-    line-height: 1.5;
-  }
-
-  .rr-cmp-priority-list > span {
-    min-height: 40px;
-    font-size: 16px;
-  }
-
-  .rr-cmp-priority-bar .rr-cmp-secondary-action {
-    order: 3;
-    width: 100%;
-    min-height: 44px;
-  }
-
-  .rr-cmp-primary-action,
-  .rr-cmp-secondary-action,
-  .rr-cmp-text-action {
-    font-size: 16px;
-  }
-
-  .rr-cmp-editor-head {
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .rr-cmp-editor-head h2,
-  .rr-snapshot-intro h2,
-  .rr-snapshot-empty h2 {
-    font-size: 23px;
-  }
-
-  .rr-cmp-editor-head p,
-  .rr-snapshot-intro p,
-  .rr-snapshot-empty p,
-  .rr-cmp-editor-head > span {
-    font-size: 16px;
-    line-height: 1.5;
-  }
-
-  .rr-cmp-priority-options {
-    display: grid;
+/* 720px and below: single column stack — sidebar above cards. Restore the
+   full name/sub/pill view since stacked layout has horizontal room again
+   (Codex r1 #2 2026-05-24 — the 1000px initials-only rules above were
+   chat-rail-side-by-side assumptions that don't apply when stacked). */
+@media (max-width: 720px) {
+  .rr-brief-wrap.has-sidebar {
     grid-template-columns: 1fr;
   }
-
-  .rr-cmp-priority-options label {
-    min-height: 44px;
-    font-size: 16px;
-  }
-
-  .rr-cmp-editor-actions,
-  .rr-cmp-row-editor-input {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .rr-cmp-editor-actions > *,
-  .rr-cmp-row-editor-input > * {
-    width: 100%;
-  }
-
-  .rr-cmp-row-editor-input .rr-cmp-primary-action,
-  .rr-cmp-row-editor-input .rr-cmp-text-action {
-    min-height: 44px;
-  }
-
-  .rr-cmp-row-search {
-    flex: 0 0 auto;
-  }
-
-  .rr-snapshot-grid-wrap {
+  /* r3 (Codex A-prime 2026-05-24): reset all the desktop sizing so the
+     sidebar flows naturally above the cards as a stacked block. */
+  .rr-cb-sidebar {
+    position: static;
+    height: auto;
+    max-height: none;
     overflow: visible;
-    border: 0;
-    background: transparent;
+    order: -1;             /* sit above cards on narrow viewports */
   }
-
-  .rr-snapshot-grid {
-    min-width: 0;
-  }
-
-  .rr-snapshot-row {
-    display: flex !important;
-    flex-direction: column;
-    margin-bottom: 12px;
-    border: 1px solid var(--rr-border);
-    border-radius: 12px;
-    overflow: hidden;
-    background: var(--rr-white);
-  }
-
-  .rr-snapshot-row.rr-snapshot-row--head {
-    display: none !important;
-  }
-
-  .rr-snapshot-row > * {
-    padding: 17px 16px;
-    border-right: 0;
-    border-bottom: 1px solid var(--rr-border);
-  }
-
-  .rr-snapshot-row > *:last-child {
-    border-bottom: 0;
-  }
-
-  .rr-snapshot-mobile-school {
-    display: block;
-    color: var(--rr-navy);
-    font-size: 20px;
-    font-weight: 850;
-  }
-
-  .rr-snapshot-priority strong {
-    font-size: 20px;
-  }
-
-  .rr-snapshot-priority span {
-    font-size: 15px;
-  }
-
-  .rr-snapshot-cell .rr-snapshot-result {
-    font-size: 18px;
-  }
-
-  .rr-snapshot-cell.is-missing .rr-snapshot-result {
-    font-size: 16px;
-  }
-
-  .rr-snapshot-cell small {
-    font-size: 15px;
-  }
-
-  .rr-snapshot-status {
-    font-size: 14px;
-  }
-
-  .rr-snapshot-questions h3 {
-    font-size: 19px;
-  }
-
-  .rr-snapshot-questions-title p,
-  .rr-snapshot-questions li,
-  .rr-snapshot-complete {
-    font-size: 16px;
-  }
-
-  .rr-snapshot-questions ul {
-    grid-template-columns: 1fr;
-  }
-
-  .rr-snapshot-questions li {
-    padding: 8px 0;
-    border-left: 0;
-    border-bottom: 1px solid var(--rr-border);
-  }
-
-  .rr-snapshot-questions li:last-child {
-    border-bottom: 0;
-  }
-
-  .rr-cmp-table-toolbar {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
-  .rr-cmp-table-toolbar .rr-cmp-primary-action {
-    width: 100%;
-    min-height: 44px;
-  }
-
-  .rr-cmp-row-editor-copy label {
-    font-size: 20px;
-  }
-
-  .rr-cmp-row-editor-copy span,
-  .rr-cmp-field-error {
-    font-size: 15px;
-    line-height: 1.5;
-  }
-
-  .rr-cmp-row-notice {
-    padding: 12px 14px;
-    font-size: 16px;
-  }
-
-  .rr-cmp-row-notice button {
-    width: 44px;
-    height: 44px;
-  }
-
-  .rr-cmp-row-editor-input input {
-    min-height: 48px;
-    font-size: 16px;
-  }
-
-  .rr-cmp-autocomplete [role="option"] {
-    min-height: 52px;
-    grid-template-columns: 24px minmax(0, 1fr) auto;
-  }
-
-  .rr-cmp-autocomplete [role="option"] > span {
-    font-size: 20px;
-  }
-
-  .rr-cmp-autocomplete [role="option"] small {
-    display: inline-block;
-    justify-self: end;
-    font-size: 11px;
-  }
-
-  .rr-cmp-autocomplete {
-    position: static;
-    margin-top: 5px;
-  }
-
-  .rr-cmp-autocomplete-empty {
-    font-size: 16px;
-  }
-
-  .rr-cmp-settings .rr-cmp-lens-tab {
-    min-height: 44px;
-  }
-
-  .rr-cmp-settings summary,
-  .rr-cmp-settings .rr-cmp-lens-tab {
-    font-size: 16px;
-  }
-
-  .rr-cmp-mobile-school {
-    display: flex;
-    align-items: stretch;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .rr-cmp-mobile-school span {
-    color: var(--rr-navy);
-    font-size: 16px;
-    font-weight: 800;
-  }
-
-  .rr-cmp-mobile-school select {
-    width: 100%;
-    min-height: 44px;
-    padding: 9px 12px;
-    border: 1px solid #98A2B3;
-    border-radius: 8px;
-    background: var(--rr-white);
-    color: var(--rr-navy);
-    font: 700 20px/1.25 var(--rr-sans);
-  }
-
-  .rr-cmp-table-wrap.is-single-school {
-    overflow: visible;
-  }
-
-  .rr-cmp-table-wrap.is-single-school .rr-cmp-table {
-    min-width: 0;
-  }
-
-  .rr-cmp-table-wrap.is-single-school .rr-cmp-corner,
-  .rr-cmp-table-wrap.is-single-school .rr-cmp-dim {
-    position: static;
-  }
-
-  .rr-cmp-table-wrap.is-single-school .rr-cmp-corner,
-  .rr-cmp-table-wrap.is-single-school .rr-cmp-dim {
-    padding: 15px 14px;
-  }
-
-  .rr-cmp-table-wrap.is-single-school .rr-cmp-head,
-  .rr-cmp-table-wrap.is-single-school .rr-cmp-cell {
-    padding: 15px 14px;
-  }
-
-  .rr-cmp-table-wrap.is-single-school .rr-cmp-table-row--head {
-    position: static;
-  }
-
-  .rr-cmp-dim-name {
-    display: flex;
-    align-items: flex-start;
+  /* Restore the name + sub + pill that the 1000px rules hid. */
+  .rr-cb-sidebar-name { display: inline; }
+  .rr-cb-sidebar-sub,
+  .rr-cb-sidebar-pill { display: inline-block; }
+  .rr-cb-sidebar-head,
+  .rr-cb-sidebar-foot { display: block; }
+  .rr-cb-sidebar-item { align-items: flex-start; padding: 10px 12px; }
+  .rr-cb-sidebar-item::before { content: none; }
+  .rr-cb-sidebar-item::after  { content: none; }
+  /* Horizontal list to save vertical space on phones — 1 item per row
+     would consume too much above-the-fold. List shouldn't try to be a
+     scroll surface on mobile (no horizontal viewport room for that). */
+  .rr-cb-sidebar-list {
+    flex-direction: row;
     flex-wrap: wrap;
-    column-gap: 4px;
-    font-size: 16px;
-    line-height: 1.4;
+    overflow: visible;
+    min-height: 0;
   }
-
-  .rr-cmp-dim-label {
-    min-width: 0;
-    overflow-wrap: anywhere;
-  }
-
-  .rr-cmp-dim-name em {
-    display: block;
-    flex-basis: 100%;
-    margin-top: 3px;
-    padding-left: 24px;
-    font-size: 14px;
-    line-height: 1.4;
-  }
-
-  .rr-cmp-row-drag {
-    flex: 0 0 18px;
-    margin-right: 2px;
-    opacity: 0.55;
-  }
-
-  .rr-cmp-dim-blurb {
-    font-size: 15px;
-    line-height: 1.5;
-  }
-
-  .rr-cmp-head-name {
-    font-size: 21px;
-  }
-
-  .rr-cmp-head-meta {
-    font-size: 15px;
-  }
-
-  .rr-cmp-cell-text {
-    font-size: 20px;
-    line-height: 1.5;
-  }
-
-  .rr-cmp-cell-sub {
-    font-size: 15px;
-    line-height: 1.45;
-  }
-
-  .rr-cmp-cell-empty {
-    font-size: 15px;
-  }
-
-  .rr-cmp-cell-loading {
-    font-size: 15px;
-  }
-
-  .rr-cmp-cell-evidence {
-    font-size: 14px;
-    line-height: 1.45;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .rr-app *,
-  .rr-app *::before,
-  .rr-app *::after {
-    scroll-behavior: auto !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-  }
+  .rr-cb-sidebar-list > li { flex: 1 1 calc(50% - 2px); min-width: 0; }
 }

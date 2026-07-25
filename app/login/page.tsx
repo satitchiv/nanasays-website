@@ -12,6 +12,11 @@ const border = '#e2e8f0'
 const muted  = '#64748b'
 const off    = '#f8fafc'
 
+function authRedirectOrigin() {
+  if (process.env.NODE_ENV !== 'production') return window.location.origin
+  return process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
+}
+
 export default function LoginPage() {
   const [email, setEmail]   = useState('')
   const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
@@ -24,7 +29,7 @@ export default function LoginPage() {
     setError('')
 
     const supabase = createSupabaseBrowser()
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || window.location.origin
+    const siteUrl = authRedirectOrigin()
     const { error: err } = await supabase.auth.signInWithOtp({
       email: email.trim().toLowerCase(),
       options: {
