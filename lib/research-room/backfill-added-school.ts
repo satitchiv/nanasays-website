@@ -12,6 +12,7 @@ import {
   type StructuredRow,
 } from './seed-rows'
 import type { NotionBackfillRow } from './pupil-composition'
+import { isGeneralSeedRowName } from './seed-row-names'
 
 type StoredCell = {
   value?: string | number | null
@@ -56,12 +57,18 @@ export function resolveAddedSchoolComparisonCell(
     region: school.region,
     boarding: school.boarding,
     gender_split: school.gender_split,
+    distance_airport: school.distance_airport,
   }
 
   const seeded = resolveSeedComparisonCell(rowName, meta, structured, notion)
   if (seeded && seeded.value != null && seeded.value !== '') {
     return seeded
   }
+  // Seeded rows have narrower semantics than broad catalogue aliases.
+  // If their dedicated builder has no value, leave the cell empty. Falling
+  // through previously put nearest-airport data into "Travel from Heathrow"
+  // and annual fees into "Boarding fee · per term".
+  if (isGeneralSeedRowName(rowName)) return null
 
   const match = matchComparisonRequest(rowName)
   if (match.kind !== 'supported') return null
@@ -176,7 +183,7 @@ export async function backfillAddedSchoolComparisonCells({
   const [schoolResult, structuredResult, notionResult, rowsResult] = await Promise.all([
     supabaseService
       .from('schools')
-      .select('slug, name, city, region, boarding, gender_split')
+      .select('slug, name, city, region, boarding, gender_split, distance_airport')
       .eq('slug', schoolSlug)
       .maybeSingle(),
     supabaseService
@@ -186,7 +193,7 @@ export async function backfillAddedSchoolComparisonCells({
       .maybeSingle(),
     supabaseService
       .from('school_notion_backfill')
-      .select('school_slug, status, parsed')
+      .select('school_slug, status, parsed, raw_properties')
       .eq('school_slug', schoolSlug)
       .maybeSingle(),
     supabaseUser
@@ -220,6 +227,7 @@ export async function backfillAddedSchoolComparisonCells({
     region: schoolResult.data.region,
     boarding: schoolResult.data.boarding,
     gender_split: schoolResult.data.gender_split,
+    distance_airport: schoolResult.data.distance_airport,
     structured: (structuredResult.data as Record<string, unknown> | null) ?? null,
   }
   const rows = (rowsResult.data ?? []) as ComparisonRowRecord[]
@@ -247,10 +255,15 @@ export async function backfillAddedSchoolComparisonCells({
     const cell = resolveAddedSchoolComparisonCell(row.row_name, school, notion)
     if (!cell) {
       result.cells_unfilled += 1
-      if (row.lens_kind === 'chat') {
+      // General and chat gaps are both actionable research backlog. Child-fit
+      // rows can be empty simply because a criterion does not apply, so do
+      // not queue those automatically.
+      if (row.lens_kind !== 'child_fit') {
         const match = matchComparisonRequest(row.row_name)
         missingTopics.add(
-          match.kind === 'supported' ? match.label : match.canonicalTopic,
+          row.lens_kind === 'general'
+            ? row.row_name
+            : match.kind === 'supported' ? match.label : match.canonicalTopic,
         )
       }
       continue

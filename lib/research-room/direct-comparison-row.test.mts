@@ -217,6 +217,20 @@ test('does not turn database gap notes into comparison answers', () => {
   assert.equal(resolveTrustedComparisonCell('Scholarships', gapsOnly), null)
 })
 
+test('uses a substantive pastoral profile when a separate model field is absent', () => {
+  const careOnly: DirectComparisonSchool = {
+    ...school,
+    structured: {
+      pastoral_care: 'A family-oriented pastoral environment with dedicated boarding houses and pupil support.',
+      pastoral_model: null,
+    },
+  }
+  assert.equal(
+    resolveTrustedComparisonCell('Pastoral care model', careOnly)?.value,
+    'Published pastoral care profile',
+  )
+})
+
 test('requires a concrete admissions assessment signal', () => {
   const processOnly: DirectComparisonSchool = {
     ...school,

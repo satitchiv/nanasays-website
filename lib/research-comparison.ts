@@ -2,15 +2,18 @@ import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ComparisonData, ComparisonRow, RowCell, SchoolColumn } from '@/components/nana/comparison-placeholder'
 import { assertUserId } from './school-name-overrides'
-import { matchComparisonRequest } from './research-room/comparison-catalog'
 import { hasComparisonValueForSchools } from './research-room/comparison-cell-data'
+import {
+  comparisonDisplayLabel,
+  removeComparisonRowDuplicates,
+} from './research-room/comparison-row-identity'
 
 // Slice 5.5b — lens-aware single-source comparison loader.
 //
 // Pre-5.5: this file held nine hardcoded canonical rows (fees, A*–A,
 // Oxbridge, ...) plus a side-load of comparison_rows for chat-added rows.
 // Post-5.5: ALL rows live in comparison_rows. The General-lens rows are
-// seeded by lib/research-room/seed-rows.ts on first load; child_fit rows
+// seeded and refreshed by lib/research-room/seed-rows.ts on room load; child_fit rows
 // will follow in slice 5.5e/h. The cell builders moved to seed-rows.ts.
 
 export type LensKind = 'general' | 'child_fit'
@@ -185,19 +188,13 @@ async function loadLensRows(
     return hasComparisonValueForSchools(row.cell_data, visibleSchoolSlugs)
   })
 
-  // De-dup: if a chat row has the same (case-insensitive, trimmed) row_name
-  // as a base-lens row, drop the chat copy — base wins. Codex round-1
-  // flagged this as a visible-set hazard; doing it loader-side keeps the
-  // schema simple (per-lens uniqueness only at the DB level).
-  const baseNames = new Set(
-    rowsWithVisibleContent
-      .filter(r => r.lens_kind === baseLens)
-      .map(r => normalizeRowName(r.row_name))
+  // De-dup by canonical topic, not only exact text. This catches aliases such
+  // as "Travel from Heathrow" / "Airport distance" and keeps the base row.
+  const filtered = removeComparisonRowDuplicates(
+    rowsWithVisibleContent,
+    baseLens,
+    activeLensId,
   )
-  const filtered = rowsWithVisibleContent.filter(r => {
-    if (r.lens_kind !== 'chat') return true
-    return !baseNames.has(normalizeRowName(r.row_name))
-  })
 
   // Sort: base-lens rows by sort_order (the seeder pins these to 100, 200,
   // 300, ...); chat rows fall to the bottom by created_at because they
@@ -211,10 +208,7 @@ async function loadLensRows(
   })
 
   return filtered.map(r => {
-    const catalogueMatch = matchComparisonRequest(r.row_name)
-    const displayLabel = catalogueMatch.kind === 'supported'
-      ? catalogueMatch.label
-      : r.row_name
+    const displayLabel = comparisonDisplayLabel(r.row_name, r.lens_kind)
     const cells: RowCell[] = schools.map(col => {
       const c = r.cell_data?.[col.slug]
       if (!c || c.value == null || c.value === '') return { kind: 'empty' }
@@ -240,8 +234,4 @@ async function loadLensRows(
       removable: r.lens_kind === 'chat',
     }
   })
-}
-
-function normalizeRowName(name: string): string {
-  return name.trim().toLowerCase()
 }

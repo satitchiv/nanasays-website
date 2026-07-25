@@ -5,6 +5,7 @@ export type DirectComparisonSchool = {
   region: string | null
   boarding: boolean | null
   gender_split: string | null
+  distance_airport?: string | null
   structured: Record<string, unknown> | null
 }
 
@@ -270,23 +271,25 @@ function admissionsAssessmentCell(
 
 function pastoralCareCell(structured: Record<string, unknown>): DirectComparisonCell | null {
   const rawModel = cleanText(structured.pastoral_model, 500)
-  if (!rawModel) return null
-  const houseCount = rawModel.match(
+  const care = cleanText(structured.pastoral_care, 500)
+  if (!rawModel && !care) return null
+  const houseCount = rawModel?.match(
     /\b(\d+)[ -](?:named )?(?:residential )?(?:boarding )?houses?\b/i,
   )?.[1]
-  const model = /\bthree-house\b/i.test(rawModel)
+  const model = rawModel && /\bthree-house\b/i.test(rawModel)
     ? 'Three-house boarding system'
-    : houseCount && /\bhouse system|boarding houses?\b/i.test(rawModel)
+    : rawModel && houseCount && /\bhouse system|boarding houses?\b/i.test(rawModel)
       ? `House system · ${houseCount} boarding houses`
-      : /\bhouse system\b/i.test(rawModel)
+      : rawModel && /\bhouse system\b/i.test(rawModel)
         ? 'House system'
-        : /\bdesignated leader|pastoral (lead|leadership)\b/i.test(rawModel)
+        : rawModel && /\bdesignated leader|pastoral (lead|leadership)\b/i.test(rawModel)
           ? 'Named pastoral leadership structure'
-          : 'Published pastoral care structure'
-  if (!model) return null
+          : rawModel
+            ? 'Published pastoral care structure'
+            : 'Published pastoral care profile'
   return {
     value: model,
-    note: truncateNarrative(structured.pastoral_care, MAX_NOTE_LENGTH) ?? undefined,
+    note: truncateNarrative(care, MAX_NOTE_LENGTH) ?? undefined,
     evidence_kind: 'nana_database',
   }
 }

@@ -2,6 +2,7 @@ export type NotionBackfillRow = {
   school_slug: string
   status: string
   parsed: Record<string, unknown> | null
+  raw_properties?: Record<string, unknown> | null
 }
 
 export type PupilComposition = {
@@ -19,6 +20,8 @@ export type PupilCompositionResolution =
   | { status: 'ready'; composition: PupilComposition; reasons: string[] }
   | { status: 'insufficient' | 'conflict'; composition: null; reasons: string[] }
 
+export type NotionFee = number | { min: number; max: number }
+
 const PERCENT_TOLERANCE = 2
 
 function finiteNumber(value: unknown): number | null {
@@ -34,6 +37,64 @@ function percent(value: unknown): number | null {
   const number = finiteNumber(value)
   if (number == null || number < 0 || number > 100) return null
   return number
+}
+
+export function approvedNotionValue(
+  notion: NotionBackfillRow | null,
+  field: string,
+): unknown {
+  if (!notion?.parsed || !['clean', 'matched'].includes(notion.status)) return null
+  return notion.parsed[field] ?? null
+}
+
+export function approvedNotionNumber(
+  notion: NotionBackfillRow | null,
+  field: string,
+): number | null {
+  return finiteNumber(approvedNotionValue(notion, field))
+}
+
+export function approvedNotionBoardingEntry(
+  notion: NotionBackfillRow | null,
+): { year: number; source: string } | null {
+  const parsed = approvedNotionNumber(notion, 'lowest_boarding_entry')
+  if (parsed != null && Number.isInteger(parsed) && parsed >= 1 && parsed <= 13) {
+    return {
+      year: parsed,
+      source: 'school_notion_backfill.parsed.lowest_boarding_entry',
+    }
+  }
+  if (!notion || !['clean', 'matched'].includes(notion.status)) return null
+  const raw = notion.raw_properties?.['Lowest Boarding Entry Year']
+  const match = typeof raw === 'string'
+    ? raw.trim().match(/^Year\s+(\d{1,2})$/i)
+    : null
+  const year = match ? Number(match[1]) : null
+  if (year == null || year < 1 || year > 13) return null
+  return {
+    year,
+    source: 'school_notion_backfill.raw_properties.Lowest Boarding Entry Year',
+  }
+}
+
+export function approvedNotionFee(
+  notion: NotionBackfillRow | null,
+  field: string,
+): NotionFee | null {
+  const value = approvedNotionValue(notion, field)
+  if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  const range = value as Record<string, unknown>
+  const min = finiteNumber(range.min)
+  const max = finiteNumber(range.max)
+  if (min == null || max == null || min <= 0 || max < min) return null
+  return { min, max }
+}
+
+export function formatGbp(value: NotionFee): string {
+  if (typeof value === 'number') return `£${Math.round(value).toLocaleString()}`
+  if (value.min === value.max) return `£${Math.round(value.min).toLocaleString()}`
+  return `£${Math.round(value.min).toLocaleString()}–£${Math.round(value.max).toLocaleString()}`
 }
 
 function roundedPercent(value: number): number {
@@ -236,8 +297,7 @@ function formatClassSizeValue(value: unknown): string | null {
 export function resolveNotionClassSize(
   notion: NotionBackfillRow | null,
 ): { value: string; source: string } | null {
-  if (!notion?.parsed || !['clean', 'matched'].includes(notion.status)) return null
-  const classSize = notion.parsed.class_size
+  const classSize = approvedNotionValue(notion, 'class_size')
   if (!classSize || typeof classSize !== 'object' || Array.isArray(classSize)) return null
   const values = classSize as Record<string, unknown>
   const senior = formatClassSizeValue(values.senior)

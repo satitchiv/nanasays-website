@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  approvedNotionBoardingEntry,
+  approvedNotionFee,
+  approvedNotionNumber,
+  formatGbp,
   resolveNotionClassSize,
   resolvePupilComposition,
   type NotionBackfillRow,
@@ -109,4 +113,45 @@ test('formats clean Notion class-size buckets', () => {
   assert.deepEqual(resolveNotionClassSize(notion('range-school', {
     class_size: { average: { min: 12, max: 15 } },
   }))?.value, '~12–15 avg')
+})
+
+test('reads only approved scalar and ranged Notion values', () => {
+  const clean = notion('fee-school', {
+    total_pupils: 720,
+    boarding_fee_term: { min: 18_000, max: 19_500 },
+  })
+  assert.equal(approvedNotionNumber(clean, 'total_pupils'), 720)
+  assert.deepEqual(approvedNotionFee(clean, 'boarding_fee_term'), {
+    min: 18_000,
+    max: 19_500,
+  })
+  assert.equal(
+    formatGbp(approvedNotionFee(clean, 'boarding_fee_term')!),
+    '£18,000–£19,500',
+  )
+  assert.equal(approvedNotionNumber({ ...clean, status: 'partial_with_review' }, 'total_pupils'), null)
+})
+
+test('strictly normalizes lowest boarding entry from an approved Notion row', () => {
+  assert.deepEqual(approvedNotionBoardingEntry({
+    school_slug: 'rossall-school',
+    status: 'clean',
+    parsed: {},
+    raw_properties: { 'Lowest Boarding Entry Year': 'Year 3' },
+  }), {
+    year: 3,
+    source: 'school_notion_backfill.raw_properties.Lowest Boarding Entry Year',
+  })
+  assert.equal(approvedNotionBoardingEntry({
+    school_slug: 'unsafe-school',
+    status: 'partial_with_review',
+    parsed: {},
+    raw_properties: { 'Lowest Boarding Entry Year': 'Year 3' },
+  }), null)
+  assert.equal(approvedNotionBoardingEntry({
+    school_slug: 'vague-school',
+    status: 'clean',
+    parsed: {},
+    raw_properties: { 'Lowest Boarding Entry Year': 'Around Year 3' },
+  }), null)
 })
