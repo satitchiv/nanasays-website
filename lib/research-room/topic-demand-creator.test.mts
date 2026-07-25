@@ -21,6 +21,10 @@ test('promotes repeated parent demand only after conservative thresholds', () =>
       request('3', 'parent-a', 'Most professional football players'),
     ],
     existingCatalog: [],
+    coverageByTopic: new Map([['most professional football players', {
+      verified_school_count: 12,
+      verified_coverage_percent: 7.5,
+    }]]),
   })
   assert.deepEqual(plan.promotions, [{
     id: demandTopicId('most professional football players'),
@@ -28,6 +32,8 @@ test('promotes repeated parent demand only after conservative thresholds', () =>
     normalized_topic: 'most professional football players',
     demand_count: 3,
     unique_parent_count: 2,
+    verified_school_count: 12,
+    verified_coverage_percent: 7.5,
   }])
   assert.deepEqual(plan.requestsToPromote, ['1', '2', '3'])
 })
@@ -36,6 +42,7 @@ test('does not promote a one-off request and is idempotent for approved topics',
   const oneOff = planTopicDemandPromotions({
     requests: [request('1', 'parent-a', 'Saturday transport')],
     existingCatalog: [],
+    coverageByTopic: new Map(),
   })
   assert.equal(oneOff.promotions.length, 0)
   assert.equal(oneOff.requestsBelowThreshold, 1)
@@ -52,9 +59,32 @@ test('does not promote a one-off request and is idempotent for approved topics',
       normalized_topic: 'most professional football players',
       demand_count: 3,
       unique_parent_count: 2,
+      verified_school_count: 12,
+      verified_coverage_percent: 7.5,
       status: 'approved',
     }],
+    coverageByTopic: new Map([['most professional football players', {
+      verified_school_count: 12,
+      verified_coverage_percent: 7.5,
+    }]]),
   })
   assert.equal(existing.promotions.length, 0)
   assert.equal(existing.requestsAlreadyPromoted, 3)
+})
+
+test('does not promote repeated demand without verified database coverage', () => {
+  const plan = planTopicDemandPromotions({
+    requests: [
+      request('1', 'parent-a', 'Special transport options'),
+      request('2', 'parent-b', 'Special transport options'),
+      request('3', 'parent-a', 'Special transport options'),
+    ],
+    existingCatalog: [],
+    coverageByTopic: new Map([['special transport options', {
+      verified_school_count: 2,
+      verified_coverage_percent: 1.2,
+    }]]),
+  })
+  assert.equal(plan.promotions.length, 0)
+  assert.equal(plan.candidatesWithoutVerifiedCoverage, 3)
 })

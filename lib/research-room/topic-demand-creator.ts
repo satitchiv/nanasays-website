@@ -15,6 +15,8 @@ export type TopicCatalogEntry = {
   normalized_topic: string
   demand_count: number
   unique_parent_count: number
+  verified_school_count: number
+  verified_coverage_percent: number
   status: 'approved' | 'retired'
 }
 
@@ -24,6 +26,8 @@ export type TopicPromotion = {
   normalized_topic: string
   demand_count: number
   unique_parent_count: number
+  verified_school_count: number
+  verified_coverage_percent: number
 }
 
 export type TopicDemandPlan = {
@@ -32,6 +36,7 @@ export type TopicDemandPlan = {
   requestsConsidered: number
   requestsAlreadyPromoted: number
   requestsBelowThreshold: number
+  candidatesWithoutVerifiedCoverage: number
 }
 
 export function demandTopicId(normalizedTopic: string): string {
@@ -45,13 +50,17 @@ export function demandTopicId(normalizedTopic: string): string {
 export function planTopicDemandPromotions({
   requests,
   existingCatalog,
+  coverageByTopic,
   minRequests = 3,
   minUniqueParents = 2,
+  minVerifiedSchools = 10,
 }: {
   requests: TopicDemandRequest[]
   existingCatalog: TopicCatalogEntry[]
+  coverageByTopic: Map<string, { verified_school_count: number; verified_coverage_percent: number }>
   minRequests?: number
   minUniqueParents?: number
+  minVerifiedSchools?: number
 }): TopicDemandPlan {
   const existing = new Map(existingCatalog.map(entry => [entry.id, entry]))
   const groups = new Map<string, TopicDemandRequest[]>()
@@ -67,6 +76,7 @@ export function planTopicDemandPromotions({
   const promotions: TopicPromotion[] = []
   const requestsToPromote: string[] = []
   let requestsBelowThreshold = 0
+  let candidatesWithoutVerifiedCoverage = 0
   let requestsAlreadyPromoted = 0
 
   for (const [normalizedTopic, group] of Array.from(groups.entries())) {
@@ -80,6 +90,12 @@ export function planTopicDemandPromotions({
     const parentIds = new Set(group.map(request => request.user_id))
     if (group.length < minRequests || parentIds.size < minUniqueParents) {
       requestsBelowThreshold += group.length
+      continue
+    }
+
+    const coverage = coverageByTopic.get(normalizedTopic)
+    if (!coverage || coverage.verified_school_count < minVerifiedSchools) {
+      candidatesWithoutVerifiedCoverage += group.length
       continue
     }
 
@@ -97,6 +113,8 @@ export function planTopicDemandPromotions({
       normalized_topic: normalizedTopic,
       demand_count: group.length,
       unique_parent_count: parentIds.size,
+      verified_school_count: coverage.verified_school_count,
+      verified_coverage_percent: coverage.verified_coverage_percent,
     })
     requestsToPromote.push(...group.map(request => request.id))
   }
@@ -107,5 +125,6 @@ export function planTopicDemandPromotions({
     requestsConsidered: requests.length,
     requestsAlreadyPromoted,
     requestsBelowThreshold,
+    candidatesWithoutVerifiedCoverage,
   }
 }

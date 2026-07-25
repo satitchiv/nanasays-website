@@ -9,10 +9,15 @@ comparison value scheduler:
   search catalogue so future parents can click those topics.
 
 The topic creator does not read chatbot data, crawl school websites, or invent
-school facts. Research Room request events are recorded in
+school facts. Before promotion it scans the verified UK
+`school_structured_data` rows and approved Notion mirror. A candidate needs
+matching verified evidence for at least 10 comparison-ready UK schools. The
+topic record stores that coverage count, but the creator still does not write
+school cells. Research Room request events are recorded in
 `research_room_topic_requests`. A topic is promoted only after at least three
 requests from at least two different parents. Promotion creates a searchable
-label; it does not claim that school-level facts are ready.
+label backed by measured database coverage; it does not claim that every
+school-level fact is ready.
 
 ## Safe manual test
 

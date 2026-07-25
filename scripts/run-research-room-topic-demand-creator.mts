@@ -1,9 +1,16 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import {
   planTopicDemandPromotions,
+  type TopicDemandPlan,
   type TopicCatalogEntry,
   type TopicDemandRequest,
 } from '../lib/research-room/topic-demand-creator.ts'
+import { normalizeTopicDemand } from '../lib/research-room/topic-demand-requests.ts'
+import { resolveAddedSchoolComparisonCell } from '../lib/research-room/backfill-added-school.ts'
+import { matchComparisonRequest } from '../lib/research-room/comparison-catalog.ts'
+import { RESEARCH_ROOM_STRUCTURED_SELECT, type StructuredRow } from '../lib/research-room/seed-rows.ts'
+import type { DirectComparisonSchool } from '../lib/research-room/direct-comparison-row.ts'
+import type { NotionBackfillRow } from '../lib/research-room/pupil-composition.ts'
 import { manualRunKey, scheduledRunKey } from '../lib/research-room/uk-comparison-scheduler.ts'
 
 const PAGE_SIZE = 1000
@@ -17,6 +24,46 @@ const runKey = requestedRunKey
   || (scheduledMode ? scheduledRunKey(new Date()) : manualRunKey(new Date()))
 
 type PageError = { message: string; code?: string }
+
+type VerifiedContext = {
+  schools: DirectComparisonSchool[]
+  notionBySlug: Map<string, NotionBackfillRow>
+}
+
+const TOPIC_STOP_WORDS = new Set(['a', 'an', 'and', 'are', 'can', 'do', 'does', 'for', 'how', 'in', 'is', 'of', 'or', 'the', 'to', 'what', 'where', 'with', 'most'])
+
+function topicTokens(label: string): string[] {
+  return normalizeTopicDemand(label)
+    .split(' ')
+    .filter(token => token.length > 2 && !TOPIC_STOP_WORDS.has(token))
+}
+
+function hasVerifiedTextSignal(label: string, school: DirectComparisonSchool, notion: NotionBackfillRow | null): boolean {
+  const tokens = topicTokens(label)
+  if (tokens.length === 0) return false
+  const evidence = JSON.stringify({
+    structured: school.structured,
+    notion: notion?.status === 'clean' || notion?.status === 'matched'
+      ? { parsed: notion.parsed, raw_properties: notion.raw_properties }
+      : null,
+  }).toLowerCase()
+  return tokens.every(token => evidence.includes(token))
+}
+
+function measureVerifiedTopicCoverage(label: string, context: VerifiedContext) {
+  const match = matchComparisonRequest(label)
+  const ready = context.schools.filter(school => {
+    if (match.kind === 'supported') {
+      const cell = resolveAddedSchoolComparisonCell(match.label, school, context.notionBySlug.get(school.slug) ?? null)
+      return cell?.value != null && cell.value !== ''
+    }
+    return hasVerifiedTextSignal(label, school, context.notionBySlug.get(school.slug) ?? null)
+  }).length
+  return {
+    verified_school_count: ready,
+    verified_coverage_percent: context.schools.length === 0 ? 0 : Math.round((ready / context.schools.length) * 1000) / 10,
+  }
+}
 
 function makeDb(): SupabaseClient {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -67,6 +114,46 @@ async function finishRun(db: SupabaseClient, runId: string, values: Record<strin
   if (error) throw new Error(`topic creator run log update failed: ${error.message}`)
 }
 
+async function loadVerifiedContext(db: SupabaseClient): Promise<VerifiedContext> {
+  const [structuredRows, notionRows] = await Promise.all([
+    readAllPages<Record<string, unknown>>(
+      (from, to) => db.from('school_structured_data').select(RESEARCH_ROOM_STRUCTURED_SELECT).order('school_slug').range(from, to),
+      'topic creator structured-data lookup',
+    ),
+    readAllPages<NotionBackfillRow>(
+      (from, to) => db.from('school_notion_backfill').select('school_slug, status, parsed, raw_properties').order('school_slug').range(from, to),
+      'topic creator Notion-mirror lookup',
+    ),
+  ])
+  const structuredBySlug = new Map(structuredRows.map(row => [String(row.school_slug), row]))
+  const notionBySlug = new Map(notionRows.map(row => [row.school_slug, row]))
+  const structuredSlugs = Array.from(structuredBySlug.keys())
+  const schools = await readAllPages<DirectComparisonSchool>(
+    (from, to) => db
+      .from('schools')
+      .select('slug, name, city, region, country, boarding, gender_split, distance_airport')
+      .eq('country', 'United Kingdom')
+      .in('slug', structuredSlugs)
+      .order('slug')
+      .range(from, to)
+      .then(result => ({
+        data: (result.data ?? []).map(school => ({
+          slug: school.slug,
+          name: school.name,
+          city: school.city,
+          region: school.region,
+          boarding: school.boarding,
+          gender_split: school.gender_split,
+          distance_airport: school.distance_airport,
+          structured: structuredBySlug.get(school.slug) as StructuredRow | null ?? null,
+        })),
+        error: result.error,
+      })),
+    'topic creator UK school lookup',
+  )
+  return { schools, notionBySlug }
+}
+
 async function main(): Promise<void> {
   const db = makeDb()
   const claim = await claimRun(db)
@@ -96,14 +183,21 @@ async function main(): Promise<void> {
       readAllPages<TopicCatalogEntry>(
         (from, to) => db
           .from('research_room_topic_catalog')
-          .select('id, label, normalized_topic, demand_count, unique_parent_count, status')
+          .select('id, label, normalized_topic, demand_count, unique_parent_count, verified_school_count, verified_coverage_percent, status')
           .order('id')
           .range(from, to),
         'Research Room topic-catalog lookup',
       ),
     ])
 
-    const plan = planTopicDemandPromotions({ requests, existingCatalog: catalog })
+    const verifiedContext = await loadVerifiedContext(db)
+    const coverageByTopic = new Map(
+      Array.from(new Set(requests.map(request => request.normalized_topic))).map(topic => [
+        topic,
+        measureVerifiedTopicCoverage(topic, verifiedContext),
+      ]),
+    )
+    const plan: TopicDemandPlan = planTopicDemandPromotions({ requests, existingCatalog: catalog, coverageByTopic })
     if (mode === 'apply') {
       for (const promotion of plan.promotions) {
         const { error: upsertError } = await db
@@ -114,6 +208,8 @@ async function main(): Promise<void> {
             normalized_topic: promotion.normalized_topic,
             demand_count: promotion.demand_count,
             unique_parent_count: promotion.unique_parent_count,
+            verified_school_count: promotion.verified_school_count,
+            verified_coverage_percent: promotion.verified_coverage_percent,
             status: 'approved',
             source: 'parent_demand',
             updated_at: new Date().toISOString(),
@@ -137,9 +233,12 @@ async function main(): Promise<void> {
       mode,
       run_key: runKey,
       source: 'Research Room topic requests only',
+      source_data: 'verified school_structured_data and approved school_notion_backfill mirror',
+      verified_schools_evaluated: verifiedContext.schools.length,
       facts_created: 0,
       requests_evaluated: plan.requestsConsidered,
       candidates_below_threshold: plan.requestsBelowThreshold,
+      candidates_without_verified_coverage: plan.candidatesWithoutVerifiedCoverage,
       topics_would_promote: mode === 'dry-run' ? plan.promotions : 0,
       topics_promoted: mode === 'apply' ? plan.promotions : [],
       requests_marked_promoted: mode === 'apply' ? plan.requestsToPromote.length : 0,
