@@ -1,4 +1,5 @@
-name: Research Room UK comparisons
+name: Comparison Curator - UK comparison values
+run-name: Comparison Curator - UK comparison values (${{ github.event_name }})
 
 on:
   schedule:
@@ -19,12 +20,19 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: research-room-uk-comparison-values
+  cancel-in-progress: false
+
 jobs:
   run:
+    name: Fill verified missing UK comparison values
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      RESEARCH_ROOM_AUTOMATION_OWNER: comparison-curator
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -42,3 +50,15 @@ jobs:
           else
             npm run research:batch:uk-comparisons -- --${{ inputs.mode }} --json
           fi
+      - name: Record curator ownership
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### Research Room Comparison Curator"
+            echo "- Responsibility: fill verified missing UK comparison values"
+            echo "- Trigger: ${{ github.event_name }}"
+            echo "- Result: ${{ job.status }}"
+            echo "- AI/model calls: none"
+            echo "- Website crawling: disabled by the scheduler safety contract"
+          } >> "$GITHUB_STEP_SUMMARY"

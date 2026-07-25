@@ -1,0 +1,67 @@
+name: Comparison Curator - weekly health check
+run-name: Comparison Curator - weekly health check (${{ github.event_name }})
+
+on:
+  schedule:
+    # Sunday at 01:15 UTC, after both Sunday morning Research Room workers.
+    - cron: '15 1 * * 0'
+  workflow_dispatch:
+    inputs:
+      scope:
+        description: 'Choose which read-only check to run.'
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - parent-demand
+          - comparison-coverage
+          - added-school-coverage
+
+permissions:
+  contents: read
+
+concurrency:
+  group: research-room-comparison-curator-health
+  cancel-in-progress: false
+
+jobs:
+  audit:
+    name: Audit demand and verified database coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      RESEARCH_ROOM_AUTOMATION_OWNER: comparison-curator
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Provide CI env file
+        run: touch .env.local
+      - name: Review parent topic demand
+        if: github.event_name == 'schedule' || inputs.scope == 'all' || inputs.scope == 'parent-demand'
+        run: npm run research:requests
+      - name: Audit comparison-topic coverage
+        if: github.event_name == 'schedule' || inputs.scope == 'all' || inputs.scope == 'comparison-coverage'
+        run: npm run research:coverage
+      - name: Audit added-school coverage
+        if: github.event_name == 'schedule' || inputs.scope == 'all' || inputs.scope == 'added-school-coverage'
+        run: npm run research:coverage:add-school
+      - name: Record curator health check
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### Research Room Comparison Curator"
+            echo "- Responsibility: read-only demand and coverage health checks"
+            echo "- Trigger: ${{ github.event_name }}"
+            echo "- Result: ${{ job.status }}"
+            echo "- Database writes: none"
+            echo "- AI/model calls: none"
+            echo "- Website crawling: none"
+          } >> "$GITHUB_STEP_SUMMARY"
