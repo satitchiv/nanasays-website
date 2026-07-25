@@ -517,7 +517,10 @@ export default function ResearchRoom({
   ].filter(Boolean).join(' ')
 
   return (
-    <div className="rr-app">
+    <div
+      className="rr-app"
+      data-research-room-version="canonical-simplified-v1"
+    >
       <header className="rr-top">
         <div className="rr-top-in">
           <Link href="/" className="rr-brand-link" aria-label="Nanasays home">
