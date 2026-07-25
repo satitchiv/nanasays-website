@@ -29,6 +29,7 @@ import {
   type SchoolColumn,
 } from './comparison-placeholder'
 import SchoolAdder from './SchoolAdder'
+import { createClientUuid } from '@/lib/client-uuid'
 
 type Lens = 'general' | 'child_fit'
 
@@ -48,6 +49,8 @@ type LensListItem = {
 
 type Props = {
   data?: ComparisonData
+  availableComparisonIds?: string[]
+  parentDemandTopics?: Array<{ id: string; label: string }>
   activeChildName?: string | null
   lens?: Lens
   // Round-4 fix (Codex F3): when the server-side load throws, the page
@@ -169,6 +172,8 @@ function prettyGroupName(g: string): string {
 
 export default function ComparisonView({
   data = EMPTY_DATA,
+  availableComparisonIds = [],
+  parentDemandTopics = [],
   activeChildName = null,
   lens = 'general',
   loadError = null,
@@ -186,6 +191,8 @@ export default function ComparisonView({
   const searchParams = useSearchParams()
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null)
   const [removeError, setRemoveError] = useState<string | null>(null)
+  const [topicBusy, setTopicBusy] = useState<string | null>(null)
+  const [topicError, setTopicError] = useState<string | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const pickerRef = useRef<HTMLDivElement | null>(null)
   // Slice 6.6 t12 T1.1 + Codex P1#2 — optimistic column remove. The
@@ -462,6 +469,41 @@ export default function ComparisonView({
     }
   }
 
+  const existingTopicLabels = new Set(rows.map(row => row.label.trim().toLowerCase()))
+  const databaseTopics = parentDemandTopics.filter(topic =>
+    !existingTopicLabels.has(topic.label.trim().toLowerCase()),
+  )
+
+  async function addDatabaseTopic(topic: { id: string; label: string }) {
+    if (!activeChildId || topicBusy) return
+    setTopicBusy(topic.id)
+    setTopicError(null)
+    try {
+      const response = await fetch('/api/research-room/research-row', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          child_id: activeChildId,
+          row_label: topic.label,
+          request_id: createClientUuid(),
+        }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        setTopicError(typeof result?.code === 'string'
+          ? `That topic could not be added (${result.code}).`
+          : 'That topic could not be added. Please try again.')
+        return
+      }
+      router.refresh()
+    } catch (error) {
+      console.error('[comparison-view database topic]', error)
+      setTopicError('Network error while adding that topic. Please try again.')
+    } finally {
+      setTopicBusy(null)
+    }
+  }
+
   // Server-side load error: show an explicit banner. We deliberately do
   // NOT fall through to the empty-state CTA (which would suggest "add some
   // schools") because the user might already have schools — they just
@@ -656,6 +698,31 @@ export default function ComparisonView({
           {shortlistError}
           <button type="button" className="rr-chat-error-dismiss" onClick={() => setShortlistError(null)}>×</button>
         </div>
+      )}
+
+      {databaseTopics.length > 0 && (
+        <section className="rr-cmp-topics" aria-labelledby="rr-cmp-topics-title">
+          <div>
+            <div className="rr-cmp-topics-eyebrow">More verified comparisons</div>
+            <h2 id="rr-cmp-topics-title" className="rr-cmp-topics-title">Topics parents can explore</h2>
+            <p className="rr-cmp-topics-copy">These topics are backed by information already verified in our database.</p>
+          </div>
+          <div className="rr-cmp-topics-list">
+            {databaseTopics.map(topic => (
+              <button
+                key={topic.id}
+                type="button"
+                className="rr-cmp-topic-button"
+                onClick={() => void addDatabaseTopic(topic)}
+                disabled={!activeChildId || topicBusy !== null}
+              >
+                <span>{topic.label}</span>
+                <small>{topicBusy === topic.id ? 'Adding…' : 'Add comparison'}</small>
+              </button>
+            ))}
+          </div>
+          {topicError && <div className="rr-cmp-error" role="alert">{topicError}</div>}
+        </section>
       )}
 
       {/* Slice 6 commit 7 — ephemeral re-rank chip. Shows the active

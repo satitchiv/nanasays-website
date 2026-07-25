@@ -8,6 +8,7 @@ import {
   isSportPriority,
 } from './brief-predicates'
 import { canonicalJson } from './canonical-json'
+import { generalSeedRowSlug } from './seed-row-names'
 
 // Slice 5.5d / Slice 8 Build 2 — General-lens row seeder.
 //
@@ -79,6 +80,7 @@ export type SchoolMeta = {
   region:        string | null
   boarding:      boolean | null
   gender_split:  string | null
+  distance_airport?: string | null
 }
 
 // Shared by the server-side Research Room loaders and the verified batch jobs.
@@ -703,6 +705,19 @@ const GENERAL_SPECS: SeedRowSpec[] = [
   { slug: 'y9_y10_admissions',     row_name: 'Year 9 / 10 admissions',      group_name: 'Admissions', sort_order: 1700, build: buildY9Y10Admissions, winnerRule: 'neutral' },
   { slug: 'school_view',           row_name: 'School view',                 group_name: 'Media',      sort_order: 1800, build: buildSchoolView, winnerRule: 'neutral' },
 ]
+
+/** Resolve one managed seed row for a newly added school using the same
+ * builders as initial Research Room seeding. */
+export function resolveSeedComparisonCell(
+  rowName: string,
+  meta: SchoolMeta,
+  struct: StructuredRow | null,
+  notion: NotionBackfillRow | null = null,
+): CellValue | null {
+  const slug = generalSeedRowSlug(rowName)
+  const spec = GENERAL_SPECS.find(item => item.slug === slug)
+  return spec?.build({ meta, struct, notion }) ?? null
+}
 
 // ─── Brief-aware specs (Slice 8 Build 2) ────────────────────────────────────
 //
