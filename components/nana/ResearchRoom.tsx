@@ -9,6 +9,7 @@ import PartnerBriefTab, { type PartnerBrief } from './PartnerBriefTab'
 import VerdictTab, { type ResearchVerdictForUi } from './VerdictTab'
 import ResearchRoomChat, { type ChatState } from './ResearchRoomChat'
 import ComparisonView from './ComparisonView'
+import SchoolAdder from './SchoolAdder'
 import type { ComparisonData } from './comparison-placeholder'
 import type { Session, ResearchMessage } from '@/lib/nana/types'
 import './research-room.css'
@@ -44,7 +45,6 @@ type Props = {
   familyPreferences?: FamilyPreferences
   initialActiveChildId?: string | null
   comparisonData?: ComparisonData
-  availableComparisonIds?: string[]
   parentDemandTopics?: Array<{ id: string; label: string }>
   comparisonError?: string | null
   lens?: Lens
@@ -59,6 +59,11 @@ type Props = {
   activeLensId?: string | null
   partnerBrief?: PartnerBrief | null
   researchVerdict?: ResearchVerdictForUi | null
+  // RRV-11 — existence-only verdict probe (researchVerdict above is always
+  // null at SSR by design; see page.tsx) and the returning-user day-gap,
+  // both computed server-side in page.tsx.
+  hasVerdict?: boolean
+  daysSinceLastActive?: number | null
 }
 
 const TAB_ORDER: Tab[] = ['brief', 'compare', 'verdict', 'partner']
@@ -68,6 +73,15 @@ const TAB_LABELS: Record<Tab, string> = {
   compare: 'Comparison',
   verdict: 'Verdict',
   partner: 'Partner brief',
+}
+
+// RRV-11 — journey step captions ("Step N · <eyebrow>"), for the 3 steps
+// that make up the journey (brief/compare/verdict only — partner isn't a
+// step in this sequence, see rr-hero-actions in the render below).
+const JOURNEY_EYEBROW: Record<'brief' | 'compare' | 'verdict', string> = {
+  brief: 'The data',
+  compare: 'The research',
+  verdict: 'The recommendation',
 }
 
 const PLACEHOLDER_COPY: Record<Tab, { sub: string }> = {
@@ -93,7 +107,6 @@ export default function ResearchRoom({
   familyPreferences,
   initialActiveChildId = null,
   comparisonData,
-  availableComparisonIds = [],
   parentDemandTopics = [],
   comparisonError = null,
   lens             = 'general',
@@ -104,6 +117,8 @@ export default function ResearchRoom({
   activeLensId     = null,
   partnerBrief     = null,
   researchVerdict  = null,
+  hasVerdict       = false,
+  daysSinceLastActive = null,
 }: Props) {
   const router = useRouter()
   const [activeTab, setActiveTab] = useState<Tab>('compare')
@@ -131,15 +146,86 @@ export default function ResearchRoom({
   const [dismissedFullscreenChildIds, setDismissedFullscreenChildIds] =
     useState<ReadonlySet<string>>(() => new Set())
 
-  // 6-FU5 — optimistic active-lens id. Declared up here (before any
-  // closure that references it) because handleSwitchActiveLens flips
-  // it before the POST resolves; placing the state lower triggers a
-  // temporal-dead-zone error at module init.
-  const [optimisticActiveLensId, setOptimisticActiveLensId] =
-    useState<string | null>(activeLensId)
+  // RRV-11 — returning-user strip dismiss. In-memory only (resets on
+  // reload), matching the existing welcomeBackDismissed precedent in
+  // ResearchRoomChat.tsx for the same "greet once per visit" behavior.
+  const [returningDismissed, setReturningDismissed] = useState(false)
+  // RRV-11 (Fable post-build review) — hasVerdict is an SSR prop, so it
+  // stays false for the rest of THIS visit even after the parent
+  // generates their first verdict (VerdictTab's own POST doesn't touch
+  // page.tsx's props). Flips true the moment VerdictTab reports a
+  // successful generation, self-corrects to the real value on next
+  // load/router.refresh either way — same "client optimism, SSR is the
+  // source of truth on reload" shape as verdictReady below.
+  const [verdictJustGenerated, setVerdictJustGenerated] = useState(false)
+
+  // RRV-10 (Focus consolidation, 2026-07-20) — the six old row-arrangement
+  // mechanisms (base-lens tabs, topic lenses, saved-lens picker, re-rank
+  // pills, drag, save-as-lens) collapse into ONE state atom: which saved/
+  // topic lens (if any) is active, plus whatever unsaved ("ephemeral")
+  // pill/drag arrangement sits on top of it. Keeping both halves in ONE
+  // useState (instead of the two separate ones slice 6 originally had)
+  // means every focus-changing action is a single atomic setFocus call —
+  // there's no way for a reactive "clear the other half" effect to fire on
+  // a stale render and clobber a value another handler just set in the same
+  // tick (a real bug in the two-state version, caught in RRV-10's pre-build
+  // Fable review). `activeLensId` mirrors the session's persisted
+  // active_lens_id (optimistic — flips before the POST resolves, same as
+  // the old optimisticActiveLensId did). `ephemeralView` is the unsaved
+  // pill/drag arrangement; never persisted, dropped on refresh.
+  type EphemeralView = {
+    rowOrder:         string[]                       // row IDs in display order
+    visibleRows?:     string[]                       // canonical row_name allowlist
+    weights?:         Record<string, number>         // canonical row_name → 0..5 (pill source only)
+    label:            string                         // "↻ Re-rank by …" or "Custom view"
+    source:           'drag' | 'pill'
+    sourceMessageId?: string
+    sourceProposalId?: string
+  } | null
+  type FocusState = { activeLensId: string | null; ephemeralView: EphemeralView }
+  const [focus, setFocus] = useState<FocusState>({ activeLensId, ephemeralView: null })
+
+  // Undo — one-slot "previous focus" snapshot, restored by handleUndoFocus
+  // below. Every focus-changing handler writes the CURRENT focus into this
+  // ref before applying its change, so Undo always has somewhere to go
+  // back to; Undo itself re-snapshots the (about to be former) current
+  // focus, so a second Undo click toggles back to where you started —
+  // deliberate, the simpler of two defensible options per the pre-build
+  // review. Reading `.current` during render (in focusDescriptor further
+  // down) is safe here specifically because every write to this ref is
+  // always paired with a setFocus call in the same handler, so a
+  // re-render always follows shortly after any write.
+  const previousFocusRef = useRef<FocusState | null>(null)
+
+  // Server-truth sync: fires whenever the session's persisted active_lens_id
+  // changes for a reason THIS component didn't already account for locally
+  // — a chat-confirmed topic lens (create or ↻ refresh-merge), a save-as-
+  // lens flip, or another tab/device. Snapshots the prior focus for Undo,
+  // adopts the new lens, and drops any ephemeral view (it referenced the
+  // old row set). No-ops when the prop just confirms a switch this
+  // component already applied optimistically (prev.activeLensId already
+  // matches) — avoids a redundant snapshot overwrite on our own POSTs.
   useEffect(() => {
-    setOptimisticActiveLensId(activeLensId)
+    setFocus(prev => {
+      if (activeLensId === prev.activeLensId) return prev
+      previousFocusRef.current = prev
+      return { activeLensId, ephemeralView: null }
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeLensId])
+
+  // Cross-child hardening: ResearchRoom itself doesn't remount on child
+  // switch (only ResearchRoomChat does, via its key prop below), so
+  // without this a stale ephemeralView referencing child A's row UUIDs
+  // could leak into child B's table — every row ID would miss, silently
+  // filtering the table down to nothing. Not one of the six original
+  // mechanisms, but a direct instance of the golden rule ("never silently
+  // rearrange") this card exists to enforce, so it's included.
+  useEffect(() => {
+    setFocus({ activeLensId, ephemeralView: null })
+    previousFocusRef.current = null
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChildId])
 
   // Slice 6.6 Tier 3 — bridge between ComparisonView's ↻ Refresh button
   // and ResearchRoomChat's chat hook. ComparisonView fires
@@ -156,27 +242,16 @@ export default function ResearchRoom({
     setPendingRefreshTopicLens({ topicName, nonce: Date.now() })
   }
 
-  // Slice 6 commits 7+8 — ephemeral view. Pure client state; no DB
-  // write. The single source of truth is `rowOrder` (an explicit list
-  // of row IDs in display order). Both inputs flow into it:
-  //   - Drag-to-reorder (commit 8): drag-end sets rowOrder directly.
-  //   - ↻ Re-rank pill (commit 7): pill click computes rowOrder from
-  //     weights at click time and stores both. Weights stay around for
-  //     save-as-lens metadata (commit 9).
-  // Refreshing the page drops this state back to null.
-  type EphemeralView = {
-    rowOrder:         string[]                       // row IDs in display order
-    visibleRows?:     string[]                       // canonical row_name allowlist
-    weights?:         Record<string, number>         // canonical row_name → 0..5 (pill source only)
-    label:            string                         // "↻ Re-rank by …" or "Custom view"
-    source:           'drag' | 'pill'
-    sourceMessageId?: string
-    sourceProposalId?: string
-  } | null
-  const [ephemeralView, setEphemeralView] = useState<EphemeralView>(null)
+  // RRV-2 gap chips open the existing Nana panel. The question is retained
+  // by the comparison chip itself, while the chatbot remains unchanged.
+  const handleAskNanaGap = (_question: string) => {
+    setChatState((s) => (s === 'closed' ? 'default' : s))
+  }
 
   // Pill-click handler: compute initial rowOrder from weights against
-  // the currently-loaded comparison rows, then store both.
+  // the currently-loaded comparison rows, then store both. Keeps
+  // whichever lens (if any) is active — a pill view can sit on top of a
+  // saved/topic lens, same precedence as before this refactor.
   function handleApplyReRank(messageId: string, proposalId: string, viewSpec: import('@/lib/nana/types').ProposeViewSpec, label: string) {
     const rawRows = comparisonData?.rows ?? []
     const norm = (s: string) => s.trim().toLowerCase()
@@ -202,64 +277,65 @@ export default function ResearchRoom({
       if (aW !== null && bW !== null && aW !== bW) return bW - aW
       return a.idx - b.idx
     })
-    setEphemeralView({
-      rowOrder:         indexed.map(x => x.id),
-      visibleRows:      viewSpec.visible_rows,
-      weights:          viewSpec.weights,
-      label,
-      source:           'pill',
-      sourceMessageId:  messageId,
-      sourceProposalId: proposalId,
-    })
+    previousFocusRef.current = focus
+    setFocus(prev => ({
+      activeLensId: prev.activeLensId,
+      ephemeralView: {
+        rowOrder:         indexed.map(x => x.id),
+        visibleRows:      viewSpec.visible_rows,
+        weights:          viewSpec.weights,
+        label,
+        source:           'pill',
+        sourceMessageId:  messageId,
+        sourceProposalId: proposalId,
+      },
+    }))
   }
 
-  // Drag-reorder handler (commit 8): rowIds are the new ordering.
-  // Replaces any active pill view — last action wins. Label changes to
-  // "Custom view" so the chip distinguishes user-arranged from
-  // Nana-suggested.
+  // Drag-reorder handler: rowIds are the new ordering. Edits whatever
+  // ephemeral view is already live (task requirement: "drag edits it")
+  // rather than creating a second concept — last action wins, same as
+  // before this refactor. RRV-10 fix: also carries the originating
+  // pill's sourceMessageId/sourceProposalId forward (not just weights/
+  // visibleRows) when editing a pill result — without this, dragging on
+  // top of a pill permanently breaks canSaveAsLens's drag branch, since
+  // the save RPC needs those ids to re-read the original proposal
+  // (caught in RRV-10's pre-build Fable review — the branch existed in
+  // code but was unreachable).
   function handleReorderRows(rowIds: string[]) {
-    setEphemeralView(prev => {
-      // If a pill view was active, preserve its weights for save-as-lens
-      // (the parent may have manually tweaked Nana's suggestion).
-      const carriedWeights = prev?.source === 'pill' ? prev.weights : undefined
-      const carriedVisible = prev?.visibleRows
+    previousFocusRef.current = focus
+    setFocus(prev => {
+      const prevEphemeral = prev.ephemeralView
+      const fromPill = prevEphemeral?.source === 'pill'
       return {
-        rowOrder:    rowIds,
-        visibleRows: carriedVisible,
-        weights:     carriedWeights,
-        label:       prev?.source === 'pill' ? `${prev.label} (edited)` : 'Custom view',
-        source:      'drag',
+        activeLensId: prev.activeLensId,
+        ephemeralView: {
+          rowOrder:         rowIds,
+          visibleRows:      prevEphemeral?.visibleRows,
+          weights:          fromPill ? prevEphemeral.weights : undefined,
+          label:            fromPill ? `${prevEphemeral.label} (edited)` : 'Custom view',
+          source:           'drag',
+          sourceMessageId:  fromPill ? prevEphemeral.sourceMessageId  : undefined,
+          sourceProposalId: fromPill ? prevEphemeral.sourceProposalId : undefined,
+        },
       }
     })
   }
 
-  function handleClearReRank() { setEphemeralView(null) }
-
-  // Codex P1: ephemeralView's rowOrder/visibleRows reference the row
-  // set that was loaded WHEN the pill/drag fired. Switching base lens
-  // (URL `lens` prop changes) or activating/clearing a saved lens
-  // re-loads comparisonData against a different row UUID set; the
-  // stale overlay would either filter to nothing or pin the wrong
-  // rows. Drop it on either transition. Pill clicks themselves don't
-  // change `lens` or the optimistic active-lens id, so the just-set
-  // view survives. Tracking the optimistic id (not the prop) means
-  // the clear fires the moment the user picks a new lens, not 1.5s
-  // later when router.refresh resolves.
-  useEffect(() => {
-    setEphemeralView(null)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lens, optimisticActiveLensId])
-
   // Slice 6 commit 9 — save the current ephemeral view as a permanent
-  // lens. Only works when the view originated from a ↻ pill (source =
-  // 'pill') because the save_view_as_lens RPC reconstructs view_spec
-  // from parsed_answer.proposed_actions[id]. If the user dragged after
-  // the pill click, save is still allowed — the RPC saves the original
-  // proposal's spec, not the dragged tweaks. Future commit could add a
-  // separate "save current arrangement" RPC for drag-only views.
-  const canSaveAsLens = !!(ephemeralView && (ephemeralView.source === 'pill' || (ephemeralView.source === 'drag' && ephemeralView.sourceProposalId && ephemeralView.sourceMessageId)))
+  // lens. Only works when the view traces back to a ↻ pill (source =
+  // 'pill', or 'drag' carrying a pill's ids forward per the fix above)
+  // because the save_view_as_lens RPC reconstructs view_spec from
+  // parsed_answer.proposed_actions[id]. A pure drag-from-Everything with
+  // no originating pill still can't be saved — that would need a new
+  // RPC accepting client-supplied weights directly, out of scope for
+  // RRV-10 ("comparison_rows/lens data model stays as-is"). The button's
+  // disabled tooltip (in ComparisonView) says so honestly rather than
+  // implying it's broken.
+  const canSaveAsLens = !!(focus.ephemeralView && focus.ephemeralView.sourceMessageId && focus.ephemeralView.sourceProposalId)
 
   async function handleSaveAsLens(lensName: string): Promise<{ ok: boolean; code?: string; existingLensId?: string }> {
+    const ephemeralView = focus.ephemeralView
     if (!ephemeralView || !ephemeralView.sourceMessageId || !ephemeralView.sourceProposalId) {
       return { ok: false, code: 'no_savable_view' }
     }
@@ -278,7 +354,8 @@ export default function ResearchRoom({
       })
       const body = await res.json().catch(() => ({}))
       if (res.ok && body.ok) {
-        setEphemeralView(null)
+        previousFocusRef.current = focus
+        setFocus(prev => ({ ...prev, ephemeralView: null }))
         router.refresh()
         return { ok: true }
       }
@@ -299,6 +376,12 @@ export default function ResearchRoom({
   // No POST to /api/active-child needed (server already persisted).
   const handleChildAdded = (newChildId: string) => {
     setActiveChildId(newChildId)
+    // RRV-11 (senior review, post-commit) — same reset handleActiveChildChange
+    // does below. Missing it here let verdictJustGenerated=true from a
+    // PRIOR child leak onto a freshly-added child (which never has a
+    // verdict), showing a self-contradictory "verdict done, brief not
+    // done" journey state until the next full reload.
+    setVerdictJustGenerated(false)
     router.refresh()
   }
 
@@ -309,6 +392,11 @@ export default function ResearchRoom({
     if (nextChildId === activeChildId) return
     const prev = activeChildId
     setActiveChildId(nextChildId)  // optimistic
+    // RRV-11 — verdictJustGenerated is scoped to whichever child was
+    // active when it was set; a switch (even before router.refresh lands
+    // new hasVerdict) must not let it leak into the new child's journey
+    // state.
+    setVerdictJustGenerated(false)
     try {
       const res = await fetch('/api/active-child', {
         method: 'POST',
@@ -600,10 +688,10 @@ export default function ResearchRoom({
   //
   // Falls back to null when no lens is active. UUID misses are
   // silent (same posture as the RPC's unresolved-name drop on save).
-  // Reads optimisticActiveLensId so the overlay flips with the click,
-  // not 1.5s later.
-  const activeLens = optimisticActiveLensId
-    ? savedLenses.find(l => l.id === optimisticActiveLensId) ?? null
+  // Reads focus.activeLensId so the overlay flips with the click, not
+  // 1.5s later.
+  const activeLens = focus.activeLensId
+    ? savedLenses.find(l => l.id === focus.activeLensId) ?? null
     : null
 
   const activeLensOverlay = (() => {
@@ -651,15 +739,13 @@ export default function ResearchRoom({
     }
   })()
 
-  // Effective overlay: ephemeral (pill/drag) wins over saved lens. When
-  // the parent clears the ephemeral chip, the saved lens overlay
-  // resumes — clearing back to base lens is a separate action via the
-  // picker (Activate "General comparison" tab).
-  const effectiveOverlay = ephemeralView
+  // Effective overlay: ephemeral (pill/drag) wins over saved lens —
+  // same precedence as before this refactor.
+  const effectiveOverlay = focus.ephemeralView
     ? {
-        rowOrder:    ephemeralView.rowOrder,
-        visibleRows: ephemeralView.visibleRows ?? null,
-        label:       ephemeralView.label,
+        rowOrder:    focus.ephemeralView.rowOrder,
+        visibleRows: focus.ephemeralView.visibleRows ?? null,
+        label:       focus.ephemeralView.label,
         kind:        'ephemeral' as const,
       }
     : activeLensOverlay
@@ -671,17 +757,11 @@ export default function ResearchRoom({
         }
       : null
 
-  // Picker dropdown action — switch which saved lens drives the view
-  // (or clear back to base via lensId === null). 6-FU5: flip the
-  // client mirror BEFORE the fetch so the picker label + table
-  // overlay update on click; the server refresh reconciles in the
-  // background. Roll back optimistic state on POST failure so the
-  // UI matches DB truth.
-  async function handleSwitchActiveLens(lensId: string | null) {
+  // Persists a lens switch to the server; pure network side-effect — does
+  // NOT touch `focus` beyond rolling back on failure. Callers own the
+  // optimistic setFocus that happens before this is invoked.
+  async function persistActiveLensSwitch(lensId: string | null, rollbackTo: FocusState) {
     if (!initialSession) return
-    if (lensId === optimisticActiveLensId) return
-    const prev = optimisticActiveLensId
-    setOptimisticActiveLensId(lensId)
     try {
       const res = await fetch('/api/research-room/active-lens', {
         method:  'POST',
@@ -691,15 +771,154 @@ export default function ResearchRoom({
       if (!res.ok) {
         const body = await res.json().catch(() => ({}))
         console.error('[switch-active-lens]', res.status, body?.code)
-        setOptimisticActiveLensId(prev)
+        setFocus(rollbackTo)
         return
       }
       router.refresh()
     } catch (e) {
       console.error('[switch-active-lens]', e)
-      setOptimisticActiveLensId(prev)
+      setFocus(rollbackTo)
     }
   }
+
+  // Focus bar chip click — switch to a specific saved/topic lens. 6-FU5:
+  // flip local state BEFORE the fetch so the chip + table overlay update
+  // on click; the server refresh reconciles in the background.
+  // `opts.thenEphemeralView` is Undo's hook (handleUndoFocus below): when
+  // the caller explicitly passes that key — even with value null/undefined
+  // — the function proceeds even if lensId is unchanged, so an
+  // ephemeral-only undo (the lens didn't change, only the arrangement on
+  // top of it did) still applies.
+  function handleSwitchActiveLens(lensId: string | null, opts?: { thenEphemeralView?: EphemeralView }) {
+    if (!initialSession) return
+    const hasEphemeralOverride = opts ? 'thenEphemeralView' in opts : false
+    if (lensId === focus.activeLensId && !hasEphemeralOverride) return
+    previousFocusRef.current = focus
+    const rollbackTo = focus
+    const changingLens = lensId !== focus.activeLensId
+    setFocus({
+      activeLensId:  lensId,
+      ephemeralView: hasEphemeralOverride ? (opts!.thenEphemeralView ?? null) : null,
+    })
+    if (changingLens) void persistActiveLensSwitch(lensId, rollbackTo)
+  }
+
+  // Focus bar's "Everything" chip — the one case with no destination lens
+  // AND no ephemeral view, so it's its own small function rather than a
+  // handleSwitchActiveLens(null) call, which would no-op via the guard
+  // above whenever a lens id isn't actually changing (e.g. an ephemeral
+  // view is active with no lens underneath it — a very common case).
+  function handleSelectEverything() {
+    if (focus.activeLensId === null && focus.ephemeralView === null) return
+    previousFocusRef.current = focus
+    const rollbackTo = focus
+    const hadActiveLens = focus.activeLensId !== null
+    setFocus({ activeLensId: null, ephemeralView: null })
+    if (hadActiveLens) void persistActiveLensSwitch(null, rollbackTo)
+  }
+
+  // The golden-rule Undo control. Restores the one-slot "previous focus"
+  // snapshot via the same handler (and the same network/rollback path) a
+  // normal chip switch uses, so the session's persisted active_lens_id
+  // never drifts from what's on screen. handleSwitchActiveLens
+  // re-snapshots the current (about-to-be-former) focus as its first
+  // step, so a second Undo click toggles back to where you started.
+  function handleUndoFocus() {
+    const target = previousFocusRef.current
+    if (!target) return
+    // RRV-10 post-build Fable review: guard against a stale snapshot
+    // whose lens id doesn't belong to the CURRENT session — e.g. one
+    // captured right before a child switch lands (the snapshot could
+    // still reference the previous child's lens for one render), or a
+    // lens deleted in another tab. savedLenses is always scoped to this
+    // session, so anything not in it can't be safely restored — fall
+    // back to Everything rather than silently reactivating a lens that
+    // doesn't belong here.
+    const safeLensId = target.activeLensId === null || savedLenses.some(l => l.id === target.activeLensId)
+      ? target.activeLensId
+      : null
+    handleSwitchActiveLens(safeLensId, { thenEphemeralView: target.ephemeralView })
+  }
+
+  // The golden rule: a single "Showing: <focus> — because …" sentence,
+  // always visible, replacing four fragmented status strings the old
+  // six-mechanism UI had (stats-strip "active" text, corner-cell lens
+  // label, the ephemeral chip's "not saved" text, and the saved-lens
+  // picker button's own label). Reading previousFocusRef.current here
+  // during render is safe — see the ref's own comment above for why.
+  const focusDescriptor = (() => {
+    const ev = focus.ephemeralView
+    if (ev) {
+      if (ev.source === 'pill') {
+        return { label: ev.label, reason: 'because Nana re-ranked it just now, from your chat' }
+      }
+      if (ev.weights) {
+        // A drag that carried a pill's weights forward — the parent
+        // adjusted Nana's suggestion rather than starting from scratch.
+        return { label: ev.label, reason: "you adjusted Nana's suggestion" }
+      }
+      return { label: ev.label, reason: 'because you dragged rows into this order' }
+    }
+    if (activeLens) {
+      return {
+        label:  activeLens.lens_name,
+        reason: activeLens.is_topic_lens ? 'because you asked Nana about it' : 'a Focus you saved earlier',
+      }
+    }
+    return {
+      label:  'Everything',
+      reason: activeChild ? `arranged for ${activeChild.name} from your interview` : 'your personalized comparison',
+    }
+  })()
+  const previousFocus = previousFocusRef.current
+  const undoLabel = previousFocus
+    ? (previousFocus.activeLensId === null && previousFocus.ephemeralView === null ? 'Back to Everything' : 'Undo')
+    : null
+
+  // RRV-11 journey header — done/here/next per step. Grounded in real
+  // signals only, not navigation history:
+  //  - brief: funnel_state === 'comparison' means the interview actually
+  //    finished (lib/children.ts FunnelState — 'onboarding' | 'interview' |
+  //    'comparison', terminal at 'comparison').
+  //  - verdict: hasVerdict (SSR existence probe — see page.tsx) means a
+  //    verdict has been generated at least once.
+  //  - compare: no natural "done" gate of its own (continuously explorable,
+  //    per the master-plan's explorer-path design) — treated as done once a
+  //    verdict exists (can't have one without having engaged Comparison),
+  //    so the sequence never reads as step 3 finishing before step 2.
+  // Whichever step matches activeTab always renders "here", overriding done.
+  type JourneyState = 'done' | 'here' | 'next'
+  type JourneyTab = 'brief' | 'compare' | 'verdict'
+  const briefDone = activeChild?.funnel_state === 'comparison'
+  // hasVerdict is an SSR prop for the child the page loaded with — during
+  // the optimistic window after a child switch (activeChildId flips before
+  // router.refresh delivers new props), it still reflects the OLD child.
+  // Same guard VerdictTab's own verdictReady uses below.
+  const verdictDone = (activeChildId === initialActiveChildId && hasVerdict) || verdictJustGenerated
+  const journeySteps: { tab: JourneyTab; state: JourneyState }[] = [
+    { tab: 'brief', state: activeTab === 'brief' ? 'here' : briefDone ? 'done' : 'next' },
+    { tab: 'compare', state: activeTab === 'compare' ? 'here' : verdictDone ? 'done' : 'next' },
+    { tab: 'verdict', state: activeTab === 'verdict' ? 'here' : verdictDone ? 'done' : 'next' },
+  ]
+
+  // RRV-11 returning-user strip — shown when it's been ≥2 days since the
+  // last visit AND there's an active child to talk about (copy
+  // interpolates the child's name). Copy is built from real state only
+  // (funnel_state / hasVerdict) — no fabricated "what changed" specifics
+  // (e.g. deadline countdowns need RRV-4's entry-timeline data, which
+  // hasn't shipped yet).
+  const returningNextStep = !activeChild
+    ? null
+    : !briefDone
+      ? `Finish ${activeChild.name}'s brief to unlock the table.`
+      : !verdictDone
+        ? "You have enough for Nana's first take — check the Verdict."
+        : 'Revisit the Verdict — worth another look since your last visit.'
+  const showReturningStrip =
+    !returningDismissed &&
+    !!activeChild &&
+    daysSinceLastActive !== null &&
+    daysSinceLastActive >= 2
 
   const shellClass = [
     'rr-shell',
@@ -710,43 +929,120 @@ export default function ResearchRoom({
 
   return (
     <div className="rr-app">
-      <header className="rr-top">
-        <div className="rr-top-in">
-          <Link href="/" className="rr-brand-link" aria-label="Nanasays home">
-            <svg className="rr-brand-mark" aria-hidden="true">
-              <use href="#ic-nana" />
-            </svg>
-            <span className="rr-brand-text">
-              nana<em>says</em>
-            </span>
-            <span className="rr-brand-sub">research room</span>
-          </Link>
+      <header className="rr-hero">
+        <div className="rr-hero-in">
+          <div className="rr-hero-top">
+            <Link href="/" className="rr-brand-link" aria-label="Nanasays home">
+              <svg className="rr-brand-mark" aria-hidden="true">
+                <use href="#ic-nana" />
+              </svg>
+              <span className="rr-brand-text">
+                nana<em>says</em>
+              </span>
+              <span className="rr-brand-sub">research room</span>
+            </Link>
 
-          <nav className="rr-tabs" aria-label="Research room sections">
-            {TAB_ORDER.map((t) => (
+            {/* Fable pre-build review: ChildSelector self-hides for the
+                common single-child case (ChildSelector.tsx), which would
+                leave the hero with no child indicator at all. Fall back to
+                a static, non-interactive chip so single-child families
+                still see whose research this is — matches the approved
+                mock's child-chip, just conditional on there being a real
+                choice to make. */}
+            {childOptions.length > 1 ? (
+              <ChildSelector
+                childOptions={childOptions}
+                activeChildId={activeChildId}
+                onChange={handleActiveChildChange}
+              />
+            ) : activeChild ? (
+              <span className="rr-hero-chip">
+                <span className="rr-hero-chip-avatar" aria-hidden="true">
+                  {activeChild.name.charAt(0).toUpperCase()}
+                </span>
+                {activeChild.name}
+              </span>
+            ) : null}
+
+            <div className="rr-hero-actions">
               <button
-                key={t}
                 type="button"
-                className={`rr-tab${activeTab === t ? ' is-active' : ''}${t === 'compare' ? ' rr-tab-privileged' : ''}`}
-                onClick={() => handleTabClick(t)}
-                aria-current={activeTab === t ? 'page' : undefined}
+                className={`rr-hero-pill${activeTab === 'partner' ? ' is-active' : ''}`}
+                onClick={() => handleTabClick('partner')}
+                aria-current={activeTab === 'partner' ? 'page' : undefined}
               >
-                {TAB_LABELS[t]}
+                {TAB_LABELS.partner}
               </button>
-            ))}
-          </nav>
-
-          <div className="rr-top-meta">
-            <ChildSelector
-              childOptions={childOptions}
-              activeChildId={activeChildId}
-              onChange={handleActiveChildChange}
-            />
+              <Link href="/my-reports" className="rr-cta rr-cta-ghost rr-hero-cta">
+                ← My reports
+              </Link>
+            </div>
           </div>
 
-          <Link href="/my-reports" className="rr-cta rr-cta-ghost rr-top-cta">
-            ← My reports
-          </Link>
+          <p className="rr-hero-title">
+            {activeChild ? <>Researching for <em>{activeChild.name}</em></> : 'Your Research Room'}
+          </p>
+
+          {/* The 3-step journey — replaces the old flat rr-tabs row for
+              brief/compare/verdict. Partner brief moved to rr-hero-actions
+              above (it's a parallel tab, not a step in the data→research→
+              recommendation sequence). Same handleTabClick mechanic as
+              before — only the presentation changed. */}
+          <nav className="rr-journey" aria-label="Research room journey">
+            {journeySteps.map((step, i) => {
+              const n = i + 1
+              const desc =
+                step.tab === 'brief'
+                  ? (step.state === 'done'
+                      ? `Nana interviewed you about ${activeChild?.name ?? 'your child'} — goals, interests, what matters most.`
+                      : `Answer Nana's questions so the table can get personal to ${activeChild?.name ?? 'your child'}.`)
+                  : step.tab === 'compare'
+                    ? 'Check the facts side by side. Ask Nana anything as you go.'
+                    : "Nana's advice, built from your brief and this research."
+              return (
+                <button
+                  key={step.tab}
+                  type="button"
+                  className={`rr-step rr-step-${step.state}`}
+                  onClick={() => handleTabClick(step.tab)}
+                  aria-current={step.state === 'here' ? 'page' : undefined}
+                >
+                  <span className="rr-step-n" aria-hidden="true">{step.state === 'done' ? '✓' : n}</span>
+                  <span className="rr-step-body">
+                    <span className="rr-step-k">
+                      Step {n} · {JOURNEY_EYEBROW[step.tab]}
+                      {step.state === 'here' && <span className="rr-sr-only"> — you are here</span>}
+                      {step.state === 'done' && <span className="rr-sr-only"> — completed</span>}
+                    </span>
+                    <span className="rr-step-t">{TAB_LABELS[step.tab]}</span>
+                    <span className="rr-step-d">{desc}</span>
+                  </span>
+                </button>
+              )
+            })}
+          </nav>
+
+          {showReturningStrip && (
+            <div className="rr-returning" role="status">
+              <span className="rr-returning-text">
+                {/* Fable post-build review: last_active_at only bumps on
+                    chat turns (app/api/nana-research/route.ts), not page
+                    views — "since your last chat" is what this number
+                    actually measures, not "since you last opened this
+                    page". */}
+                <strong>Welcome back.</strong> It&rsquo;s been {daysSinceLastActive} days
+                since you last chatted with Nana. {returningNextStep}
+              </span>
+              <button
+                type="button"
+                className="rr-returning-dismiss"
+                onClick={() => setReturningDismissed(true)}
+                aria-label="Dismiss welcome back message"
+              >
+                ×
+              </button>
+            </div>
+          )}
         </div>
       </header>
 
@@ -763,21 +1059,49 @@ export default function ResearchRoom({
                 <div className="rr-view">
                   {t === 'compare' ? (
                     <>
+                      <div className="rr-view-head">
+                        <div>
+                          <div className="rr-view-eyebrow">Comparison · the canonical view</div>
+                          <h1 className="rr-view-title">
+                            Side by side, <em>through your child&rsquo;s eyes.</em>
+                          </h1>
+                          {/* Slice 6.6 Tier 3.5: sub-text paragraph removed
+                              to reclaim ~60px of vertical space for the
+                              comparison table. The lens tabs + active-lens
+                              chip below already convey the same information
+                              functionally. */}
+                        </div>
+                      </div>
+                      {activeChild && (
+                        <div className="rr-cmp-showing-row">
+                          <div className="rr-cmp-showing-for" role="status">
+                            Showing <strong>{activeChild.name}&rsquo;s</strong> matches
+                          </div>
+                          <SchoolAdder
+                            childId={activeChildId}
+                            excludeSlugs={(comparisonData?.schools ?? []).map(s => s.slug)}
+                            variant="compact"
+                          />
+                        </div>
+                      )}
                       <ComparisonView
                         data={comparisonData}
-                        availableComparisonIds={availableComparisonIds}
                         parentDemandTopics={parentDemandTopics}
-                        activeChildName={activeChild?.name ?? null}
                         activeChildId={activeChildId}
-                        lens={lens}
                         loadError={comparisonError}
                         viewOverlay={effectiveOverlay}
-                        onClearOverlay={handleClearReRank}
                         onReorderRows={handleReorderRows}
                         savedLenses={savedLenses}
-                        activeLensId={optimisticActiveLensId}
+                        activeLensId={focus.activeLensId}
                         onSwitchActiveLens={handleSwitchActiveLens}
+                        onSelectEverything={handleSelectEverything}
                         onRefreshTopicLens={handleRefreshTopicLens}
+                        onAskNanaGap={handleAskNanaGap}
+                        focusDescriptor={focusDescriptor}
+                        undoLabel={undoLabel}
+                        onUndoFocus={handleUndoFocus}
+                        canSaveAsLens={canSaveAsLens}
+                        onSaveAsLens={handleSaveAsLens}
                       />
                     </>
                   ) : t === 'brief' ? (
@@ -840,6 +1164,7 @@ export default function ResearchRoom({
                           verdict={verdictReady ? researchVerdict : null}
                           sessionId={verdictReady ? (initialSession?.id ?? null) : null}
                           childName={activeChild?.name ?? null}
+                          onVerdictReady={() => setVerdictJustGenerated(true)}
                         />
                       )
                     })()
@@ -879,8 +1204,6 @@ export default function ResearchRoom({
           initialBuildModeState={initialBuildModeState}
           lensView={lens ?? 'general'}
           onApplyReRank={handleApplyReRank}
-          canSaveAsLens={canSaveAsLens}
-          onSaveAsLens={handleSaveAsLens}
           pendingRefreshTopicLens={pendingRefreshTopicLens}
         />
       </div>

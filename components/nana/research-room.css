@@ -13,6 +13,7 @@
   --rr-off-2:    #EEF1F5;
   --rr-navy:     #1B3252;
   --rr-navy-lt:  #243F66;
+  --rr-navy-deep:#152A47;
   --rr-teal:     #34C3A0;
   --rr-teal-dk:  #239C80;
   --rr-teal-bg:  #E8FAF6;
@@ -58,22 +59,36 @@
   box-sizing: border-box;
 }
 
-/* ─── Top bar ──────────────────────────────────────────────────────── */
-.rr-top {
-  flex: 0 0 60px;
-  border-bottom: 1px solid var(--rr-border);
-  background: rgba(255,255,255,0.97);
-  backdrop-filter: blur(12px);
+/* ─── Concierge journey header (RRV-11) ───────────────────────────────
+   Replaces the old flat 60px rr-top bar with a navy hero: brand row
+   (brand + child indicator + Partner-brief pill + My reports), a one-line
+   title, the 3-step journey (brief -> compare -> verdict), and an
+   optional returning-user strip. z-index:30 carried over from the old
+   .rr-top — chat rail/scrim stacking depends on the header sitting above
+   .rr-shell. flex:0 0 auto (not a fixed px height) so real content height
+   (which varies — long child names, the conditional returning strip)
+   never clips; see the .rr-view-page container-query note below for how
+   the Child Brief sidebar stays correct regardless of this header's
+   actual height. */
+.rr-hero {
+  flex: 0 0 auto;
   position: relative;
   z-index: 30;
+  background: linear-gradient(160deg, var(--rr-navy) 0%, var(--rr-navy-deep) 70%);
+  color: var(--rr-white);
 }
-.rr-top-in {
-  height: 100%;
-  display: grid;
-  grid-template-columns: auto 1fr auto auto;
-  gap: 24px;
-  padding: 0 5%;
+.rr-hero-in {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 22px 5% 26px;
+}
+
+.rr-hero-top {
+  display: flex;
   align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
 }
 .rr-brand-link {
   display: flex;
@@ -82,13 +97,13 @@
   text-decoration: none;
   color: inherit;
 }
-.rr-brand-mark { width: 36px; height: 36px; flex-shrink: 0; }
+.rr-brand-mark { width: 32px; height: 32px; flex-shrink: 0; }
 .rr-brand-text {
   font-family: var(--rr-display);
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 800;
   letter-spacing: -0.4px;
-  color: var(--rr-navy);
+  color: var(--rr-white);
   display: inline-flex;
   align-items: baseline;
 }
@@ -97,48 +112,184 @@
   font-family: var(--rr-sans);
   font-size: 11px;
   font-weight: 700;
-  color: var(--rr-muted);
+  color: rgba(255,255,255,.62);
   text-transform: uppercase;
   letter-spacing: 1.4px;
-  border-left: 1px solid var(--rr-border);
+  border-left: 1px solid rgba(255,255,255,.25);
   padding-left: 14px;
-  margin-left: 12px;
+  margin-left: 4px;
 }
 
-.rr-tabs { display: flex; gap: 2px; }
-.rr-tab {
-  font-family: var(--rr-sans);
-  font-size: 13px;
-  font-weight: 700;
-  padding: 7px 14px;
-  border-radius: var(--rr-r-sm);
-  background: transparent;
-  border: 0;
-  color: var(--rr-muted);
-  cursor: pointer;
+/* Static fallback chip — shown instead of ChildSelector when there's
+   only one child (ChildSelector self-hides at childOptions.length<=1;
+   see ChildSelector.tsx). Keeps a "whose research is this" signal
+   visible for the common single-child case, matching the approved
+   mock's chip. */
+.rr-hero-chip {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  transition: background .15s, color .15s;
+  gap: 9px;
+  background: rgba(255,255,255,.10);
+  border: 1px solid rgba(255,255,255,.18);
+  color: var(--rr-white);
+  font-family: var(--rr-sans);
+  font-weight: 700;
+  font-size: 13.5px;
+  border-radius: var(--rr-r-pill);
+  padding: 6px 16px 6px 6px;
 }
-.rr-tab:hover { background: var(--rr-off); color: var(--rr-navy); }
-.rr-tab.is-active { background: var(--rr-navy); color: var(--rr-white); }
-.rr-tab.is-active:focus-visible { outline: 2px solid var(--rr-teal); outline-offset: 2px; }
-.rr-tab-privileged::before {
-  content: "";
-  display: inline-block;
-  width: 6px;
-  height: 6px;
+.rr-hero-chip-avatar {
+  width: 26px; height: 26px;
+  flex: 0 0 26px;
   border-radius: 50%;
   background: var(--rr-teal);
-  margin-right: 4px;
+  color: var(--rr-white);
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--rr-display);
+  font-size: 12px; font-weight: 900;
 }
 
-.rr-top-meta {
+/* ChildSelector's own rules (.rr-child-selector*, below) already render
+   legibly anywhere (they carry their own opaque background) — these just
+   match the hero's frosted-glass treatment when it's mounted here. */
+.rr-hero-top .rr-child-selector { color: rgba(255,255,255,.75); }
+.rr-hero-top .rr-child-selector-input {
+  color: var(--rr-white);
+  background: rgba(255,255,255,.10);
+  border-color: rgba(255,255,255,.22);
+}
+.rr-hero-top .rr-child-selector-input:focus-visible {
+  border-color: var(--rr-teal);
+  box-shadow: 0 0 0 3px rgba(52,195,160,.35);
+}
+
+.rr-hero-actions {
+  margin-left: auto;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
+.rr-hero-pill {
+  font-family: var(--rr-sans);
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 7px 15px;
+  border-radius: var(--rr-r-pill);
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.18);
+  color: rgba(255,255,255,.8);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.rr-hero-pill:hover { background: rgba(255,255,255,.16); color: var(--rr-white); }
+.rr-hero-pill.is-active { background: var(--rr-white); color: var(--rr-navy); border-color: var(--rr-white); }
+.rr-hero-pill:focus-visible { outline: 2px solid var(--rr-teal); outline-offset: 2px; }
+.rr-hero-cta.rr-cta-ghost {
+  background: transparent;
+  color: var(--rr-white);
+  border: 1px solid rgba(255,255,255,.28);
+}
+.rr-hero-cta.rr-cta-ghost:hover { background: rgba(255,255,255,.10); border-color: rgba(255,255,255,.5); }
+
+.rr-hero-title {
+  font-family: var(--rr-display);
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -.01em;
+  margin: 0 0 16px;
+  color: var(--rr-white);
+}
+.rr-hero-title em { color: var(--rr-teal); font-style: normal; }
+
+/* ─── The journey — the 3-step nav that replaces the old rr-tabs row.
+   handleTabClick is unchanged; only the button chrome moved here. ─── */
+.rr-journey { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.rr-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  text-align: left;
+  background: rgba(255,255,255,.06);
+  border: 1px solid rgba(255,255,255,.12);
+  border-radius: var(--rr-r-lg);
+  padding: 14px 16px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background .15s, border-color .15s;
+}
+.rr-step:hover { background: rgba(255,255,255,.10); }
+.rr-step-here {
+  background: rgba(52,195,160,.16);
+  border-color: rgba(52,195,160,.45);
+}
+.rr-step:focus-visible { outline: 2px solid var(--rr-teal); outline-offset: 2px; }
+
+.rr-step-n {
+  flex: 0 0 34px;
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 15px;
+  font-family: var(--rr-display);
+}
+.rr-step-done .rr-step-n { background: var(--rr-teal); color: var(--rr-white); }
+.rr-step-here .rr-step-n { background: var(--rr-white); color: var(--rr-navy); }
+.rr-step-next .rr-step-n { background: rgba(255,255,255,.14); color: rgba(255,255,255,.75); }
+
+.rr-step-body { min-width: 0; }
+.rr-step-k {
+  display: block;
+  font-size: 11px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--rr-teal);
+  margin-bottom: 2px;
+}
+.rr-step-next .rr-step-k { color: rgba(255,255,255,.55); }
+.rr-step-t {
+  display: block;
+  font-family: var(--rr-display);
+  font-weight: 900; font-size: 16px; line-height: 1.3;
+  color: var(--rr-white);
+}
+.rr-step-next .rr-step-t { color: rgba(255,255,255,.68); }
+.rr-step-d {
+  display: block;
+  font-size: 12.5px; line-height: 1.45;
+  color: rgba(255,255,255,.72);
+  margin-top: 3px;
+}
+
+/* Visually-hidden state text (Fable pre-build review: done/here can't be
+   color-only signals) — reuses the existing .rr-sr-only utility defined
+   further down (Codex r5 P2.4); no new rule needed here (Fable post-build
+   review caught a duplicate on first pass). */
+
+/* ─── Returning-user strip ────────────────────────────────────────── */
+.rr-returning {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: var(--rr-r-md);
+  padding: 10px 16px;
+  font-size: 13.5px;
+  line-height: 1.5;
+  color: rgba(255,255,255,.85);
+}
+.rr-returning-text strong { color: var(--rr-white); }
+.rr-returning-dismiss {
+  margin-left: auto;
+  flex: 0 0 auto;
+  background: transparent;
+  border: 0;
+  color: rgba(255,255,255,.6);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+.rr-returning-dismiss:hover { color: var(--rr-white); }
 
 .rr-child-selector {
   display: inline-flex;
@@ -255,6 +406,16 @@
   overflow-y: auto;
   overflow-x: hidden;
   padding: 36px 48px 72px;
+  /* RRV-11 (Fable pre-build review) — both dimensions here are already
+     externally resolved (flex-basis for width, 100% cascaded from the
+     .rr-shell/.rr-view-pager flex chain for height, not content-driven),
+     so `size` containment is safe. This lets the Child Brief sidebar
+     below size itself against this scrollport's REAL height (100cqh)
+     instead of a hand-maintained "100dvh minus the header's guessed
+     pixel height" constant — correct at every breakpoint, immune to the
+     hero's actual rendered height and to the returning-user strip
+     showing/hiding. */
+  container-type: size;
 }
 
 .rr-view { max-width: 1480px; margin: 0 auto; }
@@ -1752,18 +1913,12 @@
   opacity: 0.45;
   cursor: not-allowed;
 }
-/* Save-view chip is teal-toned to match the lens iconography. */
-.rr-chat-rail-chip--save:not(:disabled) {
-  border-color: var(--rr-teal);
-  background: var(--rr-teal-bg, rgba(52, 195, 160, 0.1));
-  color: var(--rr-teal-dk);
-}
-.rr-chat-rail-chip--save:hover:not(:disabled) {
-  background: rgba(52, 195, 160, 0.18);
-}
-/* Slice 6.5 — topic-lens chip mirrors save-view's teal accent because
-   both produce a comparison_lenses row. ✦ + 'Create lens for…' is the
-   discoverable entry point for the propose_create_topic_lens flow. */
+/* Slice 6.5 — topic-lens chip is teal-toned to match the lens
+   iconography. ✦ + 'Create lens for…' is the discoverable entry point
+   for the propose_create_topic_lens flow. RRV-10: the "Save view" chip
+   that used to sit here (and reused this same teal treatment) moved to
+   the Focus bar — see .rr-cmp-lens-tab--save + .rr-cmp-save-focus-* in
+   the Focus-bar section below. */
 .rr-chat-rail-chip--topic-lens:not(:disabled) {
   border-color: var(--rr-teal);
   background: var(--rr-teal-bg, rgba(52, 195, 160, 0.1));
@@ -1771,60 +1926,6 @@
 }
 .rr-chat-rail-chip--topic-lens:hover:not(:disabled) {
   background: rgba(52, 195, 160, 0.18);
-}
-
-/* Inline save-as-lens form expands beside / below the chips. */
-.rr-chat-rail-save-form {
-  display: flex;
-  flex: 1 1 100%;
-  align-items: center;
-  gap: 6px;
-  margin-top: 6px;
-  padding: 6px 4px 0;
-}
-.rr-chat-rail-save-input {
-  flex: 1 1 auto;
-  min-width: 0;
-  padding: 6px 10px;
-  border: 1px solid var(--rr-border);
-  border-radius: 6px;
-  font-family: var(--rr-sans);
-  font-size: 13px;
-  color: var(--rr-navy);
-  background: var(--rr-white);
-}
-.rr-chat-rail-save-input:focus {
-  outline: 2px solid var(--rr-teal);
-  outline-offset: 1px;
-}
-.rr-chat-rail-save-submit {
-  padding: 6px 12px;
-  border: 1px solid var(--rr-teal);
-  border-radius: 6px;
-  background: var(--rr-teal);
-  color: white;
-  font-weight: 700;
-  font-size: 12px;
-  cursor: pointer;
-}
-.rr-chat-rail-save-submit:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.rr-chat-rail-save-cancel {
-  padding: 6px 10px;
-  border: 1px solid var(--rr-border);
-  border-radius: 6px;
-  background: var(--rr-white);
-  color: var(--rr-muted);
-  font-size: 12px;
-  cursor: pointer;
-}
-.rr-chat-rail-save-error {
-  flex: 1 1 100%;
-  font-size: 11px;
-  color: var(--rr-danger, #b1583e);
-  margin-top: 2px;
 }
 
 /* ── Slice 6 commit 8 · drag handle on each comparison row ──────────── */
@@ -2052,48 +2153,40 @@
   border-color: var(--rr-error, #b53030);
 }
 
-/* ── Slice 6 commit 7 · active-overlay chip in comparison header ──────── */
-.rr-cmp-overlay-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  margin: 12px 0 0;
-  padding: 6px 8px 6px 12px;
-  border: 1px solid var(--rr-amber, #d4a64a);
-  border-radius: 100px;
-  background: rgba(212, 166, 74, 0.08);
-  color: var(--rr-amber-dk, #8a6420);
+/* ── RRV-10 (Focus consolidation) · "Showing: <focus> — because …" ────
+   The golden-rule sentence + Undo, always rendered (replaces the old
+   ephemeral-only amber "view applied" chip below it used to be — this
+   is the single always-visible status line for all four Focus states,
+   so it's kept low-key/text-toned rather than a "heads up" chip). ── */
+.rr-cmp-showing-focus {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 10px;
+  margin: 10px 0 0;
   font-family: var(--rr-sans);
-  font-size: 13px;
-  font-weight: 500;
-  max-width: max-content;
+  font-size: 13.5px;
+  color: var(--rr-muted);
 }
-.rr-cmp-overlay-chip-icon {
-  font-weight: 800;
-  font-size: 14px;
-  line-height: 1;
-}
-.rr-cmp-overlay-chip-text strong {
+.rr-cmp-showing-focus strong {
+  color: var(--rr-navy);
   font-weight: 700;
 }
-.rr-cmp-overlay-chip-meta {
-  color: var(--rr-amber-dk, #8a6420);
-  opacity: 0.7;
-  font-weight: 400;
-}
-.rr-cmp-overlay-chip-clear {
-  border: 0;
-  background: transparent;
-  color: var(--rr-amber-dk, #8a6420);
-  font-size: 18px;
-  line-height: 1;
+.rr-cmp-showing-focus-undo {
+  border: 1px solid var(--rr-border);
+  border-radius: var(--rr-r-pill);
+  background: var(--rr-white);
+  color: var(--rr-teal-dk);
+  font-family: var(--rr-sans);
+  font-size: 12.5px;
+  font-weight: 700;
+  padding: 4px 12px;
   cursor: pointer;
-  padding: 0 4px;
-  border-radius: 50%;
-  transition: background 120ms ease;
+  transition: all .2s;
 }
-.rr-cmp-overlay-chip-clear:hover {
-  background: rgba(212, 166, 74, 0.18);
+.rr-cmp-showing-focus-undo:hover {
+  border-color: var(--rr-teal);
+  background: var(--rr-teal-bg, rgba(52, 195, 160, 0.1));
 }
 
 /* ── Slice 5 · custom-row remove button + error banner ───────────────── */
@@ -2488,65 +2581,65 @@
 
 /* ─── Mobile (≤880px) ──────────────────────────────────────────────── */
 @media (max-width: 880px) {
-  /* Top bar: condense — drop the desktop CTA and ChildSelector slot. The
-     subtitle pip becomes the third column so the layout stays balanced. */
-  .rr-top-in {
-    grid-template-columns: auto 1fr;
-    padding: 0 16px;
-    gap: 12px;
-  }
+  /* Hero: condense hard. The fixed-viewport .rr-app shell (overflow:hidden,
+     no page scroll to compensate) means a tall header steals real content
+     space on a phone — so mobile does NOT get the desktop's full 3-card
+     journey grid (that treatment isn't in the approved mock either; the
+     mock only specs down to 1120px in a normal scrolling page). Drop the
+     ChildSelector/chip, the title line, and the step captions/descriptions;
+     keep a compact horizontal step-strip (same pill-scroller spirit as the
+     old .rr-tabs mobile treatment) and the Partner-brief pill reachable
+     (today's 4-tab mobile scroller has it — this must not regress that). */
+  .rr-hero-in { padding: 14px 16px 12px; }
+  .rr-hero-top { margin-bottom: 10px; gap: 10px; }
   .rr-brand-sub {
     padding-left: 10px;
     margin-left: 8px;
     font-size: 10px;
     letter-spacing: 1.2px;
   }
-  .rr-top-meta { display: none; }
-  .rr-top-cta { display: none; }
+  .rr-hero-chip,
+  .rr-hero-top .rr-child-selector { display: none; }
+  .rr-hero-cta { display: none; }
+  .rr-hero-title { display: none; }
 
-  /* Tabs become a horizontal pill scroller below the brand row. They are the
-     2nd grid item now, so they get their own row by spanning full width. */
-  .rr-tabs {
-    grid-column: 1 / -1;
-    grid-row: 2;
+  /* Journey becomes a horizontal pill scroller — number/check + title
+     only, captions and descriptions drop. */
+  .rr-journey {
     display: flex;
+    grid-template-columns: none;
     gap: 6px;
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
     margin: 0 -16px;
-    padding: 0 16px 10px;
+    padding: 0 16px 2px;
     scroll-snap-type: x proximity;
   }
-  .rr-tabs::-webkit-scrollbar { display: none; }
-  .rr-tab {
+  .rr-journey::-webkit-scrollbar { display: none; }
+  .rr-step {
     flex: 0 0 auto;
     scroll-snap-align: center;
-    padding: 8px 14px;
-    font-size: 12.5px;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px 8px 8px;
     border-radius: var(--rr-r-pill);
-    border: 1px solid var(--rr-border);
-    background: var(--rr-white);
   }
-  .rr-tab.is-active {
-    background: var(--rr-navy);
-    color: var(--rr-white);
-    border-color: var(--rr-navy);
-  }
+  .rr-step-n { width: 26px; height: 26px; flex: 0 0 26px; font-size: 12.5px; }
+  .rr-step-k, .rr-step-d { display: none; }
+  .rr-step-t { font-size: 13.5px; }
 
-  /* Top bar grows to two rows on mobile. */
-  .rr-top {
-    flex: 0 0 auto;
-    padding-top: 10px;
+  /* Partner-brief pill stays visible and reachable — it's the one control
+     the compact meta row would otherwise have hidden entirely. */
+  .rr-hero-actions { margin-left: 0; }
+  .rr-hero-pill { padding: 6px 13px; font-size: 12px; }
+
+  .rr-returning {
+    margin-top: 10px;
+    padding: 8px 12px;
+    font-size: 12.5px;
+    gap: 10px;
   }
-  .rr-top-in {
-    height: auto;
-    min-height: 56px;
-    padding-top: 4px;
-    padding-bottom: 0;
-    align-items: start;
-  }
-  .rr-brand-link { padding-top: 6px; }
 
   /* Shell: chat rail collapses entirely; main column owns the viewport. */
   .rr-shell {
@@ -2824,86 +2917,86 @@
   color: var(--rr-muted);
   margin-left: 6px;
 }
-/* Slice 6 close — saved-lens picker. The trigger reuses the lens-tab
-   pill style so it sits flush with General/Child fit; the menu floats
-   beneath, clamped to a comfortable width. */
-.rr-cmp-lens-picker {
+/* RRV-10 (Focus consolidation) — the old saved-lens dropdown picker
+   (.rr-cmp-lens-picker* — a floating menu) is gone, replaced by flat
+   chips using the plain .rr-cmp-lens-tab styles above (every saved/
+   topic lens renders as its own chip in the same row as "Everything").
+   "Save this Focus" (relocated from the chat rail) reuses the same
+   .rr-cmp-lens-tab base with a teal accent, matching the old chat-rail
+   save chip's color treatment. */
+.rr-cmp-save-focus {
   position: relative;
-  display: inline-block;
-}
-.rr-cmp-lens-tab--picker {
   display: inline-flex;
+  flex-wrap: wrap;
+}
+.rr-cmp-lens-tab--save:not(:disabled) {
+  border-color: var(--rr-teal);
+  color: var(--rr-teal-dk);
+}
+.rr-cmp-lens-tab--save:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+.rr-cmp-save-focus-form {
+  display: flex;
   align-items: center;
   gap: 6px;
-}
-.rr-cmp-lens-picker-caret {
-  font-size: 10px;
-  line-height: 1;
-  margin-top: 1px;
-}
-.rr-cmp-lens-picker-menu {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
   z-index: 30;
-  min-width: 240px;
-  max-width: 320px;
+  min-width: 280px;
+  padding: 8px;
   background: var(--rr-white);
   border: 1.5px solid var(--rr-border);
   border-radius: 12px;
   box-shadow: 0 12px 32px var(--rr-shadow);
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
 }
-.rr-cmp-lens-picker-eyebrow {
-  font-family: var(--rr-sans);
-  font-size: 10px;
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  color: var(--rr-muted);
-  font-weight: 800;
-  padding: 6px 8px 4px;
-}
-.rr-cmp-lens-picker-item {
-  display: grid;
-  grid-template-columns: 18px 1fr auto;
-  align-items: center;
-  gap: 8px;
-  background: transparent;
-  border: 0;
-  border-radius: 8px;
-  padding: 8px 10px;
+.rr-cmp-save-focus-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--rr-border);
+  border-radius: 6px;
   font-family: var(--rr-sans);
   font-size: 13px;
   color: var(--rr-navy);
+  background: var(--rr-white);
+}
+.rr-cmp-save-focus-input:focus {
+  outline: 2px solid var(--rr-teal);
+  outline-offset: 1px;
+}
+.rr-cmp-save-focus-submit {
+  padding: 6px 12px;
+  border: 1px solid var(--rr-teal);
+  border-radius: 6px;
+  background: var(--rr-teal);
+  color: white;
+  font-weight: 700;
+  font-size: 12px;
   cursor: pointer;
-  text-align: left;
 }
-.rr-cmp-lens-picker-item:hover {
-  background: var(--rr-cream, #f7f3ec);
+.rr-cmp-save-focus-submit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
-.rr-cmp-lens-picker-item.is-active {
-  background: var(--rr-teal-soft, rgba(120, 200, 200, 0.18));
-  font-weight: 700;
-}
-.rr-cmp-lens-picker-check {
-  color: var(--rr-teal-dk);
-  font-weight: 800;
-  text-align: center;
-}
-.rr-cmp-lens-picker-name {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.rr-cmp-lens-picker-base {
-  font-size: 10px;
-  letter-spacing: 1px;
-  text-transform: uppercase;
+.rr-cmp-save-focus-cancel {
+  padding: 6px 10px;
+  border: 1px solid var(--rr-border);
+  border-radius: 6px;
+  background: var(--rr-white);
   color: var(--rr-muted);
-  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+}
+.rr-cmp-save-focus-error {
+  flex: 1 1 100%;
+  font-size: 11px;
+  color: var(--rr-danger, #b1583e);
+  margin-top: 2px;
 }
 .rr-cmp-stats {
   display: inline-flex;
@@ -2914,13 +3007,6 @@
   font-size: 12px;
   color: var(--rr-muted);
   text-align: right;
-}
-.rr-cmp-stats strong {
-  color: var(--rr-navy);
-  font-weight: 700;
-}
-.rr-cmp-stats-divider {
-  opacity: 0.5;
 }
 /* Slice 6.6 Tier 3.5 — inline ↻ Refresh button. Replaces the standalone
    chip from the first Tier 3 pass; the user wanted a denser controls
@@ -3323,12 +3409,143 @@
   color: var(--rr-bmd);
   font-weight: 700;
 }
+
+/* ── RRV-2 never-blank table: ladder rungs 2-4 ──────────────────────
+   Rung 2 (derived "≈" tag) reuses the amber tone already defined for
+   .rr-cmp-cell-badge--amber above. Rung 3 (cohort context) and rung 4
+   (Ask-Nana chip) are new: gray/muted for "we don't have this, but here's
+   context", teal for "here's an action" — matching the existing rr-teal
+   accent already used for chat-rail chips (.rr-chat-rail-chip) elsewhere
+   in this file, so the gap chip reads as part of the same chat-affordance
+   family rather than a one-off. */
+.rr-cmp-tag {
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  font-weight: 800;
+  padding: 1px 7px;
+  border-radius: var(--rr-r-pill);
+  vertical-align: middle;
+  margin-left: 6px;
+}
+.rr-cmp-tag--derived {
+  background: var(--rr-amber-bg);
+  color: var(--rr-amber);
+}
+.rr-cmp-tag--cohort {
+  background: var(--rr-off-2);
+  color: var(--rr-muted);
+  margin-left: 0;
+}
+.rr-cmp-cell-cohort {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.rr-cmp-ask-nana {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1.5px dashed var(--rr-teal);
+  color: var(--rr-teal-dk);
+  font-family: var(--rr-sans);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 5px 10px;
+  border-radius: var(--rr-r-pill);
+  cursor: pointer;
+  transition: background 120ms ease;
+  text-align: left;
+}
+.rr-cmp-ask-nana:hover:not(:disabled) {
+  background: var(--rr-teal-bg, rgba(52, 195, 160, 0.1));
+}
+.rr-cmp-ask-nana:focus-visible {
+  outline: 2px solid var(--rr-teal);
+  outline-offset: 2px;
+}
+.rr-cmp-ask-nana:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
 .rr-cmp-cell-sub {
   font-family: var(--rr-sans);
   font-size: 12.5px;
   color: var(--rr-muted);
   margin-top: 7px;
   font-weight: 600;
+}
+
+/* ── RRV-6: evidence chips ───────────────────────────────────────────
+   Inline <details>/<summary> disclosure, not a floating popover — the
+   table wrap is overflow-x:auto (clips absolutely-positioned children
+   per spec) and the mobile cards layout sets overflow:hidden per row.
+   An inline disclosure just grows the row's own height instead, which
+   both layouts already handle (see EvidenceDisclosure in
+   ComparisonView.tsx for the full rationale). Visual language borrows
+   from the mock (§6 quote blocks) and from the Verdict tab's existing
+   evidence-citation styling (.rr-vb3-evidence-cite) for consistency. */
+.rr-cmp-evidence {
+  margin-top: 8px;
+}
+.rr-cmp-evidence-trigger {
+  list-style: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: var(--rr-sans);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--rr-teal-dk);
+  padding: 3px 0;
+}
+.rr-cmp-evidence-trigger::-webkit-details-marker { display: none; }
+.rr-cmp-evidence-trigger:focus-visible {
+  outline: 2px solid var(--rr-teal);
+  outline-offset: 2px;
+}
+.rr-cmp-evidence-arrow {
+  color: var(--rr-muted);
+  transition: transform 120ms ease;
+}
+.rr-cmp-evidence[open] .rr-cmp-evidence-arrow {
+  transform: rotate(90deg);
+}
+.rr-cmp-evidence-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+.rr-cmp-evidence-quote {
+  border-left: 2.5px solid var(--rr-teal);
+  padding: 2px 0 2px 10px;
+}
+.rr-cmp-evidence-quote p {
+  margin: 0;
+  font-family: var(--rr-sans);
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--rr-body);
+}
+.rr-cmp-evidence-src {
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--rr-muted);
+}
+.rr-cmp-evidence-src a {
+  color: var(--rr-teal-dk);
+  text-decoration: underline;
+  text-decoration-color: rgba(35, 156, 128, 0.4);
+  text-underline-offset: 2px;
+}
+.rr-cmp-evidence-src .rr-cmp-tag {
+  margin-left: 6px;
 }
 
 /* ── Redesign req 1: winner highlighting ─────────────────────────────
@@ -3434,6 +3651,304 @@
 .rr-cmp-stamp--red {
   background: var(--rr-rust-bg);
   color: var(--rr-rust);
+}
+
+/* ── RRV-5: fit bars (mock §4) ────────────────────────────────────────
+   Discrete N-of-M filled segments, never a continuous width — the word
+   is the claim, the segments are its ordinal position on a small named
+   scale, nothing implies a measured score in between. */
+.rr-cmp-cell-band {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.rr-cmp-cell-band-track {
+  display: inline-flex;
+  gap: 3px;
+}
+.rr-cmp-cell-band-seg {
+  display: block;
+  width: 14px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--rr-off-2);
+}
+.rr-cmp-cell-band-seg.is-filled {
+  background: var(--rr-teal);
+}
+/* Muted = a genuine mismatch with what this family asked for (e.g. a
+   day-only school for a full-boarding seeker) — never "low confidence".
+   --rr-muted (not the lighter --rr-bmd) so the bar stays visible against
+   the --rr-off-2 track, not just the word. */
+.rr-cmp-cell-band--muted .rr-cmp-cell-band-seg.is-filled {
+  background: var(--rr-muted);
+}
+.rr-cmp-cell-band-word {
+  font-family: var(--rr-sans);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--rr-navy);
+}
+.rr-cmp-cell-band--muted .rr-cmp-cell-band-word {
+  color: var(--rr-muted);
+}
+
+/* ── RRV-5: boarding mix (mock §5) ────────────────────────────────────
+   A genuine 2-segment board/day proportional bar — only rendered when a
+   real per-school % exists (buildBoardingRatio). The categorical-only
+   fallback (no proportion on record) renders as a plain word/badge cell
+   instead, via the existing tone/text branches below. */
+.rr-cmp-cell-mix {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.rr-cmp-cell-mix-value {
+  font-family: var(--rr-display);
+  font-size: 18px;
+  font-weight: 900;
+  color: var(--rr-navy);
+  font-variant-numeric: tabular-nums;
+}
+.rr-cmp-cell-mix-track {
+  display: flex;
+  width: 100%;
+  max-width: 140px;
+  height: 8px;
+  border-radius: var(--rr-r-pill);
+  overflow: hidden;
+  background: var(--rr-off-2);
+}
+.rr-cmp-cell-mix-fill {
+  display: block;
+  height: 100%;
+}
+.rr-cmp-cell-mix-fill--board {
+  background: var(--rr-navy);
+}
+.rr-cmp-cell-mix-fill--day {
+  background: var(--rr-bmd);
+}
+
+/* ── RRV-7: cross-school strips (mock §7 corridor + §8 exam band) ─────
+   Rendered as an in-flow grid child spanning `1 / -1` under its anchor
+   row's cells (auto-flows to an implicit second grid row on desktop; in
+   the ≤680px cards layout the row is a flex column so it just stacks).
+   Own inner overflow-x scroll — the table wrap / card rows clip
+   absolutely-positioned children (RRV-6 constraint), so everything here
+   stays in-flow relative to the scrolling inner element. */
+.rr-viz-strip {
+  border-top: 1px dashed var(--rr-border);
+  background: var(--rr-off);
+  padding: 14px 20px 10px;
+}
+.rr-corr-scroll,
+.rr-band-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Corridor: origin dot (LHR) + one stop per school along a line. Stop
+   left-offsets are precomputed %s from rrv7-viz.ts. */
+.rr-corr {
+  position: relative;
+  height: 108px;
+}
+.rr-corr-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 52px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--rr-bmd);
+}
+.rr-corr-stop {
+  position: absolute;
+  top: 6px;
+  transform: translateX(-50%);
+  width: 120px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.rr-corr-time {
+  font-family: var(--rr-display);
+  font-size: 15px;
+  font-weight: 900;
+  color: var(--rr-navy);
+  font-variant-numeric: tabular-nums;
+}
+.rr-corr-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--rr-teal);
+  border: 3px solid var(--rr-white);
+  box-shadow: 0 0 0 1px var(--rr-border);
+  margin: 6px 0;
+}
+.rr-corr-stop--origin .rr-corr-dot {
+  background: var(--rr-navy);
+}
+.rr-corr-name {
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.25;
+  color: var(--rr-muted);
+}
+.rr-corr-stop--origin .rr-corr-name {
+  color: var(--rr-navy);
+}
+
+/* Exam band: gradient track, dashed typical-range window, labeled dots.
+   Dot left-offsets and label sides are precomputed in rrv7-viz.ts. */
+.rr-band {
+  position: relative;
+  height: 96px;
+  min-width: 480px;
+  margin-top: 20px;
+}
+.rr-band-track {
+  position: absolute;
+  top: 38px;
+  left: 0;
+  right: 0;
+  height: 10px;
+  border-radius: var(--rr-r-pill);
+  background: linear-gradient(90deg, var(--rr-off-2), var(--rr-teal-bg) 55%, var(--rr-teal));
+}
+.rr-band-typical {
+  position: absolute;
+  top: 32px;
+  height: 22px;
+  border-left: 2px dashed var(--rr-muted);
+  border-right: 2px dashed var(--rr-muted);
+}
+.rr-band-typical-lbl {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--rr-sans);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--rr-muted);
+  white-space: nowrap;
+}
+.rr-band-dot {
+  position: absolute;
+  top: 43px;
+  width: 13px;
+  height: 13px;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  background: var(--rr-navy);
+  border: 2.5px solid var(--rr-white);
+  box-shadow: 0 0 0 1px var(--rr-border);
+}
+.rr-band-dot-lbl {
+  position: absolute;
+  top: 13px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--rr-sans);
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--rr-navy);
+  white-space: nowrap;
+}
+.rr-band-dot--label-above .rr-band-dot-lbl {
+  top: auto;
+  bottom: 13px;
+}
+.rr-band-axis {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 66px;
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--rr-sans);
+  font-size: 10px;
+  color: var(--rr-muted);
+  font-variant-numeric: tabular-nums;
+}
+.rr-viz-note {
+  margin: 8px 0 0;
+  font-family: var(--rr-sans);
+  font-size: 11.5px;
+  color: var(--rr-body);
+}
+.rr-viz-note--muted {
+  color: var(--rr-muted);
+}
+
+/* RRV-4 entry timeline: a state chip + hedged caption per school, NOT a
+   plotted axis — see lib/research-room/rrv4-viz.ts for the honesty
+   reasoning. Deliberately simple rows (no positioning math) so nothing
+   here implies more precision than a one-time crawl snapshot supports. */
+.rr-timeline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.rr-timeline-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.rr-timeline-chip {
+  flex: 0 0 auto;
+  font-family: var(--rr-sans);
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: var(--rr-r-pill);
+  white-space: nowrap;
+}
+.rr-timeline-chip--rolling {
+  /* Hex fallback + color-mix, same dual-declaration precedent as
+     .rr-build-progress-basic-chip.is-captured above (Codex r5 NIT). */
+  background: #e3f3ea;
+  background: color-mix(in srgb, var(--rr-moss) 16%, transparent);
+  color: var(--rr-moss);
+}
+.rr-timeline-chip--dated-future {
+  background: #fbeed0;
+  background: color-mix(in srgb, var(--rr-amber) 20%, transparent);
+  color: #8a5a00;
+}
+.rr-timeline-chip--dated-past {
+  background: #f8e2dc;
+  background: color-mix(in srgb, var(--rr-rust) 16%, transparent);
+  color: var(--rr-rust);
+}
+.rr-timeline-chip--vague {
+  background: var(--rr-off-2);
+  color: var(--rr-muted);
+}
+.rr-timeline-name {
+  font-family: var(--rr-sans);
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--rr-navy);
+  flex: 0 0 auto;
+}
+.rr-timeline-caption {
+  font-family: var(--rr-sans);
+  font-size: 11.5px;
+  color: var(--rr-body);
 }
 
 /* ── Empty state (0 schools shortlisted) ───────────────────────────── */
@@ -4093,6 +4608,73 @@
   }
 }
 
+/* Database-backed parent-demand topics. Kept visually secondary to the
+   comparison itself: these are optional additions, not a competing page. */
+.rr-cmp-topics {
+  display: grid;
+  gap: 12px;
+  margin: 0 0 18px;
+  padding: 16px;
+  border: 1px solid var(--rr-border);
+  border-radius: 14px;
+  background: var(--rr-paper, #fff);
+}
+
+.rr-cmp-topics-eyebrow {
+  color: var(--rr-teal-dk);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.rr-cmp-topics-title {
+  margin: 2px 0 3px;
+  font-family: var(--rr-display);
+  font-size: 18px;
+}
+
+.rr-cmp-topics-copy {
+  margin: 0;
+  color: var(--rr-muted);
+  font-size: 13px;
+}
+
+.rr-cmp-topics-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rr-cmp-topic-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
+  border: 1px solid var(--rr-border);
+  border-radius: 999px;
+  background: #fff;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+}
+
+.rr-cmp-topic-button:hover:not(:disabled),
+.rr-cmp-topic-button:focus-visible {
+  border-color: var(--rr-teal-dk);
+}
+
+.rr-cmp-topic-button small {
+  color: var(--rr-muted);
+  font-size: 11px;
+}
+
+.rr-cmp-topic-button:disabled {
+  cursor: wait;
+  opacity: .6;
+}
+
 /* Empty state when 0 children */
 .rr-cb-empty {
   background: var(--rr-white);
@@ -4238,11 +4820,18 @@
   border-radius: var(--rr-r-lg, 14px);
   padding: 0;
   box-shadow: 0 2px 12px var(--rr-shadow, rgba(27,50,82,0.06));
-  /* 100dvh > 100vh for mobile chrome stability. Subtract the .rr-top
-     nav (~60px) + sidebar offsets so the sidebar fits in the visible
-     scroll area. Both height + max-height set for defensive sizing. */
-  height:     calc(100dvh - 60px - var(--rr-cb-sidebar-top) - var(--rr-cb-sidebar-bottom-gap));
-  max-height: calc(100dvh - 60px - var(--rr-cb-sidebar-top) - var(--rr-cb-sidebar-bottom-gap));
+  /* RRV-11 (Fable pre-build review, 2026-07-20) — was
+     `calc(100dvh - 60px - ...)`, a hand-reconstruction of .rr-view-page's
+     height using a hardcoded guess at the old fixed-height .rr-top's
+     size. Since the journey header (.rr-hero) is now content-sized and
+     can also show a conditional returning-user strip, no single constant
+     stays correct. .rr-view-page (the actual scroll container — see the
+     comment above) is a CSS size container (container-type: size, set at
+     its own rule), so 100cqh is its REAL resolved height — exact at
+     every breakpoint and every header state, no constant to keep in
+     sync. Both height + max-height set for defensive sizing. */
+  height:     calc(100cqh - var(--rr-cb-sidebar-top) - var(--rr-cb-sidebar-bottom-gap));
+  max-height: calc(100cqh - var(--rr-cb-sidebar-top) - var(--rr-cb-sidebar-bottom-gap));
   /* Sidebar is the visible chrome — list inside is what scrolls. */
   overflow: hidden;
 }
@@ -4456,67 +5045,4 @@
     min-height: 0;
   }
   .rr-cb-sidebar-list > li { flex: 1 1 calc(50% - 2px); min-width: 0; }
-}
-.rr-cmp-topics {
-  display: grid;
-  gap: 12px;
-  margin: 0 0 18px;
-  padding: 16px;
-  border: 1px solid var(--rr-border, #e5e7eb);
-  border-radius: 14px;
-  background: var(--rr-surface-soft, #fafafa);
-}
-
-.rr-cmp-topics-eyebrow {
-  color: var(--rr-accent, #9f1239);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-}
-
-.rr-cmp-topics-title {
-  margin: 2px 0 3px;
-  font-size: 18px;
-}
-
-.rr-cmp-topics-copy {
-  margin: 0;
-  color: var(--rr-muted, #6b7280);
-  font-size: 13px;
-}
-
-.rr-cmp-topics-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.rr-cmp-topic-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border: 1px solid var(--rr-border, #d1d5db);
-  border-radius: 999px;
-  padding: 8px 11px;
-  background: #fff;
-  color: inherit;
-  cursor: pointer;
-  font: inherit;
-  text-align: left;
-}
-
-.rr-cmp-topic-button:hover:not(:disabled),
-.rr-cmp-topic-button:focus-visible {
-  border-color: var(--rr-accent, #9f1239);
-}
-
-.rr-cmp-topic-button small {
-  color: var(--rr-muted, #6b7280);
-  font-size: 11px;
-}
-
-.rr-cmp-topic-button:disabled {
-  cursor: wait;
-  opacity: .6;
 }

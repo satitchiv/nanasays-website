@@ -19,15 +19,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-// Next 14.2.x: searchParams is synchronous. The Promise-shape is
-// Next 15+; using it here would silently leave the value un-resolved.
-type SearchParams = { lens?: string }
-
-export default async function ResearchRoomPage({
-  searchParams,
-}: {
-  searchParams: SearchParams
-}) {
+export default async function ResearchRoomPage() {
   if (!isResearchRoomEnabled()) {
     notFound()
   }
@@ -37,10 +29,19 @@ export default async function ResearchRoomPage({
     redirect('/unlock?next=/nana/research-room')
   }
 
-  // Slice 5.5a: lens read from URL search param. Defaults to 'general'.
-  // Tab clicks call router.replace('?lens=...') so the server re-renders
-  // with the active lens scope.
-  const lens: LensKind = searchParams.lens === 'child_fit' ? 'child_fit' : 'general'
+  // RRV-10 (Focus consolidation, 2026-07-20): the General/child_fit base-lens
+  // tabs are gone — the table is always the personalized ("general") base.
+  // No code path seeds a lens_kind='child_fit' BASE row (verified live against
+  // the DB, 2026-07-20: 0 comparison_rows with lens_kind='child_fit' AND
+  // created_by_lens_id IS NULL) — GENERAL_SPECS + the brief-gated BRIEF_SPECS
+  // (rugby pathway, boarding fit, ...) are BOTH written with lens_kind:
+  // 'general' (lib/research-room/seed-rows.ts), so "general" was already the
+  // personalized table. A handful of live child_fit rows DO exist, but only
+  // as topic-lens-attached rows (created_by_lens_id set) — those stay fully
+  // reachable below via `effectiveLens = activeLens.base_lens_kind`, which is
+  // untouched by this change. Stray `?lens=child_fit` bookmarks now silently
+  // degrade to the personalized general table instead of erroring.
+  const lens: LensKind = 'general'
 
   const cookieStore = await cookies()
   const authClient = createServerClient(
@@ -105,6 +106,16 @@ export default async function ResearchRoomPage({
   //   5. Load messages + activeProposalIds for the chat panel.
   let initialSession: import('@/lib/nana/types').Session | null = null
   let initialMessages: import('@/lib/nana/types').ResearchMessage[] = []
+  // RRV-11 — journey header step-3 ("Verdict") done-state and the
+  // returning-user strip both need real signals, computed here (not client
+  // side) so there's no hydration mismatch. `hasVerdict` is an existence-only
+  // probe (id only) — the full verdict record stays intentionally un-prefetched
+  // (see the researchVerdict comment below), so this doesn't reopen that
+  // hash-mismatch bug; it never renders verdict content, just whether one has
+  // ever been generated. `daysSinceLastActive` is null for brand-new sessions
+  // (no prior visit to compare against).
+  let hasVerdict = false
+  let daysSinceLastActive: number | null = null
   // Session 4 follow-up — hydrate Build Mode progress from DB so the bar +
   // welcome-back banner can render on first paint instead of waiting for
   // the next SSE event. Browser smoke 2026-05-16 surfaced that toggling
@@ -140,9 +151,6 @@ export default async function ResearchRoomPage({
   if (user && activeChildId) {
     const svc = supabaseService()
 
-    // Approved database-inventory topics are shown in the comparison picker.
-    // The topic creator has already checked these against verified UK data;
-    // the page only reads the catalogue and never crawls school websites.
     const { data: topicCatalog } = await svc
       .from('research_room_topic_catalog')
       .select('id, label')
@@ -211,6 +219,26 @@ export default async function ResearchRoomPage({
           activeLensId = (ensured.active_lens_id as string | null) ?? null
           initialBuildModeProgress = ensured.build_mode_progress as unknown
         }
+      }
+    }
+
+    // RRV-11 — verdict-existence probe + returning-user day-gap, both
+    // computed once `initialSession` is settled. `research_verdicts` is
+    // keyed by (session_id, child_id) — see verdict-generator-v3-cluster-
+    // and-cache.ts's loadCachedResearchVerdict for the same key shape.
+    if (initialSession) {
+      const { data: verdictRow } = await svc
+        .from('research_verdicts')
+        .select('id')
+        .eq('session_id', initialSession.id)
+        .eq('child_id', activeChildId)
+        .limit(1)
+        .maybeSingle()
+      hasVerdict = !!verdictRow
+
+      const lastActiveMs = Date.parse(initialSession.last_active_at)
+      if (!Number.isNaN(lastActiveMs)) {
+        daysSinceLastActive = Math.floor((Date.now() - lastActiveMs) / 86400000)
       }
     }
 
@@ -554,6 +582,8 @@ export default async function ResearchRoomPage({
       activeLensId={activeLensId}
       partnerBrief={partnerBrief}
       researchVerdict={researchVerdict}
+      hasVerdict={hasVerdict}
+      daysSinceLastActive={daysSinceLastActive}
     />
   )
 }

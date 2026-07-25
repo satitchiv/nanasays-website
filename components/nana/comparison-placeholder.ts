@@ -2,6 +2,8 @@
 // fetch will eventually produce from shortlisted_schools × school_structured_data
 // × school_sensitive. Swap the import in ResearchRoom.tsx when real data lands.
 
+import type { RowViz } from '@/lib/research-room/rrv7-viz'
+
 export type SchoolColumn = {
   slug: string
   name: string
@@ -22,6 +24,65 @@ export type SchoolColumn = {
   logoUrl?: string
 }
 
+// RRV-2 (never-blank table, 2026-07-20): rung the cell's value resolved at.
+// 'verified' = read straight from a structured DB column. 'derived' = the
+// value already carries its own provenance marker (a `~` prefix or a
+// `source: 'derived: ...'` tag set by seed-rows.ts builders doing cross-
+// column arithmetic, e.g. day pupils = total − boarders) — classified at
+// load time, not a new data source. Undefined on legacy/pre-RRV-2 cells is
+// treated as 'verified' by the renderer (safe default — most existing
+// cells ARE plain verified reads).
+export type CellTier = 'verified' | 'derived'
+
+// RRV-6 (evidence chips, 2026-07-20): one quote-backed fact behind a cell's
+// claim, sourced from school_facts (dimension-keyed atomic facts table —
+// see lib/research-comparison.ts loadEvidenceIndex for the query + ranking
+// this is built from). `url`/`hostLabel` are nullable — defensive, not
+// currently exercised (every quote-bearing rugby fact today has a clean
+// http(s) source_url), for malformed/missing source_url and non-http(s)
+// protocols, which loadEvidenceIndex rejects before this type is built.
+// `factLabel` is a humanized fact_type (e.g. "Match result"), never an
+// invented category like "ISI report" — school_facts has no source_type
+// column to ground that in. `older` marks currentness === 'historical' so
+// a 2017 result doesn't read as current.
+export type EvidenceQuote = {
+  quote: string
+  url: string | null
+  hostLabel: string | null
+  factLabel: string
+  older: boolean
+}
+
+// RRV-5 (fit bars + boarding mix, 2026-07-20): a discrete, ordinal bar —
+// `filled` of `total` segments lit — for a qualitative claim that has a
+// real, small, named scale behind it (a sport's competitive tier, an
+// academic-stretch bucket, a boarding_grade rung). Deliberately NOT a
+// continuous 0-100 width: a continuous fill next to a word would imply a
+// measured score precise enough to ask "why 65 and not 68?", which no
+// underlying data supports. `word` is a parent-facing label distinct from
+// the cell's `primary` (which stays the plain factual value, e.g. the raw
+// tier string) — see seed-rows.ts band-producing builders for the mapping.
+// `muted` means "this is a poor match for what THIS family asked for"
+// (e.g. a day-only school for a full-boarding seeker) — never "low
+// confidence"; low-but-real tiers (e.g. "Local" rugby) render at normal
+// weight with fewer segments filled, not muted.
+export type FitBand = {
+  word: string
+  filled: number
+  total: number
+  muted?: boolean
+}
+
+// RRV-5: a genuine per-school proportional population split (board % vs
+// day %), used only when a real number exists (student_community.boarding_pct
+// or the Notion boarding_ratio fallback — see buildBoardingRatio). Never
+// fabricated from the categorical boarding_grade enum, which has no
+// per-school proportion to offer — see the "Boarding mix" row builder.
+export type BoardingMix = {
+  boardPct: number
+  dayPct: number
+}
+
 export type RowCell =
   | {
       kind: 'value'
@@ -36,8 +97,29 @@ export type RowCell =
       // so the presentation layer can compute a row winner without parsing
       // the display string. Undefined for non-numeric / free-text cells.
       numericValue?: number
+      tier?: CellTier
+      // RRV-6: present only for rows wired in EVIDENCE_DIMENSION_BY_ROW_SLUG
+      // (rugby_strength today) where school_facts had real quote-bearing
+      // rows for this school. Undefined/empty means "no chip" — never a
+      // fabricated zero-source chip.
+      evidence?: EvidenceQuote[]
+      // RRV-5: see FitBand above. Attached in loadLensRows only, same rule
+      // as `tier`/`evidence` — never in cellFromRaw (verdict cache-hash
+      // stability; loadVerdictRows must stay byte-for-byte unaffected).
+      band?: FitBand
+      // RRV-5: see BoardingMix above. Same attach-site rule as `band`.
+      mix?: BoardingMix
     }
   | { kind: 'lights'; lights: Array<{ label: string; tone: 'green' | 'amber' | 'red' }> }
+  // RRV-2 rung 3: no verified/derived value exists for this school, but
+  // enough shortlisted peers report it that a range is honest to show.
+  // Never built from 'derived' or other 'cohort' cells — only rung-1
+  // verified values count as cohort inputs (no compounding uncertainty).
+  | { kind: 'cohort'; note: string }
+  // RRV-2 rung 4: the floor of the ladder. No value, no peer range —
+  // offer to ask Nana instead of a bare "—". `question` is a ready-to-send
+  // prompt for the chat panel.
+  | { kind: 'gap'; question: string }
   | { kind: 'empty' }
 
 // Research Room redesign (data side, 2026-07-16): row-level "does a higher
@@ -73,6 +155,13 @@ export type ComparisonRow = {
   // row's semantic meaning; defaults to 'neutral' when the row has no
   // known rule (e.g. a chat-added row).
   winnerRule?: WinnerRule
+  // RRV-7 (2026-07-20): cross-school row-level visualization (travel
+  // corridor under "Travel from Heathrow", GCSE context band under
+  // "GCSE 9–7") — see lib/research-room/rrv7-viz.ts. Attached in
+  // loadLensRows ONLY, same rule as the per-cell tier/band/mix/evidence
+  // extras: loadVerdictRows never sets it, so the verdict cache hash
+  // (which includes its rows) is byte-identical with or without RRV-7.
+  viz?: RowViz
 }
 
 export type ComparisonData = {

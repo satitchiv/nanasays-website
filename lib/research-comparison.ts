@@ -1,8 +1,29 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { ComparisonData, ComparisonRow, RowCell, SchoolColumn, WinnerRule } from '@/components/nana/comparison-placeholder'
+import type { ComparisonData, ComparisonRow, RowCell, SchoolColumn, WinnerRule, EvidenceQuote, FitBand, BoardingMix } from '@/components/nana/comparison-placeholder'
 import { assertUserId } from './school-name-overrides'
-import { GENERAL_ROW_WINNER_RULES } from './research-room/seed-rows'
+import { GENERAL_ROW_WINNER_RULES, GENERAL_ROW_SLUG_BY_NAME, COHORT_ELIGIBLE_SLUGS, EVIDENCE_DIMENSION_BY_ROW_SLUG, gapQuestionFor } from './research-room/seed-rows'
+import { REGION_BUCKETS } from './uk-regions'
+import {
+  type RowViz,
+  type TravelStop,
+  type ExamBandDot,
+  corridorStopPositions,
+  bandLabelSides,
+  bandAxisPos,
+  parseMinutesFromDisplay,
+  parsePctFromDisplay,
+  percentileSorted,
+  TYPICAL_MIN_SCHOOLS,
+} from './research-room/rrv7-viz'
+import {
+  type EntryTimelineEntry,
+  monthsBetween,
+  todayIso,
+  captionForDated,
+  ROLLING_CAPTION,
+  VAGUE_CAPTION_PREFIX,
+} from './research-room/rrv4-viz'
 
 // Slice 5.5b — lens-aware single-source comparison loader.
 //
@@ -19,7 +40,7 @@ type ComparisonRowDb = {
   row_name:            string
   group_name:          string
   weight:              number
-  cell_data:           Record<string, { value?: string | number | null; source?: string | null; note?: string; numeric?: number | null }> | null
+  cell_data:           Record<string, RowCellData> | null
   sort_order:          number
   lens_kind:           'general' | 'child_fit' | 'chat'
   // Slice 6.5: NULL for base/seed/chat rows; UUID of the parent topic
@@ -37,6 +58,23 @@ type RowCellData = {
   // behind `value` when the underlying field is genuinely numeric (fees,
   // percentages, scores). See RowCell['numericValue'] in comparison-placeholder.ts.
   numeric?: number | null
+  // RRV-5 (2026-07-20): see FitBand/BoardingMix in comparison-placeholder.ts.
+  // Attached onto the returned RowCell in loadLensRows only, same rule as
+  // `tier`/`evidence` below — cellFromRaw (shared with loadVerdictRows)
+  // deliberately does not read these two fields.
+  band?: FitBand | null
+  mix?: BoardingMix | null
+  // RRV-7 (2026-07-20): raw drive-time minutes behind a "NN min" heathrow
+  // cell (see CellValue.minutes in seed-rows.ts). Same parallel-field rule:
+  // read only by the travel-corridor assembly in loadLensRows, NEVER by
+  // cellFromRaw — verdict cache-hash stability.
+  minutes?: number | null
+  // RRV-4 (2026-07-20): see CellValue.entryState/deadlineIso in
+  // seed-rows.ts for why this is a state, not a plotted date. Same
+  // parallel-field rule: read only by buildEntryTimelineViz, NEVER by
+  // cellFromRaw.
+  entryState?: 'rolling' | 'dated' | 'vague' | null
+  deadlineIso?: string | null
 }
 
 type SchoolMeta = {
@@ -298,8 +336,87 @@ async function loadLensRows(
     return a.created_at.localeCompare(b.created_at)
   })
 
+  // RRV-2 (never-blank table): resolve any still-empty cell to a cohort
+  // range (rung 3) or an Ask-Nana gap chip (rung 4) instead of leaving it
+  // as a bare '—'. Only the visible comparison surface gets this treatment
+  // — loadVerdictRows (below) deliberately does NOT call this, so the
+  // Verdict tab's evidence merge sees exactly what it saw before RRV-2
+  // (plain 'value' / 'empty' / 'lights'; per the pre-build review, its own
+  // cellText() already treats any unrecognized kind as missing, so no
+  // change was needed there either — this is the one and only place the
+  // ladder's rungs 3/4 get produced).
+  const neededSlugs = new Set<string>()
+  for (const r of filtered) {
+    const slug = GENERAL_ROW_SLUG_BY_NAME[r.row_name]
+    if (slug && COHORT_ELIGIBLE_SLUGS.has(slug)) neededSlugs.add(slug)
+  }
+  // RRV-6 (evidence chips): which school_facts dimensions this session's
+  // rows actually need (today: just 'rugby', when rugby_strength is
+  // present). Zero rows in the map means zero extra queries.
+  const evidenceDimensions = new Set<string>()
+  for (const r of filtered) {
+    const slug = GENERAL_ROW_SLUG_BY_NAME[r.row_name]
+    const dim = slug ? EVIDENCE_DIMENSION_BY_ROW_SLUG[slug] : undefined
+    if (dim) evidenceDimensions.add(dim)
+  }
+
+  // RRV-7 (exam context band): the "typical range" window needs verified
+  // 9–7 shares across the whole UK pool, regardless of whether any cell is
+  // empty — piggybacked on the cohort loader's existing SSD fetch (one
+  // query, per that loader's own no-re-query rule) instead of a second
+  // full-table read.
+  const bandNeeded = filtered.some(r => GENERAL_ROW_SLUG_BY_NAME[r.row_name] === 'gcse_pct')
+
+  const [cohortResult, schoolBuckets, evidenceByDimension] = await Promise.all([
+    (neededSlugs.size > 0 || bandNeeded)
+      ? loadCohortRanges(supabase, neededSlugs, bandNeeded)
+      : null,
+    loadSchoolBuckets(supabase, schools.map(s => s.slug)),
+    loadEvidenceByDimension(supabase, evidenceDimensions, schools.map(s => s.slug)),
+  ])
+  const cohort = cohortResult?.index ?? null
+  const poolGcseValues = cohortResult?.gcseValues ?? []
+
   return filtered.map(r => {
-    const cells: RowCell[] = schools.map(col => cellFromRaw(r.cell_data?.[col.slug], false))
+    const slug = GENERAL_ROW_SLUG_BY_NAME[r.row_name]
+    const evidenceDim = slug ? EVIDENCE_DIMENSION_BY_ROW_SLUG[slug] : undefined
+    const evidenceForRow = evidenceDim ? evidenceByDimension.get(evidenceDim) : undefined
+    const cells: RowCell[] = schools.map(col => {
+      const raw = r.cell_data?.[col.slug]
+      const base = cellFromRaw(raw, false)
+      // Rung 2 tier tag attached here, not inside cellFromRaw — see the
+      // comment on cellFromRaw for why (verdict cache-hash stability).
+      // RRV-6 evidence is attached the same way and for the same reason —
+      // cellFromRaw is shared with loadVerdictRows, which must stay
+      // byte-identical for cache-hash stability (see that function).
+      // RRV-5 band/mix follow the identical rule — attached here only.
+      if (base.kind === 'value') {
+        const withTier = raw ? { ...base, tier: classifyTier(raw) } : base
+        const withBand = raw?.band ? { ...withTier, band: raw.band } : withTier
+        const withMix = raw?.mix ? { ...withBand, mix: raw.mix } : withBand
+        const evidence = evidenceForRow?.get(col.slug)
+        return evidence && evidence.length > 0 ? { ...withMix, evidence } : withMix
+      }
+      if (base.kind !== 'empty') return base
+      const bucket = schoolBuckets.get(col.slug)
+      if (cohort && slug && bucket) {
+        const range = lookupCohortRange(cohort, slug, bucket)
+        if (range) return { kind: 'cohort', note: `not published · similar schools: ${range}` }
+      }
+      return { kind: 'gap', question: gapQuestionFor(slug, r.row_name, col.name) }
+    })
+    // RRV-7: cross-school strips under their anchor rows. Assembled here in
+    // loadLensRows only — loadVerdictRows never sets `viz`, so the verdict
+    // cache hash is untouched (same rule as tier/band/mix/evidence above).
+    let viz: RowViz | undefined
+    if (slug === 'heathrow_minutes') {
+      viz = buildTravelCorridorViz(schools, r.cell_data)
+    } else if (slug === 'gcse_pct') {
+      viz = buildExamBandViz(schools, r.cell_data, poolGcseValues)
+    } else if (slug === 'y9_y10_admissions') {
+      viz = buildEntryTimelineViz(schools, r.cell_data)
+    }
+
     // group_name lives on the row in the DB. Slice 8 Step 0.6: surface it to
     // the client so ComparisonView can render section headers between
     // groups. emphasis stays available for finer per-row qualifiers
@@ -312,8 +429,490 @@ async function loadLensRows(
       removable:  r.lens_kind === 'chat',
       group_name: r.group_name ?? null,
       winnerRule: resolveWinnerRule(r.row_name),
+      ...(viz ? { viz } : {}),
     }
   })
+}
+
+// ─── RRV-7: travel corridor + exam context band assembly ───────────────────
+//
+// Card ask (roadmap rrv-7, mock §7–8): Heathrow door-to-door times as stops
+// on a corridor line, and GCSE 9–7 shares as dots on a typical-range band.
+// Both are honest-by-construction: only schools with a REAL value are
+// plotted (no haversine-derived drive times, no 9–8 results passed off as
+// 9–7 — the 2026-07-20 trace shows real shortlists often have Heathrow
+// times for only 1–2 of 5–6 schools, so partial coverage is the normal
+// case, not an edge case); everything unplottable is named in a caption.
+
+// Corridor renders only when ≥2 schools have a verified time — a one-stop
+// corridor says nothing the "NN min" cell above it doesn't.
+const CORRIDOR_MIN_STOPS = 2
+
+function buildTravelCorridorViz(
+  schools:  SchoolColumn[],
+  cellData: Record<string, RowCellData> | null,
+): RowViz | undefined {
+  const timed: { slug: string; name: string; minutes: number }[] = []
+  const missing: string[] = []
+  for (const col of schools) {
+    const raw = cellData?.[col.slug]
+    // Parallel `minutes` field first; display-string parse covers rows
+    // seeded before RRV-7 that reconcileSeededRows hasn't refreshed yet.
+    const minutes = typeof raw?.minutes === 'number' && raw.minutes > 0
+      ? raw.minutes
+      : parseMinutesFromDisplay(raw?.value)
+    if (minutes != null) timed.push({ slug: col.slug, name: col.name, minutes })
+    else missing.push(col.name)
+  }
+  if (timed.length < CORRIDOR_MIN_STOPS) return undefined
+  timed.sort((a, b) => a.minutes - b.minutes)
+  const positions = corridorStopPositions(timed.map(t => t.minutes))
+  const stops: TravelStop[] = timed.map((t, i) => ({ ...t, pos: positions[i] }))
+  return { kind: 'travel-corridor', stops, missing }
+}
+
+function buildExamBandViz(
+  schools:        SchoolColumn[],
+  cellData:       Record<string, RowCellData> | null,
+  poolGcseValues: number[],
+): RowViz | undefined {
+  const plotted: { slug: string; name: string; pct: number }[] = []
+  const altBand: string[] = []
+  const missing: string[] = []
+  for (const col of schools) {
+    const raw = cellData?.[col.slug]
+    // `numeric` is set ONLY by the true 9–7 branches of buildGcsePct —
+    // 9–8-only publishers (gcse_pct_alt_band) are string cells with no
+    // numeric, so this check alone keeps them off the band. The
+    // display-string fallback covers cells seeded before the numeric
+    // field existed (live trace: several real sessions still carry
+    // numeric-less "77%" cells; the reconcile refresh is fail-soft) —
+    // gated to the two true 9–7 sources so the alt band can never leak in.
+    const pct = typeof raw?.numeric === 'number' && Number.isFinite(raw.numeric)
+      ? raw.numeric
+      : (raw?.source === 'exam_results.gcse' || raw?.source === 'notion.parsed.gcse_pct')
+        ? parsePctFromDisplay(raw.value)
+        : null
+    if (pct != null) {
+      plotted.push({ slug: col.slug, name: col.name, pct })
+    } else if (raw?.source === 'notion.parsed.gcse_pct_alt_band' && raw.value != null) {
+      altBand.push(col.name)
+    } else {
+      missing.push(col.name)
+    }
+  }
+  // Unlike the corridor, one dot is still worth rendering — the
+  // typical-range context IS the value.
+  if (plotted.length === 0) return undefined
+  plotted.sort((a, b) => a.pct - b.pct)
+  const sides = bandLabelSides(plotted.map(p => p.pct))
+  const dots: ExamBandDot[] = plotted.map((p, i) => ({
+    ...p,
+    pos: bandAxisPos(p.pct),
+    labelBelow: sides[i],
+  }))
+  // Middle half of the UK pool's verified 9–7 shares (p25–p75), computed
+  // from live data. Below the n-floor the window is suppressed, never
+  // fabricated — dots still render.
+  let typical: { lo: number; hi: number; n: number } | null = null
+  if (poolGcseValues.length >= TYPICAL_MIN_SCHOOLS) {
+    const sorted = [...poolGcseValues].sort((a, b) => a - b)
+    typical = {
+      lo: Math.round(percentileSorted(sorted, 0.25)),
+      hi: Math.round(percentileSorted(sorted, 0.75)),
+      n:  sorted.length,
+    }
+  }
+  return { kind: 'exam-band', dots, typical, altBand, missing }
+}
+
+// ─── RRV-4: entry timeline strip assembly ──────────────────────────────────
+//
+// Card ask (roadmap rrv-4, mock §3): per-school registration/pre-test/entry
+// milestones vs a "you are here" marker, answering "are we already too
+// late?" honestly. See lib/research-room/rrv4-viz.ts for why this renders
+// as STATES rather than a plotted calendar axis — the RRV-4a data audit
+// (2026-07-20) found no per-family calendar-year anchor exists, and every
+// dated string is one historical crawl snapshot, not a verified live
+// status. future-vs-past is resolved HERE, at load time, against "today" —
+// never at seed time — so a cell seeded weeks ago can't report a stale
+// verdict.
+function buildEntryTimelineViz(
+  schools:  SchoolColumn[],
+  cellData: Record<string, RowCellData> | null,
+): RowViz | undefined {
+  const today = todayIso()
+  const entries: EntryTimelineEntry[] = []
+  const missing: string[] = []
+  for (const col of schools) {
+    const raw = cellData?.[col.slug]
+    if (raw?.entryState === 'rolling') {
+      entries.push({ slug: col.slug, name: col.name, state: 'rolling', monthsAway: null, caption: ROLLING_CAPTION })
+    } else if (raw?.entryState === 'dated' && raw.deadlineIso) {
+      const months = monthsBetween(today, raw.deadlineIso)
+      const display = typeof raw.value === 'string' ? raw.value : raw.deadlineIso
+      // Post-build review catch: deciding future-vs-past from the ROUNDED
+      // `months` value is wrong for a deadline within ~15 days of today —
+      // Math.round(-0.33) is -0, and `-0 >= 0` is true in JS, so a deadline
+      // that passed last week would round to 0 and get mislabeled
+      // "dated-future." Compare the ISO date strings directly instead
+      // (YYYY-MM-DD sorts lexicographically = chronologically) — `months`
+      // stays purely a magnitude for the caption, never the sign source.
+      const state: 'dated-future' | 'dated-past' = raw.deadlineIso >= today ? 'dated-future' : 'dated-past'
+      entries.push({ slug: col.slug, name: col.name, state, monthsAway: months, caption: captionForDated(state, months, display) })
+    } else if (raw?.entryState === 'vague' && typeof raw.value === 'string') {
+      entries.push({ slug: col.slug, name: col.name, state: 'vague', monthsAway: null, caption: `${VAGUE_CAPTION_PREFIX}${raw.value}` })
+    } else {
+      missing.push(col.name)
+    }
+  }
+  if (entries.length === 0) return undefined
+  return { kind: 'entry-timeline', entries, missing }
+}
+
+// ─── RRV-6 evidence chips: school_facts → per-cell quotes ──────────────────
+//
+// Card ask: "tap any claim ('rugby: strong') → the cleaned quotes + sources
+// behind it." The literal #B7/#B8 phrase-blocklist filter (scripts/lib/
+// quote-boilerplate.js) lives in the parent repo's scripts/ tree, is wired
+// only to the academic subject_strengths extractor, and isn't importable
+// from this app (separate package, no path alias reaching it). The real
+// substitute — verified live 2026-07-20 — is school_facts: a dimension-
+// keyed atomic-facts table (migration scripts/migrations/2026-05-07-
+// school-facts-layer.sql) whose LLM-extracted rows carry a verbatim
+// evidence_quote checked against the source chunk at write time
+// (scripts/extract-rugby-facts.js). Only dimension='rugby' has quote-
+// bearing rows today (see EVIDENCE_DIMENSION_BY_ROW_SLUG in seed-rows.ts)
+// — this loader is written generically so wiring another dimension later
+// is a one-line config change, not a rebuild.
+
+const EVIDENCE_QUOTES_PER_SCHOOL = 3
+
+// Ranking signal (Fable pre-build review, 2026-07-20): every rugby fact in
+// the live table has confidence=1.00 — not a usable ranking signal. Narrow
+// fact_type is: administrative facts (team_listing, staff_role) read as
+// noise next to narrative ones (a match result, a named player) when a
+// parent taps "why strong?". fact_type is therefore the PRIMARY sort key,
+// not a tiebreaker. currentness breaks ties within a fact_type so a stale
+// (historical) result doesn't outrank a current one of the same type.
+const EVIDENCE_FACT_TYPE_PRIORITY: Readonly<Record<string, number>> = Object.freeze({
+  competition_result: 0,
+  ranking_season:     1,
+  programme_summary:  2,
+  notable_person:     3,
+  facility:           4,
+  partnership:        5,
+  scholarship:        6,
+  staff_role:         7,
+  team_listing:       8,
+})
+const EVIDENCE_CURRENTNESS_PRIORITY: Readonly<Record<string, number>> = Object.freeze({
+  current:        0,
+  likely_current: 1,
+  unknown:        2,
+  historical:     3,
+})
+
+// Humanized fact_type for the chip's source line. Deliberately NOT an
+// invented category like the mock's "ISI inspection report" — school_facts
+// has no source_type column to ground that in. fact_type is real.
+const EVIDENCE_FACT_LABELS: Readonly<Record<string, string>> = Object.freeze({
+  competition_result: 'Match result',
+  programme_summary:  'Programme',
+  notable_person:     'Notable player',
+  facility:           'Facility',
+  partnership:        'Partnership',
+  scholarship:        'Scholarship',
+  staff_role:         'Coaching staff',
+  team_listing:       'Team listing',
+  ranking_season:     'Season ranking',
+})
+function humanizeFactType(factType: string): string {
+  return EVIDENCE_FACT_LABELS[factType]
+    ?? factType.replace(/_/g, ' ').replace(/^\w/, c => c.toUpperCase())
+}
+
+// source_published_date is null on 100% of rugby facts (verified live) —
+// there is no grounded date to show. hostname is the one honest, grounded
+// source signal we have. Malformed/non-http(s)/missing source_url all fall
+// back to null — the chip renders the quote with no link/host rather than
+// guessing. (Live data 2026-07-20: every quote-bearing rugby fact today
+// does carry a clean http(s) source_url — this fallback is defensive, not
+// dead code, since nothing in the schema guarantees that stays true.)
+function hostLabelFor(url: string | null): string | null {
+  if (!url) return null
+  try {
+    const u = new URL(url)
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null
+    return u.hostname.replace(/^www\./, '')
+  } catch {
+    return null
+  }
+}
+
+type FactRow = {
+  school_slug:    string
+  fact_type:      string
+  evidence_quote: string | null
+  source_url:     string | null
+  currentness:    string
+  extracted_at:   string
+}
+
+async function loadEvidenceIndex(
+  supabase:  SupabaseClient,
+  dimension: string,
+  slugs:     string[],
+): Promise<Map<string, EvidenceQuote[]>> {
+  const out = new Map<string, EvidenceQuote[]>()
+  if (slugs.length === 0) return out
+
+  const { data, error } = await supabase
+    .from('school_facts')
+    .select('school_slug, fact_type, evidence_quote, source_url, currentness, extracted_at')
+    .eq('status', 'active')
+    .eq('dimension', dimension)
+    .in('school_slug', slugs)
+    .not('evidence_quote', 'is', null)
+    // Explicit order + limit: PostgREST defaults to a silent 1000-row cap.
+    // Live sizing keeps this comfortably under that (max ~49 quote rows
+    // per school today), but making the cap explicit — biased toward the
+    // most recent facts — beats an arbitrary truncation if that changes.
+    .order('extracted_at', { ascending: false })
+    .limit(1000)
+
+  // Best-effort: a lookup failure just means these schools get no chip
+  // this render, not an error page — evidence chips are additive polish,
+  // never load-bearing for the comparison table itself.
+  if (error || !data) return out
+
+  const bySchool = new Map<string, FactRow[]>()
+  for (const row of data as FactRow[]) {
+    const list = bySchool.get(row.school_slug) ?? []
+    list.push(row)
+    bySchool.set(row.school_slug, list)
+  }
+
+  bySchool.forEach((rows, slug) => {
+    rows.sort((a: FactRow, b: FactRow) => {
+      const byType = (EVIDENCE_FACT_TYPE_PRIORITY[a.fact_type] ?? 99) - (EVIDENCE_FACT_TYPE_PRIORITY[b.fact_type] ?? 99)
+      if (byType !== 0) return byType
+      const byCurrentness = (EVIDENCE_CURRENTNESS_PRIORITY[a.currentness] ?? 9) - (EVIDENCE_CURRENTNESS_PRIORITY[b.currentness] ?? 9)
+      if (byCurrentness !== 0) return byCurrentness
+      return b.extracted_at.localeCompare(a.extracted_at)
+    })
+
+    // Dedupe by quote text — the unique constraint on school_facts permits
+    // the same quote to appear from more than one source_url.
+    const seen = new Set<string>()
+    const picked: EvidenceQuote[] = []
+    for (const row of rows) {
+      const quote = (row.evidence_quote ?? '').trim()
+      if (!quote) continue
+      const key = quote.toLowerCase()
+      if (seen.has(key)) continue
+      seen.add(key)
+      // hostLabel is the http(s)-validity gate — computed once and reused
+      // for `url` so a non-http(s)/malformed source_url structurally can't
+      // reach the client as a link, not just "happens to" because today's
+      // only caller renders the anchor conditionally on hostLabel.
+      const hostLabel = hostLabelFor(row.source_url)
+      picked.push({
+        quote,
+        url:       hostLabel ? row.source_url : null,
+        hostLabel,
+        factLabel: humanizeFactType(row.fact_type),
+        older:     row.currentness === 'historical',
+      })
+      if (picked.length >= EVIDENCE_QUOTES_PER_SCHOOL) break
+    }
+    if (picked.length > 0) out.set(slug, picked)
+  })
+
+  return out
+}
+
+async function loadEvidenceByDimension(
+  supabase:   SupabaseClient,
+  dimensions: Set<string>,
+  slugs:      string[],
+): Promise<Map<string, Map<string, EvidenceQuote[]>>> {
+  const out = new Map<string, Map<string, EvidenceQuote[]>>()
+  if (dimensions.size === 0) return out
+  await Promise.all(
+    Array.from(dimensions).map(async dim => {
+      out.set(dim, await loadEvidenceIndex(supabase, dim, slugs))
+    })
+  )
+  return out
+}
+
+// ─── RRV-2 never-blank ladder: rungs 3 (cohort) & 4 (gap) ──────────────────
+
+type SchoolBucket = { schoolType: string | null; boarding: boolean | null; regionBucket: string | null }
+
+// Reverse index of REGION_BUCKETS (schools.region string → bucket name),
+// built once at module load. ~100 short strings — negligible cost.
+const REGION_TO_BUCKET = new Map<string, string>()
+for (const [bucket, regions] of Object.entries(REGION_BUCKETS)) {
+  for (const region of regions) REGION_TO_BUCKET.set(region.toLowerCase().trim(), bucket)
+}
+
+async function loadSchoolBuckets(supabase: SupabaseClient, slugs: string[]): Promise<Map<string, SchoolBucket>> {
+  const out = new Map<string, SchoolBucket>()
+  if (slugs.length === 0) return out
+  const { data, error } = await supabase
+    .from('schools')
+    .select('slug, school_type, boarding, region')
+    .in('slug', slugs)
+  if (error || !data) return out  // best-effort — a lookup failure just means these schools skip rung 3
+  for (const row of data as { slug: string; school_type: string | null; boarding: boolean | null; region: string | null }[]) {
+    out.set(row.slug, {
+      schoolType:   row.school_type,
+      boarding:     row.boarding,
+      regionBucket: row.region ? (REGION_TO_BUCKET.get(row.region.toLowerCase().trim()) ?? null) : null,
+    })
+  }
+  return out
+}
+
+type FieldStats = { values: number[] }
+// fieldSlug -> "type|boarding|region" (or "type|boarding" for the national
+// fallback bucket, region segment omitted) -> collected verified peer values.
+type CohortIndex = Map<string, Map<string, FieldStats>>
+
+const MIN_COHORT_PEERS = 4
+
+// One query against school_structured_data — the SAME table the seeder
+// itself reads boarding_fee_year/gcse_pct/total_pupils from, so a peer's
+// number means the same thing as this school's own cell would. 322 rows
+// total codebase-wide (2026-07-20), so fetching the whole table once per
+// table load is cheap — no N+1, no per-field re-query.
+async function loadCohortRanges(
+  supabase:    SupabaseClient,
+  neededSlugs: Set<string>,
+  // RRV-7: when the gcse_pct row is present, the exam band's typical-range
+  // window needs every verified 9–7 share across the UK pool — collected
+  // from this function's existing SSD fetch (one query, no re-read)
+  // regardless of whether any cell was empty.
+  collectGcseValues: boolean = false,
+): Promise<{ index: CohortIndex; gcseValues: number[] }> {
+  const index: CohortIndex = new Map()
+  const gcseValues: number[] = []
+  Array.from(neededSlugs).forEach(slug => index.set(slug, new Map()))
+
+  const { data: ssd, error: ssdError } = await supabase
+    .from('school_structured_data')
+    .select('school_slug, fees_min, fees_currency, exam_results, student_community')
+  if (ssdError || !ssd || ssd.length === 0) return { index, gcseValues }
+
+  type SsdRow = {
+    school_slug: string
+    fees_min: number | null
+    fees_currency: string | null
+    exam_results: Record<string, unknown> | null
+    student_community: Record<string, unknown> | null
+  }
+  const slugs = (ssd as SsdRow[]).map(r => r.school_slug)
+  const buckets = await loadSchoolBucketsForCohort(supabase, slugs)
+
+  const addSample = (fieldSlug: string, bucket: SchoolBucket, value: number) => {
+    const fieldIndex = index.get(fieldSlug)
+    if (!fieldIndex) return
+    const keys = bucket.regionBucket
+      ? [`${bucket.schoolType}|${bucket.boarding}|${bucket.regionBucket}`, `${bucket.schoolType}|${bucket.boarding}`]
+      : [`${bucket.schoolType}|${bucket.boarding}`]
+    for (const key of keys) {
+      const stats = fieldIndex.get(key) ?? { values: [] }
+      stats.values.push(value)
+      fieldIndex.set(key, stats)
+    }
+  }
+
+  for (const row of ssd as SsdRow[]) {
+    const b = buckets.get(row.school_slug)
+    // RRV-7: the band's national percentile only needs the UK/non-deprecated
+    // filter (= membership in `buckets`), not a clean type/boarding bucket —
+    // collected before the clean-bucket guard below on purpose.
+    if (collectGcseValues && b) {
+      const gcse = row.exam_results?.gcse as Record<string, unknown> | undefined
+      const pct = gcse?.pct_7_to_9
+      if (typeof pct === 'number' && Number.isFinite(pct)) gcseValues.push(pct)
+    }
+    if (!b || b.schoolType == null || b.boarding == null) continue  // no clean bucket → don't pollute any range
+
+    if (neededSlugs.has('boarding_fee_year') && row.fees_currency === 'GBP' && typeof row.fees_min === 'number') {
+      addSample('boarding_fee_year', b, row.fees_min)
+    }
+    if (neededSlugs.has('gcse_pct')) {
+      const gcse = row.exam_results?.gcse as Record<string, unknown> | undefined
+      const pct = gcse?.pct_7_to_9
+      if (typeof pct === 'number') addSample('gcse_pct', b, pct)
+    }
+    if (neededSlugs.has('total_pupils')) {
+      const total = row.student_community?.total_pupils
+      if (typeof total === 'number') addSample('total_pupils', b, total)
+    }
+  }
+  return { index, gcseValues }
+}
+
+// Separate from loadSchoolBuckets (which scopes to the shortlist) — this
+// one scopes to whatever slugs school_structured_data returned, filtered
+// to real UK, non-deprecated peers only (excludes the ~21k non-UK rows
+// and any superseded/merged school records from polluting a range).
+async function loadSchoolBucketsForCohort(supabase: SupabaseClient, slugs: string[]): Promise<Map<string, SchoolBucket>> {
+  const out = new Map<string, SchoolBucket>()
+  if (slugs.length === 0) return out
+  const { data, error } = await supabase
+    .from('schools')
+    .select('slug, school_type, boarding, region')
+    .in('slug', slugs)
+    .eq('country', 'United Kingdom')
+    .is('deprecated_at', null)
+  if (error || !data) return out
+  for (const row of data as { slug: string; school_type: string | null; boarding: boolean | null; region: string | null }[]) {
+    out.set(row.slug, {
+      schoolType:   row.school_type,
+      boarding:     row.boarding,
+      regionBucket: row.region ? (REGION_TO_BUCKET.get(row.region.toLowerCase().trim()) ?? null) : null,
+    })
+  }
+  return out
+}
+
+function lookupCohortRange(index: CohortIndex, slug: string, bucket: SchoolBucket): string | null {
+  const fieldIndex = index.get(slug)
+  if (!fieldIndex || bucket.schoolType == null || bucket.boarding == null) return null
+  const regionKey = bucket.regionBucket ? `${bucket.schoolType}|${bucket.boarding}|${bucket.regionBucket}` : null
+  const nationalKey = `${bucket.schoolType}|${bucket.boarding}`
+  // Post-build review finding: a region bucket with 1-3 samples used to
+  // short-circuit here and return null, even though the national bucket
+  // (a superset — addSample always writes both keys) might clear the
+  // min-4 bar. Region must WIN only when it clears the bar itself;
+  // otherwise fall through to national, same as an empty region bucket.
+  const regionStats = regionKey ? fieldIndex.get(regionKey) : undefined
+  const stats = (regionStats && regionStats.values.length >= MIN_COHORT_PEERS)
+    ? regionStats
+    : fieldIndex.get(nationalKey) ?? null
+  if (!stats || stats.values.length < MIN_COHORT_PEERS) return null
+  const min = Math.min(...stats.values)
+  const max = Math.max(...stats.values)
+  return formatCohortRange(slug, min, max)
+}
+
+function formatCohortRange(slug: string, min: number, max: number): string {
+  if (slug === 'boarding_fee_year') {
+    const fmtK = (n: number) => `£${Math.round(n / 1000)}k`
+    return min === max ? fmtK(min) : `£${Math.round(min / 1000)}–${Math.round(max / 1000)}k`
+  }
+  if (slug === 'gcse_pct') {
+    return min === max ? `${Math.round(min)}%` : `${Math.round(min)}–${Math.round(max)}%`
+  }
+  if (slug === 'total_pupils') {
+    return min === max ? `${Math.round(min).toLocaleString()} pupils` : `${Math.round(min).toLocaleString()}–${Math.round(max).toLocaleString()} pupils`
+  }
+  return min === max ? String(Math.round(min)) : `${Math.round(min)}–${Math.round(max)}`
 }
 
 async function loadVerdictRows(
@@ -400,6 +999,30 @@ async function loadVerdictRows(
     }))
 }
 
+// RRV-2 rung 2: classify an already-populated cell's provenance from marks
+// the seed-row builders already write — a leading '~' on the value (the
+// existing "approximate" convention: buildTotalPupils/buildClassSize/
+// buildDayPupils/...) or a `source` starting 'derived:' (cross-column
+// arithmetic, e.g. day pupils = total − boarders). NOT a new data source —
+// classifying data that's already there. Per the pre-build review: a
+// school_facts-backed rung 2 was scoped out because that table has zero
+// rows for any of these 17 comparison fields today (verified live
+// 2026-07-20) — wiring it in would've been dead code claiming coverage it
+// doesn't have. Revisit if/when RRV-1's extraction sweep populates it.
+function classifyTier(c: RowCellData): 'derived' | undefined {
+  if (typeof c.source === 'string' && c.source.startsWith('derived:')) return 'derived'
+  if (typeof c.value === 'string' && c.value.startsWith('~')) return 'derived'
+  return undefined
+}
+
+// Post-build review finding: `tier` must NOT be attached here — cellFromRaw
+// is shared with loadVerdictRows, and the verdict route hashes its rows
+// verbatim into the evidence-cache key (verdict-generator.ts inputHash).
+// Attaching tier unconditionally would silently change that hash for
+// nearly every session (any `~`-marked cell) and trigger a needless cache
+// miss + regeneration call. Tier is attached ONLY in loadLensRows below,
+// which is the one path RRV-2 touches — loadVerdictRows stays byte-for-
+// byte what it returned before this feature.
 function cellFromRaw(c: RowCellData | undefined, includeSource: boolean): RowCell {
   if (!c || c.value == null || c.value === '') return { kind: 'empty' }
   const primary = typeof c.value === 'number' ? String(c.value) : c.value
@@ -425,6 +1048,12 @@ function resolveWinnerRule(rowName: string): WinnerRule {
 function evidenceCellScore(cell: RowCell): number {
   if (cell.kind === 'empty') return 0
   if (cell.kind === 'lights') return 5 + cell.lights.length
+  // RRV-2: 'cohort'/'gap' cells never actually reach here — the ladder that
+  // produces them only runs in loadLensRows, not loadVerdictRows (see the
+  // ladder's own comment above) — but the type guard is needed regardless
+  // so this compiles against the widened RowCell union. Scored same as
+  // empty: neither carries a citable fact.
+  if (cell.kind !== 'value') return 0
   let score = 10
   if (cell.sub && /https?:\/\//.test(cell.sub)) score += 4
   if (cell.sub) score += 1

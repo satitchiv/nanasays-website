@@ -58,6 +58,7 @@ export function resolveAddedSchoolComparisonCell(
     region: school.region,
     boarding: school.boarding,
     gender_split: school.gender_split,
+    boarding_grade: null,
     distance_airport: school.distance_airport,
   }
 
