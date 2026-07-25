@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "NEXT_DIST_DIR=.next-slice6.5 next dev -H 0.0.0.0",
+    "dev:research-room": "npm run verify:research-room:canonical && NEXT_DIST_DIR=.next-research-room-canonical next dev -H 0.0.0.0 -p 3003",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
+    "verify:research-room:canonical": "node scripts/verify-research-room-canonical.mjs",
     "research:requests": "node --env-file=.env.local scripts/list-comparison-research-requests.mjs",
     "research:coverage": "node --env-file=.env.local --experimental-strip-types scripts/audit-research-room-comparisons.mts",
     "research:coverage:add-school": "node --env-file=.env.local --experimental-strip-types --import ./scripts/register-node-typescript-loader.mjs scripts/audit-added-school-coverage.mts",

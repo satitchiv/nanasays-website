@@ -36,3 +36,6 @@ npm run research:batch:topic-demand -- --apply --json
 
 The workflow runs at 00:30 and 12:30 UTC, after the verified comparison
 refresh. Duplicate deliveries in the same UTC slot are logged no-ops.
+
+Operational ownership and the read-only weekly audit are documented in
+`docs/research-room-comparison-curator.md`.

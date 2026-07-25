@@ -267,6 +267,11 @@ function clusterKey(label: string): { key: string; preferredLabel: string } {
 function evidenceCellScore(cell: RowCell): number {
   if (cell.kind === 'empty') return 0
   if (cell.kind === 'lights') return 5 + cell.lights.length
+  // RRV-2: 'cohort'/'gap' cells are produced only by loadLensRows, never by
+  // loadVerdictRows (the loader this scorer serves) — but the type guard
+  // is needed regardless now that RowCell includes them. Same treatment
+  // as empty: no citable fact behind either.
+  if (cell.kind !== 'value') return 0
   let score = 10
   if (cell.sub && /https?:\/\//.test(cell.sub)) score += 4
   if (cell.sub) score += 1

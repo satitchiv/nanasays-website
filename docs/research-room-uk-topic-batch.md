@@ -55,6 +55,8 @@ The scheduled workflow is `.github/workflows/research-room-uk-comparisons.yml`.
 It runs at 00:00 and 12:00 UTC. Its manual `workflow_dispatch` input defaults
 to dry-run; scheduled invocations use apply mode. A duplicate delivery in the
 same UTC slot is claimed once by the unique `(scheduler_key, run_key)` key.
+Operational ownership and the read-only weekly audit are documented in
+`docs/research-room-comparison-curator.md`.
 
 ## First live dry run
 

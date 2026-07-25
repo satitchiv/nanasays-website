@@ -1,4 +1,5 @@
-name: Research Room topic demand
+name: Comparison Curator - topic demand
+run-name: Comparison Curator - topic demand (${{ github.event_name }})
 
 on:
   schedule:
@@ -19,12 +20,19 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: research-room-topic-demand
+  cancel-in-progress: false
+
 jobs:
   run:
+    name: Promote evidence-backed comparison topics
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
       SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+      RESEARCH_ROOM_AUTOMATION_OWNER: comparison-curator
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -42,3 +50,15 @@ jobs:
           else
             npm run research:batch:topic-demand -- --${{ inputs.mode }} --json
           fi
+      - name: Record curator ownership
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "### Research Room Comparison Curator"
+            echo "- Responsibility: promote evidence-backed parent comparison topics"
+            echo "- Trigger: ${{ github.event_name }}"
+            echo "- Result: ${{ job.status }}"
+            echo "- AI/model calls: none"
+            echo "- Website crawling: disabled by the topic-creator safety contract"
+          } >> "$GITHUB_STEP_SUMMARY"

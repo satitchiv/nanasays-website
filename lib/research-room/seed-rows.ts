@@ -1,11 +1,19 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { KNOWN_FULL_BOARDING_NAMES, normalizeSchoolName } from '@/lib/school-name-overrides'
-import type { WinnerRule } from '@/components/nana/comparison-placeholder'
+import {
+  KNOWN_FULL_BOARDING_NAMES,
+  normalizeSchoolName,
+  effectiveBoardingGrade,
+  type BoardingGrade,
+} from '@/lib/school-name-overrides'
+import { boardingGradeNote } from '@/lib/server/research-room/evidence-packs'
+import type { WinnerRule, FitBand, BoardingMix } from '@/components/nana/comparison-placeholder'
 import {
   type BriefProfile,
   isIbCurriculum,
   isSportPriority,
+  isAcademicPriority,
+  isFullOrWeeklyBoarding,
 } from './brief-predicates'
 import { canonicalJson } from './canonical-json'
 import { generalSeedRowSlug } from './seed-row-names'
@@ -45,6 +53,35 @@ type CellValue = {
   // Set only by builders whose underlying field is genuinely numeric;
   // undefined for free-text cells (school type, location, sport tiers, ...).
   numeric?: number
+  // RRV-5: see FitBand in comparison-placeholder.ts. `value` stays the
+  // plain factual reading (e.g. the raw tier string) deliberately — `band`
+  // carries the parent-facing word + discrete-segment position, kept
+  // separate so cellFromRaw's shared verdict-tab path is unaffected (see
+  // loadLensRows in lib/research-comparison.ts, which attaches this).
+  band?: FitBand
+  // RRV-5: see BoardingMix in comparison-placeholder.ts. Only set when a
+  // real per-school board/day % exists — never derived from the
+  // categorical boarding_grade enum.
+  mix?: BoardingMix
+  // RRV-7 (2026-07-20): raw drive-time minutes behind a "NN min" value, so
+  // loadLensRows can plot the travel corridor without parsing the display
+  // string. Parallel-field rule (same as band/mix): cellFromRaw in
+  // lib/research-comparison.ts must NEVER read this — it feeds
+  // loadVerdictRows, whose output is hashed into the verdict cache key.
+  // Existing sessions pick it up via reconcileSeededRows' canonicalJson
+  // diff on next load (RRV-5 precedent, no migration).
+  minutes?: number
+  // RRV-4 (2026-07-20): classification behind the "Entry timeline" cell —
+  // see lib/research-room/rrv4-viz.ts for why this is a STATE, not a
+  // plotted date. Deliberately NOT split into future/past here — that
+  // split depends on "today", which drifts between seeds; only
+  // 'dated' + `deadlineIso` are persisted, and buildEntryTimelineViz
+  // resolves future-vs-past fresh at load time (monthsBetween(todayIso(),
+  // deadlineIso)), so a cell seeded months ago never reports a stale
+  // future/past verdict. Same parallel-field rule as band/mix/minutes
+  // above: never read by cellFromRaw.
+  entryState?: 'rolling' | 'dated' | 'vague'
+  deadlineIso?: string | null
 }
 
 type CellData = Record<string, CellValue>
@@ -80,12 +117,15 @@ export type SchoolMeta = {
   region:        string | null
   boarding:      boolean | null
   gender_split:  string | null
+  // RRV-5: the categorical enum (see lib/school-name-overrides.ts) — always
+  // read through effectiveBoardingGrade(name, boarding_grade), never raw,
+  // so the curated Merchiston/day-only overrides apply.
+  boarding_grade: string | null
   distance_airport?: string | null
 }
 
-// Shared by the server-side Research Room loaders and the verified batch jobs.
-// Keep this limited to database/mirror columns; no website-crawl fields belong
-// in this select.
+// Shared by the Research Room loaders and verified batch jobs. This select
+// contains database/mirror fields only; the scheduler never crawls websites.
 export const RESEARCH_ROOM_STRUCTURED_SELECT =
   'school_slug, fees_min, fees_max, fees_currency, exam_results, university_destinations, admissions_format, sports_profile, student_community, location_profile, fees_by_grade, application_fee_usd, bursary_note, curriculum, languages, scholarships_available, pastoral_care, pastoral_model, wellbeing_staffing, school_life, facilities' as const
 
@@ -108,6 +148,12 @@ type SeedContext = {
   meta:   SchoolMeta
   struct: StructuredRow | null
   notion: NotionBackfillRow | null
+  // RRV-5: only the brief-aware builders that need to judge "does this
+  // school match what the family asked for" (buildBoardingLifeFit's muted
+  // flag) read this. General builders ignore it — it's optional so their
+  // signatures don't need to change. Null for legacy/anonymous flows,
+  // matching seedResearchSession's existing `profile: BriefProfile | null`.
+  profile?: BriefProfile | null
 }
 
 type SeedRowSpec = {
@@ -200,7 +246,12 @@ function buildHeathrowMinutes({ struct }: SeedContext): CellValue | null {
     const nameStr = String(obj.name ?? obj.label ?? obj.code ?? '').toLowerCase()
     if (!/heathrow|lhr/.test(nameStr)) continue
     const m = obj.drive_time_min_estimate ?? obj.minutes ?? obj.travel_minutes ?? obj.drive_minutes ?? obj.duration_minutes
-    if (typeof m === 'number' && m > 0) return { value: `${m} min`, source: 'location_profile' }
+    // RRV-7: `minutes` mirrors the numeric value for the travel corridor
+    // (parallel field — see the CellValue comment). The string branch
+    // deliberately stays minutes-less: an unparsed free-text time can't be
+    // plotted honestly. (2026-07-20 trace: all 99 UK-pool Heathrow entries
+    // are numeric drive_time_min_estimate, so the string branch is dormant.)
+    if (typeof m === 'number' && m > 0) return { value: `${m} min`, source: 'location_profile', minutes: m }
     if (typeof m === 'string' && m.trim()) return { value: m, source: 'location_profile' }
   }
   return null
@@ -421,7 +472,18 @@ function buildDayPupils({ struct, notion }: SeedContext): CellValue | null {
   return null
 }
 
-function buildBoardingRatio({ struct, notion }: SeedContext): CellValue | null {
+// RRV-5 (2026-07-20): word-only fallback when no real board/day % exists
+// but the categorical boarding_grade does — never a fabricated proportion.
+// Kept short (fits a table cell); the full honest sentence from
+// boardingGradeNote() goes in `note`, not `value`.
+const BOARDING_GRADE_MIX_WORD: Readonly<Record<Exclude<BoardingGrade, 'unknown'>, string>> = Object.freeze({
+  'full-dominant': 'Predominantly boarding',
+  'offers-full':   'Offers full boarding',
+  'weekly-only':   'Weekly/flexi only',
+  'day-only':      'Day school',
+})
+
+function buildBoardingRatio({ meta, struct, notion }: SeedContext): CellValue | null {
   // Codex r1 P1: extractor (extract-batch-culture.js) writes student_community.boarding_pct
   // as a percentage 0-100. Earlier draft of this builder read `boarding_ratio` which never
   // existed in extractor data — Notion was always winning by default. Read both keys; if a
@@ -434,14 +496,33 @@ function buildBoardingRatio({ struct, notion }: SeedContext): CellValue | null {
   }
   if (ext != null) {
     const pct = ext > 0 && ext <= 1 ? ext * 100 : ext
-    return { value: `${Math.round(pct)}%`, source: ext === sc?.boarding_pct ? 'student_community.boarding_pct' : 'student_community.boarding_ratio', numeric: Math.round(pct) }
+    const rounded = Math.round(pct)
+    // RRV-5: this IS a real per-school proportion (student_community.boarding_pct),
+    // so — and only so — a genuine 2-segment board/day bar is honest here.
+    return {
+      value: `${rounded}%`,
+      source: ext === sc?.boarding_pct ? 'student_community.boarding_pct' : 'student_community.boarding_ratio',
+      numeric: rounded,
+      mix: { boardPct: rounded, dayPct: 100 - rounded },
+    }
   }
   const n = notionParsedNumber(notion, 'boarding_ratio')
   if (n != null) {
     // Notion stores percentages as 75.6 (already %, not 0.756). Round for display.
-    return { value: `${Math.round(n)}%`, source: 'notion.parsed.boarding_ratio', numeric: Math.round(n) }
+    const rounded = Math.round(n)
+    return { value: `${rounded}%`, source: 'notion.parsed.boarding_ratio', numeric: rounded, mix: { boardPct: rounded, dayPct: 100 - rounded } }
   }
-  return null
+  // RRV-5: no real proportion on record for this school — fall back to the
+  // categorical boarding_grade as an honest WORD (never a fabricated %).
+  // effectiveBoardingGrade layers the curated Merchiston/day-only overrides
+  // over the raw column, same as buildBoardingLifeFit.
+  const grade = effectiveBoardingGrade(meta.name, meta.boarding_grade)
+  if (grade === 'unknown') return null
+  return {
+    value: BOARDING_GRADE_MIX_WORD[grade],
+    source: 'schools.boarding_grade',
+    note: boardingGradeNote(grade),
+  }
 }
 
 function buildGcsePct({ struct, notion }: SeedContext): CellValue | null {
@@ -577,18 +658,124 @@ function buildRegistrationFee({ struct }: SeedContext): CellValue | null {
   return null
 }
 
-function buildY9Y10Admissions({ struct }: SeedContext): CellValue | null {
+// RRV-4 (2026-07-20): child_year → UK Year, so the row can match the
+// family's ACTUAL target entry point instead of a hardcoded 9/10. Reuses
+// the "13+ means Year 9" style mapping already established by
+// PLUS_TO_YEAR — sixth-form maps to 12 (Year 12 = Lower Sixth entry),
+// matching YEAR_TO_ENTRY_AGE's 'sixth-form' → age 16 convention in
+// score-for-build-mode.ts.
+const CHILD_YEAR_TO_UK_YEAR: Readonly<Record<string, number>> = Object.freeze({
+  'year-7':     7,
+  'year-9':     9,
+  'year-10':    10,
+  'sixth-form': 12,
+})
+
+// DD Month YYYY, same pattern as the house precedent in
+// app/api/calendar/[slug]/route.ts's parseEventDate (open-day ICS export)
+// — kept local rather than imported since that file is a route handler,
+// not a shared lib, and the two call sites' string shapes (open-day text
+// vs admissions_format free text) aren't guaranteed to stay identical.
+const MONTH_NUM: Readonly<Record<string, string>> = Object.freeze({
+  january: '01', february: '02', march: '03', april: '04',
+  may: '05', june: '06', july: '07', august: '08',
+  september: '09', october: '10', november: '11', december: '12',
+})
+
+function parseDeadlineDate(text: string): { iso: string; display: string } | null {
+  const m = text.match(
+    /(\d{1,2})(?:st|nd|rd|th)?\s+(january|february|march|april|may|june|july|august|september|october|november|december)\s+(\d{4})/i
+  )
+  if (!m) return null
+  const day = m[1].padStart(2, '0')
+  const month = MONTH_NUM[m[2].toLowerCase()]
+  const year = m[3]
+  const display = `${m[1]} ${m[2][0].toUpperCase()}${m[2].slice(1).toLowerCase()} ${year}`
+  return { iso: `${year}-${month}-${day}`, display }
+}
+
+// Deliberately-empty placeholder text the extractor sometimes writes
+// instead of a true null (audit finding, RRV-4a live trace 2026-07-20:
+// "Not specified" / "Not stated" / "Not explicitly stated" account for
+// ~40 of the 477 UK-pool entry-point rows) — treated as no-data, same as
+// a real null, so they fall through to the Ask-Nana gap ladder rather
+// than rendering as a fake "vague" cell.
+const NO_DATA_TEXT = /^not (specified|stated|explicitly stated)|^(n\/?a|unknown|tbc|tbd)$/i
+
+// Live-trace fix (RRV-4 build, 2026-07-20): a real prod string —
+// "7 September 2026 (opens); deadline not explicitly stated but
+// registration for 2027 entry opens 7 Sept 2026" — has a clean DD Month
+// YYYY match ("7 September 2026"), but that date is the OPENING date, and
+// the extractor's own text admits the deadline itself "is not explicitly
+// stated." A naive date-regex would render this as a confident deadline —
+// exactly the overclaiming the pre-build review warned against. Checked
+// BEFORE attempting a date parse, anywhere in the string (not just as a
+// whole-string match like NO_DATA_TEXT), so an embedded disclaimer wins
+// even when a date happens to appear elsewhere in the same string.
+const DEADLINE_NOT_STATED = /deadline\s+(is\s+)?not\s+(explicitly\s+)?stated|deadline\s+not\s+specified/i
+
+// A registration-FEE amount sometimes sits in the registration_deadline
+// slot (audit finding — a handful of extractor mis-fills, e.g. "Registration
+// fee £240 payable on completion of online form"). Reusing buildRegistrationFee's
+// £-amount signal here to keep a mis-filled fee out of the "vague" bucket —
+// it must fall to the gap ladder, not be echoed as if it were timing guidance.
+const LOOKS_LIKE_FEE = /[£$¥]\s?\d/
+
+// Word-boundary truncation for the "vague" bucket's raw echoed text — a
+// blind slice(0, N) can cut mid-word (live-trace finding: "...9th January "
+// off a longer sentence), which reads as a rendering bug, not an honest
+// partial quote.
+function truncateAtWord(s: string, max: number): string {
+  if (s.length <= max) return s
+  const cut = s.slice(0, max)
+  const lastSpace = cut.lastIndexOf(' ')
+  return `${(lastSpace > max * 0.4 ? cut.slice(0, lastSpace) : cut).trimEnd()}…`
+}
+
+function classifyDeadlineText(text: string | null): CellValue | null {
+  if (!text) return null
+  const trimmed = text.trim()
+  if (!trimmed || NO_DATA_TEXT.test(trimmed)) return null
+  if (/rolling|no formal|no deadline|none\s*[—-]|year.?round|throughout|any\s*time|anytime/i.test(trimmed)) {
+    return { value: 'Rolling admissions', source: 'admissions_format.entry_points', entryState: 'rolling' }
+  }
+  if (DEADLINE_NOT_STATED.test(trimmed)) return null
+  const dated = parseDeadlineDate(trimmed)
+  if (dated) {
+    return {
+      value: dated.display,
+      source: 'admissions_format.entry_points',
+      entryState: 'dated',
+      deadlineIso: dated.iso,
+    }
+  }
+  if (LOOKS_LIKE_FEE.test(trimmed)) return null
+  return {
+    value: truncateAtWord(trimmed, 70),
+    source: 'admissions_format.entry_points',
+    entryState: 'vague',
+  }
+}
+
+function buildEntryTimeline({ struct, profile }: SeedContext): CellValue | null {
   const af = struct?.admissions_format as Record<string, unknown> | null | undefined
   const ep = af?.entry_points
-  if (!Array.isArray(ep)) return null
-  // Look for an entry point at year 9 or 10 and surface its label/note.
+  if (!Array.isArray(ep) || ep.length === 0) return null
+
+  const targetYear = profile?.child_year ? CHILD_YEAR_TO_UK_YEAR[profile.child_year] ?? null : null
+
+  // Two passes: prefer the entry point matching the family's actual target
+  // year; fall back to the lowest-year entry point overall when there's no
+  // profile yet (general lens / anonymous flow) or the target year isn't
+  // offered by this school. Mirrors buildLowestBoardingEntry's fallback
+  // shape (lowestBoarding ?? lowestOverall).
+  let matched: Record<string, unknown> | null = null
+  let matchedYear: number | null = null
+  let lowest: Record<string, unknown> | null = null
+  let lowestYear: number | null = null
   for (const e of ep) {
     if (!e || typeof e !== 'object') continue
     const o = e as Record<string, unknown>
-    // Extractor writes free-text `entry_point` (e.g. "Year 9 (Third Form, age ~13)").
-    // Walk candidates in priority order so an unparseable entry_point doesn't mask
-    // a structured numeric `year`/`age`. Per Codex r2 finding — keeps lockstep with
-    // buildLowestBoardingEntry. The helper handles "13+ entry" → Year 9 correctly.
     let y: number | null = null
     for (const raw of [o.entry_point, o.year, o.age]) {
       if (typeof raw === 'number') { y = raw; break }
@@ -597,15 +784,20 @@ function buildY9Y10Admissions({ struct }: SeedContext): CellValue | null {
         if (parsed != null) { y = parsed; break }
       }
     }
-    if (y !== 9 && y !== 10) continue
-    const labelRaw = o.entry_point ?? o.label ?? o.note ?? o.requirement
-    if (typeof labelRaw === 'string' && labelRaw.trim()) {
-      const trimmed = labelRaw.trim().slice(0, 80)
-      return { value: trimmed, source: 'admissions_format.entry_points' }
-    }
-    return { value: `Year ${y} entry`, source: 'admissions_format.entry_points' }
+    if (y == null || y < 1 || y > 13) continue
+    if (targetYear != null && y === targetYear && matched == null) { matched = o; matchedYear = y }
+    if (lowestYear == null || y < lowestYear) { lowestYear = y; lowest = o }
   }
-  return null
+  const use = matched ?? lowest
+  const useYear = matchedYear ?? lowestYear
+  if (!use) return null
+
+  const deadlineRaw = typeof use.registration_deadline === 'string' ? use.registration_deadline : null
+  const assessRaw = typeof use.assessment_date === 'string' ? use.assessment_date : null
+  const classified = classifyDeadlineText(deadlineRaw) ?? classifyDeadlineText(assessRaw)
+  if (!classified) return null
+
+  return { ...classified, note: useYear != null ? `Year ${useYear} entry` : undefined }
 }
 
 function buildSchoolView(_: SeedContext): CellValue | null {
@@ -620,6 +812,40 @@ function buildSchoolView(_: SeedContext): CellValue | null {
 // null when their underlying field is empty — the row still seeds (so the
 // topic appears in Build 4's weighting) but renders '—' for that school.
 
+// RRV-5 (2026-07-20): real tier vocabularies, queried live against
+// production (project ckofdbjfbxoxxxtedmqa) — the code comment this
+// replaced guessed "Elite/Strong/Developing" but that vocabulary doesn't
+// exist in the data. Rugby's extractor uses a genuinely different 5-rung
+// scale (includes a bare 'national' rung, no 'local') than the other four
+// sports' 4-rung scale. Order is low → high; index+1 = band.filled.
+const RUGBY_TIER_SCALE = ['recreational', 'regional', 'national', 'national-strong', 'national-elite'] as const
+const OTHER_SPORT_TIER_SCALE = ['local', 'regional', 'national-strong', 'national-elite'] as const
+
+// Parent-facing words for band.word — deliberately NOT the raw tier slug
+// (kept as `value` unchanged, see below) and NOT the mock's exact wording
+// (that was illustrative copy over sample data). Short, plain, no jargon.
+const TIER_BAND_WORDS: Readonly<Record<string, string>> = Object.freeze({
+  recreational:     'Recreational',
+  local:            'Local',
+  regional:         'Regional',
+  national:         'National',
+  'national-strong': 'National',
+  'national-elite': 'National elite',
+})
+
+function sportTierBand(sportKey: 'rugby' | 'tennis' | 'cricket' | 'hockey' | 'football' | 'netball', tier: string): FitBand | undefined {
+  const scale = sportKey === 'rugby' ? RUGBY_TIER_SCALE : OTHER_SPORT_TIER_SCALE
+  const idx = (scale as readonly string[]).indexOf(tier)
+  // Not in this sport's known scale (and not 'unknown', already filtered
+  // out by the caller) — future extractor vocab drift. Render the raw
+  // value as plain text (today's behaviour) rather than a bar that implies
+  // a position on a scale we don't actually recognise.
+  if (idx === -1) return undefined
+  const word = TIER_BAND_WORDS[tier]
+  if (!word) return undefined
+  return { word, filled: idx + 1, total: scale.length }
+}
+
 function sportTierCell(
   struct: StructuredRow | null,
   sportKey: 'rugby' | 'tennis' | 'cricket' | 'hockey' | 'football' | 'netball',
@@ -629,12 +855,22 @@ function sportTierCell(
   const obj = sport as Record<string, unknown>
   const tier = obj.competitive_tier
   if (typeof tier !== 'string' || !tier.trim()) return null
+  // RRV-5 fix: 'unknown' is a real, populated extractor value (the sport
+  // was found but no competitive tier could be assessed) — it is NOT a
+  // real claim about the school and must not render as if it were one.
+  // Falls through to the RRV-2 Ask-Nana gap chip like any other absent cell.
+  if (tier.trim().toLowerCase() === 'unknown') return null
   // Most cells benefit from a fixture-count hint when present (e.g. tennis
   // shows team counts via SOCS discovery). Keep the cell compact: tier label
   // as the primary value, optional fixture count in note.
   const teams = obj.team_count ?? obj.teams ?? obj.fixtures_count
   const note = typeof teams === 'number' && teams > 0 ? `${teams} teams` : undefined
-  return { value: tier.charAt(0).toUpperCase() + tier.slice(1), note, source: `sports_profile.${sportKey}` }
+  return {
+    value: tier.charAt(0).toUpperCase() + tier.slice(1),
+    note,
+    source: `sports_profile.${sportKey}`,
+    band: sportTierBand(sportKey, tier.trim().toLowerCase()),
+  }
 }
 
 function buildRugbyStrength({ struct }: SeedContext): CellValue | null {
@@ -668,6 +904,79 @@ function buildIbOffered({ struct }: SeedContext): CellValue | null {
   return null
 }
 
+// RRV-5 (2026-07-20): "Academic stretch" — a fit bar for families whose
+// top priority is academic. Reuses the exact same real numbers the
+// always-shown GCSE/A-level rows already read (no new extraction); this
+// row's only job is to translate a real % into a plain-word bucket for a
+// parent who told us this specifically matters. A-level preferred when
+// present (older Y12/13 shortlists) since it's the more direct "stretch"
+// signal; falls back to GCSE for younger entrants. Thresholds below are a
+// founder-set display bucketing (like the fees/pastoral 'neutral'
+// winnerRule decisions elsewhere in this file), calibrated to the live
+// percentile spread queried 2026-07-20 (GCSE p10/p50/p90 = 45/75/95,
+// A-level p10/p50/p90 = 39/60/85) — not an extracted or externally
+// benchmarked scale.
+function academicBand(pct: number, kind: 'gcse' | 'a_level'): FitBand {
+  const cuts = kind === 'gcse' ? [55, 75, 88] : [45, 65, 80]
+  const words = ['Developing', 'Moderate', 'Strong', 'Exceptional']
+  let idx = cuts.findIndex(c => pct < c)
+  if (idx === -1) idx = cuts.length
+  return { word: words[idx], filled: idx + 1, total: 4 }
+}
+
+function buildAcademicStretch({ struct, notion }: SeedContext): CellValue | null {
+  const al = (struct?.exam_results as Record<string, unknown> | null | undefined)?.a_level as
+    | Record<string, unknown>
+    | undefined
+  const alPct = al?.pct_a_star_a
+  if (typeof alPct === 'number') {
+    return { value: `${Math.round(alPct)}%`, source: 'exam_results.a_level', numeric: Math.round(alPct), band: academicBand(alPct, 'a_level') }
+  }
+  const gcse = (struct?.exam_results as Record<string, unknown> | null | undefined)?.gcse as
+    | Record<string, unknown>
+    | undefined
+  const gcsePct = gcse?.pct_7_to_9
+  if (typeof gcsePct === 'number') {
+    return { value: `${Math.round(gcsePct)}%`, source: 'exam_results.gcse', numeric: Math.round(gcsePct), band: academicBand(gcsePct, 'gcse') }
+  }
+  const alN = notionParsedNumber(notion, 'a_level_pct')
+  if (alN != null) return { value: `${Math.round(alN)}%`, source: 'notion.parsed.a_level_pct', numeric: Math.round(alN), band: academicBand(alN, 'a_level') }
+  const gcseN = notionParsedNumber(notion, 'gcse_pct')
+  if (gcseN != null) return { value: `${Math.round(gcseN)}%`, source: 'notion.parsed.gcse_pct', numeric: Math.round(gcseN), band: academicBand(gcseN, 'gcse') }
+  return null
+}
+
+// RRV-5: "Boarding life fit" — a fit bar for families who told us they
+// want full or weekly boarding. Same categorical source as "Boarding mix"
+// below (boarding_grade), but answers a different, personalised question:
+// does THIS school's boarding life match what YOU asked for, not just what
+// proportion of pupils board. `filled` encodes the enum's real monotone
+// order (day-only < weekly-only < offers-full < full-dominant); `muted`
+// flags a genuine preference mismatch, never "low confidence".
+function buildBoardingLifeFit({ meta, profile }: SeedContext): CellValue | null {
+  const grade = effectiveBoardingGrade(meta.name, meta.boarding_grade)
+  if (grade === 'unknown') return null
+  const wantsFull = profile?.boarding_pref === 'full'
+  const BANDS: Record<Exclude<BoardingGrade, 'unknown'>, { word: string; filled: number; muted: boolean }> = {
+    'full-dominant': { word: 'Core strength', filled: 4, muted: false },
+    'offers-full':   { word: 'Offers full',   filled: 3, muted: false },
+    'weekly-only':   { word: 'Weekly option', filled: 2, muted: wantsFull },
+    'day-only':      { word: 'Mostly day',    filled: 1, muted: true },
+  }
+  const b = BANDS[grade]
+  // Unlike the sport-tier rows (pre-existing, raw tier string already
+  // flowed to the Verdict tab before RRV-5), this row is brand new — no
+  // legacy `value` shape to preserve. Use the same short word for both
+  // `value` and `band.word` rather than leaking the raw enum slug
+  // ("full-dominant") to any consumer that doesn't render `band`.
+  return {
+    value: b.word,
+    source: 'schools.boarding_grade',
+    note: boardingGradeNote(grade),
+    band: { word: b.word, filled: b.filled, total: 4, muted: b.muted },
+  }
+}
+
 // ─── Spec list ──────────────────────────────────────────────────────────────
 // sort_order uses 100, 200, 300, ... so future specs can slot between
 // existing values without renumbering the whole list.
@@ -696,18 +1005,37 @@ const GENERAL_SPECS: SeedRowSpec[] = [
   { slug: 'boarding_pupils',       row_name: 'Boarding pupils',             group_name: 'Pastoral',   sort_order:  800, build: buildBoardingPupils, winnerRule: 'neutral' },
   { slug: 'international_pupils',  row_name: 'International pupils',        group_name: 'Pastoral',   sort_order:  900, build: buildInternationalPupils, winnerRule: 'neutral' },
   { slug: 'day_pupils',            row_name: 'Day pupils',                  group_name: 'Pastoral',   sort_order: 1000, build: buildDayPupils, winnerRule: 'neutral' },
-  { slug: 'boarding_ratio',        row_name: 'Boarding ratio',              group_name: 'Pastoral',   sort_order: 1100, build: buildBoardingRatio, winnerRule: 'neutral' },
+  // RRV-5 (2026-07-20): renamed 'Boarding ratio' → 'Boarding mix' — the
+  // builder now emits a real board/day bar OR an honest boarding_grade
+  // word (never a fabricated 3-way split), so the label needed to stop
+  // promising a single ratio number. Slug/idempotency-key UNCHANGED
+  // (boarding_ratio) so seedResearchSession's reconcile path rewrites
+  // row_name + cell_data on every existing session's next load — no
+  // migration, no duplicate row. See buildBoardingRatio for the ladder.
+  { slug: 'boarding_ratio',        row_name: 'Boarding mix',                group_name: 'Pastoral',   sort_order: 1100, build: buildBoardingRatio, winnerRule: 'neutral' },
   { slug: 'gcse_pct',              row_name: 'GCSE 9–7',                    group_name: 'Academics',  sort_order: 1200, build: buildGcsePct, winnerRule: 'higher-is-better' },
   { slug: 'a_level_pct',           row_name: 'A-level A*–A',                group_name: 'Academics',  sort_order: 1300, build: buildALevelPct, winnerRule: 'higher-is-better' },
   { slug: 'boarding_fee_term',     row_name: 'Boarding fee · per term',     group_name: 'Fees',       sort_order: 1400, build: buildBoardingFeeTerm, winnerRule: 'neutral' },
   { slug: 'boarding_fee_year',     row_name: 'Boarding fee · per year',     group_name: 'Fees',       sort_order: 1500, build: buildAnnualBoardingFee, winnerRule: 'neutral' },
   { slug: 'registration_fee',      row_name: 'Registration fee',            group_name: 'Fees',       sort_order: 1600, build: buildRegistrationFee, winnerRule: 'neutral' },
-  { slug: 'y9_y10_admissions',     row_name: 'Year 9 / 10 admissions',      group_name: 'Admissions', sort_order: 1700, build: buildY9Y10Admissions, winnerRule: 'neutral' },
+  // RRV-4 (2026-07-20): renamed 'Year 9 / 10 admissions' → 'Entry timeline'
+  // and generalized past just Y9/Y10 — same slug-stays-fixed rename
+  // precedent as RRV-5's 'Boarding ratio' → 'Boarding mix' (see that spec's
+  // comment above): reconcileSeededRows rewrites row_name + cell_data on
+  // next load, no migration, no duplicate row. One caveat this rename
+  // exposes that boarding_ratio's didn't: the loader's `slug` lookup
+  // (GENERAL_ROW_SLUG_BY_NAME) is keyed by row_name, and this row also
+  // carries a `viz` (see buildEntryTimelineViz in lib/research-comparison.ts)
+  // — so on the one stale load between deploy and this row's own reconcile
+  // (fail-soft, see reconcileSeededRows), a DB row still titled "Year 9 /
+  // 10 admissions" won't resolve a slug and the strip won't render that
+  // load. Degrades to the plain cell, never a crash; self-heals next load.
+  { slug: 'y9_y10_admissions',     row_name: 'Entry timeline',              group_name: 'Admissions', sort_order: 1700, build: buildEntryTimeline, winnerRule: 'neutral' },
   { slug: 'school_view',           row_name: 'School view',                 group_name: 'Media',      sort_order: 1800, build: buildSchoolView, winnerRule: 'neutral' },
 ]
 
-/** Resolve one managed seed row for a newly added school using the same
- * builders as initial Research Room seeding. */
+/** Resolve one managed seed row for a newly added school with the same
+ * builders used by the initial Research Room seed. */
 export function resolveSeedComparisonCell(
   rowName: string,
   meta: SchoolMeta,
@@ -747,10 +1075,11 @@ type BriefSeedRowSpec = SeedRowSpec & {
 // AND `extracurricular`-style fields, re-introduce them with real builders.
 const BRIEF_SPECS: BriefSeedRowSpec[] = [
   // Sport priority — 5 sport-strength rows so the parent sees which schools
-  // shine where. Cell builders read sports_profile.<sport>.competitive_tier,
-  // a qualitative tier label (e.g. "Elite"/"Strong"/"Developing") with no
-  // codified ordinal scale in this codebase — 'neutral' per the "if
-  // genuinely unsure, default to neutral" rule.
+  // shine where. Cell builders read sports_profile.<sport>.competitive_tier;
+  // RRV-5 (2026-07-20) gave this a real, queried-live ordinal scale (see
+  // RUGBY_TIER_SCALE / OTHER_SPORT_TIER_SCALE above buildRugbyStrength) —
+  // 'neutral' stays the winnerRule regardless, per the "if genuinely
+  // unsure, default to neutral" rule (a tier isn't a clean single metric).
   { slug: 'rugby_strength',    row_name: 'Rugby strength',    group_name: 'child-specific', sort_order:  50, gate: isSportPriority, build: buildRugbyStrength, winnerRule: 'neutral' },
   { slug: 'tennis_strength',   row_name: 'Tennis strength',   group_name: 'child-specific', sort_order:  60, gate: isSportPriority, build: buildTennisStrength, winnerRule: 'neutral' },
   { slug: 'cricket_strength',  row_name: 'Cricket strength',  group_name: 'child-specific', sort_order:  70, gate: isSportPriority, build: buildCricketStrength, winnerRule: 'neutral' },
@@ -761,6 +1090,13 @@ const BRIEF_SPECS: BriefSeedRowSpec[] = [
   // academic score (IB diploma average, out of 45) — higher-is-better,
   // same bucket as GCSE/A-level pass rates.
   { slug: 'ib_offered',        row_name: 'IB diploma',        group_name: 'child-specific', sort_order: 100, gate: isIbCurriculum, build: buildIbOffered, winnerRule: 'higher-is-better' },
+
+  // RRV-5 (2026-07-20): fit bars — child-priority-labeled, words not
+  // scores (mock §4). 'neutral' winnerRule for both: they're translations
+  // of an already-numeric/categorical fact into a bucketed word, not a
+  // clean independent metric worth a second winner mark.
+  { slug: 'academic_stretch',  row_name: 'Academic stretch',    group_name: 'child-specific', sort_order: 110, gate: isAcademicPriority, build: buildAcademicStretch, winnerRule: 'neutral' },
+  { slug: 'boarding_life_fit', row_name: 'Boarding life fit',   group_name: 'child-specific', sort_order: 120, gate: isFullOrWeeklyBoarding, build: buildBoardingLifeFit, winnerRule: 'neutral' },
 ]
 
 /**
@@ -791,6 +1127,102 @@ export const GENERAL_ROW_WINNER_RULES: Readonly<Record<string, WinnerRule>> = Ob
     [...GENERAL_SPECS, ...BRIEF_SPECS].map(spec => [spec.row_name, spec.winnerRule ?? 'neutral'])
   )
 )
+
+// RRV-2 (never-blank table, 2026-07-20): row_name → seed slug, same
+// precedent as GENERAL_ROW_WINNER_RULES above. Lets the comparison loader
+// map a DB row back to "which field is this" without re-deriving it from
+// free-text labels — used to (a) decide whether a cohort peer-range is
+// computable for an empty cell (COHORT_ELIGIBLE_SLUGS below) and (b) build
+// a natural-language Ask-Nana question. Rows not in this map (chat-added
+// rows, any future row_name not seeded here) get undefined — the loader
+// falls back to a generic question built from the row label.
+export const GENERAL_ROW_SLUG_BY_NAME: Readonly<Record<string, string>> = Object.freeze(
+  Object.fromEntries(
+    [...GENERAL_SPECS, ...BRIEF_SPECS].map(spec => [spec.row_name, spec.slug])
+  )
+)
+
+// RRV-6 (evidence chips, 2026-07-20): seed slug → school_facts.dimension,
+// for rows whose claim has real, quote-backed evidence to show behind it.
+// Live-data check 2026-07-20: only dimension='rugby' has quote-bearing
+// school_facts rows today (2,051 rows / 110 schools; evidence_quote is
+// non-null on ~93 of those schools after dedupe). tennis_strength/
+// cricket_strength/hockey_strength/football_strength read the same
+// sports_profile.<sport>.competitive_tier shape as rugby_strength (see
+// sportTierCell above) but their sports have zero rows in school_facts —
+// wiring them here with no data would show a "0 sources" chip that implies
+// coverage that doesn't exist. Add an entry once a sport's own extraction
+// pipeline (mirroring scripts/extract-rugby-facts.js) lands real quotes.
+export const EVIDENCE_DIMENSION_BY_ROW_SLUG: Readonly<Record<string, string>> = Object.freeze({
+  rugby_strength: 'rugby',
+})
+
+// Slugs for which a cohort peer-range (RRV-2 rung 3) is worth attempting.
+// Scoped tight and deliberately: only fields (a) sourced from
+// school_structured_data (the same table the seeder itself reads, so a
+// peer's range matches the semantics of this school's own cell — no
+// mixing in schools.* flat-column USD conversions or notion-only fields)
+// and (b) with real coverage in that table (checked live 2026-07-20:
+// boarding_fee_year 122/322 GBP rows, gcse_pct 81/322, total_pupils
+// 138/322 — all comfortably above a min-4-peer bar; a_level_pct (6 rows
+// codebase-wide) and class_size (0 rows in school_structured_data — only
+// ever populated via Notion) are excluded, they'd almost never clear the
+// bar and aren't worth a whitelist entry). Everything NOT in this set
+// still gets a rung-4 Ask-Nana chip when empty — cohort is an optional
+// rung, not a requirement for "never blank".
+export const COHORT_ELIGIBLE_SLUGS: ReadonlySet<string> = new Set([
+  'boarding_fee_year',
+  'gcse_pct',
+  'total_pupils',
+])
+
+// Natural-language Ask-Nana question per slug. Deliberately NOT the raw
+// row_name (e.g. "Boarding fee · per year" reads badly mid-sentence — flagged
+// in the RRV-2 pre-build review). Falls back to a generic template built
+// from the row label for any slug not listed (chat rows, future specs).
+const GAP_QUESTION_TEMPLATES: Readonly<Record<string, (school: string) => string>> = Object.freeze({
+  school_type:            (s) => `What type of school is ${s} — day, boarding, or both?`,
+  location:                (s) => `Where is ${s} located?`,
+  heathrow_minutes:        (s) => `How far is ${s} from Heathrow?`,
+  class_size:              (s) => `What is ${s}'s typical class size?`,
+  total_pupils:            (s) => `How many pupils does ${s} have?`,
+  lowest_boarding_entry:   (s) => `What's the earliest year ${s} accepts boarders?`,
+  boarding_pupils:         (s) => `How many boarding pupils does ${s} have?`,
+  international_pupils:    (s) => `How many international pupils does ${s} have?`,
+  day_pupils:              (s) => `How many day pupils does ${s} have?`,
+  boarding_ratio:          (s) => `What's ${s}'s boarding mix — full, weekly, or day?`,
+  gcse_pct:                (s) => `What GCSE results does ${s} publish?`,
+  a_level_pct:             (s) => `What A-level results does ${s} publish?`,
+  boarding_fee_term:       (s) => `What is ${s}'s boarding fee per term?`,
+  boarding_fee_year:       (s) => `What is ${s}'s annual boarding fee?`,
+  registration_fee:        (s) => `What is ${s}'s registration fee?`,
+  // RRV-4: generic on purpose — the row now matches whichever year the
+  // family actually targets (Year 7 / 9 / 10 / Sixth Form), not just 9/10.
+  y9_y10_admissions:       (s) => `When are applications due at ${s}?`,
+  school_view:             (s) => `What does ${s} look like — is there a video or photo tour?`,
+  rugby_strength:          (s) => `How strong is ${s}'s rugby programme?`,
+  tennis_strength:         (s) => `How strong is ${s}'s tennis programme?`,
+  cricket_strength:        (s) => `How strong is ${s}'s cricket programme?`,
+  hockey_strength:         (s) => `How strong is ${s}'s hockey programme?`,
+  football_strength:       (s) => `How strong is ${s}'s football programme?`,
+  ib_offered:              (s) => `Does ${s} offer the IB diploma?`,
+  academic_stretch:        (s) => `How academically stretching is ${s}?`,
+  boarding_life_fit:       (s) => `What's boarding life actually like at ${s}?`,
+})
+
+/**
+ * Build a ready-to-send Ask-Nana question for an empty cell. `slug` is
+ * looked up via GENERAL_ROW_SLUG_BY_NAME by the caller; pass undefined for
+ * unmapped rows (chat rows) to get the generic fallback.
+ */
+export function gapQuestionFor(slug: string | undefined, rowLabel: string, schoolName: string): string {
+  const template = slug ? GAP_QUESTION_TEMPLATES[slug] : undefined
+  if (template) return template(schoolName)
+  // Generic fallback: strip ' · ' qualifier segments (they read fine as a
+  // column label, badly mid-sentence — e.g. "Boarding fee · per year").
+  const plainLabel = rowLabel.split('·')[0].trim().toLowerCase()
+  return `What is ${schoolName}'s ${plainLabel}?`
+}
 
 // ─── Public entrypoint ──────────────────────────────────────────────────────
 
@@ -825,7 +1257,7 @@ export async function seedResearchSession(
       if (!meta) continue
       const struct = ctx.structMap.get(slug) ?? null
       const notion = ctx.notionMap.get(slug) ?? null
-      const cell = spec.build({ meta, struct, notion })
+      const cell = spec.build({ meta, struct, notion, profile })
       if (cell == null || cell.value == null || cell.value === '') continue
       cell_data[slug] = cell
     }
@@ -1064,7 +1496,9 @@ export async function loadShortlistContext(
 
   const [schoolsRes, structRes, notionRes] = await Promise.all([
     supabase.from('schools')
-      .select('slug, name, city, region, boarding, gender_split')
+      // RRV-5: boarding_grade added for the "Boarding mix" / "Boarding life
+      // fit" rows. Always read through effectiveBoardingGrade(), never raw.
+      .select('slug, name, city, region, boarding, gender_split, boarding_grade')
       .in('slug', slugs),
     supabase.from('school_structured_data')
       .select('school_slug, fees_min, fees_max, fees_currency, exam_results, university_destinations, admissions_format, sports_profile, student_community, location_profile, fees_by_grade, application_fee_usd, bursary_note')
