@@ -2072,6 +2072,11 @@
   line-height: 1.1;
   letter-spacing: -.3px;
   color: var(--rr-navy);
+  white-space: normal;
+  text-wrap: balance;
+}
+.rr-cmp-corner-title span {
+  display: block;
 }
 .rr-cmp-corner-title em {
   color: var(--rr-teal);

@@ -1282,7 +1282,10 @@ export default function ComparisonView({
             >
               <div className="rr-cmp-table-row rr-cmp-table-row--head" style={{ gridTemplateColumns: tableGridTemplateColumns }}>
                 <div className="rr-cmp-corner">
-                  <div className="rr-cmp-corner-title">Comparison details</div>
+                  <div className="rr-cmp-corner-title">
+                    <span>Comparison</span>
+                    <span>details</span>
+                  </div>
                   <div className="rr-cmp-corner-meta">{tableRows.length} rows</div>
                 </div>
                 {tableSchools.map(school => (
