@@ -2985,6 +2985,14 @@
   --rr-evidence-green-bg: #E7F5F0;
   --rr-evidence-amber: #925A00;
   --rr-evidence-amber-bg: #FFF4DD;
+  --rr-action-add-border: #BBDAD2;
+  --rr-action-add-bg: #F4FBF8;
+  --rr-action-research-border: #D9C7A4;
+  --rr-action-research-bg: #FFF9EF;
+  --rr-action-research-text: #8A5A18;
+  --rr-action-view-border: #B9C9E1;
+  --rr-action-view-bg: #F4F7FC;
+  --rr-action-view-text: #315A91;
   gap: 18px;
 }
 
@@ -3535,7 +3543,7 @@
   box-shadow: 0 8px 12px rgba(13, 49, 61, 0.13);
 }
 
-.rr-cmp-autocomplete button {
+.rr-cmp-autocomplete [role="option"] {
   display: grid;
   grid-template-columns: 22px minmax(0, 1fr) auto;
   align-items: center;
@@ -3551,20 +3559,13 @@
   cursor: pointer;
 }
 
-.rr-cmp-autocomplete button:last-child {
+.rr-cmp-autocomplete [role="option"]:last-child {
   border-bottom: 0;
 }
 
-.rr-cmp-autocomplete button:hover,
-.rr-cmp-autocomplete button.is-active {
+.rr-cmp-autocomplete [role="option"]:hover,
+.rr-cmp-autocomplete [role="option"].is-active {
   background: #F1F5F6;
-}
-
-.rr-cmp-autocomplete button:focus-visible {
-  position: relative;
-  z-index: 1;
-  outline: 3px solid rgba(35, 156, 128, 0.28);
-  outline-offset: -3px;
 }
 
 .rr-cmp-autocomplete svg {
@@ -3576,16 +3577,33 @@
   stroke-linecap: round;
 }
 
-.rr-cmp-autocomplete button span {
+.rr-cmp-autocomplete [role="option"] > span {
   min-width: 0;
   overflow-wrap: anywhere;
   font: 700 14px/1.35 var(--rr-sans);
 }
 
-.rr-cmp-autocomplete button small {
+.rr-cmp-autocomplete [role="option"] small {
+  justify-self: end;
+  padding: 5px 8px;
+  border: 1px solid var(--rr-action-add-border);
+  border-radius: 999px;
+  background: var(--rr-action-add-bg);
   color: var(--rr-evidence-green);
   font: 750 11.5px/1.2 var(--rr-sans);
   white-space: nowrap;
+}
+
+.rr-cmp-autocomplete [role="option"][data-action="research"] small {
+  border-color: var(--rr-action-research-border);
+  background: var(--rr-action-research-bg);
+  color: var(--rr-action-research-text);
+}
+
+.rr-cmp-autocomplete [role="option"][data-action="view"] small {
+  border-color: var(--rr-action-view-border);
+  background: var(--rr-action-view-bg);
+  color: var(--rr-action-view-text);
 }
 
 .rr-cmp-autocomplete-empty {
@@ -4061,17 +4079,19 @@
     font-size: 16px;
   }
 
-  .rr-cmp-autocomplete button {
+  .rr-cmp-autocomplete [role="option"] {
     min-height: 52px;
-    grid-template-columns: 24px minmax(0, 1fr);
+    grid-template-columns: 24px minmax(0, 1fr) auto;
   }
 
-  .rr-cmp-autocomplete button span {
+  .rr-cmp-autocomplete [role="option"] > span {
     font-size: 20px;
   }
 
-  .rr-cmp-autocomplete button small {
-    display: none;
+  .rr-cmp-autocomplete [role="option"] small {
+    display: inline-block;
+    justify-self: end;
+    font-size: 11px;
   }
 
   .rr-cmp-autocomplete {

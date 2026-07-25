@@ -31,9 +31,10 @@ import {
 import SchoolAdder from './SchoolAdder'
 import { createClientUuid } from '@/lib/client-uuid'
 import {
-  findSupportedComparisonSuggestions,
+  findComparisonCatalogueSuggestions,
   matchComparisonRequest,
-  SUPPORTED_COMPARISON_LABELS,
+  RESEARCH_ONLY_COMPARISONS,
+  SUPPORTED_COMPARISON_IDS,
 } from '@/lib/research-room/comparison-catalog'
 
 type Lens = 'general' | 'child_fit'
@@ -60,7 +61,7 @@ type LensListItem = {
 
 type Props = {
   data?: ComparisonData
-  availableComparisonLabels?: string[]
+  availableComparisonIds?: string[]
   activeChildName?: string | null
   lens?: Lens
   // Round-4 fix (Codex F3): when the server-side load throws, the page
@@ -127,7 +128,7 @@ function comparisonStorageKey(kind: 'priorities' | 'local-rows', childId: string
 
 export default function ComparisonView({
   data = EMPTY_DATA,
-  availableComparisonLabels = SUPPORTED_COMPARISON_LABELS,
+  availableComparisonIds = SUPPORTED_COMPARISON_IDS,
   activeChildName = null,
   lens = 'general',
   loadError = null,
@@ -170,6 +171,7 @@ export default function ComparisonView({
   const [isSavingResearchRequest, setIsSavingResearchRequest] = useState(false)
   const [rowAutocompleteOpen, setRowAutocompleteOpen] = useState(false)
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1)
+  const autocompleteRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -445,22 +447,19 @@ export default function ComparisonView({
   const priorityRows = selectedPriorityIds
     .map(id => rows.find(row => row.id === id))
     .filter((row): row is ComparisonRow => Boolean(row))
-  const supportedComparisonIdsInRows = new Set(
-    rows.flatMap(row => {
-      const match = matchComparisonRequest(row.label)
-      return match.kind === 'supported' ? [match.id] : []
-    }),
-  )
-  const availableSupportedComparisons = findSupportedComparisonSuggestions(
-    '',
-    availableComparisonLabels,
-  ).filter(
-    comparison => !supportedComparisonIdsInRows.has(comparison.id),
-  )
-  const autocompleteSuggestions = findSupportedComparisonSuggestions(
-    newRowLabel,
-    availableSupportedComparisons.map(comparison => comparison.label),
-  )
+  const availableComparisonIdSet = new Set(availableComparisonIds)
+  const existingComparisonRows = new Map<string, string>()
+  rows.forEach(row => {
+    const match = matchComparisonRequest(row.label)
+    if (match.kind === 'supported') {
+      existingComparisonRows.set(match.id, row.id)
+      return
+    }
+    const researchTopic = RESEARCH_ONLY_COMPARISONS.find(topic =>
+      topic.label.toLowerCase() === match.canonicalTopic.toLowerCase())
+    if (researchTopic) existingComparisonRows.set(`research:${researchTopic.id}`, row.id)
+  })
+  const autocompleteSuggestions = findComparisonCatalogueSuggestions(newRowLabel)
 
   const tableSchoolIndices = isNarrow
     ? [Math.max(0, schools.findIndex(school => school.slug === mobileSchoolSlug))]
@@ -476,11 +475,35 @@ export default function ComparisonView({
     setPriorityEditorOpen(true)
   }
 
-  function chooseComparisonSuggestion(label: string) {
-    setNewRowLabel(label)
-    setNewRowError(null)
+  function closeRowEditor() {
     setRowAutocompleteOpen(false)
     setActiveSuggestionIndex(-1)
+  }
+
+  function viewComparisonRow(rowId: string) {
+    changeDisplayMode('table')
+    setRowEditorOpen(false)
+    closeRowEditor()
+    setNewRowLabel('')
+    window.requestAnimationFrame(() => {
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      document.querySelector<HTMLElement>(`[data-comparison-row-id="${rowId}"]`)
+        ?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'center' })
+    })
+  }
+
+  async function handleCatalogueSuggestion(
+    suggestion: ReturnType<typeof findComparisonCatalogueSuggestions>[number],
+  ) {
+    const key = suggestion.kind === 'supported' ? suggestion.id : `research:${suggestion.id}`
+    const existingRowId = existingComparisonRows.get(key)
+    if (existingRowId) {
+      viewComparisonRow(existingRowId)
+      return
+    }
+
+    setNewRowLabel(suggestion.label)
+    await addComparisonLabel(suggestion.label)
   }
 
   function handleRowSearchKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
@@ -496,7 +519,7 @@ export default function ComparisonView({
         const suggestion = autocompleteSuggestions[activeSuggestionIndex]
         if (suggestion) {
           event.preventDefault()
-          chooseComparisonSuggestion(suggestion.label)
+          void handleCatalogueSuggestion(suggestion)
         }
       }
       return
@@ -515,6 +538,13 @@ export default function ComparisonView({
       return current <= 0 ? autocompleteSuggestions.length - 1 : current - 1
     })
   }
+
+  useEffect(() => {
+    if (!rowAutocompleteOpen || activeSuggestionIndex < 0) return
+    autocompleteRef.current
+      ?.querySelector<HTMLElement>(`[data-suggestion-index="${activeSuggestionIndex}"]`)
+      ?.scrollIntoView({ block: 'nearest' })
+  }, [activeSuggestionIndex, rowAutocompleteOpen])
 
   function toggleDraftPriority(rowId: string) {
     setDraftPriorityIds(current => {
@@ -626,9 +656,8 @@ export default function ComparisonView({
     }
   }
 
-  async function addLocalRow(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    const label = newRowLabel.trim().replace(/\s+/g, ' ')
+  async function addComparisonLabel(rawLabel: string) {
+    const label = rawLabel.trim().replace(/\s+/g, ' ')
     if (label.length < 2 || label.length > 60) {
       setNewRowError('Use a short label between 2 and 60 characters.')
       return
@@ -655,7 +684,8 @@ export default function ComparisonView({
     }
 
     let optimisticId: string | null = null
-    if (match.kind === 'supported') {
+    const canAddWithoutResearch = match.kind === 'supported' && availableComparisonIdSet.has(match.id)
+    if (canAddWithoutResearch) {
       optimisticId = `local-${createClientUuid()}`
       const optimisticRow: LocalComparisonRow = {
         id: optimisticId,
@@ -671,6 +701,11 @@ export default function ComparisonView({
     setRowResearchNotice(null)
     setRowEditorOpen(false)
     await researchLocalRow(label, optimisticId)
+  }
+
+  async function addLocalRow(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    await addComparisonLabel(newRowLabel)
   }
 
   // Rows created before direct research shipped were saved only in this
@@ -970,7 +1005,7 @@ export default function ComparisonView({
               <div className="rr-cmp-row-editor-copy">
                 <label htmlFor="rr-new-row">What else would you like to compare?</label>
                 <span>
-                  Suggestions below are ready for every school. Other questions are saved for future research.
+                  Search all comparison topics. Ready topics can be added now; the rest can be requested for research.
                 </span>
               </div>
               <div className="rr-cmp-row-editor-input">
@@ -1011,43 +1046,67 @@ export default function ComparisonView({
                   {rowAutocompleteOpen && (
                     <div
                       id="rr-comparison-suggestions"
+                      ref={autocompleteRef}
                       className="rr-cmp-autocomplete"
                       role="listbox"
-                      aria-label="Comparisons ready now"
+                      aria-label="Comparison topics"
                     >
                       {autocompleteSuggestions.length > 0 ? autocompleteSuggestions.map((suggestion, index) => (
-                        <button
+                        <div
                           id={`rr-comparison-suggestion-${index}`}
                           key={suggestion.id}
-                          type="button"
                           role="option"
+                          tabIndex={-1}
+                          data-suggestion-index={index}
+                          data-action={
+                            existingComparisonRows.has(
+                              suggestion.kind === 'supported'
+                                ? suggestion.id
+                                : `research:${suggestion.id}`,
+                            )
+                              ? 'view'
+                              : suggestion.kind === 'supported' && availableComparisonIdSet.has(suggestion.id)
+                                ? 'add'
+                                : 'research'
+                          }
                           aria-selected={index === activeSuggestionIndex}
                           className={index === activeSuggestionIndex ? 'is-active' : ''}
                           onMouseDown={event => event.preventDefault()}
                           onMouseEnter={() => setActiveSuggestionIndex(index)}
-                          onClick={() => chooseComparisonSuggestion(suggestion.label)}
+                          onClick={() => void handleCatalogueSuggestion(suggestion)}
                         >
                           <svg viewBox="0 0 20 20" aria-hidden="true">
                             <circle cx="8.5" cy="8.5" r="5.5" />
                             <path d="m12.5 12.5 4 4" />
                           </svg>
                           <span>{suggestion.label}</span>
-                          <small>Ready now</small>
-                        </button>
+                          <small>
+                            {existingComparisonRows.has(
+                              suggestion.kind === 'supported'
+                                ? suggestion.id
+                                : `research:${suggestion.id}`,
+                            )
+                              ? 'View comparison'
+                              : suggestion.kind === 'supported' && availableComparisonIdSet.has(suggestion.id)
+                                ? 'Add comparison'
+                              : 'Request research'}
+                          </small>
+                        </div>
                       )) : (
                         <div className="rr-cmp-autocomplete-empty">
-                          {availableSupportedComparisons.length === 0
-                            ? 'All ready comparisons are already in your table.'
-                            : 'No ready comparison matches. You can save this as a research request.'}
+                          No comparison topics match yet. You can still submit your own research request.
                         </div>
                       )}
                     </div>
                   )}
                 </div>
                 <button type="submit" className="rr-cmp-primary-action">
-                  {newRowLabel.trim() && matchComparisonRequest(newRowLabel).kind === 'research_request'
-                    ? 'Save research request'
-                    : 'Add comparison'}
+                  {(() => {
+                    const match = matchComparisonRequest(newRowLabel)
+                    return match.kind === 'supported' && availableComparisonIdSet.has(match.id)
+                      ? 'Add comparison'
+                      : 'Request research'
+                  })()}
                 </button>
                 <button
                   type="button"
@@ -1498,6 +1557,7 @@ function SortableRow({
       ref={setNodeRef}
       style={style}
       className={`rr-cmp-table-row${isDragging ? ' is-dragging' : ''}`}
+      data-comparison-row-id={row.id}
     >
       <div className="rr-cmp-dim">
         <div className="rr-cmp-dim-name">

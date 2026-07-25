@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  countFilledCells,
   normalizeModelResults,
   resolveTrustedComparisonCell,
   safeHttpsUrl,
@@ -25,6 +26,21 @@ const school: DirectComparisonSchool = {
         { name: 'Gatwick', distance_km: 53, drive_time_min_estimate: 79 },
       ],
     },
+    fees_by_grade: {
+      currency: 'GBP',
+      rows: [{ phase: 'Boarding Years 9–13', per_year: 54_000 }],
+      compulsory_extras: [{ name: 'Registration fee', per_year: 250 }],
+    },
+    admissions_format: {
+      entry_points: [{ year: 9, boarding: true }, { year: 7, boarding: false }],
+    },
+    university_destinations: {
+      top_universities: [{ name: 'Oxford' }, { name: 'Cambridge' }, { name: 'Durham' }],
+    },
+    sports_profile: {
+      signature_sports: ['Rugby', 'Tennis'],
+      facilities: ['50m pool'],
+    },
   },
 }
 
@@ -44,6 +60,122 @@ test('resolves common trusted criteria without web research', () => {
   assert.equal(resolveTrustedComparisonCell('A-level A*–A', school)?.value, '71%')
   assert.equal(resolveTrustedComparisonCell('Annual school fees', school)?.value, '£52,000')
   assert.equal(resolveTrustedComparisonCell('Total pupils', school)?.value, '~744')
+  assert.equal(resolveTrustedComparisonCell('Boarding fees', school)?.value, '£54,000 per year')
+  assert.equal(resolveTrustedComparisonCell('Registration fee', school)?.value, '£250')
+  assert.equal(resolveTrustedComparisonCell('Lowest boarding entry', school)?.value, 'Year 9')
+  assert.equal(resolveTrustedComparisonCell('University destinations', school)?.value, 'Oxford · Cambridge · Durham')
+  assert.equal(resolveTrustedComparisonCell('Sports opportunities', school)?.value, 'Rugby · Tennis · 50m pool')
+})
+
+test('labels term-only boarding fees without presenting them as annual', () => {
+  const termOnlySchool: DirectComparisonSchool = {
+    ...school,
+    structured: {
+      ...school.structured,
+      fees_by_grade: {
+        currency: 'GBP',
+        rows: [{ phase: 'Senior boarding', per_term: 18_500 }],
+      },
+    },
+  }
+
+  assert.deepEqual(resolveTrustedComparisonCell('Boarding fees', termOnlySchool), {
+    value: '£18,500 per term',
+    note: 'Senior boarding',
+    evidence_kind: 'nana_database',
+  })
+})
+
+test('does not present day-school tuition as a boarding fee', () => {
+  const daySchool: DirectComparisonSchool = {
+    ...school,
+    boarding: false,
+    structured: {
+      ...school.structured,
+      fees_by_grade: {
+        currency: 'GBP',
+        rows: [{ phase: 'Senior day pupils', per_year: 28_000 }],
+      },
+    },
+  }
+
+  assert.equal(resolveTrustedComparisonCell('Boarding fees', daySchool), null)
+})
+
+test('resolves boarding entry from the current admissions entry-point shape', () => {
+  const currentSchemaSchool: DirectComparisonSchool = {
+    ...school,
+    structured: {
+      ...school.structured,
+      admissions_format: {
+        entry_points: [
+          { entry_point: '13+ (Year 9)', assessment: 'Boarding assessment weekend' },
+          { entry_point: '16+ (Year 12)', assessment: 'Sixth Form interview' },
+        ],
+      },
+    },
+  }
+
+  assert.equal(
+    resolveTrustedComparisonCell('Lowest boarding entry', currentSchemaSchool)?.value,
+    'Year 9',
+  )
+
+  assert.equal(
+    resolveTrustedComparisonCell('Lowest boarding entry', {
+      ...currentSchemaSchool,
+      structured: {
+        ...currentSchemaSchool.structured,
+        admissions_format: {
+          entry_points: [{ entry_point: 'Years 7–13', assessment: 'Boarding taster available' }],
+        },
+      },
+    })?.value,
+    'Year 7',
+  )
+})
+
+test('bounds list-backed comparison values without cutting an item', () => {
+  const verboseSchool: DirectComparisonSchool = {
+    ...school,
+    structured: {
+      ...school.structured,
+      university_destinations: {
+        top_universities: [
+          { name: 'University of Oxford' },
+          { name: 'Massachusetts Institute of Technology' },
+          { name: 'University College London' },
+        ],
+      },
+      sports_profile: {
+        signature_sports: [
+          'Competitive rugby programme',
+          'High-performance swimming programme',
+          'National tennis academy pathway',
+          'Regional athletics competition squad',
+        ],
+      },
+    },
+  }
+
+  const universityValue = String(
+    resolveTrustedComparisonCell('University destinations', verboseSchool)?.value,
+  )
+  const sportsValue = String(resolveTrustedComparisonCell('Sports opportunities', verboseSchool)?.value)
+
+  assert.ok(universityValue.length <= 80)
+  assert.ok(sportsValue.length <= 80)
+  assert.ok(!universityValue.endsWith('…'))
+  assert.ok(!sportsValue.endsWith('…'))
+})
+
+test('counts only comparison cells that contain usable values', () => {
+  assert.equal(countFilledCells({
+    full: { value: 'Available' },
+    zero: { value: 0 },
+    empty: { value: '' },
+    missing: { value: null },
+  }), 2)
 })
 
 test('accepts only https sources returned by web search', () => {

@@ -143,6 +143,169 @@ function airportCell(
   }
 }
 
+function moneyValue(value: number, currency: unknown): string {
+  return `${currencySymbol(currency)}${Math.round(value).toLocaleString('en-GB')}`
+}
+
+function joinValuesWithinLimit(values: string[], limit = MAX_VALUE_LENGTH): string | null {
+  const joined: string[] = []
+  for (const value of Array.from(new Set(values))) {
+    const next = [...joined, value].join(' · ')
+    if (next.length > limit) break
+    joined.push(value)
+  }
+  return joined.length > 0 ? joined.join(' · ') : null
+}
+
+function feeRowCell(structured: Record<string, unknown>, boardingOnly: boolean): DirectComparisonCell | null {
+  const feeTable = record(structured.fees_by_grade)
+  const rows = array(feeTable?.rows)
+  const candidates = rows.flatMap(item => {
+    const row = record(item)
+    if (!row) return []
+    const phase = cleanText(row.phase ?? row.label ?? row.name, 60)
+    if (boardingOnly && !/boarding|residential|7 nights/i.test(phase ?? '')) return []
+    if (boardingOnly && /flexi/i.test(phase ?? '')) return []
+    const rawAnnualAmount = finiteNumber(row.per_year)
+    const rawTermAmount = finiteNumber(row.per_term)
+    const annualAmount = rawAnnualAmount != null && rawAnnualAmount > 0 ? rawAnnualAmount : null
+    const termAmount = rawTermAmount != null && rawTermAmount > 0 ? rawTermAmount : null
+    const amount = annualAmount ?? termAmount
+    if (amount == null) return []
+    return [{
+      amount,
+      phase,
+      period: annualAmount != null ? 'year' as const : 'term' as const,
+    }]
+  })
+  if (candidates.length === 0) return null
+  const annualCandidates = candidates.filter(candidate => candidate.period === 'year')
+  const comparableCandidates = annualCandidates.length > 0 ? annualCandidates : candidates
+  const chosen = comparableCandidates.sort((a, b) => b.amount - a.amount)[0]
+  return {
+    value: `${moneyValue(chosen.amount, feeTable?.currency ?? structured.fees_currency)} per ${chosen.period}`,
+    note: chosen.phase ?? undefined,
+    evidence_kind: 'nana_database',
+  }
+}
+
+function registrationFeeCell(structured: Record<string, unknown>): DirectComparisonCell | null {
+  const feeTable = record(structured.fees_by_grade)
+  const extras = array(feeTable?.compulsory_extras)
+  for (const item of extras) {
+    const extra = record(item)
+    if (!extra || !/registration|application|joining/i.test(String(extra.name ?? ''))) continue
+    const amount = finiteNumber(extra.per_year ?? extra.amount ?? extra.value)
+    if (amount != null && amount > 0) {
+      return {
+        value: moneyValue(amount, feeTable?.currency ?? structured.fees_currency),
+        note: cleanText(extra.name, 60) ?? undefined,
+        evidence_kind: 'nana_database',
+      }
+    }
+  }
+
+  const steps = array(record(structured.admissions_format)?.process_steps)
+  for (const step of steps) {
+    if (typeof step !== 'string' || !/registration|application|joining/i.test(step)) continue
+    const match = step.match(/(?:£|GBP\s*)\s?([0-9][0-9,]{1,5})/i)
+    if (!match) continue
+    const amount = Number(match[1].replace(/,/g, ''))
+    if (Number.isFinite(amount) && amount > 0) {
+      return { value: moneyValue(amount, feeTable?.currency ?? structured.fees_currency), evidence_kind: 'nana_database' }
+    }
+  }
+  return null
+}
+
+function boardingEntryCell(
+  structured: Record<string, unknown>,
+  isBoardingSchool: boolean | null,
+): DirectComparisonCell | null {
+  const entryPoints = array(record(structured.admissions_format)?.entry_points)
+  const entries = entryPoints.flatMap(item => {
+    const entry = record(item)
+    const raw = entry?.year
+      ?? entry?.age
+      ?? entry?.entry_point
+      ?? entry?.label
+      ?? (typeof item === 'string' ? item : null)
+    const rawText = String(raw ?? '')
+    const yearMatch = rawText.match(/\byears?\s*(\d{1,2})\b/i)
+    const ageMatch = rawText.match(/\b(?:age|ages)?\s*(\d{1,2})\s*\+/i)
+      ?? rawText.match(/\bages?\s*(\d{1,2})(?:\s*[–-]\s*\d{1,2})?\b/i)
+      ?? rawText.match(/^\s*(\d{1,2})\s*\+/)
+    const numericMatch = rawText.match(/^\s*(\d{1,2})\s*$/)
+    const year = yearMatch
+      ? Number(yearMatch[1])
+      : numericMatch && entry?.year != null
+        ? Number(numericMatch[1])
+        : null
+    const age = ageMatch
+      ? Number(ageMatch[1])
+      : numericMatch && entry?.age != null
+        ? Number(numericMatch[1])
+        : null
+    if (year == null && age == null) return []
+    const text = typeof item === 'string'
+      ? item
+      : `${entry?.entry_point ?? ''} ${entry?.label ?? ''} ${entry?.note ?? ''} `
+        + `${entry?.assessment ?? ''} ${entry?.boarding ?? ''}`
+    return [{
+      sortValue: year != null ? year + 4 : age!,
+      value: year != null ? `Year ${year}` : `${age}+`,
+      boarding: entry?.boarding === true || /boarding|board\b/i.test(text),
+    }]
+  })
+  if (entries.length === 0) return null
+  const boardingEntries = entries.filter(item => item.boarding)
+  if (boardingEntries.length === 0 && isBoardingSchool !== true) return null
+  const candidates = boardingEntries.length > 0 ? boardingEntries : entries
+  const chosen = candidates.sort((a, b) => a.sortValue - b.sortValue)[0]
+  return { value: chosen.value, evidence_kind: 'nana_database' }
+}
+
+function universityDestinationsCell(structured: Record<string, unknown>): DirectComparisonCell | null {
+  const destinations = record(structured.university_destinations)
+  const universities = array(
+    destinations?.top_universities
+      ?? destinations?.universities
+      ?? destinations?.destinations,
+  ).flatMap(item => {
+    const destination = record(item)
+    const name = typeof item === 'string'
+      ? item
+      : destination?.name ?? destination?.university ?? destination?.label
+    const clean = cleanText(name, 40)
+    return clean ? [clean] : []
+  })
+  if (universities.length > 0) {
+    const value = joinValuesWithinLimit(universities.slice(0, 3))
+    return value ? { value, evidence_kind: 'nana_database' } : null
+  }
+  const summary = cleanText(destinations?.summary ?? destinations?.headline, MAX_VALUE_LENGTH)
+  return summary ? { value: summary, evidence_kind: 'nana_database' } : null
+}
+
+function sportsOpportunitiesCell(structured: Record<string, unknown>): DirectComparisonCell | null {
+  const sports = record(structured.sports_profile)
+  const values = [
+    ...array(sports?.signature_sports),
+    ...array(sports?.sports),
+    ...array(sports?.facilities),
+    ...array(sports?.teams_by_sport),
+  ].flatMap(item => {
+    const sport = record(item)
+    const value = typeof item === 'string'
+      ? item
+      : sport?.sport ?? sport?.name ?? sport?.label ?? sport?.facility
+    const clean = cleanText(value, 35)
+    return clean ? [clean] : []
+  })
+  const value = joinValuesWithinLimit(Array.from(new Set(values)).slice(0, 4))
+  return value ? { value, evidence_kind: 'nana_database' } : null
+}
+
 /**
  * Resolve high-confidence, common comparison requests directly from Nana's
  * structured school record. Returning null means the web researcher should
@@ -203,6 +366,36 @@ export function resolveTrustedComparisonCell(
       note: gender ?? undefined,
       evidence_kind: 'nana_database',
     }
+  }
+
+  if (/\b(boarding fee|boarding fees|boarding cost|residential fee|boarding tuition)\b/.test(query)) {
+    return feeRowCell(structured, true) ?? (() => {
+      if (school.boarding !== true) return null
+      const amount = finiteNumber(structured.fees_max ?? structured.fees_min)
+      return amount == null
+        ? null
+        : {
+            value: moneyValue(amount, structured.fees_currency),
+            note: 'Highest annual fee on file',
+            evidence_kind: 'nana_database' as const,
+          }
+    })()
+  }
+
+  if (/\b(registration fee|application fee|joining fee|registration cost|application cost)\b/.test(query)) {
+    return registrationFeeCell(structured)
+  }
+
+  if (/\b(lowest boarding entry|earliest boarding entry|youngest boarding|boarding start)\b/.test(query)) {
+    return boardingEntryCell(structured, school.boarding)
+  }
+
+  if (/\b(university destinations?|leavers destinations?|university placements?|oxbridge placements?)\b/.test(query)) {
+    return universityDestinationsCell(structured)
+  }
+
+  if (/\b(sports? opportunit(?:y|ies)?|sports? programme|sports? facilit(?:y|ies)|teams and activities)\b/.test(query)) {
+    return sportsOpportunitiesCell(structured)
   }
 
   if (/\b(bursary|bursaries|financial aid)\b/.test(query)) {

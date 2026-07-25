@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
+  findComparisonCatalogueSuggestions,
   findSupportedComparisonSuggestions,
   matchComparisonRequest,
+  RESEARCH_ONLY_COMPARISONS,
   SUPPORTED_COMPARISON_LABELS,
 } from './comparison-catalog.ts'
 
@@ -68,6 +70,11 @@ test('publishes a concise supported catalogue for the interface', () => {
     'Total pupils',
     'School location',
     'School type',
+    'Boarding fees',
+    'Registration fee',
+    'Lowest boarding entry',
+    'University destinations',
+    'Sports opportunities',
   ])
 })
 
@@ -85,4 +92,33 @@ test('filters Google-style suggestions using parent wording', () => {
       .map(item => item.label),
     ['Airport distance', 'Annual fees'],
   )
+})
+
+test('ranks typo-tolerant matches across the complete catalogue', () => {
+  assert.equal(findComparisonCatalogueSuggestions('nearset airprot')[0]?.label, 'Airport distance')
+  assert.equal(findComparisonCatalogueSuggestions('boardng feees')[0]?.label, 'Boarding fees')
+  assert.equal(findComparisonCatalogueSuggestions('musci')[0]?.label, 'Music opportunities and achievements')
+  assert.deepEqual(matchComparisonRequest('boardng feees'), {
+    kind: 'supported',
+    id: 'boarding_fees',
+    label: 'Boarding fees',
+  })
+  assert.deepEqual(matchComparisonRequest('learning suport'), {
+    kind: 'research_request',
+    canonicalTopic: 'Learning support',
+  })
+  assert.deepEqual(matchComparisonRequest('musci'), {
+    kind: 'research_request',
+    canonicalTopic: 'Music opportunities and achievements',
+  })
+})
+
+test('keeps research-only topics visible and requestable', () => {
+  const suggestion = findComparisonCatalogueSuggestions('learning support')[0]
+  assert.equal(suggestion?.kind, 'research_only')
+  assert.ok(RESEARCH_ONLY_COMPARISONS.some(topic => topic.label === suggestion?.label))
+  assert.deepEqual(matchComparisonRequest('Saturday school'), {
+    kind: 'research_request',
+    canonicalTopic: 'Saturday school',
+  })
 })

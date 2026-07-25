@@ -65,7 +65,7 @@ export default async function ResearchRoomPage({
   let children: Awaited<ReturnType<typeof loadActiveChildren>> = []
   let activeChildId: string | null = null
   let familyPreferences: Record<string, string | null> | undefined
-  let availableComparisonLabels: string[] = []
+  let availableComparisonIds: string[] = []
 
   if (user) {
     try {
@@ -152,10 +152,10 @@ export default async function ResearchRoomPage({
       console.error('[research-room loadShortlistContext]', e)
     }
 
-    // Only recommend comparisons that can be filled immediately for every
-    // school in this child's current shortlist using Nana's trusted data.
-    // Free-text questions can still be saved to the research backlog, but
-    // they never appear as clickable promises in the autocomplete.
+    // Availability determines each supported topic's action, not whether it
+    // appears. The client searches the complete supported + research-only
+    // catalogue, then offers Add comparison only when every shortlisted
+    // school can be filled immediately from Nana's trusted data.
     if (ctx && ctx.slugs.length > 0) {
       const shortlistSchools = ctx.slugs.flatMap(slug => {
         const meta = ctx.schoolMap.get(slug)
@@ -171,14 +171,14 @@ export default async function ResearchRoomPage({
         }]
       })
       if (shortlistSchools.length === ctx.slugs.length) {
-        availableComparisonLabels = SUPPORTED_COMPARISONS
+        const availableComparisons = SUPPORTED_COMPARISONS
           .filter(comparison => shortlistSchools.every(
             school => {
               const value = resolveTrustedComparisonCell(comparison.label, school)?.value
               return value != null && value !== ''
             },
           ))
-          .map(comparison => comparison.label)
+        availableComparisonIds = availableComparisons.map(comparison => comparison.id)
       }
     }
 
@@ -414,7 +414,7 @@ export default async function ResearchRoomPage({
       familyPreferences={familyPreferences}
       initialActiveChildId={activeChildId}
       comparisonData={comparisonData}
-      availableComparisonLabels={availableComparisonLabels}
+      availableComparisonIds={availableComparisonIds}
       comparisonError={comparisonError}
       lens={lens}
       initialSession={initialSession}

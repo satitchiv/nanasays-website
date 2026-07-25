@@ -42,7 +42,7 @@ type Props = {
   familyPreferences?: FamilyPreferences
   initialActiveChildId?: string | null
   comparisonData?: ComparisonData
-  availableComparisonLabels?: string[]
+  availableComparisonIds?: string[]
   comparisonError?: string | null
   lens?: Lens
   initialSession?: Session | null
@@ -83,7 +83,7 @@ export default function ResearchRoom({
   familyPreferences,
   initialActiveChildId = null,
   comparisonData,
-  availableComparisonLabels = [],
+  availableComparisonIds = [],
   comparisonError = null,
   lens             = 'general',
   initialSession   = null,
@@ -571,7 +571,7 @@ export default function ResearchRoom({
                     <>
                       <ComparisonView
                         data={comparisonData}
-                        availableComparisonLabels={availableComparisonLabels}
+                        availableComparisonIds={availableComparisonIds}
                         activeChildName={activeChild?.name ?? null}
                         activeChildId={activeChildId}
                         lens={lens}
