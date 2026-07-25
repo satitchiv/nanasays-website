@@ -191,7 +191,7 @@ function renderVerdictMarkdown(markdown: string): ReactNode[] {
       const [lead, ...items] = block.split('\n')
       return (
         <div key={idx}>
-          {lead && !lead.startsWith('- ') && <p>{renderMd(lead)}</p>}
+          {lead && !lead.startsWith('- ') && <div className="rr-md-block">{renderMd(lead)}</div>}
           <ul className="rr-verdict-list">
             {(lead.startsWith('- ') ? [lead, ...items] : items).map((item, i) => (
               <li key={i}>{renderMd(item.replace(/^-\s+/, ''))}</li>
@@ -200,7 +200,7 @@ function renderVerdictMarkdown(markdown: string): ReactNode[] {
         </div>
       )
     }
-    return <p key={idx}>{renderMd(block)}</p>
+    return <div key={idx} className="rr-md-block">{renderMd(block)}</div>
   })
 }
 
@@ -351,7 +351,7 @@ function renderPathDetail(
               <span className="rr-vb3-section-sub">{isLlmRoundup ? 'long-form' : 'advisor’s take'}</span>
             </div>
             <div className="rr-vb3-narrative">
-              {paragraphs.map((p, i) => <p key={i}>{renderMd(p)}</p>)}
+              {paragraphs.map((p, i) => <div key={i} className="rr-md-block">{renderMd(p)}</div>)}
             </div>
           </section>
         )
