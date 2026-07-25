@@ -45,6 +45,10 @@ type LocalComparisonRow = {
   label: string
   status?: 'idle' | 'researching'
 }
+type CatalogueSuggestion = ReturnType<typeof findComparisonCatalogueSuggestions>[number]
+type AutocompleteSuggestion =
+  | CatalogueSuggestion
+  | { kind: 'database'; id: string; label: string }
 
 // Slice 6 close — minimal lens shape consumed by the picker dropdown.
 // Mirrors the SavedLens type in ResearchRoom (kept loose here to avoid
@@ -150,7 +154,6 @@ export default function ComparisonView({
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null)
   const [removeError, setRemoveError] = useState<string | null>(null)
   const [topicBusy, setTopicBusy] = useState<string | null>(null)
-  const [topicError, setTopicError] = useState<string | null>(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const pickerRef = useRef<HTMLDivElement | null>(null)
   // Slice 6.6 t12 T1.1 + Codex P1#2 — optimistic column remove. The
@@ -452,6 +455,10 @@ export default function ComparisonView({
   const priorityRows = selectedPriorityIds
     .map(id => rows.find(row => row.id === id))
     .filter((row): row is ComparisonRow => Boolean(row))
+  const existingTopicLabels = new Set(rows.map(row => row.label.trim().toLowerCase()))
+  const databaseTopics = parentDemandTopics.filter(topic =>
+    !existingTopicLabels.has(topic.label.trim().toLowerCase()),
+  )
   const availableComparisonIdSet = new Set(availableComparisonIds)
   const existingComparisonRows = new Map<string, string>()
   rows.forEach(row => {
@@ -464,7 +471,32 @@ export default function ComparisonView({
       topic.label.toLowerCase() === match.canonicalTopic.toLowerCase())
     if (researchTopic) existingComparisonRows.set(`research:${researchTopic.id}`, row.id)
   })
-  const autocompleteSuggestions = findComparisonCatalogueSuggestions(newRowLabel)
+  const normalizedTopicQuery = newRowLabel.trim().toLowerCase()
+  const databaseSuggestions: AutocompleteSuggestion[] = databaseTopics
+    .filter(topic => !normalizedTopicQuery || topic.label.toLowerCase().includes(normalizedTopicQuery))
+    .map(topic => ({ kind: 'database', id: topic.id, label: topic.label }))
+  const databaseSuggestionLabels = new Set(
+    databaseSuggestions.map(topic => topic.label.trim().toLowerCase()),
+  )
+  const autocompleteSuggestions: AutocompleteSuggestion[] = [
+    ...databaseSuggestions,
+    ...findComparisonCatalogueSuggestions(newRowLabel).filter(
+      suggestion => !databaseSuggestionLabels.has(suggestion.label.trim().toLowerCase()),
+    ),
+  ]
+
+  function suggestionKey(suggestion: AutocompleteSuggestion): string {
+    if (suggestion.kind === 'database') return `database:${suggestion.id}`
+    return suggestion.kind === 'supported' ? suggestion.id : `research:${suggestion.id}`
+  }
+
+  function suggestionAction(suggestion: AutocompleteSuggestion): 'view' | 'add' | 'research' {
+    if (suggestion.kind === 'database') return 'add'
+    if (existingComparisonRows.has(suggestionKey(suggestion))) return 'view'
+    return suggestion.kind === 'supported' && availableComparisonIdSet.has(suggestion.id)
+      ? 'add'
+      : 'research'
+  }
 
   const tableSchoolIndices = isNarrow
     ? [Math.max(0, schools.findIndex(school => school.slug === mobileSchoolSlug))]
@@ -498,9 +530,14 @@ export default function ComparisonView({
   }
 
   async function handleCatalogueSuggestion(
-    suggestion: ReturnType<typeof findComparisonCatalogueSuggestions>[number],
+    suggestion: AutocompleteSuggestion,
   ) {
-    const key = suggestion.kind === 'supported' ? suggestion.id : `research:${suggestion.id}`
+    if (suggestion.kind === 'database') {
+      await addDatabaseTopic({ id: suggestion.id, label: suggestion.label })
+      return
+    }
+
+    const key = suggestionKey(suggestion)
     const existingRowId = existingComparisonRows.get(key)
     if (existingRowId) {
       viewComparisonRow(existingRowId)
@@ -676,6 +713,14 @@ export default function ComparisonView({
       return
     }
 
+    const databaseTopic = databaseTopics.find(
+      topic => topic.label.trim().toLowerCase() === label.toLowerCase(),
+    )
+    if (databaseTopic) {
+      await addDatabaseTopic(databaseTopic)
+      return
+    }
+
     const match = matchComparisonRequest(label)
     const displayLabel = match.kind === 'supported' ? match.label : label
     if (rows.some(row => {
@@ -796,15 +841,10 @@ export default function ComparisonView({
     }
   }
 
-  const existingTopicLabels = new Set(rows.map(row => row.label.trim().toLowerCase()))
-  const databaseTopics = parentDemandTopics.filter(topic =>
-    !existingTopicLabels.has(topic.label.trim().toLowerCase()),
-  )
-
   async function addDatabaseTopic(topic: { id: string; label: string }) {
     if (!activeChildId || topicBusy) return
     setTopicBusy(topic.id)
-    setTopicError(null)
+    setNewRowError(null)
     try {
       const response = await fetch('/api/research-room/research-row', {
         method: 'POST',
@@ -817,15 +857,20 @@ export default function ComparisonView({
       })
       const result = await response.json().catch(() => ({}))
       if (!response.ok) {
-        setTopicError(typeof result?.code === 'string'
+        setNewRowError(typeof result?.code === 'string'
           ? `That topic could not be added (${result.code}).`
           : 'That topic could not be added. Please try again.')
         return
       }
+      setNewRowLabel('')
+      setNewRowError(null)
+      setRowEditorOpen(false)
+      closeRowEditor()
+      setRowResearchNotice(`Added “${topic.label}” to the comparison.`)
       router.refresh()
     } catch (error) {
       console.error('[comparison-view database topic]', error)
-      setTopicError('Network error while adding that topic. Please try again.')
+      setNewRowError('Network error while adding that topic. Please try again.')
     } finally {
       setTopicBusy(null)
     }
@@ -937,33 +982,6 @@ export default function ComparisonView({
           {shortlistError}
           <button type="button" className="rr-chat-error-dismiss" onClick={() => setShortlistError(null)}>×</button>
         </div>
-      )}
-
-      {databaseTopics.length > 0 && (
-        <section className="rr-cmp-topics" aria-labelledby="rr-cmp-topics-title">
-          <div>
-            <div className="rr-cmp-topics-eyebrow">More verified comparisons</div>
-            <h2 id="rr-cmp-topics-title" className="rr-cmp-topics-title">Topics parents can explore</h2>
-            <p className="rr-cmp-topics-copy">
-              Backed by information already verified in our database.
-            </p>
-          </div>
-          <div className="rr-cmp-topics-list">
-            {databaseTopics.map(topic => (
-              <button
-                key={topic.id}
-                type="button"
-                className="rr-cmp-topic-button"
-                onClick={() => void addDatabaseTopic(topic)}
-                disabled={!activeChildId || topicBusy !== null}
-              >
-                <span>{topic.label}</span>
-                <small>{topicBusy === topic.id ? 'Adding…' : 'Add comparison'}</small>
-              </button>
-            ))}
-          </div>
-          {topicError && <div className="rr-cmp-error" role="alert">{topicError}</div>}
-        </section>
       )}
 
       {displayMode === 'snapshot' ? (
@@ -1122,21 +1140,11 @@ export default function ComparisonView({
                       {autocompleteSuggestions.length > 0 ? autocompleteSuggestions.map((suggestion, index) => (
                         <div
                           id={`rr-comparison-suggestion-${index}`}
-                          key={suggestion.id}
+                          key={suggestionKey(suggestion)}
                           role="option"
                           tabIndex={-1}
                           data-suggestion-index={index}
-                          data-action={
-                            existingComparisonRows.has(
-                              suggestion.kind === 'supported'
-                                ? suggestion.id
-                                : `research:${suggestion.id}`,
-                            )
-                              ? 'view'
-                              : suggestion.kind === 'supported' && availableComparisonIdSet.has(suggestion.id)
-                                ? 'add'
-                                : 'research'
-                          }
+                          data-action={suggestionAction(suggestion)}
                           aria-selected={index === activeSuggestionIndex}
                           className={index === activeSuggestionIndex ? 'is-active' : ''}
                           onMouseDown={event => event.preventDefault()}
@@ -1149,15 +1157,13 @@ export default function ComparisonView({
                           </svg>
                           <span>{suggestion.label}</span>
                           <small>
-                            {existingComparisonRows.has(
-                              suggestion.kind === 'supported'
-                                ? suggestion.id
-                                : `research:${suggestion.id}`,
-                            )
-                              ? 'View comparison'
-                              : suggestion.kind === 'supported' && availableComparisonIdSet.has(suggestion.id)
-                                ? 'Add comparison'
-                              : 'Request research'}
+                            {topicBusy === suggestion.id && suggestion.kind === 'database'
+                              ? 'Adding…'
+                              : suggestionAction(suggestion) === 'view'
+                                ? 'View comparison'
+                                : suggestionAction(suggestion) === 'add'
+                                  ? 'Add comparison'
+                                  : 'Request research'}
                           </small>
                         </div>
                       )) : (
@@ -1170,6 +1176,10 @@ export default function ComparisonView({
                 </div>
                 <button type="submit" className="rr-cmp-primary-action">
                   {(() => {
+                    const databaseTopic = databaseTopics.find(
+                      topic => topic.label.trim().toLowerCase() === newRowLabel.trim().toLowerCase(),
+                    )
+                    if (databaseTopic) return 'Add comparison'
                     const match = matchComparisonRequest(newRowLabel)
                     return match.kind === 'supported' && availableComparisonIdSet.has(match.id)
                       ? 'Add comparison'
