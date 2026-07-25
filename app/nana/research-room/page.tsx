@@ -7,7 +7,11 @@ import { getUnlockedUser } from '@/lib/paid-status'
 import { supabaseService } from '@/lib/supabase-admin'
 import { loadComparisonData, type LensKind } from '@/lib/research-comparison'
 import { loadShortlistContext, seedResearchSession } from '@/lib/research-room/seed-rows'
-import type { ResearchVerdictRecord } from '@/lib/server/research-room/verdict-generator'
+import { resolveTrustedComparisonCell } from '@/lib/research-room/direct-comparison-row'
+import {
+  isDatabaseOnlyComparison,
+  SUPPORTED_COMPARISONS,
+} from '@/lib/research-room/comparison-catalog'
 import { loadActiveChildren } from '@/lib/children'
 import { ONBOARDING_FIELDS } from '@/lib/onboarding-fields'
 import ResearchRoom from '@/components/nana/ResearchRoom'
@@ -19,7 +23,15 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 }
 
-export default async function ResearchRoomPage() {
+// Next 14.2.x: searchParams is synchronous. The Promise-shape is
+// Next 15+; using it here would silently leave the value un-resolved.
+type SearchParams = { lens?: string }
+
+export default async function ResearchRoomPage({
+  searchParams,
+}: {
+  searchParams: SearchParams
+}) {
   if (!isResearchRoomEnabled()) {
     notFound()
   }
@@ -29,19 +41,10 @@ export default async function ResearchRoomPage() {
     redirect('/unlock?next=/nana/research-room')
   }
 
-  // RRV-10 (Focus consolidation, 2026-07-20): the General/child_fit base-lens
-  // tabs are gone — the table is always the personalized ("general") base.
-  // No code path seeds a lens_kind='child_fit' BASE row (verified live against
-  // the DB, 2026-07-20: 0 comparison_rows with lens_kind='child_fit' AND
-  // created_by_lens_id IS NULL) — GENERAL_SPECS + the brief-gated BRIEF_SPECS
-  // (rugby pathway, boarding fit, ...) are BOTH written with lens_kind:
-  // 'general' (lib/research-room/seed-rows.ts), so "general" was already the
-  // personalized table. A handful of live child_fit rows DO exist, but only
-  // as topic-lens-attached rows (created_by_lens_id set) — those stay fully
-  // reachable below via `effectiveLens = activeLens.base_lens_kind`, which is
-  // untouched by this change. Stray `?lens=child_fit` bookmarks now silently
-  // degrade to the personalized general table instead of erroring.
-  const lens: LensKind = 'general'
+  // Slice 5.5a: lens read from URL search param. Defaults to 'general'.
+  // Tab clicks call router.replace('?lens=...') so the server re-renders
+  // with the active lens scope.
+  const lens: LensKind = searchParams.lens === 'child_fit' ? 'child_fit' : 'general'
 
   const cookieStore = await cookies()
   const authClient = createServerClient(
@@ -65,6 +68,7 @@ export default async function ResearchRoomPage() {
   let children: Awaited<ReturnType<typeof loadActiveChildren>> = []
   let activeChildId: string | null = null
   let familyPreferences: Record<string, string | null> | undefined
+  let availableComparisonIds: string[] = []
   let parentDemandTopics: Array<{ id: string; label: string }> = []
 
   if (user) {
@@ -106,33 +110,7 @@ export default async function ResearchRoomPage() {
   //   5. Load messages + activeProposalIds for the chat panel.
   let initialSession: import('@/lib/nana/types').Session | null = null
   let initialMessages: import('@/lib/nana/types').ResearchMessage[] = []
-  // RRV-11 — journey header step-3 ("Verdict") done-state and the
-  // returning-user strip both need real signals, computed here (not client
-  // side) so there's no hydration mismatch. `hasVerdict` is an existence-only
-  // probe (id only) — the full verdict record stays intentionally un-prefetched
-  // (see the researchVerdict comment below), so this doesn't reopen that
-  // hash-mismatch bug; it never renders verdict content, just whether one has
-  // ever been generated. `daysSinceLastActive` is null for brand-new sessions
-  // (no prior visit to compare against).
-  let hasVerdict = false
-  let daysSinceLastActive: number | null = null
-  // Session 4 follow-up — hydrate Build Mode progress from DB so the bar +
-  // welcome-back banner can render on first paint instead of waiting for
-  // the next SSE event. Browser smoke 2026-05-16 surfaced that toggling
-  // Build Mode ON with prior progress in the session showed no bar until
-  // the parent sent another turn — confusing for returning parents.
-  let initialBuildModeProgress: unknown = null
   let activeLensId: string | null = null
-  let partnerBrief: import('@/components/nana/PartnerBriefTab').PartnerBrief | null = null
-  // researchVerdict is intentionally null at SSR. Codex r1 P1 #2: removing the
-  // SSR pre-fetch eliminates a hash-mismatch class of bug — page-load doesn't
-  // know about every v3 hash input (e.g. schoolFacts), so its precomputed
-  // lookup could shadow the route's true v3 row on first paint. Codex r2 NIT
-  // clarification: the Verdict tab does NOT auto-hydrate on first open; the
-  // parent clicks the "Generate verdict" button to fire POST /api/research-room/
-  // verdict, which both regenerates and caches. Tolerable shape since the tab's
-  // explicit affordance gives the parent an obvious next step.
-  const researchVerdict: ResearchVerdictRecord | null = null
   // Slice 6 close — saved lenses available to the lens picker dropdown.
   // weights are UUID-keyed (resolved by confirm_lens_from_proposal at
   // save time); visible_rows is a UUID array. ResearchRoom maps both
@@ -150,7 +128,6 @@ export default async function ResearchRoomPage() {
 
   if (user && activeChildId) {
     const svc = supabaseService()
-
     const { data: topicCatalog } = await svc
       .from('research_room_topic_catalog')
       .select('id, label')
@@ -158,19 +135,9 @@ export default async function ResearchRoomPage() {
       .order('label')
     parentDemandTopics = (topicCatalog ?? []) as Array<{ id: string; label: string }>
 
-    // Slice 8 Step 0.5 v5: hoist context load before session lookup so
-    // the ensure-gate and the seed block share one read (r4 NIT #6).
-    let shortlistCtx: Awaited<ReturnType<typeof loadShortlistContext>> | null = null
-    try {
-      shortlistCtx = await loadShortlistContext(svc, user.id, activeChildId)
-    } catch (e) {
-      console.error('[research-room loadShortlistContext]', e)
-      // Non-fatal — fall through; page renders without seeded rows.
-    }
-
     const { data: sessions } = await svc
       .from('research_sessions')
-      .select('id, title, summary, created_at, last_active_at, active_lens_id, build_mode_progress')
+      .select('id, title, summary, created_at, last_active_at, active_lens_id')
       .eq('user_id', user.id)
       .eq('child_id', activeChildId)
       .order('last_active_at', { ascending: false })
@@ -185,77 +152,59 @@ export default async function ResearchRoomPage() {
         last_active_at: sessions[0].last_active_at,
       }
       activeLensId = (sessions[0].active_lens_id as string | null) ?? null
-      initialBuildModeProgress = sessions[0].build_mode_progress as unknown
-    } else if (activeChildId) {
-      // Slice 8 Step 0.5 + 2026-05-19 fix — ensure a research_sessions row
-      // exists whenever the parent is viewing an active child, regardless
-      // of shortlist size. The prior `shortlistCtx.slugs.length > 0` guard
-      // assumed every child arrives with auto-recommended schools, which
-      // stopped being true on 2026-05-18 (Commit C — recommendation flow
-      // cleanup removed the onboarding-time recommender). Without this
-      // change, every new child hit a 400 on the first Build Mode turn
-      // because no sessionId existed yet. The ensure RPC is idempotent;
-      // calling it for a child that already has a session is a no-op.
-      const { data: ensuredId, error: ensureErr } = await svc.rpc('ensure_research_session_for_child', {
-        p_user_id:  user.id,
-        p_child_id: activeChildId,
-      })
-      if (ensureErr) {
-        console.error('[research-room ensure_research_session_for_child]', ensureErr)
-      } else if (ensuredId) {
-        const { data: ensured } = await svc
-          .from('research_sessions')
-          .select('id, title, summary, created_at, last_active_at, active_lens_id, build_mode_progress')
-          .eq('id', ensuredId as string)
-          .maybeSingle()
-        if (ensured) {
-          initialSession = {
-            id:             ensured.id,
-            title:          ensured.title,
-            summary:        ensured.summary as import('@/lib/nana/types').DecisionSummary | null,
-            created_at:     ensured.created_at,
-            last_active_at: ensured.last_active_at,
-          }
-          activeLensId = (ensured.active_lens_id as string | null) ?? null
-          initialBuildModeProgress = ensured.build_mode_progress as unknown
-        }
-      }
     }
 
-    // RRV-11 — verdict-existence probe + returning-user day-gap, both
-    // computed once `initialSession` is settled. `research_verdicts` is
-    // keyed by (session_id, child_id) — see verdict-generator-v3-cluster-
-    // and-cache.ts's loadCachedResearchVerdict for the same key shape.
-    if (initialSession) {
-      const { data: verdictRow } = await svc
-        .from('research_verdicts')
-        .select('id')
-        .eq('session_id', initialSession.id)
-        .eq('child_id', activeChildId)
-        .limit(1)
-        .maybeSingle()
-      hasVerdict = !!verdictRow
+    // Load shortlist context once. Both the seeder and (in future) the
+    // child-fit cell-builder consume it.
+    let ctx: Awaited<ReturnType<typeof loadShortlistContext>> | null = null
+    try {
+      ctx = await loadShortlistContext(svc, user.id, activeChildId)
+    } catch (e) {
+      console.error('[research-room loadShortlistContext]', e)
+    }
 
-      const lastActiveMs = Date.parse(initialSession.last_active_at)
-      if (!Number.isNaN(lastActiveMs)) {
-        daysSinceLastActive = Math.floor((Date.now() - lastActiveMs) / 86400000)
+    // Availability determines each supported topic's action, not whether it
+    // appears. The client searches the complete supported + research-only
+    // catalogue. Most topics require complete shortlist coverage; explicitly
+    // database-only topics can add a non-empty partial row and queue gaps.
+    if (ctx && ctx.slugs.length > 0) {
+      const shortlistSchools = ctx.slugs.flatMap(slug => {
+        const meta = ctx.schoolMap.get(slug)
+        if (!meta) return []
+        return [{
+          slug,
+          name: meta.name,
+          city: meta.city,
+          region: meta.region,
+          boarding: meta.boarding,
+          gender_split: meta.gender_split,
+          structured: (ctx.structMap.get(slug) as unknown as Record<string, unknown> | undefined) ?? null,
+        }]
+      })
+      if (shortlistSchools.length === ctx.slugs.length) {
+        const availableComparisons = SUPPORTED_COMPARISONS
+          .filter(comparison => {
+            const hasTrustedValue = (school: (typeof shortlistSchools)[number]) => {
+              const value = resolveTrustedComparisonCell(comparison.label, school)?.value
+              return value != null && value !== ''
+            }
+            // Football is intentionally database-only in this test. A
+            // partially covered shortlist can add a non-empty row and queue
+            // only the missing schools without triggering a website crawl.
+            return isDatabaseOnlyComparison(comparison.id)
+              ? shortlistSchools.some(hasTrustedValue)
+              : shortlistSchools.every(hasTrustedValue)
+          })
+        availableComparisonIds = availableComparisons.map(comparison => comparison.id)
       }
     }
 
     // Seed only when there's an active session AND a non-empty shortlist.
     // Brand-new users without a session yet get an empty comparison until
     // their first chat lazily creates the session.
-    if (initialSession && shortlistCtx && shortlistCtx.slugs.length > 0) {
+    if (initialSession && ctx && ctx.slugs.length > 0) {
       try {
-        // Slice 8 Build 2: pass the active child's brief so the seeder can
-        // emit child-specific rows (sport-strength, IB, pastoral, etc.) in
-        // addition to the 18 general rows. Profile is `null` when the user
-        // has no children records — seeder falls back to general-only.
-        const seedingChild = children.find(c => c.id === activeChildId) ?? null
-        const briefProfile = (seedingChild?.child_profile ?? null) as
-          | import('@/lib/research-room/brief-predicates').BriefProfile
-          | null
-        await seedResearchSession(svc, user.id, initialSession.id, shortlistCtx, briefProfile)
+        await seedResearchSession(svc, user.id, initialSession.id, ctx)
       } catch (e) {
         console.error('[research-room seedResearchSession]', e)
       }
@@ -309,21 +258,6 @@ export default async function ResearchRoomPage() {
         created_at:     r.created_at,
         is_topic_lens:  topicLensIdSet.has(r.id),
       }))
-    }
-
-    const { data: briefRow } = await svc
-      .from('partner_briefs')
-      .select('id, tone, body_markdown, generated_at, share_token')
-      .eq('child_id', activeChildId)
-      .maybeSingle()
-    if (briefRow) {
-      partnerBrief = {
-        id:            briefRow.id,
-        tone:          briefRow.tone,
-        body_markdown: briefRow.body_markdown,
-        generated_at:  briefRow.generated_at,
-        share_token:   briefRow.share_token,
-      }
     }
 
     // If a saved lens is active, the comparison rows we load must
@@ -392,25 +326,6 @@ export default async function ResearchRoomPage() {
       }
       const allActive = (activeRows ?? []) as ActiveRow[]
       const norm = (s: string) => s.trim().toLowerCase()
-
-      // Slice 8 Build 6 — server-truth for `propose_add_school`:
-      // the parent's CURRENT shortlist. A school proposal counts as
-      // "✓ Added" iff EITHER (a) the source message has an add_school
-      // stamp whose slug is still in the shortlist, OR (b) the proposed
-      // slug is in the shortlist regardless of the stamp (parent may
-      // have added it manually after seeing the proposal). Mirrors the
-      // (a) / (b) row pattern below.
-      const activeShortlistSlugs = new Set<string>()
-      if (activeChildId) {
-        const { data: shortRows } = await svc
-          .from('shortlisted_schools')
-          .select('school_slug')
-          .eq('user_id', user.id)
-          .eq('child_id', activeChildId)
-        for (const r of (shortRows ?? []) as { school_slug: string }[]) {
-          activeShortlistSlugs.add(r.school_slug)
-        }
-      }
       // Topic rows are not eligible for the "Added" derivation paths —
       // those paths only describe chat add_row proposals and base/seed
       // row coverage. Filter them out before computing names + keys.
@@ -429,7 +344,7 @@ export default async function ResearchRoomPage() {
           .map(r => r.idempotency_key as string)
       )
 
-      type StampedAction = { kind?: string; proposal_id?: string; idempotency_key?: string; lens_id?: string; slug?: string }
+      type StampedAction = { kind?: string; proposal_id?: string; idempotency_key?: string; lens_id?: string }
 
       // Round-5 polish: a proposal counts as "Added" if EITHER (a) its own
       // chat row is active and visible in some tab, OR (b) ANY active row
@@ -452,11 +367,7 @@ export default async function ResearchRoomPage() {
       initialMessages = (msgs ?? []).map(m => {
         const stamps = (m.actions ?? []) as StampedAction[]
         const activeProposalIds: string[] = []
-        const activeLetterProposalIds: string[] = []
-        const activeSchoolProposalIds: string[] = []
         const seen = new Set<string>()
-        const seenLetters = new Set<string>()
-        const seenSchools = new Set<string>()
 
         // (a) chat row exists active and visible.
         for (const a of stamps) {
@@ -466,14 +377,6 @@ export default async function ResearchRoomPage() {
           if (seen.has(a.proposal_id)) continue
           seen.add(a.proposal_id)
           activeProposalIds.push(a.proposal_id)
-        }
-
-        for (const a of stamps) {
-          if (a.kind !== 'add_to_letter') continue
-          if (!a.proposal_id) continue
-          if (seenLetters.has(a.proposal_id)) continue
-          seenLetters.add(a.proposal_id)
-          activeLetterProposalIds.push(a.proposal_id)
         }
 
         // (a-bis, slice 6.5) topic-lens proposal "Created" state. The
@@ -490,7 +393,7 @@ export default async function ResearchRoomPage() {
         }
 
         // (b) any active row covers the proposal's row_name.
-        type ProposalLite = { row_name?: unknown; kind?: unknown; slug?: unknown }
+        type ProposalLite = { row_name?: unknown }
         const proposals = (((m.parsed_answer as { proposed_actions?: Record<string, ProposalLite> } | null)?.proposed_actions) ?? {}) as Record<string, ProposalLite>
         for (const [pid, prop] of Object.entries(proposals)) {
           if (seen.has(pid)) continue
@@ -501,28 +404,6 @@ export default async function ResearchRoomPage() {
           activeProposalIds.push(pid)
         }
 
-        // Slice 8 Build 6 — school proposal "Added" derivation. Mirrors
-        // the row pattern: (a) stamp-based, (b) slug-already-in-shortlist.
-        // (a) add_school stamp whose slug is still in the shortlist.
-        for (const a of stamps) {
-          if (a.kind !== 'add_school') continue
-          if (!a.proposal_id || !a.slug) continue
-          if (!activeShortlistSlugs.has(a.slug)) continue
-          if (seenSchools.has(a.proposal_id)) continue
-          seenSchools.add(a.proposal_id)
-          activeSchoolProposalIds.push(a.proposal_id)
-        }
-        // (b) proposed slug is already in the shortlist (parent may have
-        // added via manual + Add button after seeing the proposal).
-        for (const [pid, prop] of Object.entries(proposals)) {
-          if (seenSchools.has(pid)) continue
-          if (prop?.kind !== 'propose_add_school') continue
-          const slug = typeof prop?.slug === 'string' ? prop.slug : null
-          if (!slug || !activeShortlistSlugs.has(slug)) continue
-          seenSchools.add(pid)
-          activeSchoolProposalIds.push(pid)
-        }
-
         return {
           id:                 m.id,
           question:           m.question,
@@ -530,8 +411,6 @@ export default async function ResearchRoomPage() {
           shareToken:         m.share_token ?? undefined,
           createdAt:          m.created_at,
           activeProposalIds,
-          activeLetterProposalIds,
-          activeSchoolProposalIds,
         }
       })
     }
@@ -543,27 +422,7 @@ export default async function ResearchRoomPage() {
     date_of_birth: c.date_of_birth,
     child_profile: (c.child_profile ?? {}) as Record<string, string | null>,
     is_archived: c.is_archived,
-    funnel_state: c.funnel_state,
   }))
-
-  // Session 4 follow-up — parse Build Mode progress from DB (if any) into
-  // the BuildModeStreamState shape the chat hook expects. `focus` defaults
-  // to 'free' on hydration since we don't know the next pickFocus()
-  // outcome until a new turn fires; that maps to the "Nana is following
-  // your lead" heading, which reads correctly for resume context.
-  // `lastDiff` is null until the next turn lands.
-  let initialBuildModeState: import('@/lib/nana/types').BuildModeStreamState | null = null
-  if (initialBuildModeProgress) {
-    const { BuildModeProgressSchema } = await import('@/lib/server/research-room/build-mode-schemas')
-    const parsed = BuildModeProgressSchema.safeParse(initialBuildModeProgress)
-    if (parsed.success) {
-      initialBuildModeState = {
-        progress: parsed.data,
-        focus:    'free',
-        lastDiff: null,
-      }
-    }
-  }
 
   return (
     <ResearchRoom
@@ -572,18 +431,14 @@ export default async function ResearchRoomPage() {
       familyPreferences={familyPreferences}
       initialActiveChildId={activeChildId}
       comparisonData={comparisonData}
+      availableComparisonIds={availableComparisonIds}
       parentDemandTopics={parentDemandTopics}
       comparisonError={comparisonError}
       lens={lens}
       initialSession={initialSession}
       initialMessages={initialMessages}
-      initialBuildModeState={initialBuildModeState}
       savedLenses={savedLenses}
       activeLensId={activeLensId}
-      partnerBrief={partnerBrief}
-      researchVerdict={researchVerdict}
-      hasVerdict={hasVerdict}
-      daysSinceLastActive={daysSinceLastActive}
     />
   )
 }

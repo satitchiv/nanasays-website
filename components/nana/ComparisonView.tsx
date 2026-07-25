@@ -1,7 +1,7 @@
 'use client'
 
-import { Fragment, useEffect, useRef, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useRef, useState } from 'react'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import {
   DndContext,
@@ -27,23 +27,24 @@ import {
   type ComparisonRow,
   type RowCell,
   type SchoolColumn,
-  type EvidenceQuote,
 } from './comparison-placeholder'
-import {
-  type TravelCorridorViz,
-  type ExamBandViz,
-  formatMinutes,
-  formatMinutesSpoken,
-  bandAxisPos,
-  CORRIDOR_ORIGIN_POS,
-  BAND_AXIS_MIN,
-  BAND_AXIS_MAX,
-} from '@/lib/research-room/rrv7-viz'
-import type { EntryTimelineViz, EntryTimelineState } from '@/lib/research-room/rrv4-viz'
 import SchoolAdder from './SchoolAdder'
 import { createClientUuid } from '@/lib/client-uuid'
+import {
+  findComparisonCatalogueSuggestions,
+  matchComparisonRequest,
+  RESEARCH_ONLY_COMPARISONS,
+  SUPPORTED_COMPARISON_IDS,
+} from '@/lib/research-room/comparison-catalog'
+import { comparisonTableMinWidth } from '@/lib/research-room/comparison-table-layout'
 
 type Lens = 'general' | 'child_fit'
+type DisplayMode = 'snapshot' | 'table'
+type LocalComparisonRow = {
+  id: string
+  label: string
+  status?: 'idle' | 'researching'
+}
 
 // Slice 6 close — minimal lens shape consumed by the picker dropdown.
 // Mirrors the SavedLens type in ResearchRoom (kept loose here to avoid
@@ -59,14 +60,12 @@ type LensListItem = {
   is_topic_lens?: boolean
 }
 
-// RRV-10 (Focus consolidation) — the single "why does the table look like
-// this" sentence, computed by the parent (ResearchRoom, which owns the
-// focus state) and rendered verbatim here.
-type FocusDescriptor = { label: string; reason: string }
-
 type Props = {
   data?: ComparisonData
+  availableComparisonIds?: string[]
   parentDemandTopics?: Array<{ id: string; label: string }>
+  activeChildName?: string | null
+  lens?: Lens
   // Round-4 fix (Codex F3): when the server-side load throws, the page
   // sets this string and we surface it as a banner instead of falling
   // through to demo schools.
@@ -75,28 +74,31 @@ type Props = {
   // row IDs in display order. visibleRows (canonical row_names, if
   // non-null) further filters the row set before sort. Pure visual
   // overlay; the underlying comparison_rows are unchanged.
+  //
+  // Two `kind`s drive subtly different chrome:
+  //   - 'ephemeral' (pill / drag) renders the "view applied (not saved)"
+  //     chip with × so the parent can clear back to base lens.
+  //   - 'saved' (active saved lens) renders no chip — the picker
+  //     dropdown is the indicator. Clearing is via the picker.
   viewOverlay?: {
     rowOrder:    string[]                 // row IDs in display order
     visibleRows: string[] | null          // null = no filter; array = canonical row_name allowlist
     label:       string                   // chip label (ephemeral) / lens name (saved)
     kind:        'ephemeral' | 'saved'
   } | null
+  onClearOverlay?: () => void
   // Slice 6 commit 8 — drag-end callback. ComparisonView fires this
   // with the new ordering whenever the parent drops a row in a new
   // position. The parent (ResearchRoom) updates ephemeralView.rowOrder
   // and the table re-renders.
   onReorderRows?: (rowIds: string[]) => void
-  // RRV-10 — the Focus chip bar. savedLenses is the full list for the
-  // session (both saved/re-rank lenses and topic lenses — the same
-  // underlying comparison_lenses rows, distinguished only by
-  // is_topic_lens); activeLensId selects which one (if any) drives the
+  // Slice 6 close — saved lens picker. savedLenses is the full list for
+  // the session; activeLensId selects which one (if any) drives the
   // overlay. onSwitchActiveLens calls /api/research-room/active-lens +
-  // router.refresh. onSelectEverything clears back to the default
-  // personalized table (lens id null AND any ephemeral view).
+  // router.refresh; lensId === null clears back to the URL base lens.
   savedLenses?: LensListItem[]
   activeLensId?: string | null
-  onSwitchActiveLens?: (lensId: string | null) => void
-  onSelectEverything?: () => void
+  onSwitchActiveLens?: (lensId: string | null) => Promise<void> | void
   // Slice 6.6 — in-room shortlist mutations. activeChildId scopes the
   // add/remove RPCs (each child has its own shortlist). When null, the
   // + Add school + × column controls are hidden — there's no shortlist
@@ -110,114 +112,6 @@ type Props = {
   // and refreshes the lens with the current shortlist. Only rendered
   // when an active lens is a topic lens.
   onRefreshTopicLens?: (topicName: string) => void
-  // RRV-2 (never-blank table) — fired when the user taps a rung-4
-  // "Ask Nana" gap chip. Parent (ResearchRoom) bridges to the chat hook
-  // the same way onRefreshTopicLens does: force-open the panel and submit
-  // the ready-made question. Chip still renders (disabled-looking, no-op)
-  // when this isn't wired — same defensive pattern as onRemove/onReorderRows.
-  onAskNanaGap?: (question: string) => void
-  // RRV-10 — the golden-rule "Showing: <focus> — because …" sentence +
-  // undo control. undoLabel null means nothing to undo (the default
-  // "Everything" state with no prior change this session).
-  focusDescriptor?: FocusDescriptor
-  undoLabel?: string | null
-  onUndoFocus?: () => void
-  // RRV-10 — "Save this Focus", relocated here from the chat rail (it
-  // used to be a chip inside ResearchRoomChat) so Save sits next to the
-  // arrangement it saves rather than requiring the chat panel to be
-  // open, which it isn't by default.
-  canSaveAsLens?: boolean
-  onSaveAsLens?: (lensName: string) => Promise<{ ok: boolean; code?: string; existingLensId?: string }>
-}
-
-// ─── Comparison redesign (2026-07-16) ───────────────────────────────────
-// Consumes new OPTIONAL fields the data-side agent is landing in parallel
-// on the shared types (comparison-placeholder.ts / lib/research-comparison.ts):
-//   - SchoolColumn.heroImage? / SchoolColumn.logoUrl?
-//   - ComparisonRow.winnerRule?: 'higher-is-better' | 'lower-is-better' | 'neutral'
-//   - RowCell (kind 'value').numericValue?: number
-// All optional — every read below tolerates them being absent (older/thin
-// records, or this file running against the type defs before the other
-// agent's loader changes have fully landed).
-
-// Reads the numeric comparison value off a 'value' cell, if present.
-function cellNumericValue(cell: RowCell): number | null {
-  if (cell.kind !== 'value') return null
-  const raw = cell.numericValue
-  return typeof raw === 'number' && Number.isFinite(raw) ? raw : null
-}
-
-// Rating-style text values (ISI/Ofsted-type outcomes) get a colored badge
-// instead of plain text. Kept to a small known vocabulary so we never
-// mis-badge an unrelated free-text cell.
-const RATING_TONES: Record<string, 'green' | 'amber' | 'red'> = {
-  excellent: 'green',
-  outstanding: 'green',
-  good: 'amber',
-  satisfactory: 'red',
-  'requires improvement': 'red',
-  inadequate: 'red',
-}
-function ratingTone(primary: string): 'green' | 'amber' | 'red' | null {
-  return RATING_TONES[primary.trim().toLowerCase()] ?? null
-}
-
-// Winner highlighting (redesign requirement 1). `neutral` rows (fees, etc.)
-// never get a winner mark — cheapest isn't always best, per founder
-// decision. Ties (2+ schools sharing the best value) mark ALL tied cells
-// rather than picking one arbitrarily; a tie across every school with data
-// means nothing is distinguished, so nothing is marked at all. Missing
-// (`—`) cells never win.
-function computeRowWinners(row: ComparisonRow): Set<number> | null {
-  const rule = row.winnerRule
-  if (!rule || rule === 'neutral') return null
-  const values = row.cells.map(cellNumericValue)
-  const present = values.filter((v): v is number => v !== null)
-  if (present.length < 2) return null
-  const best = rule === 'higher-is-better' ? Math.max(...present) : Math.min(...present)
-  const winners = new Set<number>()
-  values.forEach((v, i) => { if (v !== null && v === best) winners.add(i) })
-  if (winners.size === present.length) return null // everyone with data is tied
-  return winners
-}
-
-// RRV-2 (never-blank table, 2026-07-20) — data-aware row ordering. Rows
-// where most schools have no real data (verified or derived) sink toward
-// the bottom of their own group, so the table doesn't open with prominent
-// blanks. Deliberately conservative: only reorders WITHIN a contiguous run
-// of the same group_name (never across groups — that would misplace rows
-// under the wrong section header, since headers render on first
-// appearance of each group per SortableTableBody), and only when no
-// lens/saved-view/re-rank/drag override is active (the caller only invokes
-// this in the `!viewOverlay` branch — all 6 existing order mechanisms keep
-// full precedence over this fallback, matching how rawRows already worked
-// before this change). Stable sort — rows with equal richness keep their
-// original relative order.
-function cellRichness(cell: RowCell): number {
-  return cell.kind === 'value' ? (cell.tier === 'derived' ? 1 : 2) : 0
-}
-function demoteSparseRows(rows: ComparisonRow[]): ComparisonRow[] {
-  const out: ComparisonRow[] = []
-  let i = 0
-  while (i < rows.length) {
-    const group = rows[i].group_name ?? null
-    let j = i + 1
-    while (j < rows.length && (rows[j].group_name ?? null) === group) j++
-    const segment = rows.slice(i, j)
-    if (segment.length > 1) {
-      const scored = segment.map((row, idx) => ({
-        row,
-        idx,
-        richness: row.cells.reduce((sum, c) => sum + cellRichness(c), 0),
-      }))
-      scored.sort((a, b) => (b.richness !== a.richness ? b.richness - a.richness : a.idx - b.idx))
-      out.push(...scored.map(s => s.row))
-    } else {
-      out.push(...segment)
-    }
-    i = j
-  }
-  return out
 }
 
 // Slice 5.5: ALL rows live in comparison_rows now (no more hardcoded
@@ -230,38 +124,35 @@ function customRowDbId(rowId: string): string {
   return rowId.replace(/^cmp-/, '')
 }
 
-// Slice 8 Step 0.6: human-readable label for a comparison_rows.group_name.
-// 'general' is suppressed at the call site so it never reaches this helper.
-function prettyGroupName(g: string): string {
-  if (g === 'child-specific')   return 'For your child'
-  if (g.startsWith('seeded-'))  return `Topic: ${g.slice(7)}`
-  return g.replace(/-/g, ' ')
+function comparisonStorageKey(kind: 'priorities' | 'local-rows', childId: string | null) {
+  return `rr-cmp-${kind}:${childId ?? 'default'}`
 }
 
 export default function ComparisonView({
   data = EMPTY_DATA,
+  availableComparisonIds = SUPPORTED_COMPARISON_IDS,
   parentDemandTopics = [],
+  activeChildName = null,
+  lens = 'general',
   loadError = null,
   viewOverlay = null,
+  onClearOverlay,
   onReorderRows,
   savedLenses = [],
   activeLensId = null,
   onSwitchActiveLens,
-  onSelectEverything,
   activeChildId = null,
   onRefreshTopicLens,
-  onAskNanaGap,
-  focusDescriptor,
-  undoLabel = null,
-  onUndoFocus,
-  canSaveAsLens = false,
-  onSaveAsLens,
 }: Props) {
   const router = useRouter()
+  const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [pendingRemoveId, setPendingRemoveId] = useState<string | null>(null)
   const [removeError, setRemoveError] = useState<string | null>(null)
   const [topicBusy, setTopicBusy] = useState<string | null>(null)
   const [topicError, setTopicError] = useState<string | null>(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const pickerRef = useRef<HTMLDivElement | null>(null)
   // Slice 6.6 t12 T1.1 + Codex P1#2 — optimistic column remove. The
   // slug goes into this set the moment the user clicks ×; the column
   // disappears immediately. The POST + router.refresh continue in
@@ -270,17 +161,40 @@ export default function ComparisonView({
   // slug back so the column reappears with the error banner.
   const [optimisticallyRemoved, setOptimisticallyRemoved] = useState<Set<string>>(new Set())
   const [shortlistError, setShortlistError] = useState<string | null>(null)
-  // Redesign req 4 follow-up: a present-but-broken heroImage/logoUrl (e.g.
-  // an R2 object returning an HTML hotlink-protection stub instead of an
-  // image, HTTP 200 but wrong content-type) doesn't throw client-side —
-  // the <img> just fails to decode and the browser shows its broken-image
-  // glyph. Track failures per school+image-kind so a failed load falls
-  // back through the SAME code path as a null/missing URL (hasHero/
-  // hasLogo below already treat both as "don't render"), instead of
-  // leaving a broken-image icon or a layout gap.
-  const [failedImages, setFailedImages] = useState<Set<string>>(new Set())
-  function markImageFailed(key: string) {
-    setFailedImages(prev => (prev.has(key) ? prev : new Set(prev).add(key)))
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('snapshot')
+  const [isNarrow, setIsNarrow] = useState(false)
+  const [mobileSchoolSlug, setMobileSchoolSlug] = useState<string | null>(null)
+  const [priorityEditorOpen, setPriorityEditorOpen] = useState(false)
+  const [selectedPriorityIds, setSelectedPriorityIds] = useState<string[]>([])
+  const [draftPriorityIds, setDraftPriorityIds] = useState<string[]>([])
+  const [localRows, setLocalRows] = useState<LocalComparisonRow[]>([])
+  const [localRowsChildId, setLocalRowsChildId] = useState<string | null>(null)
+  const [rowEditorOpen, setRowEditorOpen] = useState(false)
+  const [newRowLabel, setNewRowLabel] = useState('')
+  const [newRowError, setNewRowError] = useState<string | null>(null)
+  const [rowResearchNotice, setRowResearchNotice] = useState<string | null>(null)
+  const [isSavingResearchRequest, setIsSavingResearchRequest] = useState(false)
+  const [rowAutocompleteOpen, setRowAutocompleteOpen] = useState(false)
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(-1)
+  const autocompleteRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const stored = window.localStorage.getItem('rr-cmp-display-mode')
+    if (stored === 'snapshot' || stored === 'table') setDisplayMode(stored)
+
+    const media = window.matchMedia('(max-width: 700px)')
+    const syncNarrow = () => setIsNarrow(media.matches)
+    syncNarrow()
+    media.addEventListener('change', syncNarrow)
+    return () => media.removeEventListener('change', syncNarrow)
+  }, [])
+
+  function changeDisplayMode(next: DisplayMode) {
+    setDisplayMode(next)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('rr-cmp-display-mode', next)
+    }
   }
 
   // Slice 6.6 Tier 3.5 — zoom state for the comparison table. Three
@@ -310,37 +224,6 @@ export default function ComparisonView({
       window.localStorage.setItem('rr-cmp-zoom', String(next))
     }
   }
-
-  // Redesign req 3 — measures the header row's rendered height (it now
-  // varies with hero images being present or not) so section headers can
-  // stick just beneath it instead of a hardcoded offset.
-  const headRowRef = useRef<HTMLDivElement | null>(null)
-  const [headHeight, setHeadHeight] = useState(0)
-  useEffect(() => {
-    const el = headRowRef.current
-    if (!el || typeof ResizeObserver === 'undefined') return
-    const ro = new ResizeObserver(entries => {
-      for (const entry of entries) setHeadHeight(entry.contentRect.height)
-    })
-    ro.observe(el)
-    return () => ro.disconnect()
-  }, [])
-
-  // Redesign req 5 — soften router.refresh()'s full repaint. Instead of the
-  // table flashing/repainting all at once when fresh server data lands, the
-  // data rows briefly fade + settle in via CSS. Skipped on first mount (no
-  // prior state to "change" from). No animation library needed.
-  const [settling, setSettling] = useState(false)
-  const isFirstDataRender = useRef(true)
-  useEffect(() => {
-    if (isFirstDataRender.current) {
-      isFirstDataRender.current = false
-      return
-    }
-    setSettling(true)
-    const t = setTimeout(() => setSettling(false), 420)
-    return () => clearTimeout(t)
-  }, [data])
 
   async function handleRemoveSchool(slug: string) {
     if (!activeChildId) return
@@ -413,6 +296,38 @@ export default function ComparisonView({
     setOptimisticallyRemoved(new Set())
     setShortlistError(null)
   }, [activeChildId])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const stored = JSON.parse(
+        window.localStorage.getItem(comparisonStorageKey('local-rows', activeChildId)) ?? '[]',
+      )
+      if (!Array.isArray(stored)) {
+        setLocalRows([])
+        setLocalRowsChildId(activeChildId)
+        return
+      }
+      setLocalRows(
+        stored
+          .filter((row): row is LocalComparisonRow =>
+            Boolean(
+              row
+              && typeof row === 'object'
+              && typeof row.id === 'string'
+              && typeof row.label === 'string'
+              && row.label.trim(),
+            ),
+          )
+          .map(row => ({ ...row, status: 'idle' as const }))
+          .slice(0, 12),
+      )
+    } catch {
+      setLocalRows([])
+    }
+    setLocalRowsChildId(activeChildId)
+  }, [activeChildId])
+
   // Codex P1#2: optimistic filter must apply to BOTH schools AND each
   // row's cells in lockstep. row.cells[] is indexed by school position,
   // so dropping a school from `schools` without dropping the matching
@@ -426,16 +341,50 @@ export default function ComparisonView({
     }
   }
   const schools = visibleSchoolIndices.map(i => rawSchools[i])
-  const rawRows = data.rows.map(r => ({
-    ...r,
-    cells: visibleSchoolIndices.map(i => r.cells[i] ?? { kind: 'empty' as const }),
-  }))
-  // RRV-10: the Focus chip bar renders savedLenses flat (no dropdown), so
-  // there's no picker-open/outside-click state to manage any more — the
-  // old picker's effect (mousedown/Escape close handling) is deleted.
+  const rawRows = [
+    ...data.rows.map(r => ({
+      ...r,
+      cells: visibleSchoolIndices.map(i => r.cells[i] ?? { kind: 'empty' as const }),
+    })),
+    ...localRows.map(row => ({
+      id: row.id,
+      label: row.label,
+      blurb: row.status === 'researching'
+        ? 'Researching each school'
+        : 'Added to this comparison',
+      removable: row.status !== 'researching',
+      cells: schools.map(() => (
+        row.status === 'researching'
+          ? { kind: 'loading' as const }
+          : { kind: 'empty' as const }
+      )),
+    })),
+  ]
+  const isResearchingRow = localRows.some(row => row.status === 'researching')
+  const childLensLabel = activeChildName ? `${activeChildName} fit` : 'Child fit'
   const activeLens = activeLensId
     ? savedLenses.find(l => l.id === activeLensId) ?? null
     : null
+
+  // Close the picker when the parent clicks outside or hits Escape.
+  // Mounted only when open so it's a no-op during the common case.
+  useEffect(() => {
+    if (!pickerOpen) return
+    function onDocClick(e: MouseEvent) {
+      if (!pickerRef.current) return
+      if (pickerRef.current.contains(e.target as Node)) return
+      setPickerOpen(false)
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setPickerOpen(false)
+    }
+    document.addEventListener('mousedown', onDocClick)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('mousedown', onDocClick)
+      document.removeEventListener('keydown', onKey)
+    }
+  }, [pickerOpen])
 
   // Slice 6 commits 7+8 — apply ephemeral overlay (filter + sort).
   // Source of truth is `rowOrder`: an explicit list of row IDs. Rows
@@ -443,7 +392,7 @@ export default function ComparisonView({
   // fall to the bottom in their original loader order (defensive — in
   // normal flow rowOrder covers every visible row).
   const rows = (() => {
-    if (!viewOverlay) return demoteSparseRows(rawRows)
+    if (!viewOverlay) return rawRows
     const norm = (s: string) => s.trim().toLowerCase()
     const visibleSet = viewOverlay.visibleRows
       ? new Set(viewOverlay.visibleRows.map(norm))
@@ -465,7 +414,364 @@ export default function ComparisonView({
     return indexed.map(x => x.row)
   })()
 
+  const rowSignature = rows.map(row => row.id).join('|')
+  useEffect(() => {
+    const available = new Set(rows.map(row => row.id))
+    let next: string[] = []
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = JSON.parse(
+          window.localStorage.getItem(comparisonStorageKey('priorities', activeChildId)) ?? '[]',
+        )
+        if (Array.isArray(stored)) {
+          next = stored
+            .filter((id): id is string => typeof id === 'string' && available.has(id))
+            .slice(0, 3)
+        }
+      } catch {
+        next = []
+      }
+    }
+    if (next.length === 0) next = rows.slice(0, 3).map(row => row.id)
+    setSelectedPriorityIds(next)
+    setDraftPriorityIds(next)
+  // rowSignature deliberately represents the available row identities.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChildId, rowSignature])
+
+  useEffect(() => {
+    if (schools.length === 0) {
+      setMobileSchoolSlug(null)
+      return
+    }
+    if (!mobileSchoolSlug || !schools.some(school => school.slug === mobileSchoolSlug)) {
+      setMobileSchoolSlug(schools[0].slug)
+    }
+  }, [mobileSchoolSlug, schools])
+
+  const priorityRows = selectedPriorityIds
+    .map(id => rows.find(row => row.id === id))
+    .filter((row): row is ComparisonRow => Boolean(row))
+  const availableComparisonIdSet = new Set(availableComparisonIds)
+  const existingComparisonRows = new Map<string, string>()
+  rows.forEach(row => {
+    const match = matchComparisonRequest(row.label)
+    if (match.kind === 'supported') {
+      existingComparisonRows.set(match.id, row.id)
+      return
+    }
+    const researchTopic = RESEARCH_ONLY_COMPARISONS.find(topic =>
+      topic.label.toLowerCase() === match.canonicalTopic.toLowerCase())
+    if (researchTopic) existingComparisonRows.set(`research:${researchTopic.id}`, row.id)
+  })
+  const autocompleteSuggestions = findComparisonCatalogueSuggestions(newRowLabel)
+
+  const tableSchoolIndices = isNarrow
+    ? [Math.max(0, schools.findIndex(school => school.slug === mobileSchoolSlug))]
+    : schools.map((_, index) => index)
+  const tableSchools = tableSchoolIndices.map(index => schools[index]).filter(Boolean)
+  const tableRows = rows.map(row => ({
+    ...row,
+    cells: tableSchoolIndices.map(index => row.cells[index] ?? { kind: 'empty' as const }),
+  }))
+
+  function openPriorityEditor() {
+    setDraftPriorityIds(selectedPriorityIds)
+    setPriorityEditorOpen(true)
+  }
+
+  function closeRowEditor() {
+    setRowAutocompleteOpen(false)
+    setActiveSuggestionIndex(-1)
+  }
+
+  function viewComparisonRow(rowId: string) {
+    changeDisplayMode('table')
+    setRowEditorOpen(false)
+    closeRowEditor()
+    setNewRowLabel('')
+    window.requestAnimationFrame(() => {
+      const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      document.querySelector<HTMLElement>(`[data-comparison-row-id="${rowId}"]`)
+        ?.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'center' })
+    })
+  }
+
+  async function handleCatalogueSuggestion(
+    suggestion: ReturnType<typeof findComparisonCatalogueSuggestions>[number],
+  ) {
+    const key = suggestion.kind === 'supported' ? suggestion.id : `research:${suggestion.id}`
+    const existingRowId = existingComparisonRows.get(key)
+    if (existingRowId) {
+      viewComparisonRow(existingRowId)
+      return
+    }
+
+    setNewRowLabel(suggestion.label)
+    await addComparisonLabel(suggestion.label)
+  }
+
+  function handleRowSearchKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key === 'Escape') {
+      setRowAutocompleteOpen(false)
+      setActiveSuggestionIndex(-1)
+      return
+    }
+    if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp' && event.key !== 'Enter') return
+
+    if (event.key === 'Enter') {
+      if (rowAutocompleteOpen && activeSuggestionIndex >= 0) {
+        const suggestion = autocompleteSuggestions[activeSuggestionIndex]
+        if (suggestion) {
+          event.preventDefault()
+          void handleCatalogueSuggestion(suggestion)
+        }
+      }
+      return
+    }
+
+    event.preventDefault()
+    setRowAutocompleteOpen(true)
+    if (autocompleteSuggestions.length === 0) {
+      setActiveSuggestionIndex(-1)
+      return
+    }
+    setActiveSuggestionIndex(current => {
+      if (event.key === 'ArrowDown') {
+        return current >= autocompleteSuggestions.length - 1 ? 0 : current + 1
+      }
+      return current <= 0 ? autocompleteSuggestions.length - 1 : current - 1
+    })
+  }
+
+  useEffect(() => {
+    if (!rowAutocompleteOpen || activeSuggestionIndex < 0) return
+    autocompleteRef.current
+      ?.querySelector<HTMLElement>(`[data-suggestion-index="${activeSuggestionIndex}"]`)
+      ?.scrollIntoView({ block: 'nearest' })
+  }, [activeSuggestionIndex, rowAutocompleteOpen])
+
+  function toggleDraftPriority(rowId: string) {
+    setDraftPriorityIds(current => {
+      if (current.includes(rowId)) return current.filter(id => id !== rowId)
+      if (current.length >= 3) return current
+      return [...current, rowId]
+    })
+  }
+
+  function applyPriorities() {
+    if (draftPriorityIds.length === 0) return
+    setSelectedPriorityIds(draftPriorityIds)
+    setPriorityEditorOpen(false)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(
+        comparisonStorageKey('priorities', activeChildId),
+        JSON.stringify(draftPriorityIds),
+      )
+    }
+  }
+
+  function dropLocalRow(rowId: string) {
+    setLocalRows(current => {
+      const next = current.filter(row => row.id !== rowId)
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(
+          comparisonStorageKey('local-rows', activeChildId),
+          JSON.stringify(next.filter(row => row.status !== 'researching')),
+        )
+      }
+      return next
+    })
+  }
+
+  async function researchLocalRow(
+    label: string,
+    optimisticId: string | null,
+    options: { legacy?: boolean } = {},
+  ) {
+    try {
+      const response = await fetch('/api/research-room/research-row', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          child_id: activeChildId,
+          row_label: label,
+          request_id: createClientUuid(),
+        }),
+      })
+      const result = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        const code = typeof result?.code === 'string' ? result.code : 'request_failed'
+        if (options.legacy && code === 'duplicate_name') {
+          if (optimisticId) dropLocalRow(optimisticId)
+          setRowResearchNotice('This saved comparison row is now up to date.')
+          router.refresh()
+          return
+        }
+        const message =
+          code === 'duplicate_name'
+            ? 'That comparison row already exists.'
+            : code === 'shortlist_empty'
+              ? 'Add at least one school before researching a row.'
+              : 'The school information could not be researched. Please try again.'
+        if (optimisticId) dropLocalRow(optimisticId)
+        setNewRowLabel(label)
+        setNewRowError(message)
+        setRowEditorOpen(true)
+        return
+      }
+
+      if (result?.status === 'research_request_saved') {
+        if (optimisticId) dropLocalRow(optimisticId)
+        const topic = typeof result?.canonical_topic === 'string'
+          ? result.canonical_topic
+          : label
+        setNewRowLabel('')
+        setNewRowError(null)
+        setRowEditorOpen(false)
+        setRowResearchNotice(
+          `We do not have enough reliable information for “${topic}” yet. `
+          + 'Your request has been saved to help decide what Nana researches next. '
+          + 'Thank you for helping us improve.',
+        )
+        return
+      }
+
+      const filled = typeof result?.filled_count === 'number' ? result.filled_count : 0
+      const total = typeof result?.total_count === 'number' ? result.total_count : schools.length
+      if (optimisticId) dropLocalRow(optimisticId)
+      setRowResearchNotice(
+        filled === total
+          ? `Information added for all ${total} ${total === 1 ? 'school' : 'schools'}.`
+          : filled > 0
+            ? result?.missing_request_saved
+              ? `Information added for ${filled} of ${total} schools. We saved the missing information for future research.`
+              : `Information added for ${filled} of ${total} schools. The rest need checking.`
+            : 'No reliable information was found yet.',
+      )
+      router.refresh()
+    } catch (error) {
+      console.error('[comparison-view research row]', error)
+      if (optimisticId) dropLocalRow(optimisticId)
+      setNewRowLabel(label)
+      setNewRowError('Network error while researching the schools. Please try again.')
+      setRowEditorOpen(true)
+    } finally {
+      setIsSavingResearchRequest(false)
+    }
+  }
+
+  async function addComparisonLabel(rawLabel: string) {
+    const label = rawLabel.trim().replace(/\s+/g, ' ')
+    if (label.length < 2 || label.length > 60) {
+      setNewRowError('Use a short label between 2 and 60 characters.')
+      return
+    }
+    if (rows.some(row => row.label.trim().toLowerCase() === label.toLowerCase())) {
+      setNewRowError('That comparison row already exists.')
+      return
+    }
+    if (!activeChildId) {
+      setNewRowError('Choose a child before adding a comparison row.')
+      return
+    }
+
+    const match = matchComparisonRequest(label)
+    const displayLabel = match.kind === 'supported' ? match.label : label
+    if (rows.some(row => {
+      if (row.label.trim().toLowerCase() === displayLabel.toLowerCase()) return true
+      if (match.kind !== 'supported') return false
+      const existingMatch = matchComparisonRequest(row.label)
+      return existingMatch.kind === 'supported' && existingMatch.id === match.id
+    })) {
+      setNewRowError('That comparison row already exists.')
+      return
+    }
+
+    let optimisticId: string | null = null
+    const canAddWithoutResearch = match.kind === 'supported' && availableComparisonIdSet.has(match.id)
+    if (canAddWithoutResearch) {
+      optimisticId = `local-${createClientUuid()}`
+      const optimisticRow: LocalComparisonRow = {
+        id: optimisticId,
+        label: displayLabel,
+        status: 'researching',
+      }
+      setLocalRows(current => [...current, optimisticRow].slice(-12))
+      setNewRowLabel('')
+    } else {
+      setIsSavingResearchRequest(true)
+    }
+    setNewRowError(null)
+    setRowResearchNotice(null)
+    setRowEditorOpen(false)
+    await researchLocalRow(label, optimisticId)
+  }
+
+  async function addLocalRow(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    await addComparisonLabel(newRowLabel)
+  }
+
+  // Rows created before direct research shipped were saved only in this
+  // browser. Migrate one at a time so an old empty "Airport distance" row
+  // automatically becomes a normal, sourced database row after refresh.
+  useEffect(() => {
+    if (!activeChildId || localRowsChildId !== activeChildId || isResearchingRow) return
+    const legacyRow = localRows.find(row => !row.status || row.status === 'idle')
+    if (!legacyRow) return
+
+    const savedMatch = data.rows.some(
+      row => row.label.trim().toLowerCase() === legacyRow.label.trim().toLowerCase(),
+    )
+    if (savedMatch) {
+      dropLocalRow(legacyRow.id)
+      return
+    }
+
+    setLocalRows(current => current.map(row => (
+      row.id === legacyRow.id ? { ...row, status: 'researching' } : row
+    )))
+    setRowResearchNotice(null)
+    void researchLocalRow(legacyRow.label, legacyRow.id, { legacy: true })
+  // This migration is intentionally driven by local-row identity/status.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeChildId, data.rows, isResearchingRow, localRows, localRowsChildId])
+
+  // Slice 5.5a: lens switch via URL param. The server reads searchParams.lens
+  // in page.tsx and re-fetches the right rows. router.replace keeps history
+  // tidy (no per-click entry); cloning the existing search params preserves
+  // anything already on the URL (e.g. future ?ref=, ?from=, etc.).
+  //
+  // Slice 6 close — clicking a base-lens tab also clears the active
+  // saved lens (if any). Otherwise the URL flips but the saved lens
+  // keeps driving the overlay, which is confusing.
+  //
+  // Codex P2: sequence the two mutations. Firing router.replace and
+  // onSwitchActiveLens concurrently means the URL change can land
+  // server-side BEFORE the active-lens POST resolves, briefly
+  // rendering the new base lens with the OLD active_lens_id still
+  // overriding it. Awaiting the clear first means the URL change
+  // re-fetches against DB truth.
+  async function switchLens(next: Lens) {
+    if (activeLensId && onSwitchActiveLens) {
+      await onSwitchActiveLens(null)
+    }
+    if (next !== lens) {
+      const params = new URLSearchParams(searchParams?.toString() ?? '')
+      if (next === 'general') params.delete('lens')
+      else params.set('lens', next)
+      const qs = params.toString()
+      router.replace(qs ? `${pathname}?${qs}` : pathname)
+    }
+  }
+
   async function handleRemoveRow(uiRowId: string) {
+    if (uiRowId.startsWith('local-')) {
+      dropLocalRow(uiRowId)
+      setSelectedPriorityIds(current => current.filter(id => id !== uiRowId))
+      return
+    }
     const dbId = customRowDbId(uiRowId)
     setPendingRemoveId(uiRowId)
     setRemoveError(null)
@@ -531,176 +837,100 @@ export default function ComparisonView({
   // failed to load.
   if (loadError) {
     return (
-      <div className="rr-cmp-empty" role="alert">
-        <div className="rr-cmp-empty-eyebrow">Comparison unavailable</div>
-        <h2 className="rr-cmp-empty-title">Something went wrong loading your comparison.</h2>
-        <p className="rr-cmp-empty-body">{loadError}</p>
+      <div className="rr-cmp-wrap">
+        <header className="rr-cmp-workspace-head">
+          <div>
+            <h1 className="rr-cmp-workspace-title">
+              {activeChildName ? `${activeChildName}’s shortlist` : 'Your school shortlist'}
+            </h1>
+            <p className="rr-cmp-workspace-meta">Comparison unavailable</p>
+          </div>
+        </header>
+        <div className="rr-cmp-empty" role="alert">
+          <h2 className="rr-cmp-empty-title">Something went wrong loading your comparison.</h2>
+          <p className="rr-cmp-empty-body">{loadError}</p>
+        </div>
       </div>
     )
   }
 
   if (schools.length === 0) {
     return (
-      <div className="rr-cmp-empty" role="status">
-        <div className="rr-cmp-empty-eyebrow">Nothing to compare yet</div>
-        <h2 className="rr-cmp-empty-title">
-          Add some schools to your shortlist first.
-        </h2>
-        <p className="rr-cmp-empty-body">
-          The comparison table fills in automatically once you've saved a few.
-        </p>
-        {/* Slice 6.6 (Codex r1 P2): the in-room add affordance also
-            renders in the empty state. Without it the user's only path
-            forward was "Browse schools →" (an external page), defeating
-            the in-room workspace promise. */}
-        {activeChildId && (
-          <div className="rr-cmp-empty-add">
-            <SchoolAdder childId={activeChildId} excludeSlugs={[]} />
+      <div className="rr-cmp-wrap">
+        <header className="rr-cmp-workspace-head">
+          <div>
+            <h1 className="rr-cmp-workspace-title">
+              {activeChildName ? `${activeChildName}’s shortlist` : 'Your school shortlist'}
+            </h1>
+            <p className="rr-cmp-workspace-meta">0 schools</p>
           </div>
-        )}
-        <Link href="/schools" className="rr-cmp-empty-cta">
-          {activeChildId ? 'Or browse schools →' : 'Browse schools →'}
-        </Link>
+        </header>
+        <div className="rr-cmp-empty" role="status">
+          <h2 className="rr-cmp-empty-title">Add the first school to start comparing.</h2>
+          <p className="rr-cmp-empty-body">
+            Snapshot and Table will appear once the shortlist has schools.
+          </p>
+          {activeChildId && (
+            <div className="rr-cmp-empty-add">
+              <SchoolAdder childId={activeChildId} excludeSlugs={[]} />
+            </div>
+          )}
+          <Link href="/schools" className="rr-cmp-empty-cta">
+            {activeChildId ? 'Browse all schools' : 'Browse schools'}
+          </Link>
+        </div>
       </div>
     )
   }
 
-  // Redesign req 3 — with only a few schools, letting columns stretch to
-  // fill the full viewport width (minmax(220px, 1fr)) reads as sparse and
-  // disconnected, more like a leftover spreadsheet than a comparison. Cap
-  // the column width instead so a 1–3 school comparison reads tighter and
-  // more like bounded cards sitting side by side.
-  const fewSchools = schools.length <= 3
-  // Diagnostic follow-up (2026-07-17): 4-5 schools is the realistic common
-  // shortlist size (not just ≤3), but the old flat `minmax(220px, 1fr)`
-  // still forced a 5-school table to a ~1360px content minimum (260 dim +
-  // 5×220) — wider than a 1440px laptop's usable content width even with
-  // chat closed, and well past a 1280px laptop's. Scale the dim column and
-  // per-school min/max down as the count grows so 4-5 schools compress
-  // toward what a normal laptop screen can actually show, instead of
-  // always forcing horizontal scroll. Cell content (images, highlighted
-  // values, progress bars) stays legible down to ~150px — verified via
-  // Puppeteer at 1440/1280 against the real 5-school session.
-  const dimWidth = fewSchools ? 260 : Math.max(200, 260 - (schools.length - 3) * 20)
-  const colMin = fewSchools ? 240 : Math.max(150, 260 - schools.length * 18)
-  const colMax = fewSchools ? 360 : Math.max(colMin, 320 - schools.length * 16)
-  const gridTemplateColumns = `${dimWidth}px repeat(${schools.length}, minmax(${colMin}px, ${colMax}px))`
-  // The shared `.rr-cmp-table` rule carries a flat 1100px min-width so a
-  // 1-2 school table doesn't look sparse. That floor is harmless for
-  // fewSchools (its own min-content already exceeds it) but for 4-5
-  // schools it would silently cancel the compression above (e.g. 4
-  // schools' new min-content is ~992px, comfortably under the 1100px
-  // floor) — so tighten the floor to match this table's OWN computed
-  // minimum instead of the shared constant once we're past ≤3 schools.
-  const tableMinWidth = fewSchools ? undefined : dimWidth + schools.length * colMin
+  const tableGridTemplateColumns = isNarrow
+    ? 'minmax(132px, 0.82fr) minmax(0, 1.18fr)'
+    : `260px repeat(${tableSchools.length}, minmax(220px, 1fr))`
+  const desktopTableMinWidth = comparisonTableMinWidth(tableSchools.length)
 
   return (
     <div className="rr-cmp-wrap">
-      <div className="rr-cmp-controls">
-        {/* RRV-10 (Focus consolidation) — replaces the old General/child_fit
-            base-lens tabs AND the separate saved-lens dropdown picker with
-            ONE flat chip row. "Everything" is the always-personal default
-            (no more tab choice — see page.tsx); every entry in savedLenses
-            (saved re-rank views AND topic lenses — the same
-            comparison_lenses rows, distinguished only by is_topic_lens)
-            renders as its own chip, active/inactive exactly like the old
-            picker's menu items did. "Save this Focus" (relocated from the
-            chat rail) sits in the same row, matching the approved mock. */}
-        <div className="rr-cmp-lens-tabs" role="tablist" aria-label="Focus">
-          <span className="rr-cmp-lens-label">Focus</span>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={!activeLens}
-            className={`rr-cmp-lens-tab${!activeLens ? ' is-active' : ''}`}
-            onClick={onSelectEverything}
-          >
-            Everything
-          </button>
-          {savedLenses.map(l => {
-            const isActive = l.id === activeLensId
-            return (
-              <button
-                key={l.id}
-                type="button"
-                role="tab"
-                aria-selected={isActive}
-                className={`rr-cmp-lens-tab${isActive ? ' is-active' : ''}`}
-                title={l.is_topic_lens ? `${l.lens_name} — a topic Focus` : `${l.lens_name} — a saved Focus`}
-                onClick={() => {
-                  if (isActive) { onSelectEverything?.() }
-                  else if (onSwitchActiveLens) { onSwitchActiveLens(l.id) }
-                }}
-              >
-                {l.lens_name}
-              </button>
-            )
-          })}
-          <SaveFocusButton canSave={canSaveAsLens} onSave={onSaveAsLens} />
+      <header className="rr-cmp-workspace-head">
+        <div>
+          <h1 className="rr-cmp-workspace-title">
+            {activeChildName ? `${activeChildName}’s shortlist` : 'Your school shortlist'}
+          </h1>
+          <p className="rr-cmp-workspace-meta">
+            {schools.length} {schools.length === 1 ? 'school' : 'schools'}
+          </p>
         </div>
-        {/* RRV-10 golden rule: the "Showing: <focus> — because …" sentence
-            + Undo, always visible, replacing four fragmented status
-            strings the old six-mechanism UI had (this stats-strip "active"
-            text, the corner-cell lens label, the ephemeral chip's "not
-            saved" text, and the picker button's own label). */}
-        {focusDescriptor && (
-          <div className="rr-cmp-showing-focus" role="status">
-            <span>
-              Showing: <strong>{focusDescriptor.label}</strong> — {focusDescriptor.reason}
-            </span>
-            {undoLabel && onUndoFocus && (
-              <button type="button" className="rr-cmp-showing-focus-undo" onClick={onUndoFocus}>
-                {undoLabel}
-              </button>
-            )}
-          </div>
-        )}
-        {/* Slice 6.6 Tier 3.5: stats row is now a single inline strip
-            holding rows/schools count, the ↻ Refresh affordance (topic
-            lenses only), and the zoom −/+ controls. */}
-        <div className="rr-cmp-stats">
-          <span className="rr-cmp-stats-counts">{rows.length} rows · {schools.length} schools</span>
-          {activeLens && activeLens.is_topic_lens && onRefreshTopicLens && (
-            <button
-              type="button"
-              className="rr-cmp-stats-refresh"
-              onClick={() => onRefreshTopicLens(activeLens.lens_name)}
-              title={`Ask Nana to fill ${activeLens.lens_name} data for any newly-shortlisted schools.`}
-              aria-label={`Refresh ${activeLens.lens_name} Focus with current shortlist`}
-            >
-              <span aria-hidden="true">↻</span> Refresh
-            </button>
+        <div className="rr-cmp-workspace-actions">
+          {activeChildId && (
+            <SchoolAdder
+              childId={activeChildId}
+              excludeSlugs={schools.map(school => school.slug)}
+              variant="compact"
+            />
           )}
-          <span className="rr-cmp-stats-zoom" role="group" aria-label="Table zoom">
-            <span className="rr-cmp-stats-zoom-icon" aria-hidden="true">🔍</span>
+          <div className="rr-cmp-display-switch" role="tablist" aria-label="Comparison display">
             <button
               type="button"
-              className="rr-cmp-stats-zoom-btn"
-              onClick={() => adjustZoom(-1)}
-              disabled={zoom === ZOOM_STEPS[0]}
-              aria-label="Zoom out"
-              title="Zoom out"
+              role="tab"
+              aria-selected={displayMode === 'snapshot'}
+              className={displayMode === 'snapshot' ? 'is-active' : ''}
+              onClick={() => changeDisplayMode('snapshot')}
             >
-              <span aria-hidden="true">−</span>
+              <span aria-hidden="true">▥</span>
+              Snapshot
             </button>
             <button
               type="button"
-              className="rr-cmp-stats-zoom-btn"
-              onClick={() => adjustZoom(1)}
-              disabled={zoom === ZOOM_STEPS[ZOOM_STEPS.length - 1]}
-              aria-label="Zoom in"
-              title="Zoom in"
+              role="tab"
+              aria-selected={displayMode === 'table'}
+              className={displayMode === 'table' ? 'is-active' : ''}
+              onClick={() => changeDisplayMode('table')}
             >
-              <span aria-hidden="true">+</span>
+              <span aria-hidden="true">▦</span>
+              Table
             </button>
-          </span>
+          </div>
         </div>
-        {/* Slice 6.6 — the + Add school control moved to the
-            ResearchRoom header (next to the active-child pill) so the
-            comparison-controls row stays compact. Empty-state path
-            below renders its own SchoolAdder so the user always has an
-            in-room recovery affordance. */}
-      </div>
+      </header>
 
       {shortlistError && (
         <div className="rr-cmp-error" role="alert">
@@ -715,7 +945,7 @@ export default function ComparisonView({
             <div className="rr-cmp-topics-eyebrow">More verified comparisons</div>
             <h2 id="rr-cmp-topics-title" className="rr-cmp-topics-title">Topics parents can explore</h2>
             <p className="rr-cmp-topics-copy">
-              These topics are backed by information already verified in our database.
+              Backed by information already verified in our database.
             </p>
           </div>
           <div className="rr-cmp-topics-list">
@@ -736,114 +966,424 @@ export default function ComparisonView({
         </section>
       )}
 
-      <div
-        className={`rr-cmp-table-wrap${fewSchools ? ' rr-cmp-table-wrap--cards' : ''}${settling ? ' rr-cmp-table-wrap--settling' : ''}`}
-        style={{ zoom }}
-      >
-        <div className="rr-cmp-table" style={tableMinWidth != null ? { minWidth: tableMinWidth } : undefined}>
-          {/* Header row */}
-          <div ref={headRowRef} className="rr-cmp-table-row rr-cmp-table-row--head" style={{ gridTemplateColumns }}>
-            <div className="rr-cmp-corner">
-              <div className="rr-cmp-corner-eyebrow">Comparing</div>
-              <div className="rr-cmp-corner-title">
-                {schools.length} schools, <em>{rows.length} dimensions</em>
-              </div>
-              {/* RRV-10: sourced from the same focusDescriptor the
-                  Showing-line uses, one level up — can't drift out of
-                  sync with it the way the old independently-derived
-                  corner label could. */}
-              {focusDescriptor && (
-                <div className="rr-cmp-corner-meta">{focusDescriptor.label}</div>
+      {displayMode === 'snapshot' ? (
+        <>
+          <div className="rr-cmp-priority-bar">
+            <div className="rr-cmp-priority-copy">
+              <strong>Your priorities</strong>
+              <span>Snapshot shows up to three things that matter most.</span>
+            </div>
+            <div className="rr-cmp-priority-list" aria-label="Selected priorities">
+              {priorityRows.length > 0 ? priorityRows.map(row => (
+                <span key={row.id}>{row.label}</span>
+              )) : (
+                <span className="is-empty">No priorities selected</span>
               )}
             </div>
-            {schools.map((s, i) => {
-              // Redesign req 4 — hero photo + logo badge in the column
-              // header, when the data-side agent has populated them.
-              // Gracefully omitted (no empty box) when absent.
-              const heroFailKey = `${s.slug}:hero`
-              const logoFailKey = `${s.slug}:logo`
-              const hasHero = Boolean(s.heroImage) && !failedImages.has(heroFailKey)
-              const hasLogo = Boolean(s.logoUrl) && !failedImages.has(logoFailKey)
-              return (
-              // Slice 6.6 t12 T1.1: column disappears optimistically,
-              // so no per-column "removing…" indicator needed — the
-              // column is already gone the moment the user clicks ×.
-              <div key={s.slug} className="rr-cmp-head">
-                {(hasHero || hasLogo) && (
-                  <div className={`rr-cmp-head-media${hasHero ? '' : ' rr-cmp-head-media--logo-only'}`}>
-                    {hasHero && (
-                      // eslint-disable-next-line @next/next/no-img-element -- remote domain unknown ahead of time; avoids next/image domain config coupling
-                      <img
-                        src={s.heroImage}
-                        alt=""
-                        className="rr-cmp-head-hero"
-                        loading="lazy"
-                        onError={() => markImageFailed(heroFailKey)}
-                      />
-                    )}
-                    {hasLogo && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={s.logoUrl}
-                        alt={`${s.name} logo`}
-                        className="rr-cmp-head-logo"
-                        loading="lazy"
-                        onError={() => markImageFailed(logoFailKey)}
-                      />
-                    )}
-                  </div>
-                )}
-                <div className="rr-cmp-head-rank">
-                  No. <strong>{String(i + 1).padStart(2, '0')}</strong>
-                </div>
-                <div className="rr-cmp-head-name">{s.name}</div>
-                <div className="rr-cmp-head-meta">{s.meta}</div>
-                {/* Slice 8 Build 2b (2026-05-18) — surface the
-                    match_reasons stored on shortlisted_schools as
-                    "Added because: …" so parents can see WHY each
-                    school landed in their list. Null-safe: skipped
-                    when the row has no reasons (pre-Build-2 legacy
-                    rows, or chat-adds where the best-effort reasons
-                    write failed). */}
-                {s.addedBecause && (
-                  <div className="rr-cmp-head-reasons" title={`Added because: ${s.addedBecause}`}>
-                    <span className="rr-cmp-head-reasons-label">Added because:</span>{' '}
-                    <span className="rr-cmp-head-reasons-text">{s.addedBecause}</span>
-                  </div>
-                )}
-                {activeChildId && (
-                  <button
-                    type="button"
-                    className="rr-cmp-head-remove"
-                    aria-label={`Remove ${s.name} from comparison`}
-                    title="Remove this school"
-                    onClick={() => handleRemoveSchool(s.slug)}
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-              )
-            })}
+            <button
+              type="button"
+              className="rr-cmp-secondary-action"
+              onClick={openPriorityEditor}
+              disabled={rows.length === 0}
+            >
+              Choose priorities
+            </button>
           </div>
 
-          {/* Slice 6 commit 8 — sortable data rows. DnD wraps the rows
-              so the parent can drag them into any order. The drag-end
-              handler reads the new array and surfaces it via
-              onReorderRows, which the parent (ResearchRoom) writes into
-              ephemeralView.rowOrder. */}
-          <SortableTableBody
-            rows={rows}
-            schools={schools}
-            gridTemplateColumns={gridTemplateColumns}
-            onRemove={handleRemoveRow}
-            pendingRemoveId={pendingRemoveId}
-            onReorderRows={onReorderRows}
-            sectionHeaderTop={headHeight}
-            onAskNanaGap={onAskNanaGap}
-          />
-        </div>
-      </div>
+          {priorityEditorOpen && (
+            <section className="rr-cmp-priority-editor" aria-labelledby="rr-priority-editor-title">
+              <div className="rr-cmp-editor-head">
+                <div>
+                  <h2 id="rr-priority-editor-title">Choose up to three priorities</h2>
+                  <p>Select the details you want to see first in Snapshot.</p>
+                </div>
+                <span aria-live="polite">{draftPriorityIds.length} of 3 selected</span>
+              </div>
+              <div className="rr-cmp-priority-options">
+                {rows.map(row => {
+                  const selected = draftPriorityIds.includes(row.id)
+                  const disabled = !selected && draftPriorityIds.length >= 3
+                  return (
+                    <label
+                      key={row.id}
+                      className={`${selected ? 'is-selected' : ''}${disabled ? ' is-disabled' : ''}`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selected}
+                        disabled={disabled}
+                        onChange={() => toggleDraftPriority(row.id)}
+                      />
+                      <span>{row.label}</span>
+                    </label>
+                  )
+                })}
+              </div>
+              <div className="rr-cmp-editor-actions">
+                <button type="button" className="rr-cmp-primary-action" onClick={applyPriorities}>
+                  Apply priorities
+                </button>
+                <button
+                  type="button"
+                  className="rr-cmp-text-action"
+                  onClick={() => setPriorityEditorOpen(false)}
+                >
+                  Keep current priorities
+                </button>
+              </div>
+            </section>
+          )}
+
+          <SnapshotView rows={priorityRows} schools={schools} />
+        </>
+      ) : (
+        <>
+          <div className="rr-cmp-table-toolbar">
+            <div>
+              <strong>Detailed comparison</strong>
+              <span>{rows.length} rows across {schools.length} schools</span>
+            </div>
+            <button
+              type="button"
+              className="rr-cmp-primary-action"
+              onClick={() => {
+                setRowEditorOpen(open => {
+                  const next = !open
+                  if (!next) {
+                    setRowAutocompleteOpen(false)
+                    setActiveSuggestionIndex(-1)
+                  }
+                  return next
+                })
+                setNewRowError(null)
+              }}
+              aria-expanded={rowEditorOpen}
+              disabled={isResearchingRow || isSavingResearchRequest}
+            >
+              {isResearchingRow
+                ? 'Finding information…'
+                : isSavingResearchRequest
+                  ? 'Saving request…'
+                  : '+ Add comparison row'}
+            </button>
+          </div>
+
+          {rowEditorOpen && (
+            <form className="rr-cmp-row-editor" onSubmit={addLocalRow}>
+              <div className="rr-cmp-row-editor-copy">
+                <label htmlFor="rr-new-row">What else would you like to compare?</label>
+                <span>
+                  Search all comparison topics. Ready topics can be added now; the rest can be requested for research.
+                </span>
+              </div>
+              <div className="rr-cmp-row-editor-input">
+                <div
+                  className="rr-cmp-row-search"
+                  onBlur={event => {
+                    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+                      setRowAutocompleteOpen(false)
+                      setActiveSuggestionIndex(-1)
+                    }
+                  }}
+                >
+                  <input
+                    id="rr-new-row"
+                    value={newRowLabel}
+                    maxLength={60}
+                    role="combobox"
+                    aria-autocomplete="list"
+                    aria-expanded={rowAutocompleteOpen}
+                    aria-controls="rr-comparison-suggestions"
+                    aria-activedescendant={
+                      activeSuggestionIndex >= 0
+                        ? `rr-comparison-suggestion-${activeSuggestionIndex}`
+                        : undefined
+                    }
+                    onFocus={() => setRowAutocompleteOpen(true)}
+                    onKeyDown={handleRowSearchKeyDown}
+                    onChange={event => {
+                      setNewRowLabel(event.target.value)
+                      setNewRowError(null)
+                      setRowAutocompleteOpen(true)
+                      setActiveSuggestionIndex(-1)
+                    }}
+                    placeholder="Start typing, for example nearest airport"
+                    autoComplete="off"
+                    autoFocus
+                  />
+                  {rowAutocompleteOpen && (
+                    <div
+                      id="rr-comparison-suggestions"
+                      ref={autocompleteRef}
+                      className="rr-cmp-autocomplete"
+                      role="listbox"
+                      aria-label="Comparison topics"
+                    >
+                      {autocompleteSuggestions.length > 0 ? autocompleteSuggestions.map((suggestion, index) => (
+                        <div
+                          id={`rr-comparison-suggestion-${index}`}
+                          key={suggestion.id}
+                          role="option"
+                          tabIndex={-1}
+                          data-suggestion-index={index}
+                          data-action={
+                            existingComparisonRows.has(
+                              suggestion.kind === 'supported'
+                                ? suggestion.id
+                                : `research:${suggestion.id}`,
+                            )
+                              ? 'view'
+                              : suggestion.kind === 'supported' && availableComparisonIdSet.has(suggestion.id)
+                                ? 'add'
+                                : 'research'
+                          }
+                          aria-selected={index === activeSuggestionIndex}
+                          className={index === activeSuggestionIndex ? 'is-active' : ''}
+                          onMouseDown={event => event.preventDefault()}
+                          onMouseEnter={() => setActiveSuggestionIndex(index)}
+                          onClick={() => void handleCatalogueSuggestion(suggestion)}
+                        >
+                          <svg viewBox="0 0 20 20" aria-hidden="true">
+                            <circle cx="8.5" cy="8.5" r="5.5" />
+                            <path d="m12.5 12.5 4 4" />
+                          </svg>
+                          <span>{suggestion.label}</span>
+                          <small>
+                            {existingComparisonRows.has(
+                              suggestion.kind === 'supported'
+                                ? suggestion.id
+                                : `research:${suggestion.id}`,
+                            )
+                              ? 'View comparison'
+                              : suggestion.kind === 'supported' && availableComparisonIdSet.has(suggestion.id)
+                                ? 'Add comparison'
+                              : 'Request research'}
+                          </small>
+                        </div>
+                      )) : (
+                        <div className="rr-cmp-autocomplete-empty">
+                          No comparison topics match yet. You can still submit your own research request.
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+                <button type="submit" className="rr-cmp-primary-action">
+                  {(() => {
+                    const match = matchComparisonRequest(newRowLabel)
+                    return match.kind === 'supported' && availableComparisonIdSet.has(match.id)
+                      ? 'Add comparison'
+                      : 'Request research'
+                  })()}
+                </button>
+                <button
+                  type="button"
+                  className="rr-cmp-text-action"
+                  onClick={() => {
+                    setRowEditorOpen(false)
+                    setRowAutocompleteOpen(false)
+                    setActiveSuggestionIndex(-1)
+                    setNewRowLabel('')
+                    setNewRowError(null)
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+              {newRowError && <p className="rr-cmp-field-error" role="alert">{newRowError}</p>}
+            </form>
+          )}
+
+          {rowResearchNotice && (
+            <div className="rr-cmp-row-notice" role="status">
+              <span>{rowResearchNotice}</span>
+              <button
+                type="button"
+                onClick={() => setRowResearchNotice(null)}
+                aria-label="Dismiss research update"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
+          <details className="rr-cmp-settings">
+            <summary>Comparison settings</summary>
+            <div className="rr-cmp-controls">
+              <div className="rr-cmp-lens-tabs" role="group" aria-label="Comparison focus">
+                <span className="rr-cmp-lens-label">Focus</span>
+                <button
+                  type="button"
+                  className={`rr-cmp-lens-tab${!activeLens && lens === 'general' ? ' is-active' : ''}`}
+                  onClick={() => switchLens('general')}
+                >
+                  Overall
+                </button>
+                <button
+                  type="button"
+                  className={`rr-cmp-lens-tab${!activeLens && lens === 'child_fit' ? ' is-active' : ''}`}
+                  onClick={() => switchLens('child_fit')}
+                >
+                  {childLensLabel}
+                </button>
+                {savedLenses.length > 0 && (
+                  <div className="rr-cmp-lens-picker" ref={pickerRef}>
+                    <button
+                      type="button"
+                      className={`rr-cmp-lens-tab rr-cmp-lens-tab--picker${activeLens ? ' is-active' : ''}`}
+                      aria-haspopup="menu"
+                      aria-expanded={pickerOpen}
+                      onClick={() => setPickerOpen(open => !open)}
+                    >
+                      {activeLens ? activeLens.lens_name : 'Saved focuses'}
+                      <span aria-hidden className="rr-cmp-lens-picker-caret">▾</span>
+                    </button>
+                    {pickerOpen && (
+                      <div role="menu" className="rr-cmp-lens-picker-menu">
+                        <div className="rr-cmp-lens-picker-eyebrow">Saved focuses</div>
+                        {savedLenses.map(saved => {
+                          const isActive = saved.id === activeLensId
+                          return (
+                            <button
+                              key={saved.id}
+                              type="button"
+                              role="menuitem"
+                              className={`rr-cmp-lens-picker-item${isActive ? ' is-active' : ''}`}
+                              onClick={() => {
+                                setPickerOpen(false)
+                                if (onSwitchActiveLens) void onSwitchActiveLens(isActive ? null : saved.id)
+                              }}
+                            >
+                              <span className="rr-cmp-lens-picker-check" aria-hidden>{isActive ? '✓' : ''}</span>
+                              <span className="rr-cmp-lens-picker-name">{saved.lens_name}</span>
+                              <span className="rr-cmp-lens-picker-base">
+                                {saved.base_lens_kind === 'child_fit' ? 'child fit' : 'overall'}
+                              </span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="rr-cmp-stats">
+                {activeLens && activeLens.is_topic_lens && onRefreshTopicLens && (
+                  <button
+                    type="button"
+                    className="rr-cmp-stats-refresh"
+                    onClick={() => onRefreshTopicLens(activeLens.lens_name)}
+                  >
+                    ↻ Refresh information
+                  </button>
+                )}
+                {!isNarrow && (
+                  <span className="rr-cmp-stats-zoom" role="group" aria-label="Table zoom">
+                    <span className="rr-cmp-stats-zoom-icon" aria-hidden="true">Size</span>
+                    <button
+                      type="button"
+                      className="rr-cmp-stats-zoom-btn"
+                      onClick={() => adjustZoom(-1)}
+                      disabled={zoom === ZOOM_STEPS[0]}
+                      aria-label="Make table smaller"
+                    >
+                      −
+                    </button>
+                    <button
+                      type="button"
+                      className="rr-cmp-stats-zoom-btn"
+                      onClick={() => adjustZoom(1)}
+                      disabled={zoom === ZOOM_STEPS[ZOOM_STEPS.length - 1]}
+                      aria-label="Make table larger"
+                    >
+                      +
+                    </button>
+                  </span>
+                )}
+              </div>
+            </div>
+          </details>
+
+          {viewOverlay && viewOverlay.kind === 'ephemeral' && (
+            <div className="rr-cmp-overlay-chip" role="status">
+              <span className="rr-cmp-overlay-chip-icon" aria-hidden="true">↻</span>
+              <span className="rr-cmp-overlay-chip-text">
+                <strong>{viewOverlay.label}</strong>
+                <span className="rr-cmp-overlay-chip-meta"> · temporary view</span>
+              </span>
+              {onClearOverlay && (
+                <button
+                  type="button"
+                  className="rr-cmp-overlay-chip-clear"
+                  onClick={onClearOverlay}
+                  aria-label="Reset temporary view"
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          )}
+
+          {isNarrow && tableSchools.length > 0 && (
+            <label className="rr-cmp-mobile-school">
+              <span>School shown</span>
+              <select
+                value={mobileSchoolSlug ?? ''}
+                onChange={event => setMobileSchoolSlug(event.target.value)}
+              >
+                {schools.map(school => (
+                  <option key={school.slug} value={school.slug}>{school.name}</option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          <div
+            className={`rr-cmp-table-wrap${isNarrow ? ' is-single-school' : ''}`}
+            style={{ zoom: isNarrow ? 1 : zoom }}
+          >
+            <div
+              className="rr-cmp-table"
+              style={isNarrow ? undefined : { minWidth: desktopTableMinWidth }}
+            >
+              <div className="rr-cmp-table-row rr-cmp-table-row--head" style={{ gridTemplateColumns: tableGridTemplateColumns }}>
+                <div className="rr-cmp-corner">
+                  <div className="rr-cmp-corner-title">
+                    <span>Comparison</span>
+                    <span>details</span>
+                  </div>
+                  <div className="rr-cmp-corner-meta">{tableRows.length} rows</div>
+                </div>
+                {tableSchools.map(school => (
+                  <div key={school.slug} className="rr-cmp-head">
+                    <div className="rr-cmp-head-name">{school.name}</div>
+                    <div className="rr-cmp-head-meta">{school.meta}</div>
+                    {activeChildId && (
+                      <button
+                        type="button"
+                        className="rr-cmp-head-remove"
+                        aria-label={`Remove ${school.name} from comparison`}
+                        title="Remove this school"
+                        onClick={() => handleRemoveSchool(school.slug)}
+                      >
+                        ×
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <SortableTableBody
+                rows={tableRows}
+                schools={tableSchools}
+                gridTemplateColumns={tableGridTemplateColumns}
+                onRemove={handleRemoveRow}
+                pendingRemoveId={pendingRemoveId}
+                onReorderRows={onReorderRows}
+              />
+            </div>
+          </div>
+        </>
+      )}
 
       {removeError && (
         <div className="rr-cmp-error" role="alert">
@@ -855,82 +1395,152 @@ export default function ComparisonView({
   )
 }
 
-// RRV-10 — "Save this Focus", relocated from ChatActionsRail (in
-// ResearchRoomChat.tsx) into the Focus bar so it sits next to the
-// arrangement it saves rather than requiring the chat panel to be open
-// (chat defaults to closed). Behavior/copy ported verbatim from the old
-// chat-rail chip + inline name-prompt form; only the trigger moved.
-function SaveFocusButton({
-  canSave,
-  onSave,
+function SnapshotView({
+  rows,
+  schools,
 }: {
-  canSave: boolean
-  onSave?: (lensName: string) => Promise<{ ok: boolean; code?: string; existingLensId?: string }>
+  rows: ComparisonRow[]
+  schools: SchoolColumn[]
 }) {
-  const [promptOpen, setPromptOpen] = useState(false)
-  const [lensName,   setLensName]   = useState('')
-  const [saveError,  setSaveError]  = useState<string | null>(null)
-  const [saving,     setSaving]     = useState(false)
+  if (rows.length === 0) {
+    return (
+      <section className="rr-snapshot-empty" role="status">
+        <h2>Your snapshot is waiting for comparison details.</h2>
+        <p>Open Table to add the first comparison row, or return after school information has been added.</p>
+      </section>
+    )
+  }
 
-  async function submitSave() {
-    if (!onSave) return
-    setSaveError(null)
-    setSaving(true)
-    const result = await onSave(lensName)
-    setSaving(false)
-    if (result.ok) {
-      setPromptOpen(false)
-      setLensName('')
-      return
-    }
-    if (result.code === 'duplicate_name') {
-      setSaveError('A Focus with that name already exists. Pick a different name.')
-    } else if (result.code === 'bad_name') {
-      setSaveError('Name must be 1–40 characters.')
-    } else if (result.code === 'empty_after_resolution') {
-      setSaveError('The rows referenced by this Focus are no longer active.')
-    } else {
-      setSaveError('Could not save this Focus. Try again.')
-    }
+  const questions = rows.flatMap(row =>
+    schools.flatMap((school, index) =>
+      row.cells[index]?.kind === 'empty'
+        ? [`${school.name}: check ${row.label.toLowerCase()}.`]
+        : [],
+    ),
+  ).slice(0, 3)
+
+  const gridTemplateColumns = `220px repeat(${schools.length}, minmax(220px, 1fr))`
+
+  return (
+    <section className="rr-snapshot" aria-labelledby="rr-snapshot-title">
+      <div className="rr-snapshot-intro">
+        <h2 id="rr-snapshot-title">What matters most</h2>
+        <p>A quick view of the information available for your selected priorities.</p>
+      </div>
+
+      <div className="rr-snapshot-grid-wrap">
+        <div className="rr-snapshot-grid">
+          <div className="rr-snapshot-row rr-snapshot-row--head" style={{ gridTemplateColumns }}>
+            <div>Priority</div>
+            {schools.map(school => <div key={school.slug}>{school.name}</div>)}
+          </div>
+          {rows.map(row => (
+            <div key={row.id} className="rr-snapshot-row" style={{ gridTemplateColumns }}>
+              <div className="rr-snapshot-priority">
+                <strong>{row.label}</strong>
+                {row.blurb && <span>{row.blurb}</span>}
+              </div>
+              {schools.map((school, index) => (
+                <SnapshotCell
+                  key={`${row.id}-${school.slug}`}
+                  schoolName={school.name}
+                  cell={row.cells[index] ?? { kind: 'empty' }}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rr-snapshot-questions">
+        <div className="rr-snapshot-questions-title">
+          <span aria-hidden="true">?</span>
+          <div>
+            <h3>Questions to resolve</h3>
+            <p>Information that would make the comparison clearer.</p>
+          </div>
+        </div>
+        {questions.length > 0 ? (
+          <ul>
+            {questions.map(question => <li key={question}>{question}</li>)}
+          </ul>
+        ) : (
+          <p className="rr-snapshot-complete">No obvious information gaps in these priorities.</p>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function SnapshotCell({
+  cell,
+  schoolName,
+}: {
+  cell: RowCell
+  schoolName: string
+}) {
+  if (cell.kind === 'loading') {
+    return (
+      <div className="rr-snapshot-cell is-loading" aria-live="polite">
+        <span className="rr-snapshot-mobile-school">{schoolName}</span>
+        <span className="rr-snapshot-loading-line" aria-hidden="true" />
+        <span className="rr-snapshot-status">Finding information…</span>
+      </div>
+    )
+  }
+
+  if (cell.kind === 'empty') {
+    return (
+      <div className="rr-snapshot-cell is-missing">
+        <span className="rr-snapshot-mobile-school">{schoolName}</span>
+        <p className="rr-snapshot-result">No information yet</p>
+        <span className="rr-snapshot-status">Needs checking</span>
+      </div>
+    )
+  }
+
+  if (cell.kind === 'lights') {
+    const hasConcern = cell.lights.some(light => light.tone === 'red')
+    const needsChecking = !hasConcern && cell.lights.some(light => light.tone === 'amber')
+    return (
+      <div className={`rr-snapshot-cell${hasConcern || needsChecking ? ' is-mixed' : ''}`}>
+        <span className="rr-snapshot-mobile-school">{schoolName}</span>
+        <p className="rr-snapshot-result">{cell.lights.map(light => light.label).join(' · ')}</p>
+        {(hasConcern || needsChecking) && (
+          <span className="rr-snapshot-status">
+            {hasConcern ? 'Trade-off' : 'Needs checking'}
+          </span>
+        )}
+      </div>
+    )
+  }
+
+  if (cell.kind === 'cohort') {
+    return (
+      <div className="rr-snapshot-cell is-mixed">
+        <span className="rr-snapshot-mobile-school">{schoolName}</span>
+        <p className="rr-snapshot-result">{cell.note}</p>
+        <span className="rr-snapshot-status">Peer context</span>
+      </div>
+    )
+  }
+
+  if (cell.kind === 'gap') {
+    return (
+      <div className="rr-snapshot-cell is-missing">
+        <span className="rr-snapshot-mobile-school">{schoolName}</span>
+        <p className="rr-snapshot-result">No verified information yet</p>
+        <span className="rr-snapshot-status">Ask Nana</span>
+      </div>
+    )
   }
 
   return (
-    <div className="rr-cmp-save-focus">
-      <button
-        type="button"
-        className="rr-cmp-lens-tab rr-cmp-lens-tab--save"
-        disabled={!canSave || !onSave}
-        title={canSave ? 'Save the current arrangement as a Focus you can come back to' : 'Ask Nana to re-rank or add a row first, then you can save this Focus'}
-        onClick={() => { setPromptOpen(true); setSaveError(null) }}
-      >
-        <span aria-hidden>＋</span> Save this Focus
-      </button>
-
-      {promptOpen && (
-        <form
-          className="rr-cmp-save-focus-form"
-          onSubmit={e => { e.preventDefault(); void submitSave() }}
-        >
-          <input
-            type="text"
-            value={lensName}
-            onChange={e => setLensName(e.target.value)}
-            placeholder="Name this Focus (e.g. Academics + value)"
-            maxLength={40}
-            disabled={saving}
-            autoFocus
-            className="rr-cmp-save-focus-input"
-          />
-          <button type="submit" className="rr-cmp-save-focus-submit" disabled={saving || lensName.trim().length === 0}>
-            {saving ? 'Saving…' : 'Save'}
-          </button>
-          <button type="button" className="rr-cmp-save-focus-cancel" disabled={saving}
-                  onClick={() => { setPromptOpen(false); setSaveError(null); setLensName('') }}>
-            Cancel
-          </button>
-          {saveError && <span className="rr-cmp-save-focus-error" role="alert">{saveError}</span>}
-        </form>
-      )}
+    <div className="rr-snapshot-cell">
+      <span className="rr-snapshot-mobile-school">{schoolName}</span>
+      <p className="rr-snapshot-result">{cell.primary}</p>
+      {cell.sub && <small>{cell.sub}</small>}
+      <EvidenceMeta source={cell.source} checkedAt={cell.checkedAt} />
     </div>
   )
 }
@@ -946,8 +1556,6 @@ function SortableTableBody({
   onRemove,
   pendingRemoveId,
   onReorderRows,
-  sectionHeaderTop,
-  onAskNanaGap,
 }: {
   rows: ComparisonRow[]
   schools: SchoolColumn[]
@@ -955,11 +1563,6 @@ function SortableTableBody({
   onRemove: (rowId: string) => Promise<void> | void
   pendingRemoveId: string | null
   onReorderRows?: (rowIds: string[]) => void
-  // Redesign req 3 — section headers stick just below the (variable-
-  // height, now sometimes photo-bearing) school header row instead of a
-  // hardcoded top offset. 0 is a safe fallback (sticks to the very top).
-  sectionHeaderTop: number
-  onAskNanaGap?: (question: string) => void
 }) {
   // PointerSensor needs a small distance threshold so a click on the
   // remove × or a cell doesn't accidentally start a drag. 4px is the
@@ -988,48 +1591,17 @@ function SortableTableBody({
       modifiers={[restrictToVerticalAxis, restrictToParentElement]}
     >
       <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
-        {(() => {
-          // Slice 8 Step 0.6: section header on FIRST appearance of each
-          // group_name. 'general' is suppressed because it's the default
-          // unscoped group. Chat-added rows often land at the bottom
-          // regardless of group, so a strict prev-row comparison
-          // re-renders the same header twice; tracking seen groups
-          // collapses each header to a single render at its first row.
-          // Header is a sibling of SortableRow inside a Fragment — it
-          // is NOT a member of SortableContext's items array, so dnd-kit
-          // will not attempt to drag it.
-          const seenGroups = new Set<string>()
-          return rows.map((row) => {
-            const group = row.group_name ?? null
-            const showHeader = Boolean(group)
-                            && group !== 'general'
-                            && !seenGroups.has(group as string)
-            if (showHeader) seenGroups.add(group as string)
-            return (
-              <Fragment key={row.id}>
-                {showHeader && (
-                  <div
-                    role="presentation"
-                    className="rr-section-header"
-                    style={{ gridColumn: '1 / -1', top: sectionHeaderTop }}
-                  >
-                    {prettyGroupName(row.group_name!)}
-                  </div>
-                )}
-                <SortableRow
-                  row={row}
-                  schools={schools}
-                  gridTemplateColumns={gridTemplateColumns}
-                  onRemove={row.removable ? onRemove : null}
-                  removing={pendingRemoveId === row.id}
-                  isDragEnabled={Boolean(onReorderRows)}
-                  winners={computeRowWinners(row)}
-                  onAskNanaGap={onAskNanaGap}
-                />
-              </Fragment>
-            )
-          })
-        })()}
+        {rows.map(row => (
+          <SortableRow
+            key={row.id}
+            row={row}
+            schools={schools}
+            gridTemplateColumns={gridTemplateColumns}
+            onRemove={row.removable ? onRemove : null}
+            removing={pendingRemoveId === row.id}
+            isDragEnabled={Boolean(onReorderRows)}
+          />
+        ))}
       </SortableContext>
     </DndContext>
   )
@@ -1045,8 +1617,6 @@ function SortableRow({
   onRemove,
   removing,
   isDragEnabled,
-  winners,
-  onAskNanaGap,
 }: {
   row: ComparisonRow
   schools: SchoolColumn[]
@@ -1054,11 +1624,6 @@ function SortableRow({
   onRemove: ((rowId: string) => void) | null
   removing: boolean
   isDragEnabled: boolean
-  // Redesign req 1 — indices into `schools` whose cell wins this row.
-  // null when the row has no winner to mark (neutral rule, no rule, no
-  // comparable data, or an all-tied row).
-  winners: Set<number> | null
-  onAskNanaGap?: (question: string) => void
 }) {
   const {
     attributes,
@@ -1086,6 +1651,7 @@ function SortableRow({
       ref={setNodeRef}
       style={style}
       className={`rr-cmp-table-row${isDragging ? ' is-dragging' : ''}`}
+      data-comparison-row-id={row.id}
     >
       <div className="rr-cmp-dim">
         <div className="rr-cmp-dim-name">
@@ -1102,7 +1668,7 @@ function SortableRow({
               ⋮⋮
             </button>
           )}
-          {row.label}
+          <span className="rr-cmp-dim-label">{row.label}</span>
           {row.emphasis && (
             <>
               {' '}
@@ -1124,206 +1690,27 @@ function SortableRow({
         </div>
         {row.blurb && <div className="rr-cmp-dim-blurb">{row.blurb}</div>}
       </div>
-      {schools.map((s, i) => {
-        const isWinner = winners?.has(i) ?? false
-        return (
-          <div
-            key={`${row.id}-${s.slug}`}
-            className={`rr-cmp-cell${isWinner ? ' rr-cmp-cell--winner' : ''}`}
-            data-school={s.name}
-          >
-            {isWinner && (
-              <span className="rr-cmp-cell-winner-badge" role="img" aria-label={`Best in shortlist: ${s.name}`} title="Best in shortlist">
-                ✓
-              </span>
-            )}
-            <CellBody cell={row.cells[i] ?? { kind: 'empty' }} onAskNanaGap={onAskNanaGap} />
-          </div>
-        )
-      })}
-      {/* RRV-7 — cross-school strip (travel corridor / exam band) under
-          the row's cells. A real grid child spanning `1 / -1` auto-flows
-          onto an implicit second grid row at full width on desktop; in the
-          ≤680px cards layout the row becomes a flex column and the strip
-          simply stacks. In-flow (never absolutely positioned) with its own
-          inner overflow-x scroll — the RRV-6 clipping constraint. Lives
-          inside the sortable row so it drags with it. */}
-      {row.viz?.kind === 'travel-corridor' && <TravelCorridorStrip viz={row.viz} />}
-      {row.viz?.kind === 'exam-band' && <ExamBandStrip viz={row.viz} />}
-      {row.viz?.kind === 'entry-timeline' && <EntryTimelineStrip viz={row.viz} />}
-    </div>
-  )
-}
-
-// ─── RRV-7 — travel corridor (mock §7) ──────────────────────────────────────
-//
-// Positions are precomputed server-side (rrv7-viz.ts corridorStopPositions,
-// collision-adjusted); this component just draws them. The strip element
-// carries role="img" + a full spoken sentence, so the decorative internals
-// are hidden from AT; the honest partial-coverage caption sits OUTSIDE the
-// role="img" element so screen readers still hit it.
-function TravelCorridorStrip({ viz }: { viz: TravelCorridorViz }) {
-  const aria =
-    'Travel from Heathrow arrivals: ' +
-    viz.stops.map(s => `${s.name} ${formatMinutesSpoken(s.minutes)}`).join('; ') + '.'
-  return (
-    <div className="rr-viz-strip" style={{ gridColumn: '1 / -1' }}>
-      <div className="rr-corr-scroll">
-        <div
-          className="rr-corr"
-          role="img"
-          aria-label={aria}
-          style={{ minWidth: `${Math.max(560, (viz.stops.length + 1) * 140)}px` }}
-        >
-          <div className="rr-corr-line" aria-hidden="true" />
-          <div className="rr-corr-stop rr-corr-stop--origin" aria-hidden="true" style={{ left: `${CORRIDOR_ORIGIN_POS}%` }}>
-            <span className="rr-corr-time">✈️ LHR</span>
-            <span className="rr-corr-dot" />
-            <span className="rr-corr-name">Heathrow arrivals</span>
-          </div>
-          {viz.stops.map(s => (
-            <div className="rr-corr-stop" aria-hidden="true" key={s.slug} style={{ left: `${s.pos}%` }}>
-              <span className="rr-corr-time">{formatMinutes(s.minutes)}</span>
-              <span className="rr-corr-dot" />
-              <span className="rr-corr-name">{s.name}</span>
-            </div>
-          ))}
+      {schools.map((s, i) => (
+        <div key={`${row.id}-${s.slug}`} className="rr-cmp-cell">
+          <CellBody cell={row.cells[i] ?? { kind: 'empty' }} />
         </div>
+      ))}
+    </div>
+  )
+}
+
+
+function CellBody({ cell }: { cell: RowCell }) {
+  if (cell.kind === 'loading') {
+    return (
+      <div className="rr-cmp-cell-loading" role="status">
+        <span className="rr-cmp-loading-line" aria-hidden="true" />
+        <span>Finding information…</span>
       </div>
-      {viz.missing.length > 0 && (
-        <p className="rr-viz-note">No verified Heathrow time yet: {viz.missing.join(', ')}</p>
-      )}
-      <p className="rr-viz-note rr-viz-note--muted">
-        Door-to-door from the plane — exeat weekends and emergencies are measured in hours, not miles.
-      </p>
-    </div>
-  )
-}
-
-// ─── RRV-7 — GCSE context band (mock §8) ────────────────────────────────────
-//
-// Fixed 20–100% axis; dots plotted only for schools with a true 9–7 share
-// (9–8-only publishers are named, never plotted as if 9–7). The dashed
-// "typical" window is the middle half of the UK pool's verified values,
-// computed live server-side — suppressed (typical=null) below the n-floor,
-// never fabricated.
-function ExamBandStrip({ viz }: { viz: ExamBandViz }) {
-  const aria =
-    'GCSE grades 9 to 7 in context: ' +
-    viz.dots.map(d => `${d.name} ${d.pct} percent`).join('; ') +
-    (viz.typical ? `. Typical range across the ${viz.typical.n} UK independent schools we track: ${viz.typical.lo} to ${viz.typical.hi} percent.` : '.')
-  const axisTicks = [20, 40, 60, 80, 100].filter(t => t >= BAND_AXIS_MIN && t <= BAND_AXIS_MAX)
-  return (
-    <div className="rr-viz-strip" style={{ gridColumn: '1 / -1' }}>
-      <div className="rr-band-scroll">
-        <div className="rr-band" role="img" aria-label={aria}>
-          <div className="rr-band-track" aria-hidden="true" />
-          {viz.typical && (
-            <div
-              className="rr-band-typical"
-              aria-hidden="true"
-              style={{
-                left:  `${bandAxisPos(viz.typical.lo)}%`,
-                width: `${bandAxisPos(viz.typical.hi) - bandAxisPos(viz.typical.lo)}%`,
-              }}
-            >
-              <span className="rr-band-typical-lbl">typical range · middle half of {viz.typical.n} schools we track</span>
-            </div>
-          )}
-          {viz.dots.map(d => (
-            <div
-              className={`rr-band-dot${d.labelBelow ? '' : ' rr-band-dot--label-above'}`}
-              aria-hidden="true"
-              key={d.slug}
-              style={{ left: `${d.pos}%` }}
-            >
-              <span className="rr-band-dot-lbl">{d.name} {d.pct}%</span>
-            </div>
-          ))}
-          <div className="rr-band-axis" aria-hidden="true">
-            {axisTicks.map(t => (
-              <span key={t}>{t}%</span>
-            ))}
-          </div>
-        </div>
-      </div>
-      {viz.altBand.length > 0 && (
-        <p className="rr-viz-note">{viz.altBand.join(', ')} {viz.altBand.length === 1 ? 'publishes' : 'publish'} grades 9–8 only — not on this band</p>
-      )}
-      {viz.missing.length > 0 && (
-        <p className="rr-viz-note">No GCSE results on record: {viz.missing.join(', ')}</p>
-      )}
-    </div>
-  )
-}
-
-// ─── RRV-4 — entry timeline (mock §3) ───────────────────────────────────────
-//
-// Deliberately NOT a plotted calendar axis — see lib/research-room/
-// rrv4-viz.ts for the honesty reasoning (no per-family calendar-year
-// anchor exists; every dated string is one historical crawl, not a
-// verified live status). This renders a state chip + hedged caption per
-// school instead — a compact "where does each shortlisted school stand,
-// today" scan, with "today" as the implicit reference point behind every
-// caption rather than a pixel position on an axis.
-const ENTRY_STATE_LABEL: Record<EntryTimelineState, string> = {
-  'rolling':      'Rolling',
-  'dated-future': 'Deadline ahead',
-  'dated-past':   'Deadline passed',
-  'vague':        'Timing varies',
-}
-
-function EntryTimelineStrip({ viz }: { viz: EntryTimelineViz }) {
-  const aria = 'Entry timeline: ' + viz.entries.map(e => `${e.name}: ${e.caption}`).join('; ') + '.'
-  return (
-    <div className="rr-viz-strip" style={{ gridColumn: '1 / -1' }}>
-      <ul className="rr-timeline-list" role="img" aria-label={aria}>
-        {viz.entries.map(e => (
-          <li key={e.slug} className="rr-timeline-row" aria-hidden="true">
-            <span className={`rr-timeline-chip rr-timeline-chip--${e.state}`}>
-              {ENTRY_STATE_LABEL[e.state]}
-            </span>
-            <span className="rr-timeline-name">{e.name}</span>
-            <span className="rr-timeline-caption">{e.caption}</span>
-          </li>
-        ))}
-      </ul>
-      {viz.missing.length > 0 && (
-        <p className="rr-viz-note">No admissions timing on record: {viz.missing.join(', ')}</p>
-      )}
-    </div>
-  )
-}
-
-
-function CellBody({ cell, onAskNanaGap }: { cell: RowCell; onAskNanaGap?: (question: string) => void }) {
+    )
+  }
   if (cell.kind === 'empty') {
-    return <div className="rr-cmp-cell-empty">—</div>
-  }
-  // RRV-2 rung 3 — no verified/derived value for this school, but enough
-  // shortlisted peers report it that a range beats a blank.
-  if (cell.kind === 'cohort') {
-    return (
-      <div className="rr-cmp-cell-cohort">
-        <span className="rr-cmp-tag rr-cmp-tag--cohort">context</span>
-        <div className="rr-cmp-cell-sub">{cell.note}</div>
-      </div>
-    )
-  }
-  // RRV-2 rung 4 — the floor of the ladder. No value, no peer range: offer
-  // to ask Nana instead of a bare "—". Copy is the exact line from the
-  // Satit-approved visual mock (artifact c6e453ac §1).
-  if (cell.kind === 'gap') {
-    return (
-      <button
-        type="button"
-        className="rr-cmp-ask-nana"
-        onClick={() => onAskNanaGap?.(cell.question)}
-        disabled={!onAskNanaGap}
-      >
-        💬 Not verified yet — ask Nana
-      </button>
-    )
+    return <div className="rr-cmp-cell-empty">Needs checking</div>
   }
   if (cell.kind === 'lights') {
     return (
@@ -1336,150 +1723,50 @@ function CellBody({ cell, onAskNanaGap }: { cell: RowCell; onAskNanaGap?: (quest
       </div>
     )
   }
-
-  // Redesign req 2 — type-aware rendering. Percentages get a small inline
-  // progress bar; known rating vocabularies get a colored badge; anything
-  // else (including fees, which stay big bold numbers via .rr-cmp-cell-num)
-  // falls back to the existing plain treatment. Detected from the display
-  // string itself — no new field required, so this works today even
-  // before the data-side agent's fields land.
-  const percentMatch = /^(\d+(?:\.\d+)?)\s?%$/.exec(cell.primary.trim())
-  const tone = ratingTone(cell.primary)
-  // RRV-2 rung 2 — this value already carries a "~"/"derived:" provenance
-  // marker from seed-rows.ts (classified in cellFromRaw, not re-derived
-  // here). A small "≈" tag distinguishes it from a plain verified read;
-  // deliberately NOT adding a "✓ verified" tag to every other cell — that
-  // would touch every populated cell in the table (not just the blanks
-  // RRV-2 targets) and the mock's "checked against official data" legend
-  // copy over-claims what these cells actually are (extractor/Notion
-  // crawls, not human-verified) per the pre-build review finding. Flagged
-  // for Satit as a separate copy/scope decision, not resolved here.
-  const derivedTag = cell.tier === 'derived' ? <span className="rr-cmp-tag rr-cmp-tag--derived">≈</span> : null
-  // RRV-6 — present only for rows wired in EVIDENCE_DIMENSION_BY_ROW_SLUG
-  // (rugby_strength today) where school_facts had real quotes for this
-  // school. Undefined/empty is the common case and renders nothing extra.
-  const evidenceBlock = cell.evidence && cell.evidence.length > 0
-    ? <EvidenceDisclosure evidence={cell.evidence} />
-    : null
-
-  // RRV-5 (2026-07-20) — fit bars (mock §4). Checked BEFORE percentMatch:
-  // a band cell's `primary` can itself look like a percentage (e.g.
-  // "82%" on Academic stretch) and must not fall into the generic
-  // single-fill percent bar below. `filled`-of-`total` discrete segments,
-  // never a continuous width — see FitBand's comment in
-  // comparison-placeholder.ts for why (no score exists to measure
-  // continuously; a word + ordinal position is all the data supports).
-  if (cell.band) {
-    const { word, filled, total, muted } = cell.band
-    return (
-      <>
-        <div className={`rr-cmp-cell-band${muted ? ' rr-cmp-cell-band--muted' : ''}`}>
-          <span className="rr-cmp-cell-band-track" aria-hidden="true">
-            {Array.from({ length: total }, (_, i) => (
-              <span key={i} className={`rr-cmp-cell-band-seg${i < filled ? ' is-filled' : ''}`} />
-            ))}
-          </span>
-          <span className="rr-cmp-cell-band-word">{word}</span>
-          {derivedTag}
-        </div>
-        {cell.sub && <div className="rr-cmp-cell-sub">{cell.sub}</div>}
-        {evidenceBlock}
-      </>
-    )
+  if (cell.kind === 'cohort') {
+    return <div className="rr-cmp-cell-text">{cell.note}</div>
   }
-
-  // RRV-5 — boarding mix (mock §5): a genuine 2-segment board/day
-  // proportional bar, only ever attached when a real per-school % exists
-  // (see buildBoardingRatio) — checked before percentMatch for the same
-  // reason as band above (cell.primary is itself "NN%").
-  if (cell.mix) {
-    return (
-      <>
-        <div className="rr-cmp-cell-mix">
-          <span className="rr-cmp-cell-mix-value">{cell.primary}</span>
-          {derivedTag}
-          <span className="rr-cmp-cell-mix-track" aria-hidden="true">
-            <span className="rr-cmp-cell-mix-fill rr-cmp-cell-mix-fill--board" style={{ width: `${cell.mix.boardPct}%` }} />
-            <span className="rr-cmp-cell-mix-fill rr-cmp-cell-mix-fill--day" style={{ width: `${cell.mix.dayPct}%` }} />
-          </span>
-        </div>
-        {cell.sub && <div className="rr-cmp-cell-sub">{cell.sub}</div>}
-        {evidenceBlock}
-      </>
-    )
+  if (cell.kind === 'gap') {
+    return <div className="rr-cmp-cell-empty">Ask Nana</div>
   }
-
-  if (percentMatch) {
-    const pct = Math.max(0, Math.min(100, parseFloat(percentMatch[1])))
-    return (
-      <>
-        <div className="rr-cmp-cell-pct">
-          <span className="rr-cmp-cell-pct-value">{cell.primary}</span>
-          {derivedTag}
-          <span className="rr-cmp-cell-pct-track" aria-hidden="true">
-            <span className="rr-cmp-cell-pct-fill" style={{ width: `${pct}%` }} />
-          </span>
-        </div>
-        {cell.sub && <div className="rr-cmp-cell-sub">{cell.sub}</div>}
-        {evidenceBlock}
-      </>
-    )
-  }
-
-  if (tone) {
-    return (
-      <>
-        <span className={`rr-cmp-cell-badge rr-cmp-cell-badge--${tone}`}>{cell.primary}</span>
-        {derivedTag}
-        {cell.sub && <div className="rr-cmp-cell-sub">{cell.sub}</div>}
-        {evidenceBlock}
-      </>
-    )
-  }
-
   return (
     <>
       <div className={cell.numeric ? 'rr-cmp-cell-num' : 'rr-cmp-cell-text'}>
         {cell.primary}
-        {derivedTag}
       </div>
       {cell.sub && <div className="rr-cmp-cell-sub">{cell.sub}</div>}
-      {evidenceBlock}
+      <EvidenceMeta source={cell.source} checkedAt={cell.checkedAt} />
     </>
   )
 }
 
-// RRV-6 — inline evidence disclosure. A native <details>/<summary> rather
-// than a floating popover: ComparisonView's table wrap is `overflow-x:
-// auto` (forces overflow-y:auto too, per spec — clips any absolutely-
-// positioned child) and the mobile "cards" layout sets `overflow: hidden`
-// on each row, so a SchoolAdder-style anchored popup would get clipped in
-// both layouts (confirmed in the RRV-6 pre-build review). An inline
-// disclosure instead grows the row's own height — grid rows and the cards
-// layout both auto-size, so nothing clips, no outside-click/Escape
-// plumbing is needed, and it's closer to the approved mock (§6 is itself
-// a <details> disclosure).
-function EvidenceDisclosure({ evidence }: { evidence: EvidenceQuote[] }) {
+function EvidenceMeta({
+  source,
+  checkedAt,
+}: {
+  source?: string
+  checkedAt?: string
+}) {
+  if (!source && !checkedAt) return null
+  let checkedLabel: string | null = null
+  if (checkedAt) {
+    const date = new Date(checkedAt)
+    if (!Number.isNaN(date.getTime())) {
+      checkedLabel = `Checked ${new Intl.DateTimeFormat('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+      }).format(date)}`
+    }
+  }
   return (
-    <details className="rr-cmp-evidence">
-      <summary className="rr-cmp-evidence-trigger">
-        <span aria-hidden="true">📎</span> {evidence.length} {evidence.length === 1 ? 'quote' : 'quotes'}
-        <span className="rr-cmp-evidence-arrow" aria-hidden="true">›</span>
-      </summary>
-      <div className="rr-cmp-evidence-list">
-        {evidence.map((e, i) => (
-          <div className="rr-cmp-evidence-quote" key={i}>
-            <p>&ldquo;{e.quote}&rdquo;</p>
-            <div className="rr-cmp-evidence-src">
-              {e.factLabel}
-              {e.hostLabel && <> · {e.url ? (
-                <a href={e.url} target="_blank" rel="noopener noreferrer">{e.hostLabel}</a>
-              ) : e.hostLabel}</>}
-              {e.older && <span className="rr-cmp-tag rr-cmp-tag--cohort">older result</span>}
-            </div>
-          </div>
-        ))}
-      </div>
-    </details>
+    <div className="rr-cmp-cell-evidence">
+      {source ? (
+        <a href={source} target="_blank" rel="noreferrer">Source</a>
+      ) : (
+        <span>Nana school data</span>
+      )}
+      {checkedLabel && <span> · {checkedLabel}</span>}
+    </div>
   )
 }

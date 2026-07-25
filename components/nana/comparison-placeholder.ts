@@ -88,6 +88,8 @@ export type RowCell =
       kind: 'value'
       primary: string
       sub?: string
+      source?: string
+      checkedAt?: string
       // Pre-existing CSS-alignment flag ("is this a number, so right-align
       // it") — unrelated to `numericValue` below. Kept as-is; renamed the
       // new field to avoid colliding with this one.
@@ -111,6 +113,7 @@ export type RowCell =
       mix?: BoardingMix
     }
   | { kind: 'lights'; lights: Array<{ label: string; tone: 'green' | 'amber' | 'red' }> }
+  | { kind: 'loading' }
   // RRV-2 rung 3: no verified/derived value exists for this school, but
   // enough shortlisted peers report it that a range is honest to show.
   // Never built from 'derived' or other 'cohort' cells — only rung-1
