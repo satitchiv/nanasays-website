@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "NEXT_DIST_DIR=.next-slice6.5 next dev -H 0.0.0.0",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
