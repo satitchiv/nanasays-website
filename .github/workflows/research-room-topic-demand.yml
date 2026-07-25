@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: 'Use dry-run first; apply only promotes repeated parent-demand labels.'
+        description: 'Use dry-run first; apply promotes verified database topics and repeated parent demand.'
         required: true
         default: dry-run
         type: choice

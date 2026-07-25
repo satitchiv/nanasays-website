@@ -267,6 +267,7 @@ async function main(): Promise<void> {
         verified_school_count: candidate.coverage.verified_school_count,
         verified_coverage_percent: candidate.coverage.verified_coverage_percent,
         evidence_paths: candidate.coverage.evidence_paths,
+        ...(candidate.questionAliases ? { question_aliases: candidate.questionAliases } : {}),
       }))
     const databaseTopicKeys = new Set(databasePromotions.map(promotion => normalizeTopicDemand(promotion.normalized_topic)))
     const demandPromotions = plan.promotions.filter(promotion => {

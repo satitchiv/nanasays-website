@@ -18,6 +18,7 @@ export type TopicCatalogEntry = {
   verified_school_count: number
   verified_coverage_percent: number
   evidence_paths?: string[]
+  question_aliases?: string[]
   status: 'approved' | 'retired'
 }
 
@@ -30,6 +31,7 @@ export type TopicPromotion = {
   verified_school_count: number
   verified_coverage_percent: number
   evidence_paths?: string[]
+  question_aliases?: string[]
 }
 
 export type TopicDemandPlan = {

@@ -24,6 +24,7 @@ import { hasComparisonValueForSchools } from '@/lib/research-room/comparison-cel
 import { recordResearchRoomTopicRequest } from '@/lib/research-room/topic-demand-requests'
 import { normalizeTopicDemand } from '@/lib/research-room/topic-demand-requests'
 import { resolveDatabaseTopicCell, type DatabaseTopicCatalogTopic } from '@/lib/research-room/dynamic-topic-cell'
+import { canonicalDatabaseTopicLabel } from '@/lib/research-room/database-topic-candidates'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -381,12 +382,13 @@ export async function POST(req: NextRequest) {
   if (!child) return NextResponse.json({ ok: false, code: 'child_not_found' }, { status: 404 })
 
   const service = supabaseService()
+  const canonicalDatabaseLabel = canonicalDatabaseTopicLabel(body.row_label)
   const { data: dynamicTopic, error: dynamicTopicError } = await service
     .from('research_room_topic_catalog')
     .select('id, label, evidence_paths')
     .eq('status', 'approved')
     .eq('source', 'database_inventory')
-    .eq('normalized_topic', normalizeTopicDemand(body.row_label))
+    .eq('normalized_topic', normalizeTopicDemand(canonicalDatabaseLabel))
     .maybeSingle()
   if (dynamicTopicError) {
     console.error('[research-row] dynamic topic lookup failed', dynamicTopicError)

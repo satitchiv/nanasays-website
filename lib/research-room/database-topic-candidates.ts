@@ -2,6 +2,17 @@ export type DatabaseTopicCandidate = {
   id: string
   label: string
   evidencePaths: string[]
+  questionAliases?: string[]
+}
+
+function normalizeScoutText(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[’']/g, '')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 // These are deliberately explicit database-backed dimensions, not AI guesses.
@@ -20,6 +31,24 @@ export const DATABASE_TOPIC_CANDIDATES: DatabaseTopicCandidate[] = [
   { id: 'sports_competitive_tier', label: 'School-wide sports competitive level', evidencePaths: ['sports_profile.competitive_tier'] },
   { id: 'sports_fixture_volume', label: 'Sports fixture volume', evidencePaths: ['sports_profile.fixture_volume', 'sports_profile.fixtures_per_year_approx'] },
   { id: 'sports_tours', label: 'Sports tours', evidencePaths: ['sports_profile.sports_tours'] },
+  {
+    id: 'sports_team_depth',
+    label: 'Sports team depth',
+    evidencePaths: ['sports_profile.teams_by_sport'],
+    questionAliases: ['How many sports teams does the school have?', 'Are there teams for different age groups?', 'How deep is the sports programme?'],
+  },
+  {
+    id: 'sports_competition_participation',
+    label: 'Sports competition participation',
+    evidencePaths: ['sports_profile.competitions_entered'],
+    questionAliases: ['Which sports competitions does the school enter?', 'Does the school compete nationally?', 'What competitions do the teams take part in?'],
+  },
+  {
+    id: 'signature_sports',
+    label: 'Signature sports',
+    evidencePaths: ['sports_profile.signature_sports'],
+    questionAliases: ['Which sports is the school known for?', 'What are the school’s strongest sports?', 'Which sports are the main focus?'],
+  },
   { id: 'cricket', label: 'Cricket opportunities', evidencePaths: ['sports_profile.cricket'] },
   { id: 'hockey', label: 'Hockey opportunities', evidencePaths: ['sports_profile.hockey'] },
   { id: 'rugby', label: 'Rugby opportunities', evidencePaths: ['sports_profile.rugby'] },
@@ -27,3 +56,10 @@ export const DATABASE_TOPIC_CANDIDATES: DatabaseTopicCandidate[] = [
   { id: 'nearest_station', label: 'Nearest train station', evidencePaths: ['location_profile.nearest_station'] },
   { id: 'school_setting', label: 'Rural, coastal or urban setting', evidencePaths: ['location_profile.setting', 'location_profile.setting_note'] },
 ]
+
+/** Resolve parent wording to a canonical database-backed topic label. */
+export function canonicalDatabaseTopicLabel(value: string): string {
+  const normalized = normalizeScoutText(value)
+  return DATABASE_TOPIC_CANDIDATES.find(candidate => [candidate.label, ...(candidate.questionAliases ?? [])]
+    .some(alias => normalizeScoutText(alias) === normalized))?.label ?? value.trim()
+}
