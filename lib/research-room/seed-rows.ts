@@ -1,6 +1,11 @@
 import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { KNOWN_FULL_BOARDING_NAMES, normalizeSchoolName } from '@/lib/school-name-overrides'
+import {
+  resolveNotionClassSize,
+  resolvePupilComposition,
+  type NotionBackfillRow,
+} from './pupil-composition'
 
 // Slice 5.5d — General-lens row seeder.
 //
@@ -66,6 +71,7 @@ export type SchoolMeta = {
 type SeedContext = {
   meta:   SchoolMeta
   struct: StructuredRow | null
+  notion: NotionBackfillRow | null
 }
 
 type SeedRowSpec = {
@@ -121,9 +127,8 @@ function buildHeathrowMinutes({ struct }: SeedContext): CellValue | null {
   return null
 }
 
-function buildClassSize(_: SeedContext): CellValue | null {
-  // Pending chunk-mining (slice 5.5g). Renders '—' until the extractor lands.
-  return null
+function buildClassSize({ notion }: SeedContext): CellValue | null {
+  return resolveNotionClassSize(notion)
 }
 
 function buildTotalPupils({ struct }: SeedContext): CellValue | null {
@@ -173,22 +178,63 @@ function buildLowestBoardingEntry({ struct }: SeedContext): CellValue | null {
   return { value: `Year ${pick}`, source: 'admissions_format.entry_points' }
 }
 
-function buildBoardingPupils(_: SeedContext): CellValue | null {
-  // Pending re-extraction (slice 5.5h) — student_community.boarding_pct is
-  // mostly NULL across the corpus.
-  return null
+function buildBoardingPupils({ struct, notion }: SeedContext): CellValue | null {
+  const result = resolvePupilComposition(
+    struct as unknown as Record<string, unknown> | null,
+    notion,
+  )
+  if (result.status !== 'ready') return null
+  const { composition } = result
+  return {
+    value: `~${composition.boarding.toLocaleString()}`,
+    note: `${composition.boardingPct}% of pupils`,
+    source: `${composition.source}.boarding`,
+  }
 }
 
-function buildInternationalPupils(_: SeedContext): CellValue | null {
-  return null  // pending 5.5h
+function buildInternationalPupils({ struct, notion }: SeedContext): CellValue | null {
+  const result = resolvePupilComposition(
+    struct as unknown as Record<string, unknown> | null,
+    notion,
+  )
+  if (result.status !== 'ready') return null
+  const { composition } = result
+  const international = composition.international
+  if (international == null) return null
+  return {
+    value: `~${international.toLocaleString()}`,
+    note: composition.internationalPct == null
+      ? undefined
+      : `${composition.internationalPct}% of pupils`,
+    source: `${composition.source}.international`,
+  }
 }
 
-function buildDayPupils(_: SeedContext): CellValue | null {
-  return null  // pending 5.5h
+function buildDayPupils({ struct, notion }: SeedContext): CellValue | null {
+  const result = resolvePupilComposition(
+    struct as unknown as Record<string, unknown> | null,
+    notion,
+  )
+  if (result.status !== 'ready') return null
+  const { composition } = result
+  return {
+    value: `~${composition.day.toLocaleString()}`,
+    note: `${composition.dayPct}% of pupils`,
+    source: `${composition.source}.day`,
+  }
 }
 
-function buildBoardingRatio(_: SeedContext): CellValue | null {
-  return null  // depends on the three above
+function buildBoardingRatio({ struct, notion }: SeedContext): CellValue | null {
+  const result = resolvePupilComposition(
+    struct as unknown as Record<string, unknown> | null,
+    notion,
+  )
+  if (result.status !== 'ready') return null
+  const { composition } = result
+  return {
+    value: `${composition.boardingPct}% boarding · ${composition.dayPct}% day`,
+    source: `${composition.source}.boarding_mix`,
+  }
 }
 
 function buildGcsePct({ struct }: SeedContext): CellValue | null {
@@ -362,10 +408,13 @@ export function resolveSeedComparisonCell(
   rowName: string,
   meta: SchoolMeta,
   struct: StructuredRow | null,
+  notion: NotionBackfillRow | null = null,
 ): CellValue | null {
   const normalized = rowName.trim().toLowerCase()
-  const spec = GENERAL_SPECS.find(item => item.row_name.toLowerCase() === normalized)
-  return spec?.build({ meta, struct }) ?? null
+  const spec = GENERAL_SPECS.find(item =>
+    item.row_name.toLowerCase() === normalized
+    || (item.slug === 'boarding_ratio' && normalized === 'boarding mix'))
+  return spec?.build({ meta, struct, notion }) ?? null
 }
 
 // ─── Public entrypoint ──────────────────────────────────────────────────────
@@ -374,6 +423,7 @@ type ShortlistContext = {
   slugs:     string[]
   schoolMap: Map<string, SchoolMeta>
   structMap: Map<string, StructuredRow>
+  notionMap: Map<string, NotionBackfillRow>
 }
 
 /**
@@ -397,7 +447,8 @@ export async function seedResearchSession(
       const meta = ctx.schoolMap.get(slug)
       if (!meta) continue
       const struct = ctx.structMap.get(slug) ?? null
-      const cell = spec.build({ meta, struct })
+      const notion = ctx.notionMap.get(slug) ?? null
+      const cell = spec.build({ meta, struct, notion })
       if (cell == null || cell.value == null || cell.value === '') continue
       cell_data[slug] = cell
     }
@@ -449,20 +500,28 @@ export async function loadShortlistContext(
 
   const slugs = (rows ?? []).map((r: { school_slug: string }) => r.school_slug)
   if (slugs.length === 0) {
-    return { slugs: [], schoolMap: new Map(), structMap: new Map() }
+    return { slugs: [], schoolMap: new Map(), structMap: new Map(), notionMap: new Map() }
   }
 
-  const [schoolsRes, structRes] = await Promise.all([
+  const [schoolsRes, structRes, notionRes] = await Promise.all([
     supabase.from('schools')
       .select('slug, name, city, region, boarding, gender_split')
       .in('slug', slugs),
     supabase.from('school_structured_data')
       .select(RESEARCH_ROOM_STRUCTURED_SELECT)
       .in('school_slug', slugs),
+    supabase.from('school_notion_backfill')
+      .select('school_slug, status, parsed')
+      .in('school_slug', slugs),
   ])
 
   if (schoolsRes.error) throw new Error(`loadShortlistContext: schools read failed: ${schoolsRes.error.message}`)
   if (structRes.error)  throw new Error(`loadShortlistContext: structured read failed: ${structRes.error.message}`)
+  if (notionRes.error) {
+    // The sidecar supplements structured extraction. A temporary read failure
+    // must not make the whole comparison room unavailable.
+    console.warn(`[loadShortlistContext] Notion sidecar read failed: ${notionRes.error.message}`)
+  }
 
   const schoolMap = new Map<string, SchoolMeta>(
     (schoolsRes.data ?? []).map((s: SchoolMeta) => [s.slug, s])
@@ -470,5 +529,9 @@ export async function loadShortlistContext(
   const structMap = new Map<string, StructuredRow>(
     (structRes.data ?? []).map((s: StructuredRow) => [s.school_slug, s])
   )
-  return { slugs, schoolMap, structMap }
+  const notionMap = new Map<string, NotionBackfillRow>(
+    ((notionRes.error ? [] : notionRes.data) ?? [])
+      .map((row: NotionBackfillRow) => [row.school_slug, row])
+  )
+  return { slugs, schoolMap, structMap, notionMap }
 }

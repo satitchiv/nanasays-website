@@ -9,6 +9,7 @@
     "lint": "next lint",
     "research:requests": "node --env-file=.env.local scripts/list-comparison-research-requests.mjs",
     "research:coverage": "node --env-file=.env.local --experimental-strip-types scripts/audit-research-room-comparisons.mts",
+    "research:batch:pupil-composition": "node --env-file=.env.local --experimental-strip-types scripts/backfill-pupil-composition.mts",
     "test:research-room:sticky": "node --experimental-strip-types scripts/test-comparison-sticky.mts"
   },
   "dependencies": {

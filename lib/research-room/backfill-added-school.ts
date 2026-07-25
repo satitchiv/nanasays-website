@@ -11,6 +11,7 @@ import {
   type SchoolMeta,
   type StructuredRow,
 } from './seed-rows'
+import type { NotionBackfillRow } from './pupil-composition'
 
 type StoredCell = {
   value?: string | number | null
@@ -45,6 +46,7 @@ function hasValue(cell: StoredCell | null | undefined): boolean {
 export function resolveAddedSchoolComparisonCell(
   rowName: string,
   school: DirectComparisonSchool,
+  notion: NotionBackfillRow | null = null,
 ): StoredCell | null {
   const structured = school.structured as StructuredRow | null
   const meta: SchoolMeta = {
@@ -56,7 +58,7 @@ export function resolveAddedSchoolComparisonCell(
     gender_split: school.gender_split,
   }
 
-  const seeded = resolveSeedComparisonCell(rowName, meta, structured)
+  const seeded = resolveSeedComparisonCell(rowName, meta, structured, notion)
   if (seeded && seeded.value != null && seeded.value !== '') {
     return seeded
   }
@@ -171,7 +173,7 @@ export async function backfillAddedSchoolComparisonCells({
   if (sessionError) throw new Error(`comparison backfill session lookup failed: ${sessionError.message}`)
   if (!session?.id) return emptyResult('no_session')
 
-  const [schoolResult, structuredResult, rowsResult] = await Promise.all([
+  const [schoolResult, structuredResult, notionResult, rowsResult] = await Promise.all([
     supabaseService
       .from('schools')
       .select('slug, name, city, region, boarding, gender_split')
@@ -180,6 +182,11 @@ export async function backfillAddedSchoolComparisonCells({
     supabaseService
       .from('school_structured_data')
       .select(RESEARCH_ROOM_STRUCTURED_SELECT)
+      .eq('school_slug', schoolSlug)
+      .maybeSingle(),
+    supabaseService
+      .from('school_notion_backfill')
+      .select('school_slug, status, parsed')
       .eq('school_slug', schoolSlug)
       .maybeSingle(),
     supabaseUser
@@ -196,6 +203,11 @@ export async function backfillAddedSchoolComparisonCells({
   if (structuredResult.error) {
     throw new Error(`comparison backfill structured lookup failed: ${structuredResult.error.message}`)
   }
+  if (notionResult.error) {
+    // The sidecar is supplementary. Preserve the existing structured-data
+    // backfill path if it is temporarily unavailable.
+    console.warn(`[comparison backfill] Notion sidecar read failed: ${notionResult.error.message}`)
+  }
   if (rowsResult.error) {
     throw new Error(`comparison backfill row lookup failed: ${rowsResult.error.message}`)
   }
@@ -211,6 +223,9 @@ export async function backfillAddedSchoolComparisonCells({
     structured: (structuredResult.data as Record<string, unknown> | null) ?? null,
   }
   const rows = (rowsResult.data ?? []) as ComparisonRowRecord[]
+  const notion = notionResult.error
+    ? null
+    : (notionResult.data as NotionBackfillRow | null)
   const result: AddedSchoolBackfillResult = {
     status: 'complete',
     rows_examined: rows.length,
@@ -229,7 +244,7 @@ export async function backfillAddedSchoolComparisonCells({
       continue
     }
 
-    const cell = resolveAddedSchoolComparisonCell(row.row_name, school)
+    const cell = resolveAddedSchoolComparisonCell(row.row_name, school, notion)
     if (!cell) {
       result.cells_unfilled += 1
       if (row.lens_kind === 'chat') {
