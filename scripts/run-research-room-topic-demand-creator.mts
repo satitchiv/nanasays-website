@@ -235,7 +235,21 @@ async function main(): Promise<void> {
     const existingTopicKeys = new Set(catalog.map(entry => normalizeTopicDemand(entry.normalized_topic || entry.label)))
     const staticTopicKeys = new Set(SUPPORTED_COMPARISON_LABELS.map(label => normalizeTopicDemand(label)))
     const isKnownStaticTopic = (label: string) => matchComparisonRequest(label).kind === 'supported'
-    const databasePromotions = DATABASE_TOPIC_CANDIDATES
+    const databaseCandidateEvaluations = DATABASE_TOPIC_CANDIDATES
+      .map(candidate => ({
+        ...candidate,
+        coverage: measureDatabaseCandidateCoverage(candidate, verifiedContext),
+      }))
+    const databaseTopicsWithoutCoverage = databaseCandidateEvaluations
+      .filter(candidate => candidate.coverage.verified_school_count < 10)
+      .length
+    const databaseTopicsAlreadyPresent = databaseCandidateEvaluations
+      .filter(candidate => {
+        const topicKey = normalizeTopicDemand(candidate.label)
+        return existingIds.has(`database-${candidate.id}`) || existingTopicKeys.has(topicKey)
+      })
+      .length
+    const databasePromotions = databaseCandidateEvaluations
       .filter(candidate => !existingIds.has(`database-${candidate.id}`))
       .filter(candidate => {
         const topicKey = normalizeTopicDemand(candidate.label)
@@ -243,15 +257,11 @@ async function main(): Promise<void> {
           && !staticTopicKeys.has(topicKey)
           && !isKnownStaticTopic(candidate.label)
       })
-      .map(candidate => ({
-        ...candidate,
-        coverage: measureDatabaseCandidateCoverage(candidate, verifiedContext),
-      }))
       .filter(candidate => candidate.coverage.verified_school_count >= 10)
       .map(candidate => ({
         id: `database-${candidate.id}`,
         label: candidate.label,
-        normalized_topic: candidate.label.toLowerCase(),
+        normalized_topic: normalizeTopicDemand(candidate.label),
         demand_count: 0,
         unique_parent_count: 0,
         verified_school_count: candidate.coverage.verified_school_count,
@@ -315,11 +325,12 @@ async function main(): Promise<void> {
       candidates_below_threshold: plan.requestsBelowThreshold,
       candidates_without_verified_coverage: plan.candidatesWithoutVerifiedCoverage,
       database_topics_evaluated: DATABASE_TOPIC_CANDIDATES.length,
-      database_topics_without_coverage: DATABASE_TOPIC_CANDIDATES.length - databasePromotions.length,
+      database_topics_without_coverage: databaseTopicsWithoutCoverage,
+      database_topics_already_present: databaseTopicsAlreadyPresent,
       topics_would_promote: mode === 'dry-run' ? allPromotions : 0,
       topics_promoted: mode === 'apply' ? allPromotions : [],
       requests_marked_promoted: mode === 'apply' ? requestsToMarkPromoted.length : 0,
-      existing_topics_skipped: plan.requestsAlreadyPromoted,
+      existing_topics_skipped: plan.requestsAlreadyPromoted + databaseTopicsAlreadyPresent,
     }
     await finishRun(db, runId, {
       status: 'succeeded',
