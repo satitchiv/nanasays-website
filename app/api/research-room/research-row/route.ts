@@ -21,6 +21,7 @@ import {
   SUPPORTED_COMPARISON_LABELS,
 } from '@/lib/research-room/comparison-catalog'
 import { hasComparisonValueForSchools } from '@/lib/research-room/comparison-cell-data'
+import { recordResearchRoomTopicRequest } from '@/lib/research-room/topic-demand-requests'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -179,6 +180,22 @@ async function saveComparisonResearchRequest({
 
   if (insertError || !inserted?.id) {
     throw new Error(`research request insert failed: ${insertError?.message ?? 'missing id'}`)
+  }
+  try {
+    await recordResearchRoomTopicRequest({
+      supabase: service,
+      requestKey: requestId,
+      userId,
+      childId,
+      originalQuery,
+      canonicalTopic,
+      schoolSlugs,
+      missingSchoolSlugs,
+      reason,
+      requestedAt,
+    })
+  } catch (topicDemandError) {
+    console.error('[research-row] topic demand record failed', topicDemandError)
   }
   return inserted.id
 }

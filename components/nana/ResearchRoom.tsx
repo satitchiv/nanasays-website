@@ -43,6 +43,7 @@ type Props = {
   initialActiveChildId?: string | null
   comparisonData?: ComparisonData
   availableComparisonIds?: string[]
+  parentDemandTopics?: Array<{ id: string; label: string }>
   comparisonError?: string | null
   lens?: Lens
   initialSession?: Session | null
@@ -84,6 +85,7 @@ export default function ResearchRoom({
   initialActiveChildId = null,
   comparisonData,
   availableComparisonIds = [],
+  parentDemandTopics = [],
   comparisonError = null,
   lens             = 'general',
   initialSession   = null,
@@ -572,6 +574,7 @@ export default function ResearchRoom({
                       <ComparisonView
                         data={comparisonData}
                         availableComparisonIds={availableComparisonIds}
+                        parentDemandTopics={parentDemandTopics}
                         activeChildName={activeChild?.name ?? null}
                         activeChildId={activeChildId}
                         lens={lens}

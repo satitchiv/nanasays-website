@@ -69,6 +69,7 @@ export default async function ResearchRoomPage({
   let activeChildId: string | null = null
   let familyPreferences: Record<string, string | null> | undefined
   let availableComparisonIds: string[] = []
+  let parentDemandTopics: Array<{ id: string; label: string }> = []
 
   if (user) {
     try {
@@ -127,6 +128,12 @@ export default async function ResearchRoomPage({
 
   if (user && activeChildId) {
     const svc = supabaseService()
+    const { data: demandTopics } = await svc
+      .from('research_room_topic_catalog')
+      .select('id, label')
+      .eq('status', 'approved')
+      .order('label')
+    parentDemandTopics = (demandTopics ?? []) as Array<{ id: string; label: string }>
     const { data: sessions } = await svc
       .from('research_sessions')
       .select('id, title, summary, created_at, last_active_at, active_lens_id')
@@ -424,6 +431,7 @@ export default async function ResearchRoomPage({
       initialActiveChildId={activeChildId}
       comparisonData={comparisonData}
       availableComparisonIds={availableComparisonIds}
+      parentDemandTopics={parentDemandTopics}
       comparisonError={comparisonError}
       lens={lens}
       initialSession={initialSession}

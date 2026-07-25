@@ -13,6 +13,7 @@ import {
 } from './seed-rows'
 import type { NotionBackfillRow } from './pupil-composition'
 import { isGeneralSeedRowName } from './seed-row-names'
+import { recordResearchRoomTopicRequest } from './topic-demand-requests'
 
 type StoredCell = {
   value?: string | number | null
@@ -146,6 +147,18 @@ async function queueMissingDatabaseTopic({
       },
     })
   if (insertError) throw new Error(`comparison backfill request insert failed: ${insertError.message}`)
+  await recordResearchRoomTopicRequest({
+    supabase: supabaseService,
+    requestKey: requestId,
+    userId,
+    childId,
+    originalQuery: topic,
+    canonicalTopic: topic,
+    schoolSlugs: [schoolSlug],
+    missingSchoolSlugs: [schoolSlug],
+    reason: 'shortlist_school_added',
+    requestedAt,
+  })
   return true
 }
 

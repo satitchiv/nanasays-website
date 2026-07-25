@@ -63,6 +63,7 @@ type LensListItem = {
 type Props = {
   data?: ComparisonData
   availableComparisonIds?: string[]
+  parentDemandTopics?: Array<{ id: string; label: string }>
   activeChildName?: string | null
   lens?: Lens
   // Round-4 fix (Codex F3): when the server-side load throws, the page
@@ -130,6 +131,7 @@ function comparisonStorageKey(kind: 'priorities' | 'local-rows', childId: string
 export default function ComparisonView({
   data = EMPTY_DATA,
   availableComparisonIds = SUPPORTED_COMPARISON_IDS,
+  parentDemandTopics = [],
   activeChildName = null,
   lens = 'general',
   loadError = null,
@@ -460,7 +462,26 @@ export default function ComparisonView({
       topic.label.toLowerCase() === match.canonicalTopic.toLowerCase())
     if (researchTopic) existingComparisonRows.set(`research:${researchTopic.id}`, row.id)
   })
-  const autocompleteSuggestions = findComparisonCatalogueSuggestions(newRowLabel)
+  for (const topic of parentDemandTopics) {
+    const matchingRow = rows.find(row => row.label.trim().toLowerCase() === topic.label.trim().toLowerCase())
+    if (matchingRow) existingComparisonRows.set(`research:demand-${topic.id}`, matchingRow.id)
+  }
+  const staticSuggestions = findComparisonCatalogueSuggestions(newRowLabel)
+  const staticLabels = new Set(findComparisonCatalogueSuggestions('').map(topic => topic.label.toLowerCase()))
+  const demandSuggestions = parentDemandTopics
+    .filter(topic => {
+      const query = newRowLabel.trim().toLowerCase()
+      return !query || topic.label.toLowerCase().includes(query)
+    })
+    .filter(topic => !staticLabels.has(topic.label.toLowerCase()))
+    .map(topic => ({
+      kind: 'research_only' as const,
+      id: `demand-${topic.id}`,
+      label: topic.label,
+      searchTerms: [topic.label],
+      patterns: [],
+    }))
+  const autocompleteSuggestions = [...staticSuggestions, ...demandSuggestions]
 
   const tableSchoolIndices = isNarrow
     ? [Math.max(0, schools.findIndex(school => school.slug === mobileSchoolSlug))]

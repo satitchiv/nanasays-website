@@ -1,0 +1,42 @@
+name: Research Room topic demand
+
+on:
+  schedule:
+    # Run after the comparison refresh so newly verified coverage is already
+    # available when parents see promoted topics.
+    - cron: '30 0,12 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Use dry-run first; apply only promotes repeated parent-demand labels.'
+        required: true
+        default: dry-run
+        type: choice
+        options:
+          - dry-run
+          - apply
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Promote repeated Research Room topic demand
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            npm run research:batch:topic-demand -- --apply --scheduled --json
+          else
+            npm run research:batch:topic-demand -- --${{ inputs.mode }} --json
+          fi
