@@ -19,7 +19,7 @@ import { KNOWN_FULL_BOARDING_NAMES, normalizeSchoolName } from '@/lib/school-nam
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
-type CellValue = {
+export type CellValue = {
   value: string | number | null
   source?: string
   note?: string
@@ -27,7 +27,7 @@ type CellValue = {
 
 type CellData = Record<string, CellValue>
 
-type StructuredRow = {
+export type StructuredRow = {
   school_slug:        string
   fees_min:           number | null
   fees_max:           number | null
@@ -43,7 +43,7 @@ type StructuredRow = {
   bursary_note:       string | null
 }
 
-type SchoolMeta = {
+export type SchoolMeta = {
   slug:          string
   name:          string
   city:          string | null
@@ -341,6 +341,21 @@ const GENERAL_SPECS: SeedRowSpec[] = [
   { slug: 'y9_y10_admissions',     row_name: 'Year 9 / 10 admissions',      group_name: 'Admissions', sort_order: 1700, build: buildY9Y10Admissions },
   { slug: 'school_view',           row_name: 'School view',                 group_name: 'Media',      sort_order: 1800, build: buildSchoolView },
 ]
+
+/**
+ * Resolve one existing seeded row for a newly added school. This reuses the
+ * exact builders used at session creation, so shortlist additions cannot
+ * drift from the original comparison values.
+ */
+export function resolveSeedComparisonCell(
+  rowName: string,
+  meta: SchoolMeta,
+  struct: StructuredRow | null,
+): CellValue | null {
+  const normalized = rowName.trim().toLowerCase()
+  const spec = GENERAL_SPECS.find(item => item.row_name.toLowerCase() === normalized)
+  return spec?.build({ meta, struct }) ?? null
+}
 
 // ─── Public entrypoint ──────────────────────────────────────────────────────
 

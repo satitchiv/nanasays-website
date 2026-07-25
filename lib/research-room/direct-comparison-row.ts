@@ -515,15 +515,24 @@ export function resolveTrustedComparisonCell(
     return universityDestinationsCell(structured)
   }
 
-  if (/\bfootball strength and achievements\b/.test(query)) {
+  if (
+    /\bfootball competitive level and results\b/.test(query)
+    || /\bfootball strength and achievements\b/.test(query)
+  ) {
     return footballStrengthCell(structured)
   }
 
-  if (/\bfootball opportunities and programme depth\b/.test(query)) {
+  if (
+    /\bfootball teams and playing opportunities\b/.test(query)
+    || /\bfootball opportunities and programme depth\b/.test(query)
+  ) {
     return footballOpportunitiesCell(structured)
   }
 
-  if (/\bfootball coaching and player pathway\b/.test(query)) {
+  if (
+    /\bfootball coaching and elite pathway\b/.test(query)
+    || /\bfootball coaching and player pathway\b/.test(query)
+  ) {
     return footballDevelopmentCell(structured)
   }
 

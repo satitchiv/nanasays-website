@@ -2,6 +2,7 @@ import 'server-only'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { ComparisonData, ComparisonRow, RowCell, SchoolColumn } from '@/components/nana/comparison-placeholder'
 import { assertUserId } from './school-name-overrides'
+import { matchComparisonRequest } from './research-room/comparison-catalog'
 
 // Slice 5.5b — lens-aware single-source comparison loader.
 //
@@ -210,6 +211,10 @@ async function loadLensRows(
   })
 
   return filtered.map(r => {
+    const catalogueMatch = matchComparisonRequest(r.row_name)
+    const displayLabel = catalogueMatch.kind === 'supported'
+      ? catalogueMatch.label
+      : r.row_name
     const cells: RowCell[] = schools.map(col => {
       const c = r.cell_data?.[col.slug]
       if (!c || c.value == null || c.value === '') return { kind: 'empty' }
@@ -230,7 +235,7 @@ async function loadLensRows(
     // "A-level") set by chat proposals; seeded specs leave it unset.
     return {
       id:        `cmp-${r.id}`,
-      label:     r.row_name,
+      label:     displayLabel,
       cells,
       removable: r.lens_kind === 'chat',
     }

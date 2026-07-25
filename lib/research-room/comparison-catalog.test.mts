@@ -75,9 +75,9 @@ test('publishes a concise supported catalogue for the interface', () => {
     'Registration fee',
     'Lowest boarding entry',
     'University destinations',
-    'Football strength and achievements',
-    'Football opportunities and programme depth',
-    'Football coaching and player pathway',
+    'Football competitive level and results',
+    'Football teams and playing opportunities',
+    'Football coaching and elite pathway',
     'Sports opportunities',
   ])
 })
@@ -121,32 +121,32 @@ test('maps varied football wording into three canonical database topics', () => 
   assert.deepEqual(matchComparisonRequest('football'), {
     kind: 'supported',
     id: 'football_strength',
-    label: 'Football strength and achievements',
+    label: 'Football competitive level and results',
   })
   assert.deepEqual(matchComparisonRequest('football strength'), {
     kind: 'supported',
     id: 'football_strength',
-    label: 'Football strength and achievements',
+    label: 'Football competitive level and results',
   })
   assert.deepEqual(matchComparisonRequest('achievements in soccer'), {
     kind: 'supported',
     id: 'football_strength',
-    label: 'Football strength and achievements',
+    label: 'Football competitive level and results',
   })
   assert.deepEqual(matchComparisonRequest('football opportunity'), {
     kind: 'supported',
     id: 'football_opportunities',
-    label: 'Football opportunities and programme depth',
+    label: 'Football teams and playing opportunities',
   })
   assert.deepEqual(matchComparisonRequest('football scholarship'), {
     kind: 'supported',
     id: 'football_development',
-    label: 'Football coaching and player pathway',
+    label: 'Football coaching and elite pathway',
   })
   assert.deepEqual(matchComparisonRequest('football pathway'), {
     kind: 'supported',
     id: 'football_development',
-    label: 'Football coaching and player pathway',
+    label: 'Football coaching and elite pathway',
   })
   assert.equal(
     findComparisonCatalogueSuggestions('how good are the schools in football')[0]?.id,
@@ -171,6 +171,23 @@ test('offers all three football topics for broad and misspelled searches', () =>
   assert.equal(isDatabaseOnlyComparison('football_opportunities'), true)
   assert.equal(isDatabaseOnlyComparison('football_development'), true)
   assert.equal(isDatabaseOnlyComparison('sports_opportunities'), false)
+})
+
+test('keeps previously saved football row labels mapped to the clearer topics', () => {
+  assert.equal(matchComparisonRequest('Football strength and achievements').kind, 'supported')
+  assert.equal(
+    matchComparisonRequest('Football opportunities and programme depth').kind,
+    'supported',
+  )
+  assert.equal(
+    matchComparisonRequest('Football coaching and player pathway').kind,
+    'supported',
+  )
+  assert.deepEqual(matchComparisonRequest('Football coaching and player pathway'), {
+    kind: 'supported',
+    id: 'football_development',
+    label: 'Football coaching and elite pathway',
+  })
 })
 
 test('keeps research-only topics visible and requestable', () => {

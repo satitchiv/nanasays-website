@@ -85,11 +85,11 @@ test('resolves common trusted criteria without web research', () => {
   assert.equal(resolveTrustedComparisonCell('University destinations', school)?.value, 'Oxford · Cambridge · Durham')
   assert.equal(resolveTrustedComparisonCell('Sports opportunities', school)?.value, 'Rugby · Tennis · 50m pool')
   assert.equal(
-    resolveTrustedComparisonCell('Football strength and achievements', school)?.value,
+    resolveTrustedComparisonCell('Football competitive level and results', school)?.value,
     'National strong',
   )
   assert.deepEqual(
-    resolveTrustedComparisonCell('Football opportunities and programme depth', school),
+    resolveTrustedComparisonCell('Football teams and playing opportunities', school),
     {
       value: 'Major sport',
       note: '12 teams visible',
@@ -99,7 +99,7 @@ test('resolves common trusted criteria without web research', () => {
     },
   )
   assert.equal(
-    resolveTrustedComparisonCell('Football coaching and player pathway', school)?.value,
+    resolveTrustedComparisonCell('Football coaching and elite pathway', school)?.value,
     'Academy or scholarship pathway',
   )
 })
@@ -124,15 +124,15 @@ test('does not publish football cells that fail the database evidence gate', () 
     },
   }
   assert.equal(
-    resolveTrustedComparisonCell('Football strength and achievements', oneSourceSchool),
+    resolveTrustedComparisonCell('Football competitive level and results', oneSourceSchool),
     null,
   )
   assert.equal(
-    resolveTrustedComparisonCell('Football opportunities and programme depth', oneSourceSchool),
+    resolveTrustedComparisonCell('Football teams and playing opportunities', oneSourceSchool),
     null,
   )
   assert.equal(
-    resolveTrustedComparisonCell('Football coaching and player pathway', oneSourceSchool),
+    resolveTrustedComparisonCell('Football coaching and elite pathway', oneSourceSchool),
     null,
   )
 })
@@ -156,12 +156,27 @@ test('keeps unknown strength out while allowing separately evidenced programme d
     },
   }
   assert.equal(
-    resolveTrustedComparisonCell('Football strength and achievements', unknownTierSchool),
+    resolveTrustedComparisonCell('Football competitive level and results', unknownTierSchool),
     null,
   )
   assert.equal(
-    resolveTrustedComparisonCell('Football opportunities and programme depth', unknownTierSchool)?.value,
+    resolveTrustedComparisonCell('Football teams and playing opportunities', unknownTierSchool)?.value,
     'Development sport',
+  )
+})
+
+test('continues resolving previously saved football row labels', () => {
+  assert.equal(
+    resolveTrustedComparisonCell('Football strength and achievements', school)?.value,
+    'National strong',
+  )
+  assert.equal(
+    resolveTrustedComparisonCell('Football opportunities and programme depth', school)?.value,
+    'Major sport',
+  )
+  assert.equal(
+    resolveTrustedComparisonCell('Football coaching and player pathway', school)?.value,
+    'Academy or scholarship pathway',
   )
 })
 

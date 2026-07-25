@@ -162,7 +162,7 @@ export const SUPPORTED_COMPARISONS: SupportedComparison[] = [
   },
   {
     id: 'football_strength',
-    label: 'Football strength and achievements',
+    label: 'Football competitive level and results',
     searchTerms: [
       'football',
       'soccer',
@@ -181,7 +181,7 @@ export const SUPPORTED_COMPARISONS: SupportedComparison[] = [
   },
   {
     id: 'football_opportunities',
-    label: 'Football opportunities and programme depth',
+    label: 'Football teams and playing opportunities',
     searchTerms: [
       'football opportunities',
       'soccer opportunities',
@@ -198,7 +198,7 @@ export const SUPPORTED_COMPARISONS: SupportedComparison[] = [
   },
   {
     id: 'football_development',
-    label: 'Football coaching and player pathway',
+    label: 'Football coaching and elite pathway',
     searchTerms: [
       'football coaching',
       'football coach',

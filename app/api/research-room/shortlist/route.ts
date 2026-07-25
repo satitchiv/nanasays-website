@@ -3,6 +3,8 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies, headers } from 'next/headers'
 import { isResearchRoomEnabled } from '@/lib/feature-flags'
 import { getUnlockedUser } from '@/lib/paid-status'
+import { supabaseService } from '@/lib/supabase-admin'
+import { backfillAddedSchoolComparisonCells } from '@/lib/research-room/backfill-added-school'
 
 // POST /api/research-room/shortlist
 //
@@ -121,7 +123,36 @@ export async function POST(req: NextRequest) {
     // school_slug name colliding with the table column).
     const { out_slug, out_status } = result as { out_slug: string; out_status: string }
     if (out_status === 'added' || out_status === 'already_present') {
-      return NextResponse.json({ ok: true, status: out_status, school_slug: out_slug }, { status: out_status === 'added' ? 201 : 200 })
+      let comparisonBackfill = null
+      try {
+        comparisonBackfill = await backfillAddedSchoolComparisonCells({
+          supabaseUser: supabase,
+          supabaseService: supabaseService(),
+          userId: user.id,
+          childId: body.child_id,
+          schoolSlug: out_slug,
+        })
+      } catch (backfillError) {
+        // The school has already been added, so do not misreport the shortlist
+        // mutation as failed. Surface a retryable partial status for telemetry.
+        console.error('[research-room/shortlist] comparison backfill failed', backfillError)
+        comparisonBackfill = {
+          status: 'partial',
+          rows_examined: 0,
+          cells_filled: 0,
+          cells_preserved: 0,
+          cells_unfilled: 0,
+          rows_update_failed: 1,
+          missing_database_topics: [],
+          research_requests_queued: 0,
+        }
+      }
+      return NextResponse.json({
+        ok: true,
+        status: out_status,
+        school_slug: out_slug,
+        comparison_backfill: comparisonBackfill,
+      }, { status: out_status === 'added' ? 201 : 200 })
     }
     console.error('[research-room/shortlist] unexpected add status:', out_status)
     return NextResponse.json({ ok: false, code: 'internal' }, { status: 500 })
