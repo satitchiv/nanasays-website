@@ -472,4 +472,3 @@ export async function POST(
     interpretation: interpretationStatus,
   })
 }
-

@@ -3,10 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "NEXT_DIST_DIR=.next-slice6.5 next dev -H 0.0.0.0",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "research:requests": "node --env-file=.env.local scripts/list-comparison-research-requests.mjs",
+    "research:coverage": "node --env-file=.env.local --experimental-strip-types scripts/audit-research-room-comparisons.mts",
+    "research:coverage:add-school": "node --env-file=.env.local --experimental-strip-types --import ./scripts/register-node-typescript-loader.mjs scripts/audit-added-school-coverage.mts",
+    "research:batch:uk-comparisons": "node --env-file=.env.local --experimental-strip-types --import ./scripts/register-node-typescript-loader.mjs scripts/run-uk-comparison-topic-batch.mts",
+    "research:batch:topic-demand": "node --env-file=.env.local --experimental-strip-types --import ./scripts/register-node-typescript-loader.mjs scripts/run-research-room-topic-demand-creator.mts",
+    "test:research-room:scheduler": "node --experimental-strip-types --import ./scripts/register-node-typescript-loader.mjs --test lib/research-room/comparison-topic-batch.test.mts lib/research-room/uk-comparison-scheduler.test.mts lib/research-room/topic-demand-creator.test.mts lib/research-room/topic-evidence.test.mts lib/research-room/dynamic-topic-cell.test.mts lib/research-room/database-topic-candidates.test.mts",
+    "research:batch:pupil-composition": "node --env-file=.env.local --experimental-strip-types scripts/backfill-pupil-composition.mts",
+    "research:repair:current": "node --env-file=.env.local --experimental-strip-types scripts/repair-current-research-room.mts",
+    "test:research-room:source-failover": "node --experimental-strip-types --import ./scripts/register-node-typescript-loader.mjs scripts/test-seed-source-failover.mts",
+    "test:research-room:sticky": "node --experimental-strip-types scripts/test-comparison-sticky.mts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.91.1",

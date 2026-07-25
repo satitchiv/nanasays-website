@@ -1,0 +1,42 @@
+name: Research Room UK comparisons
+
+on:
+  schedule:
+    # Twice daily, UTC. The script collapses retries into the same 00:00/12:00
+    # slot key, so a duplicate delivery is a logged no-op.
+    - cron: '0 0,12 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Use dry-run for the first manual smoke test; apply writes only verified missing cells.'
+        required: true
+        default: dry-run
+        type: choice
+        options:
+          - dry-run
+          - apply
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+      SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - name: Run verified UK comparison scheduler
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            npm run research:batch:uk-comparisons -- --apply --scheduled --json
+          else
+            npm run research:batch:uk-comparisons -- --${{ inputs.mode }} --json
+          fi

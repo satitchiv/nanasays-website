@@ -64,6 +64,7 @@ export default async function ResearchRoomPage({
   let children: Awaited<ReturnType<typeof loadActiveChildren>> = []
   let activeChildId: string | null = null
   let familyPreferences: Record<string, string | null> | undefined
+  let parentDemandTopics: Array<{ id: string; label: string }> = []
 
   if (user) {
     try {
@@ -138,6 +139,16 @@ export default async function ResearchRoomPage({
 
   if (user && activeChildId) {
     const svc = supabaseService()
+
+    // Approved database-inventory topics are shown in the comparison picker.
+    // The topic creator has already checked these against verified UK data;
+    // the page only reads the catalogue and never crawls school websites.
+    const { data: topicCatalog } = await svc
+      .from('research_room_topic_catalog')
+      .select('id, label')
+      .eq('status', 'approved')
+      .order('label')
+    parentDemandTopics = (topicCatalog ?? []) as Array<{ id: string; label: string }>
 
     // Slice 8 Step 0.5 v5: hoist context load before session lookup so
     // the ensure-gate and the seed block share one read (r4 NIT #6).
@@ -533,6 +544,7 @@ export default async function ResearchRoomPage({
       familyPreferences={familyPreferences}
       initialActiveChildId={activeChildId}
       comparisonData={comparisonData}
+      parentDemandTopics={parentDemandTopics}
       comparisonError={comparisonError}
       lens={lens}
       initialSession={initialSession}

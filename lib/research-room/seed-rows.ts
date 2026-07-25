@@ -8,6 +8,7 @@ import {
   isSportPriority,
 } from './brief-predicates'
 import { canonicalJson } from './canonical-json'
+import { generalSeedRowSlug } from './seed-row-names'
 
 // Slice 5.5d / Slice 8 Build 2 — General-lens row seeder.
 //
@@ -48,7 +49,7 @@ type CellValue = {
 
 type CellData = Record<string, CellValue>
 
-type StructuredRow = {
+export type StructuredRow = {
   school_slug:        string
   fees_min:           number | null
   fees_max:           number | null
@@ -62,16 +63,31 @@ type StructuredRow = {
   fees_by_grade:      Record<string, unknown> | null
   application_fee_usd: number | null
   bursary_note:       string | null
+  curriculum?: unknown[] | null
+  languages?: unknown[] | null
+  scholarships_available?: unknown[] | null
+  pastoral_care?: string | null
+  pastoral_model?: string | null
+  wellbeing_staffing?: Record<string, unknown> | null
+  school_life?: Record<string, unknown> | null
+  facilities?: unknown[] | null
 }
 
-type SchoolMeta = {
+export type SchoolMeta = {
   slug:          string
   name:          string
   city:          string | null
   region:        string | null
   boarding:      boolean | null
   gender_split:  string | null
+  distance_airport?: string | null
 }
+
+// Shared by the server-side Research Room loaders and the verified batch jobs.
+// Keep this limited to database/mirror columns; no website-crawl fields belong
+// in this select.
+export const RESEARCH_ROOM_STRUCTURED_SELECT =
+  'school_slug, fees_min, fees_max, fees_currency, exam_results, university_destinations, admissions_format, sports_profile, student_community, location_profile, fees_by_grade, application_fee_usd, bursary_note, curriculum, languages, scholarships_available, pastoral_care, pastoral_model, wellbeing_staffing, school_life, facilities' as const
 
 // One row of school_notion_backfill (Phase 1 sidecar). `parsed` holds the
 // fields the parser was confident enough to write — extractor is still the
@@ -689,6 +705,19 @@ const GENERAL_SPECS: SeedRowSpec[] = [
   { slug: 'y9_y10_admissions',     row_name: 'Year 9 / 10 admissions',      group_name: 'Admissions', sort_order: 1700, build: buildY9Y10Admissions, winnerRule: 'neutral' },
   { slug: 'school_view',           row_name: 'School view',                 group_name: 'Media',      sort_order: 1800, build: buildSchoolView, winnerRule: 'neutral' },
 ]
+
+/** Resolve one managed seed row for a newly added school using the same
+ * builders as initial Research Room seeding. */
+export function resolveSeedComparisonCell(
+  rowName: string,
+  meta: SchoolMeta,
+  struct: StructuredRow | null,
+  notion: NotionBackfillRow | null = null,
+): CellValue | null {
+  const slug = generalSeedRowSlug(rowName)
+  const spec = GENERAL_SPECS.find(item => item.slug === slug)
+  return spec?.build({ meta, struct, notion }) ?? null
+}
 
 // ─── Brief-aware specs (Slice 8 Build 2) ────────────────────────────────────
 //

@@ -383,4 +383,3 @@ test('Phase C: mobile focus effect retargets to chat.inputRef when fullscreen', 
     'mobile focus effect must route fullscreen → chat.inputRef.current?.focus()',
   )
 })
-
