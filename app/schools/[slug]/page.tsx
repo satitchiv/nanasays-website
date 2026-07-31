@@ -46,6 +46,7 @@ import NanaHandleLocked from '@/components/nana/NanaHandleLocked'
 import { isPaidModeOn } from '@/lib/paid-mode'
 import SchoolPageNav from '@/components/school/SchoolPageNav'
 import SidebarTabs from '@/components/school/SidebarTabs'
+import { getActiveSeoOverride } from '@/lib/seo-overrides'
 import '@/components/school/school-page-nav.css'
 import './report/report.css'
 
@@ -183,14 +184,19 @@ function buildSchoolDescription(school: School): string {
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const [school, indexable] = await Promise.all([
+  const [school, indexable, override] = await Promise.all([
     getSchoolBySlug(params.slug),
     isSchoolIndexable(params.slug),
+    getActiveSeoOverride('school', params.slug),
   ])
   if (!school) return { title: 'School Not Found' }
+  const generatedTitle = buildSchoolTitle(school)
+  const generatedDescription = buildSchoolDescription(school)
+  const title = override?.seo_title ?? generatedTitle
+  const description = override?.meta_description ?? generatedDescription
   return {
-    title: { absolute: buildSchoolTitle(school) },
-    description: buildSchoolDescription(school),
+    title: { absolute: title },
+    description,
     alternates: {
       canonical: `https://nanasays.school/schools/${params.slug}`,
     },
@@ -206,8 +212,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       },
     },
     openGraph: {
-      title: buildSchoolTitle(school),
-      description: buildSchoolDescription(school),
+      title,
+      description,
       ...(school.hero_image && {
         images: [{ url: school.hero_image, width: 1200, height: 630, alt: school.name }],
       }),

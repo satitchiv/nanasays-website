@@ -9,6 +9,7 @@ import { getSchoolsForCountryPage, getCountrySchoolCounts } from '@/lib/schools'
 import { supabase } from '@/lib/supabase'
 import { REGIONS_DATA } from '@/lib/regionData'
 import CountryPageClient from '@/components/country/CountryPageClient'
+import { getActiveSeoOverride } from '@/lib/seo-overrides'
 
 interface Props { params: { slug: string } }
 
@@ -41,16 +42,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const meta = getCountryPageMeta(params.slug)
   if (!meta) return { title: 'Country not found · nanasays' }
 
-  const { count } = await supabase
-    .from('schools')
-    .select('id', { count: 'exact', head: true })
-    .eq('country', meta.name)
-    .eq('is_international', true)
+  const [{ count }, override] = await Promise.all([
+    supabase
+      .from('schools')
+      .select('id', { count: 'exact', head: true })
+      .eq('country', meta.name)
+      .eq('is_international', true),
+    getActiveSeoOverride('country', params.slug),
+  ])
 
   const countLabel = count && count > 0 ? `${count}+ ` : ''
 
-  const title = `International Schools in ${meta.name} — ${countLabel}Fees & Reviews`
-  const description = `Browse ${countLabel}international schools in ${meta.name}. Compare fees, curriculum, boarding options and admissions — all on NanaSays.`
+  const generatedTitle = `International Schools in ${meta.name} — ${countLabel}Fees & Reviews`
+  const generatedDescription = `Browse ${countLabel}international schools in ${meta.name}. Compare fees, curriculum, boarding options and admissions — all on NanaSays.`
+  const title = override?.seo_title ?? generatedTitle
+  const description = override?.meta_description ?? generatedDescription
   return {
     title,
     description,
