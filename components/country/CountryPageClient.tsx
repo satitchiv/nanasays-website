@@ -347,6 +347,25 @@ export default function CountryPageClient({ meta, schools }: Props) {
           </div>
 
           {/* Country Intro Copy — collapsible */}
+          {meta.name === 'Thailand' && (
+            <div style={{
+              background: 'var(--navy)', color: '#fff', borderRadius: 14,
+              marginBottom: 14, padding: '18px 20px',
+            }}>
+              <div style={{ fontSize: 11, color: 'var(--teal)', fontWeight: 800, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 6 }}>
+                Explore Bangkok
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 14, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: 14, lineHeight: 1.5, color: 'rgba(255,255,255,.78)' }}>
+                  Compare the largest concentration of international schools in Thailand by fees, curriculum and admissions information.
+                </span>
+                <Link href="/cities/bangkok" style={{ color: 'var(--teal)', fontSize: 13, fontWeight: 800, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                  Bangkok schools →
+                </Link>
+              </div>
+            </div>
+          )}
+
           {meta.countryIntro && (
             <div style={{
               background: '#fff',
