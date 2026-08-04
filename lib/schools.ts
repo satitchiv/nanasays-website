@@ -216,8 +216,13 @@ export async function getFilterCombinations(): Promise<{ country: string; filter
     // Count by school type
     if (row.school_type) {
       const typeSlug = row.school_type.toLowerCase().trim()
-      const key = `${countrySlug}|${typeSlug}`
-      countMap[key] = (countMap[key] || 0) + 1
+      // Only emit routes that the filter page actually supports. Database
+      // values also contain descriptive types such as "British international";
+      // those must not become invalid sitemap URLs.
+      if (FILTER_TYPES.includes(typeSlug as FilterType)) {
+        const key = `${countrySlug}|${typeSlug}`
+        countMap[key] = (countMap[key] || 0) + 1
+      }
     }
 
     // Count by curriculum
