@@ -34,7 +34,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     ? `Compare ${filterLabel} international schools in Thailand, including Bangkok, Chiang Mai and Phuket. Browse fees, curricula, boarding options and admissions on NanaSays.`
     : `Find the best ${filterLabel.toLowerCase()} international schools in ${meta.name}. Browse fees, curriculum, boarding options and more on NanaSays.`
   return {
-    title: `${title} | NanaSays`,
+    title,
     description,
     alternates: { canonical: `https://nanasays.school/schools/${params.slug}/${params.filter}` },
     openGraph: {
