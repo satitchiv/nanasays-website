@@ -27,10 +27,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const meta = getCountryPageMeta(params.slug)
   if (!meta) return { title: 'Not Found' }
   const filterLabel = filterSlugToLabel(params.filter)
-  const title = `${filterLabel} Schools in ${meta.name}`
-  const description = `Find the best ${filterLabel.toLowerCase()} international schools in ${meta.name}. Browse fees, curriculum, boarding options and more on NanaSays.`
+  const title = meta.name === 'Thailand'
+    ? `${filterLabel} Schools in Thailand — Fees, Reviews & Admissions`
+    : `${filterLabel} Schools in ${meta.name}`
+  const description = meta.name === 'Thailand'
+    ? `Compare ${filterLabel} international schools in Thailand, including Bangkok, Chiang Mai and Phuket. Browse fees, curricula, boarding options and admissions on NanaSays.`
+    : `Find the best ${filterLabel.toLowerCase()} international schools in ${meta.name}. Browse fees, curriculum, boarding options and more on NanaSays.`
   return {
-    title: `${title} · nanasays`,
+    title: `${title} | NanaSays`,
     description,
     alternates: { canonical: `https://nanasays.school/schools/${params.slug}/${params.filter}` },
     openGraph: {
@@ -151,6 +155,28 @@ export default async function FilterPage({ params }: Props) {
       {/* School grid */}
       <main style={{ background: 'var(--off)', padding: '40px 5% 80px' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+          {meta.name === 'Thailand' && (
+            <section style={{
+              background: '#fff', border: '1px solid var(--border)', borderRadius: 14,
+              padding: '20px 22px', marginBottom: 24,
+            }}>
+              <h2 style={{
+                fontFamily: 'var(--font-nunito), Nunito, sans-serif',
+                fontSize: 20, color: 'var(--navy)', margin: '0 0 8px',
+              }}>
+                {filterLabel} international schools in Thailand
+              </h2>
+              <p style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--body)', margin: '0 0 12px' }}>
+                Compare {filterLabel.toLowerCase()} schools in Thailand by location, curriculum, fees and the information available for each school. Bangkok has the largest selection, with further options in Chiang Mai, Phuket and other parts of the country.
+              </p>
+              <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 13, fontWeight: 700 }}>
+                <Link href="/countries/thailand" style={{ color: 'var(--blue)' }}>All Thailand schools →</Link>
+                <Link href="/blog/international-schools-bangkok-guide" style={{ color: 'var(--blue)' }}>Bangkok guide →</Link>
+                <Link href="/blog/ib-schools-thailand" style={{ color: 'var(--blue)' }}>Thailand IB guide →</Link>
+                <Link href="/blog/ib-vs-igcse-parents-guide" style={{ color: 'var(--blue)' }}>IB vs IGCSE guide →</Link>
+              </div>
+            </section>
+          )}
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
