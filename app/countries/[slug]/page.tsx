@@ -211,7 +211,11 @@ export default async function CountryPage({ params }: Props) {
 
   // ── Intro copy ──────────────────────────────────────────────────────────────
   const countryIntros = loadCountryIntros()
-  const countryIntro = countryIntros[meta.name] ?? null
+  // Thailand's directory changes frequently; avoid showing the older
+  // generated snapshot and keep the SEO copy aligned with live counts.
+  const countryIntro = meta.name === 'Thailand'
+    ? `NanaSays currently lists ${totalCount} international schools in Thailand. Families can compare fees, curricula, boarding options and admissions information across Bangkok, Chiang Mai, Phuket and other locations.\n\nBangkok has the broadest choice, while Chiang Mai and Phuket offer smaller international-school communities. Use the curriculum pages to compare IB and IGCSE schools, then open individual school profiles to review the facts available for each campus.`
+    : countryIntros[meta.name] ?? null
 
   const feeTableSchools = (feeTableData.data ?? []).map(s => ({
     name: s.name,
